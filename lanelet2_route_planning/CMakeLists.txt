@@ -11,9 +11,10 @@ find_package(ament_cmake REQUIRED)
 # further dependencies manually.
 # find_package(<dependency> REQUIRED)
 find_package(rclcpp REQUIRED)
+find_package(lanelet2_map_interface REQUIRED)
 
 add_executable(global_planner_node src/global_planner_node.cpp)
-ament_target_dependencies(global_planner_node rclcpp)
+ament_target_dependencies(global_planner_node rclcpp lanelet2_map_interface)
 
 target_include_directories(global_planner_node PUBLIC
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
