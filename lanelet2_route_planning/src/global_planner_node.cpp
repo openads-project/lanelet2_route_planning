@@ -15,23 +15,13 @@ void GlobalPlanner::initializeMapInterface()
 
 int main(int argc, char ** argv)
 {
-  RCLCPP_INFO_STREAM(rclcpp::get_logger("rclcpp"), "Start");
   rclcpp::init(argc, argv);
-  RCLCPP_INFO_STREAM(rclcpp::get_logger("rclcpp"), "Init Ready");
+  //rclcpp::executors::MultiThreadedExecutor executor;
   auto planner = std::make_shared<GlobalPlanner>();
-  RCLCPP_INFO_STREAM(rclcpp::get_logger("rclcpp"), "Created Node Pointer");
-
-  while(rclcpp::ok())
-  {
-    rclcpp::spin_some(planner);
-    RCLCPP_INFO_STREAM(rclcpp::get_logger("rclcpp"), "Spinned once!");
-    if(!planner->map_if_initialized_)
-    {
-      planner->initializeMapInterface();
-      RCLCPP_INFO_STREAM(rclcpp::get_logger("rclcpp"), "Initialized Map Interface");
-    }
-  }
-  
+  //executor.add_node(planner);
+  planner->initializeMapInterface();
+  rclcpp::spin(planner);
+  //executor.spin();
   rclcpp::shutdown();
   return 0;
 }
