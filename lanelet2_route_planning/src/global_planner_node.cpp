@@ -16,12 +16,12 @@ void GlobalPlanner::initializeMapInterface()
 int main(int argc, char ** argv)
 {
   rclcpp::init(argc, argv);
-  //rclcpp::executors::MultiThreadedExecutor executor;
+  // MutliThreadedExecutor is mandatory when using the lanelet2_map_interface
+  rclcpp::executors::MultiThreadedExecutor executor;
   auto planner = std::make_shared<GlobalPlanner>();
-  //executor.add_node(planner);
+  executor.add_node(planner);
   planner->initializeMapInterface();
-  rclcpp::spin(planner);
-  //executor.spin();
+  executor.spin();
   rclcpp::shutdown();
   return 0;
 }
