@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.8)
-project(lanelet2_route_planning)
+project(lanelet2_route_planning_ifs)
 
 if(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
   add_compile_options(-Wall -Wextra -Wpedantic)
@@ -10,21 +10,15 @@ find_package(ament_cmake REQUIRED)
 # uncomment the following section in order to fill in
 # further dependencies manually.
 # find_package(<dependency> REQUIRED)
-find_package(rclcpp REQUIRED)
-find_package(rclcpp_action REQUIRED)
-find_package(lanelet2_map_interface REQUIRED)
-find_package(lanelet2_route_planning_ifs REQUIRED)
+find_package(rosidl_default_generators REQUIRED)
+find_package(builtin_interfaces REQUIRED)
 
-add_executable(global_planner_node src/global_planner_node.cpp)
-ament_target_dependencies(global_planner_node rclcpp rclcpp_action lanelet2_map_interface lanelet2_route_planning_ifs)
+rosidl_generate_interfaces(${PROJECT_NAME}
+  "action/GlobalManeuver.action"
+  DEPENDENCIES builtin_interfaces
+)
 
-target_include_directories(global_planner_node PUBLIC
-  $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
-  $<INSTALL_INTERFACE:include>)
-target_compile_features(global_planner_node PUBLIC c_std_99 cxx_std_17)  # Require C99 and C++17
-
-install(TARGETS global_planner_node
-  DESTINATION lib/${PROJECT_NAME})
+ament_export_dependencies(rosidl_default_runtime)
 
 if(BUILD_TESTING)
   find_package(ament_lint_auto REQUIRED)
