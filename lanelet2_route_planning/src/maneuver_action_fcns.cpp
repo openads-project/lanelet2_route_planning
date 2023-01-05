@@ -17,12 +17,30 @@ rclcpp_action::GoalResponse GlobalPlanner::actionHandleGoal(
   maneuver_feedback_->destination_x = map_target.x();
   maneuver_feedback_->destination_y = map_target.y();
 
-  // Wait for global position of ego-vehicle
+  routingGraph_ = routing::RoutingGraph::build(*llmap, *trafficRules_);
+  routingGraphBicycle_ = routing::RoutingGraph::build(*llmap, *trafficRulesBicycle_);
+  std::vector<std::string> err = routingGraph_->checkValidity();
+  if(err.size()>0)
+  {
+    RCLCPP_ERROR(get_logger(), "Routing-Graph of given lanelet-map is invalid!");
+    for(int i = 0; i<err.size(); i++)
+    {
+      RCLCPP_ERROR_STREAM(get_logger(), err[i]);
+    }
+    return rclcpp_action::GoalResponse::REJECT;
+  }
 
+  // Check for global position of ego-vehicle
+  if(!egoPositionSanityCheck() || !targetPositionSanityCheck(map_target.x(), map_target.y()))
+  {
+    RCLCPP_ERROR(get_logger(), "Unable to plan a global maneuver!");
+    return rclcpp_action::GoalResponse::REJECT;
+  }
 
-  // Check if there are any lanelets at the destination
-  std::vector<std::pair<double, lanelet::ConstLanelet>> nearestLaneletsTarget = lanelet::geometry::findNearest(llmap->laneletLayer, lanelet::BasicPoint2d(map_target.x(), map_target.y()), 5);
-  //Lanelet2Utilities::laneletSorting(BasicPoint2d(map_target.x(), map_target.y()), nearestLaneletsTarget, {}, trafficRules_, {});
+  visualization_msgs::msg::Marker marker = convertDestination2Marker(map_target.x(), map_target.y(), "map");
+  viz_destination_pub_->publish(marker);
+
+  //planRoute(start_ll_, target_ll_);
 
   // accept action goal request
   return rclcpp_action::GoalResponse::ACCEPT_AND_EXECUTE;

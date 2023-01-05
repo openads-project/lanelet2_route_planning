@@ -15,11 +15,34 @@ find_package(rclcpp_action REQUIRED)
 find_package(lanelet2_map_interface REQUIRED)
 find_package(lanelet2_route_planning_ifs REQUIRED)
 find_package(lanelet2_utilities REQUIRED)
-find_package(ika_utilities REQUIRED)
+find_package(lanelet2_traffic_rules REQUIRED)
+find_package(lanelet2_routing REQUIRED)
 find_package(nav_msgs REQUIRED)
+find_package(geometry_msgs REQUIRED)
+find_package(visualization_msgs REQUIRED)
+find_package(tf2 REQUIRED)
 
-add_executable(global_planner_node src/global_planner_node.cpp src/maneuver_action_fcns.cpp src/callbacks.cpp)
-ament_target_dependencies(global_planner_node rclcpp rclcpp_action lanelet2_map_interface lanelet2_route_planning_ifs lanelet2_utilities ika_utilities nav_msgs)
+add_executable(global_planner_node
+  src/global_planner_node.cpp
+  src/maneuver_action_fcns.cpp
+  src/callbacks.cpp
+  src/utils.cpp
+  src/visualization.cpp
+  src/dummy_bicycle_rules.cpp)
+
+ament_target_dependencies(global_planner_node
+  rclcpp
+  rclcpp_action
+  lanelet2_map_interface
+  lanelet2_route_planning_ifs
+  lanelet2_utilities
+  lanelet2_traffic_rules
+  lanelet2_routing
+  nav_msgs
+  geometry_msgs
+  visualization_msgs
+  tf2
+)
 
 target_include_directories(global_planner_node PUBLIC
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
