@@ -22,6 +22,10 @@
 #include <lanelet2_routing/RoutingGraph.h>
 #include <lanelet2_routing/RoutingGraphContainer.h>
 
+#include <lanelet2_core/utility/Units.h>
+#include <lanelet2_core/geometry/Lanelet.h>
+#include <lanelet2_core/geometry/LaneletMap.h>
+
 using namespace std::chrono_literals;
 
 class GlobalPlanner : public rclcpp::Node
@@ -35,21 +39,28 @@ class GlobalPlanner : public rclcpp::Node
         // Variables
         LL2MapInterface *ll2if_;
         nav_msgs::msg::Odometry ego_pose_;
+        lanelet::LaneletMapConstPtr llmap_;
         traffic_rules::TrafficRulesPtr trafficRules_ = lanelet::traffic_rules::TrafficRulesFactory::create(lanelet::Locations::Germany, std::string(lanelet::Participants::Vehicle) + ":ika");
         routing::RoutingGraphUPtr routingGraph_;
         // Dummy traffic rules and routing graph for bicycles used to incorporate drivable bicycle lanes in our lane boundaries
         traffic_rules::TrafficRulesPtr trafficRulesBicycle_ = traffic_rules::TrafficRulesFactory::create(std::string(Locations::Germany) + ":dummy", Participants::Bicycle);
         routing::RoutingGraphUPtr routingGraphBicycle_;
 
+        int visualize_lvl_=1;
+
 
         lanelet::ConstLanelet start_ll_;    // most probable current Lanelet
+        int16_t start_lane_id_;
         lanelet::ConstLanelet target_ll_;
+        int16_t target_lane_id_;
+        double target_lane_s_dest_;
 
         std::vector<int64_t> shortest_path_ll_ids_;
-        lanelet::BasicLineString2d shortest_path_centerline_;
 
         double ds_sample_ = 2.0;
         double smooth_factor_ = 2.0;
+
+        Optional<lanelet::routing::Route> route_;
         
         // Timer
         rclcpp::TimerBase::SharedPtr startup_timer_;
@@ -64,7 +75,8 @@ class GlobalPlanner : public rclcpp::Node
 
         // Publisher
         rclcpp::Publisher<visualization_msgs::msg::Marker>::SharedPtr viz_destination_pub_;
-
+        rclcpp::Publisher<visualization_msgs::msg::MarkerArray>::SharedPtr viz_route_pub_;
+        rclcpp::Publisher<visualization_msgs::msg::MarkerArray>::SharedPtr viz_boundary_pub_;
 
         // Function Definitions
         // global_planner_node.cpp
@@ -72,6 +84,19 @@ class GlobalPlanner : public rclcpp::Node
         bool egoPositionSanityCheck();
         bool targetPositionSanityCheck(double target_x, double target_y);
         bool planRoute(lanelet::ConstLanelet start_ll, lanelet::ConstLanelet target_ll);
+        void constructLaneNetwork(const lanelet::routing::LaneletPath &shortestPath, visualization_msgs::msg::MarkerArray &viz_marker_array);
+        lanelet::BasicLineString2d sampleBoundaries(const lanelet::BasicLineString2d &centerline,
+                                                    const double test_dis,
+                                                    const bool &b_right,
+                                                    std::vector<int>& index_mapping,
+                                                    const lanelet::BasicLineString2d& lane_boundary,
+                                                    visualization_msgs::msg::MarkerArray& marker_array);
+        lanelet::BasicLineString2d sampleDrivableSpace(const lanelet::BasicLineString2d &centerline,
+                                                        const double test_dis,
+                                                        const bool &b_right,
+                                                        std::vector<int>& index_mapping,
+                                                        visualization_msgs::msg::MarkerArray& marker_array);
+
         
         // maneuver_action_fcns.cpp
         rclcpp_action::GoalResponse actionHandleGoal(
@@ -92,8 +117,45 @@ class GlobalPlanner : public rclcpp::Node
 
         // utils.cpp
         void processLineString(lanelet::BasicLineString2d& line_string, const std::string& desc, visualization_msgs::msg::MarkerArray &marker_array, std::vector<float> colors, std::vector<float> colors_smoothed);
+        bool handleInwardCorner(const lanelet::BasicPoint2d &base_p, lanelet::BasicPoint2d& best_point,
+                                                const std::pair<lanelet::BasicLineString2d, size_t>*& last_intersection_free_test_line,
+                                                lanelet::BasicLineString2d& previous_test_line,
+                                                const uint& idx, std::deque<std::pair<lanelet::BasicLineString2d, size_t>>& last_test_lines,
+                                                lanelet::BasicLineString2d& bound, std::vector<int>& index_mapping);
+        bool checkLineDrivability(const lanelet::ConstLineString3d &lineToCheck);
+
 
         // visualization.cpp
         visualization_msgs::msg::Marker convertDestination2Marker(double target_x, double target_y, std::string frame_id);
+        void visualizeIndexMapping(visualization_msgs::msg::Marker& marker, visualization_msgs::msg::MarkerArray& marker_array, const lanelet::BasicLineString2d& bound,
+                                    const std::string& left_right_string, const std::string& ns, const std::vector<int>& index_mapping);
 
+
+        // Datatypes
+        struct LaneletLaneSection {
+            float accumulated_s; // Accumulated length of lane at end of this section
+            u_int16_t route_index; // Index in LaneletLaneHierarchy.lane_hierarchy (in which section of the route)
+            u_int16_t spatial_index; // Index in LaneletLaneHierarchy.lane_hierarchy[route_index].neighboring_lanelets (which spatial position (right -> left) of the section)
+        };
+
+        struct LaneletExtended {
+            int64_t lanelet_id;
+            int16_t lane_id;
+            float v_max;
+        };
+
+        struct LaneletLane {
+            std::vector<LaneletLaneSection> lane_sections;
+            lanelet::BasicLineString2d line;
+        };
+
+        struct LaneletLaneHierarchy {
+            std::vector<LaneletExtended> neighboring_lanelets; // From most right (index 0) to most left
+            int16_t shortest_path_index; // Index in neighboring_lanelets of the shortest path entry
+        };
+
+        struct LaneletLaneNetwork {
+            std::vector<LaneletLaneHierarchy> lane_hierarchy; // Contains a spatial ordering of all lanelets of the route (from right to left per step) and maps them their lane id
+            std::vector<LaneletLane> lanes; // Contains mapping from lane id to all belonging lanelet ids + a smoothed line string for each line
+        };    
 };

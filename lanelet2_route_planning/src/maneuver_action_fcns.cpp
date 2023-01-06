@@ -12,13 +12,13 @@ rclcpp_action::GoalResponse GlobalPlanner::actionHandleGoal(
   glob_target.lat = goal->target_pos_lat;
   glob_target.lon = goal->target_pos_lon;
   std::shared_ptr<lanelet::Projector> proj = ll2if_->getProjectorPtr();
-  lanelet::LaneletMapConstPtr llmap = ll2if_->getMapPtr();
+  llmap_ = ll2if_->getMapPtr();
   lanelet::BasicPoint3d map_target = proj->forward(glob_target);
   maneuver_feedback_->destination_x = map_target.x();
   maneuver_feedback_->destination_y = map_target.y();
 
-  routingGraph_ = routing::RoutingGraph::build(*llmap, *trafficRules_);
-  routingGraphBicycle_ = routing::RoutingGraph::build(*llmap, *trafficRulesBicycle_);
+  routingGraph_ = routing::RoutingGraph::build(*llmap_, *trafficRules_);
+  routingGraphBicycle_ = routing::RoutingGraph::build(*llmap_, *trafficRulesBicycle_);
   std::vector<std::string> err = routingGraph_->checkValidity();
   if(err.size()>0)
   {
