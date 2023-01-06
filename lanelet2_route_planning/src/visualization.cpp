@@ -42,7 +42,7 @@ void GlobalPlanner::visualizeIndexMapping(visualization_msgs::msg::Marker& marke
     {
       marker.points.clear();
 
-      marker.header.frame_id = "map";
+      marker.header.frame_id = ll2if_->map_frame_id_;
       marker.header.stamp = now();
       marker.ns = ns + "_" + left_right_string;
       marker.type = visualization_msgs::msg::Marker::TEXT_VIEW_FACING;
@@ -69,7 +69,7 @@ void GlobalPlanner::visualizeIndexMapping(visualization_msgs::msg::Marker& marke
     {
       marker.points.clear();
 
-      marker.header.frame_id = "map";
+      marker.header.frame_id = ll2if_->map_frame_id_;
       marker.header.stamp = now();
       marker.ns = ns + "_mapping_" + left_right_string;
       marker.type = visualization_msgs::msg::Marker::TEXT_VIEW_FACING;

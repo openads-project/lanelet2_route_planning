@@ -37,7 +37,7 @@ rclcpp_action::GoalResponse GlobalPlanner::actionHandleGoal(
     return rclcpp_action::GoalResponse::REJECT;
   }
 
-  visualization_msgs::msg::Marker marker = convertDestination2Marker(map_target.x(), map_target.y(), "map");
+  visualization_msgs::msg::Marker marker = convertDestination2Marker(map_target.x(), map_target.y(), ll2if_->map_frame_id_);
   viz_destination_pub_->publish(marker);
 
   //planRoute(start_ll_, target_ll_);

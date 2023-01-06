@@ -11,24 +11,24 @@ void GlobalPlanner::processLineString(lanelet::BasicLineString2d& line_string, c
   {
     visualization_msgs::msg::Marker marker;
     colors[3] = 0.8;
-    Lanelet2Utilities::convertLaneletLine2VisuLineStrip(line_string, marker, "map", now(), desc, colors, 0.1);
+    Lanelet2Utilities::convertLaneletLine2VisuLineStrip(line_string, marker, ll2if_->map_frame_id_, now(), desc, colors, 0.1);
     marker_array.markers.push_back(marker);
     colors[3] = 1.0;
-    Lanelet2Utilities::convertLaneletLine2VisuSphere(line_string, marker, "map", now(), desc + " points", colors);
+    Lanelet2Utilities::convertLaneletLine2VisuSphere(line_string, marker, ll2if_->map_frame_id_, now(), desc + " points", colors);
     marker_array.markers.push_back(marker);
 
     // Index
     if (visualize_lvl_ > 1)
     {
       colors_smoothed[3] = 1.0;
-      Lanelet2Utilities::convertLaneletLine2VisuSphere(line_string, marker, "map", now(), desc + " points", colors_smoothed);
+      Lanelet2Utilities::convertLaneletLine2VisuSphere(line_string, marker, ll2if_->map_frame_id_, now(), desc + " points", colors_smoothed);
       marker_array.markers.push_back(marker);
 
       unsigned int index = 0;
       for (auto &p : line_string)
       {
           marker.points.clear();
-          marker.header.frame_id = "map";
+          marker.header.frame_id = ll2if_->map_frame_id_;
           marker.header.stamp = now();
           marker.ns = "lvl2_point_index_" + desc;
           marker.type = visualization_msgs::msg::Marker::TEXT_VIEW_FACING;
@@ -55,21 +55,21 @@ void GlobalPlanner::processLineString(lanelet::BasicLineString2d& line_string, c
   {
     visualization_msgs::msg::Marker marker;
     colors_smoothed[3] = 0.8;
-    Lanelet2Utilities::convertLaneletLine2VisuLineStrip(line_string, marker, "map", now(), desc + " (smoothed)",  colors_smoothed, 0.1);
+    Lanelet2Utilities::convertLaneletLine2VisuLineStrip(line_string, marker, ll2if_->map_frame_id_, now(), desc + " (smoothed)",  colors_smoothed, 0.1);
     marker_array.markers.push_back(marker);
 
     // Index
     if (visualize_lvl_ > 1)
     {
       colors_smoothed[3] = 1.0;
-      Lanelet2Utilities::convertLaneletLine2VisuSphere(line_string, marker, "map", now(), desc + " points (smoothed)", colors_smoothed);
+      Lanelet2Utilities::convertLaneletLine2VisuSphere(line_string, marker, ll2if_->map_frame_id_, now(), desc + " points (smoothed)", colors_smoothed);
       marker_array.markers.push_back(marker);
 
       unsigned int index = 0;
       for (auto &p : line_string)
       {
           marker.points.clear();
-          marker.header.frame_id = "map";
+          marker.header.frame_id = ll2if_->map_frame_id_;
           marker.header.stamp = now();
           marker.ns = "lvl2_point_index_" + desc + " (smoothed)";
           marker.type = visualization_msgs::msg::Marker::TEXT_VIEW_FACING;

@@ -422,7 +422,7 @@ lanelet::BasicLineString2d GlobalPlanner::sampleBoundaries(const lanelet::BasicL
 
       // Test line
       left_right_colors[3] = 0.5;
-      Lanelet2Utilities::convertLaneletLine2VisuLineStrip(test_line, marker, "map", now(), "lvl2_boundary_test_line_" + left_right_string, left_right_colors);
+      Lanelet2Utilities::convertLaneletLine2VisuLineStrip(test_line, marker, ll2if_->map_frame_id_, now(), "lvl2_boundary_test_line_" + left_right_string, left_right_colors);
       marker.id = ids_test_line++;
       marker_array.markers.push_back(marker);
 
@@ -430,7 +430,7 @@ lanelet::BasicLineString2d GlobalPlanner::sampleBoundaries(const lanelet::BasicL
       lanelet::BasicLineString2d outerpoint;
       outerpoint.push_back(best_point);
       left_right_colors[3] = 1.0;
-      Lanelet2Utilities::convertLaneletLine2VisuSphere(outerpoint, marker, "map", now(), "lvl2_boundary_points_" + left_right_string, left_right_colors);
+      Lanelet2Utilities::convertLaneletLine2VisuSphere(outerpoint, marker, ll2if_->map_frame_id_, now(), "lvl2_boundary_points_" + left_right_string, left_right_colors);
       marker.id = ids_final_point++;
       marker_array.markers.push_back(marker);
     }
@@ -444,13 +444,13 @@ lanelet::BasicLineString2d GlobalPlanner::sampleBoundaries(const lanelet::BasicL
     if (visualize_lvl_ > 1)
     {
       left_right_colors[3] = 0.5;
-      Lanelet2Utilities::convertLaneletLine2VisuLineStrip(lane_boundary, marker, "map", now(), "lvl1_boundary_raw_" + left_right_string, left_right_colors, 0.25);
+      Lanelet2Utilities::convertLaneletLine2VisuLineStrip(lane_boundary, marker, ll2if_->map_frame_id_, now(), "lvl1_boundary_raw_" + left_right_string, left_right_colors, 0.25);
       marker.id = ids_final_bound++;
       marker_array.markers.push_back(marker);
     }
 
     left_right_colors[3] = 1.0;
-    Lanelet2Utilities::convertLaneletLine2VisuLineStrip(bound, marker, "map", now(), "lvl1_boundary_final_" + left_right_string, left_right_colors, 0.25);
+    Lanelet2Utilities::convertLaneletLine2VisuLineStrip(bound, marker, ll2if_->map_frame_id_, now(), "lvl1_boundary_final_" + left_right_string, left_right_colors, 0.25);
     marker.id = ids_final_bound++;
     marker_array.markers.push_back(marker);
 
@@ -529,7 +529,7 @@ lanelet::BasicLineString2d GlobalPlanner::sampleDrivableSpace(const lanelet::Bas
         point.y = std::get<1>(all_interpoints.at(i)).y();
         point.z = 3.0;
         line_strip.points.push_back(point);
-        line_strip.header.frame_id = "map";
+        line_strip.header.frame_id = ll2if_->map_frame_id_;
         line_strip.header.stamp = now();
         line_strip.ns = "lvl2_drivable_space_intersection_points_" + left_right_string;
         line_strip.type = visualization_msgs::msg::Marker::ARROW;
@@ -571,7 +571,7 @@ lanelet::BasicLineString2d GlobalPlanner::sampleDrivableSpace(const lanelet::Bas
 
       // Test line
       left_right_colors[3] = 0.5;
-      Lanelet2Utilities::convertLaneletLine2VisuLineStrip(test_line, marker, "map", now(), "lvl2_drivable_space_test_line_" + left_right_string, left_right_colors);
+      Lanelet2Utilities::convertLaneletLine2VisuLineStrip(test_line, marker, ll2if_->map_frame_id_, now(), "lvl2_drivable_space_test_line_" + left_right_string, left_right_colors);
       marker.id = ids_test_line++;
       marker_array.markers.push_back(marker);
 
@@ -579,7 +579,7 @@ lanelet::BasicLineString2d GlobalPlanner::sampleDrivableSpace(const lanelet::Bas
       BasicLineString2d outerpoint;
       outerpoint.push_back(best_point);
       left_right_colors[3] = 1.0;
-      Lanelet2Utilities::convertLaneletLine2VisuSphere(outerpoint, marker, "map", now(), "lvl2_drivable_space_points_" + left_right_string, left_right_colors);
+      Lanelet2Utilities::convertLaneletLine2VisuSphere(outerpoint, marker, ll2if_->map_frame_id_, now(), "lvl2_drivable_space_points_" + left_right_string, left_right_colors);
       marker.id = ids_final_point++;
       marker_array.markers.push_back(marker);
     }
@@ -591,7 +591,7 @@ lanelet::BasicLineString2d GlobalPlanner::sampleDrivableSpace(const lanelet::Bas
     visualization_msgs::msg::Marker marker;
 
     left_right_colors[3] = 0.5;
-    Lanelet2Utilities::convertLaneletLine2VisuLineStrip(bound, marker, "map", now(), "lvl1_drivable_space_final_" + left_right_string, left_right_colors, 0.25);
+    Lanelet2Utilities::convertLaneletLine2VisuLineStrip(bound, marker, ll2if_->map_frame_id_, now(), "lvl1_drivable_space_final_" + left_right_string, left_right_colors, 0.25);
     marker.id = ids_final_bound++;
     marker_array.markers.push_back(marker);
 
