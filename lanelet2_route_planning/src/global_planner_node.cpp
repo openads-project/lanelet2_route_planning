@@ -605,12 +605,9 @@ lanelet::BasicLineString2d GlobalPlanner::sampleDrivableSpace(const lanelet::Bas
 int main(int argc, char ** argv)
 {
   rclcpp::init(argc, argv);
-  // MutliThreadedExecutor is mandatory when using the lanelet2_map_interface
-  rclcpp::executors::MultiThreadedExecutor executor;
   auto planner = std::make_shared<GlobalPlanner>();
-  executor.add_node(planner);
   planner->initializeMapInterface();
-  executor.spin();
+  rclcpp::spin(planner);
   rclcpp::shutdown();
   return 0;
 }
