@@ -3,3 +3,11 @@ repositories:
     type: git
     url: https://gitlab.ika.rwth-aachen.de/gkueppers/lanelet2_map_manager
     version: develop
+  ika_utilities:
+    type: git
+    url: https://gitlab.ika.rwth-aachen.de/gkueppers/ika_utilities
+    version: develop
+  lanelet2_utilities:
+    type: git
+    url: https://gitlab.ika.rwth-aachen.de/gkueppers/lanelet2_utilities
+    version: develop
