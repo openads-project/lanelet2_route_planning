@@ -1,0 +1,5 @@
+repositories:
+  lanelet2_map_manager:
+    type: git
+    url: https://gitlab.ika.rwth-aachen.de/gkueppers/lanelet2_map_manager
+    version: develop
