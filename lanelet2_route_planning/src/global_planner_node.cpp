@@ -3,7 +3,8 @@
 GlobalPlanner::GlobalPlanner() : Node("global_planner")
 {
   startup_timer_ = create_wall_timer(0.1s, std::bind(&GlobalPlanner::initializeGlobalPlanner, this));
-  map_pose_sub_ = create_subscription<nav_msgs::msg::Odometry>("/ego_vehicle/map_pose", 1, std::bind(&GlobalPlanner::mapPoseCallback, this, std::placeholders::_1));
+  map_pose_sub_ = create_subscription<geometry_msgs::msg::PoseWithCovarianceStamped>("/ego_vehicle/map_pose", 1, std::bind(&GlobalPlanner::mapPoseCallback, this, std::placeholders::_1));
+  goal_pose_sub_ = create_subscription<geometry_msgs::msg::PoseStamped>("/goal_pose", 1, std::bind(&GlobalPlanner::goalPoseCallback, this, std::placeholders::_1));
 
 }
 

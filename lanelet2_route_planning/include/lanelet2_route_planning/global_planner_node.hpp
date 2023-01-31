@@ -4,7 +4,8 @@
 #include <tf2/impl/utils.h>
 #include <tf2_geometry_msgs/tf2_geometry_msgs.hpp>
 
-#include "nav_msgs/msg/odometry.hpp"
+#include "geometry_msgs/msg/pose_stamped.hpp"
+#include "geometry_msgs/msg/pose_with_covariance_stamped.hpp"
 #include "geometry_msgs/msg/point.hpp"
 #include "visualization_msgs/msg/marker.hpp"
 #include "visualization_msgs/msg/marker_array.hpp"
@@ -38,7 +39,7 @@ class GlobalPlanner : public rclcpp::Node
     private:
         // Variables
         LL2MapInterface *ll2if_;
-        nav_msgs::msg::Odometry ego_pose_;
+        geometry_msgs::msg::PoseWithCovarianceStamped ego_pose_;
         lanelet::LaneletMapConstPtr llmap_;
         traffic_rules::TrafficRulesPtr trafficRules_ = lanelet::traffic_rules::TrafficRulesFactory::create(lanelet::Locations::Germany, std::string(lanelet::Participants::Vehicle) + ":ika");
         routing::RoutingGraphUPtr routingGraph_;
@@ -66,9 +67,13 @@ class GlobalPlanner : public rclcpp::Node
         rclcpp::TimerBase::SharedPtr startup_timer_;
 
         // Subscriptions
-        rclcpp::Subscription<nav_msgs::msg::Odometry>::SharedPtr map_pose_sub_;
+        rclcpp::Subscription<geometry_msgs::msg::PoseWithCovarianceStamped>::SharedPtr map_pose_sub_;
+        rclcpp::Subscription<geometry_msgs::msg::PoseStamped>::SharedPtr goal_pose_sub_;
 
-        // Actions
+        // Action Client
+        rclcpp_action::Client<lanelet2_route_planning_ifs::action::GlobalManeuver>::SharedPtr maneuver_action_client_;
+
+        // Action Server
         rclcpp_action::Server<lanelet2_route_planning_ifs::action::GlobalManeuver>::SharedPtr maneuver_action_server_;
         lanelet2_route_planning_ifs::action::GlobalManeuver::Feedback::SharedPtr maneuver_feedback_;
         lanelet2_route_planning_ifs::action::GlobalManeuver::Result::SharedPtr maneuver_result_;
@@ -113,7 +118,9 @@ class GlobalPlanner : public rclcpp::Node
             const std::shared_ptr<rclcpp_action::ServerGoalHandle<lanelet2_route_planning_ifs::action::GlobalManeuver>> goal_handle);
 
         // callbacks.cpp
-        void mapPoseCallback(nav_msgs::msg::Odometry::SharedPtr msg);
+        void mapPoseCallback(geometry_msgs::msg::PoseWithCovarianceStamped::SharedPtr msg);
+        void goalPoseCallback(geometry_msgs::msg::PoseStamped::SharedPtr msg);
+
 
         // utils.cpp
         void processLineString(lanelet::BasicLineString2d& line_string, const std::string& desc, visualization_msgs::msg::MarkerArray &marker_array, std::vector<float> colors, std::vector<float> colors_smoothed);

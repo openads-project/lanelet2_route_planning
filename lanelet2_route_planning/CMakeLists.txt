@@ -17,7 +17,6 @@ find_package(lanelet2_route_planning_ifs REQUIRED)
 find_package(lanelet2_utilities REQUIRED)
 find_package(lanelet2_traffic_rules REQUIRED)
 find_package(lanelet2_routing REQUIRED)
-find_package(nav_msgs REQUIRED)
 find_package(geometry_msgs REQUIRED)
 find_package(visualization_msgs REQUIRED)
 find_package(tf2 REQUIRED)
@@ -38,7 +37,6 @@ ament_target_dependencies(global_planner_node
   lanelet2_utilities
   lanelet2_traffic_rules
   lanelet2_routing
-  nav_msgs
   geometry_msgs
   visualization_msgs
   tf2

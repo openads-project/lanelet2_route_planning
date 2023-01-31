@@ -1,5 +1,5 @@
-float64 target_pos_lat                  # Target destination latitude
-float64 target_pos_lon                  # Target destination longitude
+float64 target_pos_x                    # Destination x in map coordinates
+float64 target_pos_y                    # Destination y in map coordinates
 ---
 bool destination_reached                # Flag indicating if the destination was reached
 builtin_interfaces/Time duration        # Duration of the maneuver
