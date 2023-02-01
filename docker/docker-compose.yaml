@@ -1,7 +1,7 @@
-x-base-image:   &base-image   gitlab.ika.rwth-aachen.de:5050/automated-driving/docker/ros2:rolling
-x-devel-image:  &devel-image  gitlab.ika.rwth-aachen.de:5050/gkueppers/lanelet2_route_planning:latest-dev
-x-run-image:    &run-image    gitlab.ika.rwth-aachen.de:5050/gkueppers/lanelet2_route_planning:latest
-x-command:      &command      ros2 run lanelet2_route_planning global_planner_node
+x-base-image: &base-image gitlab.ika.rwth-aachen.de:5050/automated-driving/docker/ros2:rolling
+x-dev-image:  &dev-image  gitlab.ika.rwth-aachen.de:5050/gkueppers/lanelet2_route_planning:latest-dev
+x-run-image:  &run-image  gitlab.ika.rwth-aachen.de:5050/gkueppers/lanelet2_route_planning:latest
+x-command:    &command    ros2 run lanelet2_route_planning global_planner_node
 
 # ==============================================================================
 
@@ -15,10 +15,10 @@ x-build: &build
     GIT_HTTPS_PASSWORD: $GIT_HTTPS_PASSWORD
 
 services:
-  devel:
-    image: *devel-image
+  dev:
+    image: *dev-image
     build:
-      target: development
+      target: dev
       <<: *build
   run:
     image: *run-image
