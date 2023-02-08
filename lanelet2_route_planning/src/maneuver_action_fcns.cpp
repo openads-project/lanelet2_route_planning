@@ -6,7 +6,7 @@ rclcpp_action::GoalResponse GlobalPlanner::actionHandleGoal(
 {
   RCLCPP_INFO(get_logger(), "Received a global maneuver request!");
   RCLCPP_INFO_STREAM(get_logger(), "Target Position X: " << goal->target_pos_x);
-  RCLCPP_INFO_STREAM(get_logger(), "Target Position Y: " << goal->target_pos_x);
+  RCLCPP_INFO_STREAM(get_logger(), "Target Position Y: " << goal->target_pos_y);
 
   llmap_ = ll2if_->getMapPtr();
   routingGraph_ = routing::RoutingGraph::build(*llmap_, *trafficRules_);
