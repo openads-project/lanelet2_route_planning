@@ -1,13 +1,9 @@
 repositories:
-  lanelet2_map_manager:
+  lanelet2_map_interface:
     type: git
-    url: https://gitlab.ika.rwth-aachen.de/gkueppers/lanelet2_map_manager
-    version: develop
-  ika_utilities:
-    type: git
-    url: https://gitlab.ika.rwth-aachen.de/gkueppers/ika_utilities
-    version: develop
+    url: https://gitlab.ika.rwth-aachen.de/fb-fi/its-modules/localization/lanelet2_map_interface
+    version: main
   lanelet2_utilities:
     type: git
-    url: https://gitlab.ika.rwth-aachen.de/gkueppers/lanelet2_utilities
-    version: develop
+    url: https://gitlab.ika.rwth-aachen.de/fb-fi/its-modules/localization/lanelet2_utilities
+    version: main
