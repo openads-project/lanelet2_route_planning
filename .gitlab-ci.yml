@@ -1,6 +1,6 @@
 include:
   - project: fb-fi/ops/docker-ros
-    ref: main
+    ref: feature/industrial-ci-template
     file: .gitlab-ci.template.yml
 
 variables:
