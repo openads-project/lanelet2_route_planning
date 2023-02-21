@@ -2,7 +2,7 @@
 
 rclcpp_action::GoalResponse GlobalPlanner::actionHandleGoal(
   const rclcpp_action::GoalUUID& uuid,
-  std::shared_ptr<const lanelet2_route_planning_ifs::action::GlobalManeuver::Goal> goal)
+  std::shared_ptr<const lanelet2_route_planning_interfaces::action::GlobalManeuver::Goal> goal)
 {
   RCLCPP_INFO(get_logger(), "Received a global maneuver request!");
   RCLCPP_INFO_STREAM(get_logger(), "Target Position X: " << goal->target_pos_x);
@@ -31,8 +31,8 @@ rclcpp_action::GoalResponse GlobalPlanner::actionHandleGoal(
   visualization_msgs::msg::Marker marker = convertDestination2Marker(goal->target_pos_x, goal->target_pos_y, ll2if_->map_frame_id_);
   viz_destination_pub_->publish(marker);
 
-  maneuver_result_ = std::make_shared<lanelet2_route_planning_ifs::action::GlobalManeuver::Result>();
-  maneuver_feedback_ = std::make_shared<lanelet2_route_planning_ifs::action::GlobalManeuver::Feedback>();
+  maneuver_result_ = std::make_shared<lanelet2_route_planning_interfaces::action::GlobalManeuver::Result>();
+  maneuver_feedback_ = std::make_shared<lanelet2_route_planning_interfaces::action::GlobalManeuver::Feedback>();
 
   maneuver_result_->destination_reached = false;
   maneuver_feedback_->destination_x = goal->target_pos_x;
@@ -45,7 +45,7 @@ rclcpp_action::GoalResponse GlobalPlanner::actionHandleGoal(
 }
 
 rclcpp_action::CancelResponse GlobalPlanner::actionHandleCancel(
-  const std::shared_ptr<rclcpp_action::ServerGoalHandle<lanelet2_route_planning_ifs::action::GlobalManeuver>> goal_handle)
+  const std::shared_ptr<rclcpp_action::ServerGoalHandle<lanelet2_route_planning_interfaces::action::GlobalManeuver>> goal_handle)
 {
   // this callback is invoked when a running action is requested to cancel
   RCLCPP_INFO(get_logger(), "Received request to cancel action goal");
@@ -56,7 +56,7 @@ rclcpp_action::CancelResponse GlobalPlanner::actionHandleCancel(
 }
 
 void GlobalPlanner::actionHandleAccepted(
-  const std::shared_ptr<rclcpp_action::ServerGoalHandle<lanelet2_route_planning_ifs::action::GlobalManeuver>> goal_handle)
+  const std::shared_ptr<rclcpp_action::ServerGoalHandle<lanelet2_route_planning_interfaces::action::GlobalManeuver>> goal_handle)
 {
   // this callback is invoked when an action goal request is accepted
   // execute the action in a separate thread to avoid blocking
@@ -64,7 +64,7 @@ void GlobalPlanner::actionHandleAccepted(
 }
 
 void GlobalPlanner::actionExecute(
-  const std::shared_ptr<rclcpp_action::ServerGoalHandle<lanelet2_route_planning_ifs::action::GlobalManeuver>> goal_handle)
+  const std::shared_ptr<rclcpp_action::ServerGoalHandle<lanelet2_route_planning_interfaces::action::GlobalManeuver>> goal_handle)
 {
   RCLCPP_INFO(get_logger(), "Executing action goal");
 

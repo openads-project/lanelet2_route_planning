@@ -13,7 +13,7 @@ find_package(ament_cmake REQUIRED)
 find_package(rclcpp REQUIRED)
 find_package(rclcpp_action REQUIRED)
 find_package(lanelet2_map_interface REQUIRED)
-find_package(lanelet2_route_planning_ifs REQUIRED)
+find_package(lanelet2_route_planning_interfaces REQUIRED)
 find_package(lanelet2_utilities REQUIRED)
 find_package(lanelet2_traffic_rules REQUIRED)
 find_package(lanelet2_routing REQUIRED)
@@ -33,7 +33,7 @@ ament_target_dependencies(global_planner_node
   rclcpp
   rclcpp_action
   lanelet2_map_interface
-  lanelet2_route_planning_ifs
+  lanelet2_route_planning_interfaces
   lanelet2_utilities
   lanelet2_traffic_rules
   lanelet2_routing

@@ -26,7 +26,7 @@ void GlobalPlanner::initializeGlobalPlanner()
   else
   {
     // create an action server for handling action goal requests
-    maneuver_action_server_ = rclcpp_action::create_server<lanelet2_route_planning_ifs::action::GlobalManeuver>(this, "~/execute_global_maneuver",
+    maneuver_action_server_ = rclcpp_action::create_server<lanelet2_route_planning_interfaces::action::GlobalManeuver>(this, "~/execute_global_maneuver",
     std::bind(&GlobalPlanner::actionHandleGoal, this, std::placeholders::_1, std::placeholders::_2),
     std::bind(&GlobalPlanner::actionHandleCancel, this, std::placeholders::_1),
     std::bind(&GlobalPlanner::actionHandleAccepted, this, std::placeholders::_1));

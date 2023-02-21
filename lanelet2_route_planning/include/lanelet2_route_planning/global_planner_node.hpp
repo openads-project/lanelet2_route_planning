@@ -12,7 +12,7 @@
 
 
 #include "lanelet2_map_interface/lanelet2_map_interface.hpp"
-#include "lanelet2_route_planning_ifs/action/global_maneuver.hpp"
+#include "lanelet2_route_planning_interfaces/action/global_maneuver.hpp"
 #include "lanelet2_utilities/lanelet2_utils.hpp"
 
 #include <lanelet2_traffic_rules/TrafficRules.h>
@@ -71,12 +71,12 @@ class GlobalPlanner : public rclcpp::Node
         rclcpp::Subscription<geometry_msgs::msg::PoseStamped>::SharedPtr goal_pose_sub_;
 
         // Action Client
-        rclcpp_action::Client<lanelet2_route_planning_ifs::action::GlobalManeuver>::SharedPtr maneuver_action_client_;
+        rclcpp_action::Client<lanelet2_route_planning_interfaces::action::GlobalManeuver>::SharedPtr maneuver_action_client_;
 
         // Action Server
-        rclcpp_action::Server<lanelet2_route_planning_ifs::action::GlobalManeuver>::SharedPtr maneuver_action_server_;
-        lanelet2_route_planning_ifs::action::GlobalManeuver::Feedback::SharedPtr maneuver_feedback_;
-        lanelet2_route_planning_ifs::action::GlobalManeuver::Result::SharedPtr maneuver_result_;
+        rclcpp_action::Server<lanelet2_route_planning_interfaces::action::GlobalManeuver>::SharedPtr maneuver_action_server_;
+        lanelet2_route_planning_interfaces::action::GlobalManeuver::Feedback::SharedPtr maneuver_feedback_;
+        lanelet2_route_planning_interfaces::action::GlobalManeuver::Result::SharedPtr maneuver_result_;
 
         // Publisher
         rclcpp::Publisher<visualization_msgs::msg::Marker>::SharedPtr viz_destination_pub_;
@@ -106,16 +106,16 @@ class GlobalPlanner : public rclcpp::Node
         // maneuver_action_fcns.cpp
         rclcpp_action::GoalResponse actionHandleGoal(
             const rclcpp_action::GoalUUID& uuid,
-            std::shared_ptr<const lanelet2_route_planning_ifs::action::GlobalManeuver::Goal> goal);
+            std::shared_ptr<const lanelet2_route_planning_interfaces::action::GlobalManeuver::Goal> goal);
 
         rclcpp_action::CancelResponse actionHandleCancel(
-            const std::shared_ptr<rclcpp_action::ServerGoalHandle<lanelet2_route_planning_ifs::action::GlobalManeuver>> goal_handle);
+            const std::shared_ptr<rclcpp_action::ServerGoalHandle<lanelet2_route_planning_interfaces::action::GlobalManeuver>> goal_handle);
 
         void actionHandleAccepted(
-            const std::shared_ptr<rclcpp_action::ServerGoalHandle<lanelet2_route_planning_ifs::action::GlobalManeuver>> goal_handle);
+            const std::shared_ptr<rclcpp_action::ServerGoalHandle<lanelet2_route_planning_interfaces::action::GlobalManeuver>> goal_handle);
 
         void actionExecute(
-            const std::shared_ptr<rclcpp_action::ServerGoalHandle<lanelet2_route_planning_ifs::action::GlobalManeuver>> goal_handle);
+            const std::shared_ptr<rclcpp_action::ServerGoalHandle<lanelet2_route_planning_interfaces::action::GlobalManeuver>> goal_handle);
 
         // callbacks.cpp
         void mapPoseCallback(geometry_msgs::msg::PoseWithCovarianceStamped::SharedPtr msg);

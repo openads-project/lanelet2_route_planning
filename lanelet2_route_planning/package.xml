@@ -10,7 +10,7 @@
   <depend>rclcpp</depend>
   <depend>rclcpp_action</depend>
   <depend>lanelet2_map_interface</depend>
-  <depend>lanelet2_route_planning_ifs</depend>
+  <depend>lanelet2_route_planning_interfaces</depend>
   <depend>lanelet2_utilities</depend>
   <depend>lanelet2_traffic_rules</depend>
   <depend>lanelet2_routing</depend>
