@@ -27,6 +27,8 @@
 #include <lanelet2_core/geometry/Lanelet.h>
 #include <lanelet2_core/geometry/LaneletMap.h>
 
+#include "lanelet2_route_planning/ll2_route_planning_datatypes.hpp"
+
 using namespace std::chrono_literals;
 
 class GlobalPlanner : public rclcpp::Node
@@ -137,32 +139,4 @@ class GlobalPlanner : public rclcpp::Node
         void visualizeIndexMapping(visualization_msgs::msg::Marker& marker, visualization_msgs::msg::MarkerArray& marker_array, const lanelet::BasicLineString2d& bound,
                                     const std::string& left_right_string, const std::string& ns, const std::vector<int>& index_mapping);
 
-
-        // Datatypes
-        struct LaneletLaneSection {
-            float accumulated_s; // Accumulated length of lane at end of this section
-            u_int16_t route_index; // Index in LaneletLaneHierarchy.lane_hierarchy (in which section of the route)
-            u_int16_t spatial_index; // Index in LaneletLaneHierarchy.lane_hierarchy[route_index].neighboring_lanelets (which spatial position (right -> left) of the section)
-        };
-
-        struct LaneletExtended {
-            int64_t lanelet_id;
-            int16_t lane_id;
-            float v_max;
-        };
-
-        struct LaneletLane {
-            std::vector<LaneletLaneSection> lane_sections;
-            lanelet::BasicLineString2d line;
-        };
-
-        struct LaneletLaneHierarchy {
-            std::vector<LaneletExtended> neighboring_lanelets; // From most right (index 0) to most left
-            int16_t shortest_path_index; // Index in neighboring_lanelets of the shortest path entry
-        };
-
-        struct LaneletLaneNetwork {
-            std::vector<LaneletLaneHierarchy> lane_hierarchy; // Contains a spatial ordering of all lanelets of the route (from right to left per step) and maps them their lane id
-            std::vector<LaneletLane> lanes; // Contains mapping from lane id to all belonging lanelet ids + a smoothed line string for each line
-        };    
 };

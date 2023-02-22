@@ -310,7 +310,7 @@ void GlobalPlanner::constructLaneNetwork(const lanelet::routing::LaneletPath &sh
   }
 
   // Fill message
-  GlobalPlanner::LaneletLaneNetwork lane_network;
+  Lanelet2RoutePlanningDatatypes::LaneletLaneNetwork lane_network;
   lane_network.lane_hierarchy.resize(lanes_hierarchy.size());
   for(size_t i=0; i<lane_network.lane_hierarchy.size(); i++)
   {
@@ -318,7 +318,7 @@ void GlobalPlanner::constructLaneNetwork(const lanelet::routing::LaneletPath &sh
 
     for(size_t j=0; j<lanes_hierarchy[i].first.size(); j++)
     {
-      GlobalPlanner::LaneletExtended lanelet_extended;
+      Lanelet2RoutePlanningDatatypes::LaneletExtended lanelet_extended;
       lanelet_extended.lanelet_id = (lanes_hierarchy[i].first)[j].id();
       lanelet_extended.lane_id    = lane_id_mapping[lanelet_extended.lanelet_id];
       lanelet_extended.v_max      = lanelet::units::KmHQuantity(trafficRules_->speedLimit((lanes_hierarchy[i].first)[j]).speedLimit).value() / 3.6;
