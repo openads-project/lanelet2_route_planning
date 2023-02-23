@@ -1,14 +1,14 @@
-#include "rclcpp/rclcpp.hpp"
+#include <rclcpp/rclcpp.hpp>
 #include <rclcpp_action/rclcpp_action.hpp>
 
 #include <tf2/impl/utils.h>
 #include <tf2_geometry_msgs/tf2_geometry_msgs.hpp>
 
-#include "geometry_msgs/msg/pose_stamped.hpp"
-#include "geometry_msgs/msg/pose_with_covariance_stamped.hpp"
-#include "geometry_msgs/msg/point.hpp"
-#include "visualization_msgs/msg/marker.hpp"
-#include "visualization_msgs/msg/marker_array.hpp"
+#include <geometry_msgs/msg/pose_stamped.hpp>
+#include <geometry_msgs/msg/pose_with_covariance_stamped.hpp>
+#include <geometry_msgs/msg/point.hpp>
+#include <visualization_msgs/msg/marker.hpp>
+#include <visualization_msgs/msg/marker_array.hpp>
 
 
 #include "lanelet2_map_interface/lanelet2_map_interface.hpp"
@@ -51,7 +51,7 @@ class GlobalPlanner : public rclcpp::Node
 
         int visualize_lvl_=1;
 
-
+        // Route Planning
         lanelet::ConstLanelet start_ll_;    // most probable current Lanelet
         int16_t start_lane_id_;
         lanelet::ConstLanelet target_ll_;
@@ -64,6 +64,12 @@ class GlobalPlanner : public rclcpp::Node
         double smooth_factor_ = 2.0;
 
         Optional<lanelet::routing::Route> route_;
+        Lanelet2RoutePlanningDatatypes::LaneletLaneNetwork lane_network_;
+
+        // Maneuver Execution
+        rclcpp::Time maneuver_start_time_;
+
+        // Local Path Extraction
         
         // Timer
         rclcpp::TimerBase::SharedPtr startup_timer_;
@@ -104,7 +110,10 @@ class GlobalPlanner : public rclcpp::Node
                                                         std::vector<int>& index_mapping,
                                                         visualization_msgs::msg::MarkerArray& marker_array);
 
+        // local_path_extraction.cpp
         
+
+
         // maneuver_action_fcns.cpp
         rclcpp_action::GoalResponse actionHandleGoal(
             const rclcpp_action::GoalUUID& uuid,

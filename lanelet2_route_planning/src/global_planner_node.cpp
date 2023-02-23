@@ -50,8 +50,12 @@ bool GlobalPlanner::egoPositionSanityCheck()
   else
   {
     lanelet::LaneletMapConstPtr llmap = ll2if_->getMapPtr();
-    // To-Do: Check if ego_pose_ frame equals lanelet2 map-frame
-    //if(ego_pose_.header.frame_id != ll2if_)
+    // Check if ego_pose_ frame equals lanelet2 map-frame
+    if(ego_pose_.header.frame_id != ll2if_->map_frame_id_)
+    {
+      RCLCPP_ERROR_STREAM(get_logger(), "Ego-pose message (Frame: " << ego_pose_.header.frame_id << ") is not given with respect to the frame of the lanelet2 map (Frame: " << ll2if_->map_frame_id_ << ")!");
+      return false;
+    }
 
     // Determine nearest lanelet
     std::vector<std::pair<double, lanelet::ConstLanelet>> nearestLanelets = lanelet::geometry::findNearest(llmap->laneletLayer, lanelet::BasicPoint2d(ego_pose_.pose.pose.position.x, ego_pose_.pose.pose.position.y), 5);
@@ -61,21 +65,7 @@ bool GlobalPlanner::egoPositionSanityCheck()
       return false;
     }
     
-    //Get actual Heading
-    tf2::Quaternion quat;
-    tf2::fromMsg(ego_pose_.pose.pose.orientation, quat);
-    float yaw = tf2::impl::getYaw(quat);
-    Lanelet2Utilities::laneletSorting(lanelet::BasicPoint2d(ego_pose_.pose.pose.position.x, ego_pose_.pose.pose.position.y), nearestLanelets, yaw, trafficRules_, {});
-    start_ll_ = nearestLanelets.at(0).second; // most probable current Lanelet
-    if (geometry::distance(start_ll_.polygon2d(), lanelet::BasicPoint2d(ego_pose_.pose.pose.position.x, ego_pose_.pose.pose.position.y)) > 0.5)
-    {
-      RCLCPP_ERROR(get_logger(), "Current ego-pose is not on the start lanelet!");
-      return false;
-    }
-    else
-    {
-      return true;
-    }
+    return true;
   }
 }
 
@@ -214,7 +204,7 @@ bool GlobalPlanner::planRoute(lanelet::ConstLanelet start_ll, lanelet::ConstLane
 void GlobalPlanner::constructLaneNetwork(const lanelet::routing::LaneletPath &shortestPath, visualization_msgs::msg::MarkerArray &viz_marker_array)
 {
   // Datastructures
-  std::vector<std::pair<lanelet::ConstLanelets, size_t> > lanes_hierarchy(shortestPath.size()); // Contains the spatial hierarchy along the route (First entry of pair contains all neighboring lanelets per route section; second entry is the shortest path index in this list)
+  std::vector<std::pair<lanelet::ConstLanelets, size_t>> lanes_hierarchy(shortestPath.size());  // Contains the spatial hierarchy along the route (First entry of pair contains all neighboring lanelets per route section; second entry is the shortest path index in this list)
   std::vector<lanelet::ConstLanelets> lanes;                                                    // All dedicated lanes of the route. Their index in this vector is their lane id which is used to refer to them.
   std::vector<lanelet::BasicLineString2d> lanes_line;                                           // Extracted and smoothed linestring for earch lane.
   std::unordered_map<int64_t, int16_t> lane_id_mapping;                                         // Maps a lanelet id to its lane id
@@ -240,7 +230,7 @@ void GlobalPlanner::constructLaneNetwork(const lanelet::routing::LaneletPath &sh
     }
 
     // Right neighbors
-    ConstLanelets right_neighbors;
+    lanelet::ConstLanelets right_neighbors;
     Optional<routing::LaneletRelation> neighbour_relation = route_->rightRelation(ll);
     while (!!neighbour_relation)
     {
@@ -309,12 +299,11 @@ void GlobalPlanner::constructLaneNetwork(const lanelet::routing::LaneletPath &sh
     processLineString(lanes_line[i], "lane " + std::to_string(i), viz_marker_array, {0.0f, 0.75f - i/(lanes.size()-1.0f) * 0.5f, 0.25f + i/(lanes.size()-1.0f) * 0.5f}, {0.75f - i/(lanes.size()-1.0f) * 0.5f, 0.0f, 0.25f + i/(lanes.size()-1.0f) * 0.5f});
   }
 
-  // Fill message
-  Lanelet2RoutePlanningDatatypes::LaneletLaneNetwork lane_network;
-  lane_network.lane_hierarchy.resize(lanes_hierarchy.size());
-  for(size_t i=0; i<lane_network.lane_hierarchy.size(); i++)
+  // Fill lane_network_ variable
+  lane_network_.lane_hierarchy.resize(lanes_hierarchy.size());
+  for(size_t i=0; i<lane_network_.lane_hierarchy.size(); i++)
   {
-    lane_network.lane_hierarchy[i].neighboring_lanelets.resize(lanes_hierarchy[i].first.size());
+    lane_network_.lane_hierarchy[i].neighboring_lanelets.resize(lanes_hierarchy[i].first.size());
 
     for(size_t j=0; j<lanes_hierarchy[i].first.size(); j++)
     {
@@ -322,28 +311,28 @@ void GlobalPlanner::constructLaneNetwork(const lanelet::routing::LaneletPath &sh
       lanelet_extended.lanelet_id = (lanes_hierarchy[i].first)[j].id();
       lanelet_extended.lane_id    = lane_id_mapping[lanelet_extended.lanelet_id];
       lanelet_extended.v_max      = lanelet::units::KmHQuantity(trafficRules_->speedLimit((lanes_hierarchy[i].first)[j]).speedLimit).value() / 3.6;
-      lane_network.lane_hierarchy[i].neighboring_lanelets[j] = lanelet_extended;
+      lane_network_.lane_hierarchy[i].neighboring_lanelets[j] = lanelet_extended;
     }
-    lane_network.lane_hierarchy[i].shortest_path_index = lanes_hierarchy[i].second;
+    lane_network_.lane_hierarchy[i].shortest_path_index = lanes_hierarchy[i].second;
   }
-  lane_network.lanes.resize(lanes.size());
+  lane_network_.lanes.resize(lanes.size());
   for(size_t i=0; i<lanes.size(); i++)
   {
-    lane_network.lanes[i].lane_sections.resize(lanes[i].size());
+    lane_network_.lanes[i].lane_sections.resize(lanes[i].size());
     std::vector<std::pair<int64_t,bool>> ll_ids = Lanelet2Utilities::convertLLRoute2IdVec(lanes[i]);
     double s = 0;
-    for(size_t j=0; j<lane_network.lanes[i].lane_sections.size(); j++)
+    for(size_t j=0; j<lane_network_.lanes[i].lane_sections.size(); j++)
     {
-      lane_network.lanes[i].lane_sections[j].accumulated_s = s += geometry::length2d(lanes[i][j]);
-      lane_network.lanes[i].lane_sections[j].route_index   = lane_hierarchy_mapping[ll_ids[j].first].first;
-      lane_network.lanes[i].lane_sections[j].spatial_index = lane_hierarchy_mapping[ll_ids[j].first].second;
+      lane_network_.lanes[i].lane_sections[j].accumulated_s = s += geometry::length2d(lanes[i][j]);
+      lane_network_.lanes[i].lane_sections[j].route_index   = lane_hierarchy_mapping[ll_ids[j].first].first;
+      lane_network_.lanes[i].lane_sections[j].spatial_index = lane_hierarchy_mapping[ll_ids[j].first].second;
 
       if(lanes[i][j] == target_ll_)
       {
-        target_lane_s_dest_ = lane_network.lanes[i].lane_sections[j].accumulated_s;
+        target_lane_s_dest_ = lane_network_.lanes[i].lane_sections[j].accumulated_s;
       }
     }
-    lane_network.lanes[i].line = lanes_line[i];
+    lane_network_.lanes[i].line = lanes_line[i];
   }
 
   start_lane_id_  = lane_id_mapping[start_ll_.id()];
