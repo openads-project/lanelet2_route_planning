@@ -32,6 +32,19 @@ visualization_msgs::msg::Marker GlobalPlanner::convertDestination2Marker(double 
   return destination_marker;
 }
 
+void GlobalPlanner::visualizeLinestring(std::vector<geometry_msgs::msg::Point>& line_string, const std::string& desc, visualization_msgs::msg::MarkerArray& marker_array, std::vector<float> colors)
+{
+  colors.resize(4);
+  visualization_msgs::msg::Marker marker;
+  colors[3] = 0.8;
+  marker = Lanelet2Utilities::convertLinestring2VisuLineStrip(line_string, ll2if_->map_frame_id_, now(), desc, colors, 0.1);
+  marker_array.markers.push_back(marker);
+  colors[3] = 1.0;
+  marker = Lanelet2Utilities::convertLinestring2VisuSphere(line_string, ll2if_->map_frame_id_, now(), desc + " points", colors);
+  marker_array.markers.push_back(marker);
+}
+
+
 void GlobalPlanner::visualizeIndexMapping(visualization_msgs::msg::Marker& marker, visualization_msgs::msg::MarkerArray& marker_array, const lanelet::BasicLineString2d& bound, const std::string& left_right_string, const std::string& ns, const std::vector<int>& index_mapping)
 {
   if (visualize_lvl_ > 1)

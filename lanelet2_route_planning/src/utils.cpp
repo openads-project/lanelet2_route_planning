@@ -3,90 +3,16 @@
 // Convert to linestring, smooth and visualize
 void GlobalPlanner::processLineString(lanelet::BasicLineString2d& line_string, const std::string& desc, visualization_msgs::msg::MarkerArray& marker_array, std::vector<float> colors, std::vector<float> colors_smoothed)
 {
-  colors.resize(4);
-  colors_smoothed.resize(4);
-
+  // to Linestring
+  std::vector<geometry_msgs::msg::Point> points = Lanelet2Utilities::convertLaneletLine2Linestring(line_string);
   // Visualize
-  if (visualize_lvl_ > 1)
-  {
-    visualization_msgs::msg::Marker marker;
-    colors[3] = 0.8;
-    Lanelet2Utilities::convertLaneletLine2VisuLineStrip(line_string, marker, ll2if_->map_frame_id_, now(), desc, colors, 0.1);
-    marker_array.markers.push_back(marker);
-    colors[3] = 1.0;
-    Lanelet2Utilities::convertLaneletLine2VisuSphere(line_string, marker, ll2if_->map_frame_id_, now(), desc + " points", colors);
-    marker_array.markers.push_back(marker);
-
-    // Index
-    if (visualize_lvl_ > 1)
-    {
-      colors_smoothed[3] = 1.0;
-      Lanelet2Utilities::convertLaneletLine2VisuSphere(line_string, marker, ll2if_->map_frame_id_, now(), desc + " points", colors_smoothed);
-      marker_array.markers.push_back(marker);
-
-      unsigned int index = 0;
-      for (auto &p : line_string)
-      {
-          marker.points.clear();
-          marker.header.frame_id = ll2if_->map_frame_id_;
-          marker.header.stamp = now();
-          marker.ns = "lvl2_point_index_" + desc;
-          marker.type = visualization_msgs::msg::Marker::TEXT_VIEW_FACING;
-          marker.action = visualization_msgs::msg::Marker::ADD;
-          marker.text = std::to_string(index);
-          marker.scale.z = 0.1;
-          marker.color.r = 1;
-          marker.color.g = 1;
-          marker.color.b = 1;
-          marker.pose.position.x = p.x();
-          marker.pose.position.y = p.y();
-          marker.pose.position.z = 1.0;
-          marker.id = index++;
-          marker_array.markers.push_back(marker);
-      }
-    }
-  }
-
+  visualizeLinestring(points, desc, marker_array, colors);
   // Smooth
   line_string = Lanelet2Utilities::smoothByQuadraticBezierCurve(line_string, smooth_factor_);
-
   // Visualize
-  if (visualize_lvl_)
-  {
-    visualization_msgs::msg::Marker marker;
-    colors_smoothed[3] = 0.8;
-    Lanelet2Utilities::convertLaneletLine2VisuLineStrip(line_string, marker, ll2if_->map_frame_id_, now(), desc + " (smoothed)",  colors_smoothed, 0.1);
-    marker_array.markers.push_back(marker);
-
-    // Index
-    if (visualize_lvl_ > 1)
-    {
-      colors_smoothed[3] = 1.0;
-      Lanelet2Utilities::convertLaneletLine2VisuSphere(line_string, marker, ll2if_->map_frame_id_, now(), desc + " points (smoothed)", colors_smoothed);
-      marker_array.markers.push_back(marker);
-
-      unsigned int index = 0;
-      for (auto &p : line_string)
-      {
-          marker.points.clear();
-          marker.header.frame_id = ll2if_->map_frame_id_;
-          marker.header.stamp = now();
-          marker.ns = "lvl2_point_index_" + desc + " (smoothed)";
-          marker.type = visualization_msgs::msg::Marker::TEXT_VIEW_FACING;
-          marker.action = visualization_msgs::msg::Marker::ADD;
-          marker.text = std::to_string(index);
-          marker.scale.z = 0.1;
-          marker.color.r = 1;
-          marker.color.g = 1;
-          marker.color.b = 1;
-          marker.pose.position.x = p.x();
-          marker.pose.position.y = p.y();
-          marker.pose.position.z = 1.0;
-          marker.id = index++;
-          marker_array.markers.push_back(marker);
-      }
-    }
-  }
+  visualizeLinestring(points, desc+" smoothed", marker_array, colors_smoothed);
+  // to Linestring
+  points = Lanelet2Utilities::convertLaneletLine2Linestring(line_string);
 }
 
 bool GlobalPlanner::handleInwardCorner(const lanelet::BasicPoint2d &base_p, lanelet::BasicPoint2d& best_point, const std::pair<lanelet::BasicLineString2d, size_t>*& last_intersection_free_test_line, lanelet::BasicLineString2d& previous_test_line,

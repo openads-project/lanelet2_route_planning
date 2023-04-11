@@ -144,6 +144,7 @@ class GlobalPlanner : public rclcpp::Node
 
 
         // visualization.cpp
+        void visualizeLinestring(std::vector<geometry_msgs::msg::Point>& line_string, const std::string& desc, visualization_msgs::msg::MarkerArray& marker_array, std::vector<float> colors);
         visualization_msgs::msg::Marker convertDestination2Marker(double target_x, double target_y, std::string frame_id);
         void visualizeIndexMapping(visualization_msgs::msg::Marker& marker, visualization_msgs::msg::MarkerArray& marker_array, const lanelet::BasicLineString2d& bound,
                                     const std::string& left_right_string, const std::string& ns, const std::vector<int>& index_mapping);

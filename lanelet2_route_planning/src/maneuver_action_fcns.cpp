@@ -29,14 +29,6 @@ rclcpp_action::GoalResponse GlobalPlanner::actionHandleGoal(
     return rclcpp_action::GoalResponse::REJECT;
   }
 
-  // Determine start lanelet
-  // Get actual Heading
-  tf2::Quaternion quat;
-  tf2::fromMsg(ego_pose_.pose.pose.orientation, quat);
-  float yaw = tf2::impl::getYaw(quat);
-  std::vector<std::pair<double, lanelet::ConstLanelet>> nearestLanelets = lanelet::geometry::findNearest(llmap->laneletLayer, lanelet::BasicPoint2d(ego_pose_.pose.pose.position.x, ego_pose_.pose.pose.position.y), 5);
-  Lanelet2Utilities::laneletSorting(lanelet::BasicPoint2d(ego_pose_.pose.pose.position.x, ego_pose_.pose.pose.position.y), nearestLanelets, yaw, trafficRules_, {});
-  start_ll_ = nearestLanelets.at(0).second; // most probable current Lanelet
   if (geometry::distance(start_ll_.polygon2d(), lanelet::BasicPoint2d(ego_pose_.pose.pose.position.x, ego_pose_.pose.pose.position.y)) > 0.5)
   {
     RCLCPP_ERROR(get_logger(), "Current ego-pose is not on the start lanelet anymore!");
@@ -96,16 +88,16 @@ void GlobalPlanner::actionExecute(
     // To-Do: add subscriber for actual vehicle velocity and check for standstill if require_standstill parameter is set!
     bool require_standstill = false;
     double velocity = 0.0;
-    if (geometry::distance(target_point_, cur_pos) < 5.5 && (std::fabs(velocity) < 0.05 || !require_standstill))
-    {
-      RCLCPP_INFO(get_logger(),"Destination reached!");
-      maneuver_result_->destination_reached = true;
-      maneuver_result_->duration = (now()-maneuver_start_time_).seconds();
-      // Check if goal is done
-      if (rclcpp::ok()) {
-        goal_handle->succeed(maneuver_result_);
-      }
-    }
+    // if (geometry::distance(target_point_, cur_pos) < 5.5 && (std::fabs(velocity) < 0.05 || !require_standstill))
+    // {
+    //   RCLCPP_INFO(get_logger(),"Destination reached!");
+    //   maneuver_result_->destination_reached = true;
+    //   maneuver_result_->duration = (now()-maneuver_start_time_).seconds();
+    //   // Check if goal is done
+    //   if (rclcpp::ok()) {
+    //     goal_handle->succeed(maneuver_result_);
+    //   }
+    // }
 
     // cancel, if requested
     if (goal_handle->is_canceling()) {
@@ -122,30 +114,30 @@ void GlobalPlanner::actionExecute(
     if(egoPositionSanityCheck())
     {
       lanelet::BasicPoint2d cur_pos;
-      lanelet::ConstLanelet current_ll
-      uint16 lane_network_route_index;
-      uint16 lane_network_spatial_index;
-      int16 current_lane;
-      if(locateInLaneNetwork(lane_network_, cur_pos, current_ll, lane_network_route_index, lane_network_spatial_index, current_lane))
+      lanelet::ConstLanelet current_ll;
+      unsigned int lane_network_route_index;
+      unsigned int lane_network_spatial_index;
+      unsigned int current_lane;
+      if(false)//locateInLaneNetwork(lane_network_, cur_pos, current_ll, lane_network_route_index, lane_network_spatial_index, current_lane))
       {
-        // Roadtype
-        std::string current_ll_location = current_ll.hasAttribute("location") ? current_ll.attribute("location").value() : "";
-        std::string current_ll_subtype  = current_ll.hasAttribute("subtype")  ? current_ll.attribute("subtype").value() : "";
+        // // Roadtype
+        // std::string current_ll_location = current_ll.hasAttribute("location") ? current_ll.attribute("location").value() : "";
+        // std::string current_ll_subtype  = current_ll.hasAttribute("subtype")  ? current_ll.attribute("subtype").value() : "";
 
-        // Arc coordinates w.r.t. current lanelet
-        lanelet::ArcCoordinates arc = lanelet::geometry::toArcCoordinates(current_ll.centerline2d(), cur_pos);
-        double current_ll_s = arc.length;
-        double current_ll_d = arc.distance;
+        // // Arc coordinates w.r.t. current lanelet
+        // lanelet::ArcCoordinates arc = lanelet::geometry::toArcCoordinates(current_ll.centerline2d(), cur_pos);
+        // double current_ll_s = arc.length;
+        // double current_ll_d = arc.distance;
 
-        // Arc coordinates w.r.t. current lane
-        arc                          = lanelet::geometry::toArcCoordinates(lane_network_.lanes[current_lane], cur_pos);
-        double current_lane_s = arc.length;
-        double current_lane_d = arc.distance;
+        // // Arc coordinates w.r.t. current lane
+        // arc                          = lanelet::geometry::toArcCoordinates(lane_network_.lanes[current_lane], cur_pos);
+        // double current_lane_s = arc.length;
+        // double current_lane_d = arc.distance;
 
-        // Arc coordinates w.r.t. shortest path in route
-        const lanelet::ArcCoordinates arc_center_route = geometry::toArcCoordinates(shortest_path_centerline_, cur_pos);
-        double shortest_path_s = arc_center_route.length;
-        double shortest_path_d = arc_center_route.distance;
+        // // Arc coordinates w.r.t. shortest path in route
+        // const lanelet::ArcCoordinates arc_center_route = geometry::toArcCoordinates(shortest_path_centerline_, cur_pos);
+        // double shortest_path_s = arc_center_route.length;
+        // double shortest_path_d = arc_center_route.distance;
       }
       else
       {
