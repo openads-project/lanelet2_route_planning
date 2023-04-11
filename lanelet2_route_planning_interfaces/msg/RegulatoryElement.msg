@@ -1,0 +1,14 @@
+
+uint8 TYPE_UNKNOWN=0
+uint8 TYPE_YIELD=1
+uint8 TYPE_STOP=2
+uint8 TYPE_TRAFFIC_LIGHT=3
+uint8 TYPE_RIGHT_OF_WAY=4
+uint8 type
+
+uint8 STATE_UNKNOWN=0
+uint8 STATE_MOVEMENT_ALLOWED=1
+uint8 STATE_MOVEMENT_RESTRICTED=1
+uint8 state
+
+geometry_msgs/Point[2] effect_line
