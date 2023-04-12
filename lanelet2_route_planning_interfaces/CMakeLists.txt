@@ -13,10 +13,16 @@ find_package(ament_cmake REQUIRED)
 find_package(rosidl_default_generators REQUIRED)
 find_package(std_msgs REQUIRED)
 find_package(builtin_interfaces REQUIRED)
+find_package(geometry_msgs REQUIRED)
 
 rosidl_generate_interfaces(${PROJECT_NAME}
   "action/GlobalManeuver.action"
-  DEPENDENCIES std_msgs builtin_interfaces
+  "msg/Boundaries.msg"
+  "msg/DriveableSpace.msg"
+  "msg/RoadMarking.msg"
+  "msg/RegulatoryElement.msg"
+  "msg/Route.msg"
+  DEPENDENCIES std_msgs builtin_interfaces geometry_msgs
 )
 
 ament_export_dependencies(rosidl_default_runtime)

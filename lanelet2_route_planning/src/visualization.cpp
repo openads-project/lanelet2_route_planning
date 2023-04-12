@@ -32,77 +32,77 @@ visualization_msgs::msg::Marker GlobalPlanner::convertDestination2Marker(double 
   return destination_marker;
 }
 
-void GlobalPlanner::visualizeLinestring(std::vector<geometry_msgs::msg::Point>& line_string, const std::string& desc, visualization_msgs::msg::MarkerArray& marker_array, std::vector<float> colors)
+void GlobalPlanner::visualizeLinestring(const std::vector<geometry_msgs::msg::Point>& line_string, const std::string& frame_id, const std::string& desc, visualization_msgs::msg::MarkerArray& marker_array, std::vector<float> colors)
 {
   colors.resize(4);
   visualization_msgs::msg::Marker marker;
   colors[3] = 0.8;
-  marker = Lanelet2Utilities::convertLinestring2VisuLineStrip(line_string, ll2if_->map_frame_id_, now(), desc, colors, 0.1);
+  marker = Lanelet2Utilities::convertLinestring2VisuLineStrip(line_string, frame_id, now(), desc, colors, 0.1);
   marker_array.markers.push_back(marker);
   colors[3] = 1.0;
-  marker = Lanelet2Utilities::convertLinestring2VisuSphere(line_string, ll2if_->map_frame_id_, now(), desc + " points", colors);
+  marker = Lanelet2Utilities::convertLinestring2VisuSphere(line_string, frame_id, now(), desc + " points", colors);
   marker_array.markers.push_back(marker);
 }
 
 
-void GlobalPlanner::visualizeIndexMapping(visualization_msgs::msg::Marker& marker, visualization_msgs::msg::MarkerArray& marker_array, const lanelet::BasicLineString2d& bound, const std::string& left_right_string, const std::string& ns, const std::vector<int>& index_mapping)
-{
-  if (visualize_lvl_ > 1)
-  {
-    // Index mapping
-    unsigned int index = 0;
-    for (auto &p : bound)
-    {
-      marker.points.clear();
+// void GlobalPlanner::visualizeIndexMapping(visualization_msgs::msg::Marker& marker, visualization_msgs::msg::MarkerArray& marker_array, const lanelet::BasicLineString2d& bound, const std::string& left_right_string, const std::string& ns, const std::vector<int>& index_mapping)
+// {
+//   if (visualize_lvl_ > 1)
+//   {
+//     // Index mapping
+//     unsigned int index = 0;
+//     for (auto &p : bound)
+//     {
+//       marker.points.clear();
 
-      marker.header.frame_id = ll2if_->map_frame_id_;
-      marker.header.stamp = now();
-      marker.ns = ns + "_" + left_right_string;
-      marker.type = visualization_msgs::msg::Marker::TEXT_VIEW_FACING;
-      marker.action = visualization_msgs::msg::Marker::ADD;
-      marker.text = std::to_string(index);
+//       marker.header.frame_id = ll2if_->map_frame_id_;
+//       marker.header.stamp = now();
+//       marker.ns = ns + "_" + left_right_string;
+//       marker.type = visualization_msgs::msg::Marker::TEXT_VIEW_FACING;
+//       marker.action = visualization_msgs::msg::Marker::ADD;
+//       marker.text = std::to_string(index);
 
-      marker.scale.z = 0.1;
+//       marker.scale.z = 0.1;
 
-      marker.color.r = 1;
-      marker.color.g = 1;
-      marker.color.b = 1;
+//       marker.color.r = 1;
+//       marker.color.g = 1;
+//       marker.color.b = 1;
 
-      marker.pose.position.x = p.x();
-      marker.pose.position.y = p.y();
-      marker.pose.position.z = 1.0;
+//       marker.pose.position.x = p.x();
+//       marker.pose.position.y = p.y();
+//       marker.pose.position.z = 1.0;
 
-      marker.id = index++;
-      marker_array.markers.push_back(marker);
-    }
+//       marker.id = index++;
+//       marker_array.markers.push_back(marker);
+//     }
 
-    // Index mapping
-    index = 0;
-    for (auto &p : bound)
-    {
-      marker.points.clear();
+//     // Index mapping
+//     index = 0;
+//     for (auto &p : bound)
+//     {
+//       marker.points.clear();
 
-      marker.header.frame_id = ll2if_->map_frame_id_;
-      marker.header.stamp = now();
-      marker.ns = ns + "_mapping_" + left_right_string;
-      marker.type = visualization_msgs::msg::Marker::TEXT_VIEW_FACING;
-      marker.action = visualization_msgs::msg::Marker::ADD;
-      marker.text = std::to_string(index_mapping[index]);
+//       marker.header.frame_id = ll2if_->map_frame_id_;
+//       marker.header.stamp = now();
+//       marker.ns = ns + "_mapping_" + left_right_string;
+//       marker.type = visualization_msgs::msg::Marker::TEXT_VIEW_FACING;
+//       marker.action = visualization_msgs::msg::Marker::ADD;
+//       marker.text = std::to_string(index_mapping[index]);
 
-      marker.scale.z = 0.1;
+//       marker.scale.z = 0.1;
 
-      marker.color.r = 0;
-      marker.color.g = 1;
-      marker.color.b = 0;
+//       marker.color.r = 0;
+//       marker.color.g = 1;
+//       marker.color.b = 0;
 
-      marker.pose.position.x = p.x();
-      marker.pose.position.y = p.y();
-      marker.pose.position.z = 1.25;
+//       marker.pose.position.x = p.x();
+//       marker.pose.position.y = p.y();
+//       marker.pose.position.z = 1.25;
 
-      marker.id = index++;
-      marker_array.markers.push_back(marker);
-    }
-  }
-}
+//       marker.id = index++;
+//       marker_array.markers.push_back(marker);
+//     }
+//   }
+// }
 
 

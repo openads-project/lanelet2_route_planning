@@ -15,6 +15,12 @@
 #include "lanelet2_route_planning_interfaces/action/global_maneuver.hpp"
 #include "lanelet2_utilities/lanelet2_utils.hpp"
 
+#include "lanelet2_route_planning_interfaces/msg/boundaries.hpp"
+#include "lanelet2_route_planning_interfaces/msg/driveable_space.hpp"
+#include "lanelet2_route_planning_interfaces/msg/regulatory_element.hpp"
+#include "lanelet2_route_planning_interfaces/msg/road_marking.hpp"
+#include "lanelet2_route_planning_interfaces/msg/route.hpp"
+
 #include <lanelet2_traffic_rules/TrafficRules.h>
 #include <lanelet2_traffic_rules/TrafficRulesFactory.h>
 
@@ -57,6 +63,8 @@ class GlobalPlanner : public rclcpp::Node
         lanelet::ConstLanelet target_ll_;
         int16_t target_lane_id_;
         double target_lane_s_dest_;
+        lanelet2_route_planning_interfaces::msg::DriveableSpace global_driveable_space_;
+        lanelet2_route_planning_interfaces::msg::DriveableSpace global_route_;
 
         std::vector<int64_t> shortest_path_ll_ids_;
 
@@ -98,17 +106,6 @@ class GlobalPlanner : public rclcpp::Node
         bool targetPositionSanityCheck(double target_x, double target_y);
         bool planRoute(lanelet::ConstLanelet start_ll, lanelet::ConstLanelet target_ll);
         void constructLaneNetwork(const lanelet::routing::LaneletPath &shortestPath, visualization_msgs::msg::MarkerArray &viz_marker_array);
-        lanelet::BasicLineString2d sampleBoundaries(const lanelet::BasicLineString2d &centerline,
-                                                    const double test_dis,
-                                                    const bool &b_right,
-                                                    std::vector<int>& index_mapping,
-                                                    const lanelet::BasicLineString2d& lane_boundary,
-                                                    visualization_msgs::msg::MarkerArray& marker_array);
-        lanelet::BasicLineString2d sampleDrivableSpace(const lanelet::BasicLineString2d &centerline,
-                                                        const double test_dis,
-                                                        const bool &b_right,
-                                                        std::vector<int>& index_mapping,
-                                                        visualization_msgs::msg::MarkerArray& marker_array);
 
         // local_path_extraction.cpp
         
@@ -134,19 +131,38 @@ class GlobalPlanner : public rclcpp::Node
 
 
         // utils.cpp
-        void processLineString(lanelet::BasicLineString2d& line_string, const std::string& desc, visualization_msgs::msg::MarkerArray &marker_array, std::vector<float> colors, std::vector<float> colors_smoothed);
+        std::vector<geometry_msgs::msg::Point> processLineString(
+                                                lanelet::BasicLineString2d& line_string,
+                                                const std::string& desc,
+                                                visualization_msgs::msg::MarkerArray &marker_array,
+                                                std::vector<float> colors,
+                                                std::vector<float> colors_smoothed);
+        lanelet2_route_planning_interfaces::msg::DriveableSpace sampleDriveableSpace(
+                                                        const lanelet::BasicLineString2d &centerline,
+                                                        visualization_msgs::msg::MarkerArray& marker_array);
+        std::vector<geometry_msgs::msg::Point> sampleLinestring(
+                                          const lanelet::BasicLineString2d &centerline,
+                                          const double test_dis,
+                                          bool b_right);
+        // lanelet::BasicLineString2d sampleBoundaries(const lanelet::BasicLineString2d &centerline,
+        //                                             const double test_dis,
+        //                                             const bool &b_right,
+        //                                             std::vector<int>& index_mapping,
+        //                                             const lanelet::BasicLineString2d& lane_boundary,
+        //                                             visualization_msgs::msg::MarkerArray& marker_array);
+
         bool handleInwardCorner(const lanelet::BasicPoint2d &base_p, lanelet::BasicPoint2d& best_point,
                                                 const std::pair<lanelet::BasicLineString2d, size_t>*& last_intersection_free_test_line,
                                                 lanelet::BasicLineString2d& previous_test_line,
                                                 const uint& idx, std::deque<std::pair<lanelet::BasicLineString2d, size_t>>& last_test_lines,
-                                                lanelet::BasicLineString2d& bound, std::vector<int>& index_mapping);
+                                                lanelet::BasicLineString2d& bound);
         bool checkLineDrivability(const lanelet::ConstLineString3d &lineToCheck);
 
 
         // visualization.cpp
-        void visualizeLinestring(std::vector<geometry_msgs::msg::Point>& line_string, const std::string& desc, visualization_msgs::msg::MarkerArray& marker_array, std::vector<float> colors);
+        void visualizeLinestring(const std::vector<geometry_msgs::msg::Point>& line_string, const std::string& frame_id, const std::string& desc, visualization_msgs::msg::MarkerArray& marker_array, std::vector<float> colors);
         visualization_msgs::msg::Marker convertDestination2Marker(double target_x, double target_y, std::string frame_id);
-        void visualizeIndexMapping(visualization_msgs::msg::Marker& marker, visualization_msgs::msg::MarkerArray& marker_array, const lanelet::BasicLineString2d& bound,
-                                    const std::string& left_right_string, const std::string& ns, const std::vector<int>& index_mapping);
+        // void visualizeIndexMapping(visualization_msgs::msg::Marker& marker, visualization_msgs::msg::MarkerArray& marker_array, const lanelet::BasicLineString2d& bound,
+        //                             const std::string& left_right_string, const std::string& ns, const std::vector<int>& index_mapping);
 
 };
