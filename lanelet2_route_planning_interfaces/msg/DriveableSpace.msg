@@ -1,4 +1,4 @@
 std_msgs/Header header
 
-geometry_msgs/Point[] linestring_left
-geometry_msgs/Point[] linestring_right
+Boundaries linestrings # boundaries restricting the driveable space
+geometry_msgs/Polygon[] restricted_areas # additional areas that restrict the driveable space in between the boundaries
