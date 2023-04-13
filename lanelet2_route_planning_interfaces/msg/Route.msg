@@ -1,5 +1,7 @@
 std_msgs/Header header
 
+geometry_msgs/Point target_position # Position of the route target
+
 Boundaries boundaries # Restricting boundaries of the route
 geometry_msgs/Point[] shortest_path # Shortest path centerline along the route
 RoadMarking[] road_markings # road-markings along the route

@@ -80,25 +80,8 @@ void GlobalPlanner::actionExecute(
   rclcpp::Rate loop_rate(10.0);
   // create handy accessors for the action goal
   const auto goal = goal_handle->get_goal();
-
   while(!maneuver_result_->destination_reached)
   {
-
-    // Check for destination reached
-    // To-Do: add subscriber for actual vehicle velocity and check for standstill if require_standstill parameter is set!
-    bool require_standstill = false;
-    double velocity = 0.0;
-    // if (geometry::distance(target_point_, cur_pos) < 5.5 && (std::fabs(velocity) < 0.05 || !require_standstill))
-    // {
-    //   RCLCPP_INFO(get_logger(),"Destination reached!");
-    //   maneuver_result_->destination_reached = true;
-    //   maneuver_result_->duration = (now()-maneuver_start_time_).seconds();
-    //   // Check if goal is done
-    //   if (rclcpp::ok()) {
-    //     goal_handle->succeed(maneuver_result_);
-    //   }
-    // }
-
     // cancel, if requested
     if (goal_handle->is_canceling()) {
       goal_handle->canceled(maneuver_result_);
@@ -106,56 +89,37 @@ void GlobalPlanner::actionExecute(
       return;
     }
 
+    // map update pending
     if(ll2if_->update_pending_)
     {
       //To-Do --> Safe Cancel Action?
     }
 
+    // Check for destination reached
+    // To-Do: add subscriber for actual vehicle velocity and check for standstill if require_standstill parameter is set!
     if(egoPositionSanityCheck())
     {
-      lanelet::BasicPoint2d cur_pos;
-      lanelet::ConstLanelet current_ll;
-      unsigned int lane_network_route_index;
-      unsigned int lane_network_spatial_index;
-      unsigned int current_lane;
-      if(false)//locateInLaneNetwork(lane_network_, cur_pos, current_ll, lane_network_route_index, lane_network_spatial_index, current_lane))
+      bool require_standstill = false;
+      double velocity = 0.0;
+      if (geometry::distance(lanelet::BasicPoint2d(goal->target_pos_x, goal->target_pos_y), lanelet::BasicPoint2d(ego_pose_.pose.pose.position.x, ego_pose_.pose.pose.position.y)) < 1.0 && (std::fabs(velocity) < 0.05 || !require_standstill))
       {
-        // // Roadtype
-        // std::string current_ll_location = current_ll.hasAttribute("location") ? current_ll.attribute("location").value() : "";
-        // std::string current_ll_subtype  = current_ll.hasAttribute("subtype")  ? current_ll.attribute("subtype").value() : "";
-
-        // // Arc coordinates w.r.t. current lanelet
-        // lanelet::ArcCoordinates arc = lanelet::geometry::toArcCoordinates(current_ll.centerline2d(), cur_pos);
-        // double current_ll_s = arc.length;
-        // double current_ll_d = arc.distance;
-
-        // // Arc coordinates w.r.t. current lane
-        // arc                          = lanelet::geometry::toArcCoordinates(lane_network_.lanes[current_lane], cur_pos);
-        // double current_lane_s = arc.length;
-        // double current_lane_d = arc.distance;
-
-        // // Arc coordinates w.r.t. shortest path in route
-        // const lanelet::ArcCoordinates arc_center_route = geometry::toArcCoordinates(shortest_path_centerline_, cur_pos);
-        // double shortest_path_s = arc_center_route.length;
-        // double shortest_path_d = arc_center_route.distance;
+        RCLCPP_INFO(get_logger(),"Destination reached!");
+        maneuver_result_->destination_reached = true;
+        rclcpp::Duration diff = now()-maneuver_start_time_;
+        maneuver_result_->duration.sec = diff.seconds();
+        maneuver_result_->duration.nanosec = diff.nanoseconds();
+        // Check if goal is done
+        if (rclcpp::ok()) {
+          goal_handle->succeed(maneuver_result_);
+        }
       }
-      else
-      {
-        loop_rate.sleep(); // sleep
-        continue;
-      }
+      // Extract local section of driveable space and route
+      // publish the current sequence as action feedback
+      goal_handle->publish_feedback(maneuver_feedback_);
+      RCLCPP_INFO(get_logger(), "Publishing action feedback");
     }
-    else
-    {
-      loop_rate.sleep(); // sleep
-      continue;
-    }
-
-    // publish the current sequence as action feedback
-    goal_handle->publish_feedback(maneuver_feedback_);
-    RCLCPP_INFO(get_logger(), "Publishing action feedback");
-
     // sleep
     loop_rate.sleep();
+    continue;
   }
 }

@@ -187,7 +187,7 @@ bool GlobalPlanner::planRoute(lanelet::ConstLanelet start_ll, lanelet::ConstLane
     // Process boundaries
     start_time = now();
     visualization_msgs::msg::MarkerArray marker_array_boundary;
-    lanelet2_route_planning_interfaces::msg::DriveableSpace driveable_space = sampleDriveableSpace(shortest_path_centerline, marker_array_boundary);
+    global_driveable_space_ = sampleDriveableSpace(shortest_path_centerline, marker_array_boundary);
     RCLCPP_INFO_STREAM(get_logger(), "Duration for calculation of driveable-space: " << (now() - start_time).seconds() << "s");
 
     // Process route boundaries
