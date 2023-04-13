@@ -88,6 +88,7 @@ class GlobalPlanner : public rclcpp::Node
 
         // Action Client
         rclcpp_action::Client<lanelet2_route_planning_interfaces::action::GlobalManeuver>::SharedPtr maneuver_action_client_;
+        std::shared_future<rclcpp_action::ClientGoalHandle<lanelet2_route_planning_interfaces::action::GlobalManeuver>::SharedPtr> goal_handle_future_;
 
         // Action Server
         rclcpp_action::Server<lanelet2_route_planning_interfaces::action::GlobalManeuver>::SharedPtr maneuver_action_server_;

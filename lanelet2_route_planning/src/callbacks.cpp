@@ -7,9 +7,16 @@ void GlobalPlanner::mapPoseCallback(geometry_msgs::msg::PoseWithCovarianceStampe
 
 void GlobalPlanner::goalPoseCallback(geometry_msgs::msg::PoseStamped::SharedPtr msg)
 {
-  maneuver_action_client_ = rclcpp_action::create_client<lanelet2_route_planning_interfaces::action::GlobalManeuver>(
-      this,
-      "~/execute_global_maneuver");
+  // Check for running actions
+  if(goal_handle_future_.valid())
+  {
+    auto goal_handle = goal_handle_future_.get();
+    RCLCPP_WARN_STREAM(this->get_logger(), "goal_handle->get_status(): " << (int)goal_handle->get_status());
+    if(goal_handle->get_status() == rclcpp_action::GoalStatus::STATUS_EXECUTING || goal_handle->get_status() == rclcpp_action::GoalStatus::STATUS_ACCEPTED)
+    {
+      RCLCPP_WARN(this->get_logger(), "There is a running action!");
+    }
+  }
 
   if(!this->maneuver_action_client_->wait_for_action_server()) {
     RCLCPP_ERROR(this->get_logger(), "Action server not available! Could not create a global maneuver action!");
@@ -22,7 +29,7 @@ void GlobalPlanner::goalPoseCallback(geometry_msgs::msg::PoseStamped::SharedPtr 
 
   RCLCPP_INFO(this->get_logger(), "Sending goal");
   auto send_goal_options = rclcpp_action::Client<lanelet2_route_planning_interfaces::action::GlobalManeuver>::SendGoalOptions();
-  this->maneuver_action_client_->async_send_goal(action_goal, send_goal_options);
+  goal_handle_future_ = this->maneuver_action_client_->async_send_goal(action_goal, send_goal_options);
   RCLCPP_INFO(this->get_logger(), "async_send_goal finshed");
 }
 

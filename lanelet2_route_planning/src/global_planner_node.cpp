@@ -5,7 +5,7 @@ GlobalPlanner::GlobalPlanner() : Node("global_planner")
   startup_timer_ = create_wall_timer(0.1s, std::bind(&GlobalPlanner::initializeGlobalPlanner, this));
   map_pose_sub_ = create_subscription<geometry_msgs::msg::PoseWithCovarianceStamped>("/ego_vehicle/map_pose", 1, std::bind(&GlobalPlanner::mapPoseCallback, this, std::placeholders::_1));
   goal_pose_sub_ = create_subscription<geometry_msgs::msg::PoseStamped>("/goal_pose", 1, std::bind(&GlobalPlanner::goalPoseCallback, this, std::placeholders::_1));
-
+  maneuver_action_client_ = rclcpp_action::create_client<lanelet2_route_planning_interfaces::action::GlobalManeuver>(this, "~/execute_global_maneuver");
 }
 
 void GlobalPlanner::initializeMapInterface()
@@ -42,7 +42,7 @@ void GlobalPlanner::initializeGlobalPlanner()
 
 bool GlobalPlanner::egoPositionSanityCheck()
 {
-  if((now() - ego_pose_.header.stamp).seconds()>0.2)
+  if((now() - ego_pose_.header.stamp).seconds()>1.0)
   {
     RCLCPP_ERROR_STREAM(get_logger(), "Latest ego-pose message is depracted (age: " << (now() - ego_pose_.header.stamp).seconds() << " s)!");
     return false;
