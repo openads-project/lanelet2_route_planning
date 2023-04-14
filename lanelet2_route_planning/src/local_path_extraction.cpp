@@ -1,60 +1,59 @@
 #include "lanelet2_route_planning/global_planner_node.hpp"
 
-bool GlobalPlanner::locateInLaneNetwork(Lanelet2RoutePlanningDatatypes::LaneletLaneNetwork lane_network, lanelet::BasicPoint2d& cur_pos, lanelet::ConstLanelet& current_ll, size_t& lane_network_route_index, size_t& lane_network_spatial_index, int16& current_lane)
-{
-    // Current position
-    cur_pos = lanelet::BasicPoint2d(ego_pose_.pose.pose.position.x, ego_pose_.pose.pose.position.y)
-    // Detect most probable current lanelet
-    std::vector<std::pair<double, lanelet::ConstLanelet>> nearest_lls = lanelet::geometry::findWithin2d(llmap_->laneletLayer, cur_pos, 5.0);
-    if (!nearest_lls.size())
-    {
-        RCLCPP_ERROR_STREAM(get_logger(), "No Lanelet at current position: " << cur_pos.x() << ", " << cur_pos.y());
-        return false;
-    }
-    else
-    {
-        // Determine Yaw Angle
-        // Get actual Heading
-        tf2::Quaternion quat;
-        tf2::fromMsg(ego_pose_.pose.pose.orientation, quat);
-        float yaw = tf2::impl::getYaw(quat);
-        Lanelet2Utilities::laneletSorting(cur_pos, nearest_lls, yaw, *trafficRules_, {});
+        void GlobalPlanner::initializeLocalPathExtraction(const lanelet2_route_planning_interfaces::msg::Route& route_global)
+        {
+            // Reset ego-position corresponding sample values
+            ego_pos_sample_cl_ = 0;
+            ego_pos_sample_lb_ = 0;
+            ego_pos_sample_rb_ = 0;
+            // Get the shortest-path-centerline sample of the target position
+            target_sample_cl_ = findNearestSample(route_global.target_position, route_global.shortest_path);
+        }
+        
+        void GlobalPlanner::extractLocalMapInfo(const geometry_msgs::msg::PoseWithCovarianceStamped& cur_pose,
+                                const lanelet2_route_planning_interfaces::msg::DriveableSpace& driveable_space_global,
+                                lanelet2_route_planning_interfaces::msg::DriveableSpace& driveable_space_local,
+                                const lanelet2_route_planning_interfaces::msg::Route& route_global,
+                                lanelet2_route_planning_interfaces::msg::Route& route_local)
+        {
+            // Find sample of shortest path centerline correspondint to the current ego-position
+            ego_pos_sample_cl_ = findNearestSample(cur_pose.pose.pose.position, route_global.shortest_path, ego_pos_sample_cl_);
+            RCLCPP_INFO_STREAM(get_logger(), "The sample in the shortest path corresponding to the current ego-position has id " << ego_pos_sample_cl_);
+            remaining_shortest_path_={route_global.shortest_path.begin() + ego_pos_sample_cl_, route_global.shortest_path.begin() + target_sample_cl_}; 
+            //RCLCPP_INFO_STREAM(get_logger(), "Current Ego Position: (" << cur_pose.pose.pose.position.x << "|" << cur_pose.pose.pose.position.y <<")");
+            //RCLCPP_INFO_STREAM(get_logger(), "Next Shortest Path Sample: (" << route_global.shortest_path[ego_pos_sample_cl_].x << "|" << route_global.shortest_path[ego_pos_sample_cl_].y <<")");
+            RCLCPP_INFO_STREAM(get_logger(), "Length of remaining shortest path: " << accumulatedLength(remaining_shortest_path_));
+        } 
 
-        // Locate current lane and lanelet in lane network
-        bool b_located = false;
-        for(size_t nearest_ll_id = 0; nearest_ll_id < nearest_lls.size(); nearest_ll_id++)
+        double GlobalPlanner::accumulatedLength(const std::vector<geometry_msgs::msg::Point>& point_list)
         {
-            for(size_t route_index = 0; route_index < lane_network.lane_hierarchy.size(); route_index++)
+            double length=0.0;
+            for(int i=0; i<point_list.size()-1; i++)
             {
-                for(size_t spatial_index = 0; spatial_index < lane_network.lane_hierarchy[route_index].neighboring_lanelets.size(); spatial_index++)
-                {
-                    if(lane_network.lane_hierarchy[route_index].neighboring_lanelets[spatial_index].lanelet_id == nearest_lls[nearest_ll_id].second.id())
-                    {
-                        // Save information
-                        current_ll = nearest_lls[nearest_ll_id].second;
-                        maneuver_feedback_->current_lanelet = current_ll.id();
-                        lane_network_route_index = route_index;
-                        lane_network_spatial_index = spatial_index;
-                        current_lane = lane_network.lane_hierarchy[route_index].neighboring_lanelets[spatial_index].lane_id;
-                        b_located = true;
-                        break;
-                    }
-                }
-                if(b_located)
-                {
-                    break;
+                length+=distance(point_list[i],point_list[i+1]);
+            }
+            return length;
+        }
+
+        double GlobalPlanner::distance(const geometry_msgs::msg::Point& p1, const geometry_msgs::msg::Point& p2)
+        {
+            return std::sqrt(std::pow(p1.x - p2.x, 2) +
+                            std::pow(p1.y - p2.y, 2) +
+                            std::pow(p1.z - p2.z, 2));
+        }
+
+        unsigned int GlobalPlanner::findNearestSample(const geometry_msgs::msg::Point& ref_point, const std::vector<geometry_msgs::msg::Point>& point_list, const unsigned int& start_index)
+        {
+            double min_distance = std::numeric_limits<double>::max();
+            unsigned int nearest_index = start_index;
+            for (unsigned int i = start_index; i<point_list.size(); i++) {
+                double dist = distance(ref_point, point_list[i]);
+                if (dist < min_distance) {
+                    min_distance = dist;
+                    nearest_index = i; // Update the last index to the current index
+                } else if (dist > min_distance) {
+                    break; // Stop searching if the distance starts increasing again
                 }
             }
-            if(b_located)
-            {
-                break;
-            }
+            return nearest_index;
         }
-            
-        if (!b_located)
-        {
-            RCLCPP_ERROR_STREAM(get_logger(), "Near lanelets are not part of lane network at current position: " << cur_pos.x() << ", " << cur_pos.y());
-            return false;
-        }
-    }
-}

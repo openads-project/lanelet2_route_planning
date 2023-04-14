@@ -24,6 +24,7 @@ find_package(tf2 REQUIRED)
 add_executable(global_planner_node
   src/global_planner_node.cpp
   src/maneuver_action_fcns.cpp
+  src/local_path_extraction.cpp
   src/callbacks.cpp
   src/utils.cpp
   src/visualization.cpp

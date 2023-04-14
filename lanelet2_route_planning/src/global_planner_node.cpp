@@ -177,7 +177,11 @@ bool GlobalPlanner::planRoute(lanelet::ConstLanelet start_ll, lanelet::ConstLane
     std::pair<lanelet::BasicLineString2d, lanelet::BasicLineString2d> lane_boundaries;
     lanelet::BasicLineString2d shortest_path_centerline = Lanelet2Utilities::convertLLPath2LineString2dSBased(ConstLanelets(shortestPath.begin(), shortestPath.end()), start_pos, 10., 3., std::numeric_limits<double>::max(), ds_sample_, target_pos, lane_boundaries, *routingGraphBicycle_);
     visualization_msgs::msg::MarkerArray marker_array_route;
-    processLineString(shortest_path_centerline, "shortest path", marker_array_route, {0.1, 0.35, 0.3}, {0.2, 0.5, 0.15});
+    //Start filling global route
+    global_route_.target_position.x = target.x();
+    global_route_.target_position.y = target.y();
+    global_route_.target_position.y = target.y();
+    global_route_.shortest_path = processLineString(shortest_path_centerline, "shortest path", marker_array_route, {0.1, 0.35, 0.3}, {0.2, 0.5, 0.15});
 
     // Construct lane network
     //start_time = now();

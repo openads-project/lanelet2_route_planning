@@ -75,9 +75,11 @@ void GlobalPlanner::actionExecute(
   const std::shared_ptr<rclcpp_action::ServerGoalHandle<lanelet2_route_planning_interfaces::action::GlobalManeuver>> goal_handle)
 {
   RCLCPP_INFO(get_logger(), "Executing action goal");
+  // Reset / Initialize
+  initializeLocalPathExtraction(global_route_);
 
   // define a sleeping rate
-  rclcpp::Rate loop_rate(10.0);
+  rclcpp::Rate loop_rate(path_extraction_rate_);
   // create handy accessors for the action goal
   const auto goal = goal_handle->get_goal();
   while(!maneuver_result_->destination_reached)
@@ -114,6 +116,13 @@ void GlobalPlanner::actionExecute(
         }
       }
       // Extract local section of driveable space and route
+      lanelet2_route_planning_interfaces::msg::DriveableSpace driveable_space_local;
+      lanelet2_route_planning_interfaces::msg::Route route_local;
+
+      rclcpp::Time start = now();
+      extractLocalMapInfo(ego_pose_, global_driveable_space_, driveable_space_local, global_route_, route_local);
+      rclcpp::Duration diff = now()-start;
+      RCLCPP_INFO_STREAM(get_logger(), "Duration to extract the local map information: " << std::setprecision(10) << (diff.seconds() + (double)diff.nanoseconds() / 1e9));
       // publish the current sequence as action feedback
       goal_handle->publish_feedback(maneuver_feedback_);
       RCLCPP_INFO(get_logger(), "Publishing action feedback");

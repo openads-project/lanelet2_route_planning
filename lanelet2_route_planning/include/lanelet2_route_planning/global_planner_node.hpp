@@ -64,7 +64,7 @@ class GlobalPlanner : public rclcpp::Node
         int16_t target_lane_id_;
         double target_lane_s_dest_;
         lanelet2_route_planning_interfaces::msg::DriveableSpace global_driveable_space_;
-        lanelet2_route_planning_interfaces::msg::DriveableSpace global_route_;
+        lanelet2_route_planning_interfaces::msg::Route global_route_;
 
         std::vector<int64_t> shortest_path_ll_ids_;
 
@@ -78,6 +78,10 @@ class GlobalPlanner : public rclcpp::Node
         rclcpp::Time maneuver_start_time_;
 
         // Local Path Extraction
+        double path_extraction_rate_=10.0;
+        unsigned int target_sample_cl_;
+        unsigned int ego_pos_sample_cl_, ego_pos_sample_lb_, ego_pos_sample_rb_;
+        std::vector<geometry_msgs::msg::Point> remaining_shortest_path_;
         
         // Timer
         rclcpp::TimerBase::SharedPtr startup_timer_;
@@ -109,7 +113,15 @@ class GlobalPlanner : public rclcpp::Node
         void constructLaneNetwork(const lanelet::routing::LaneletPath &shortestPath, visualization_msgs::msg::MarkerArray &viz_marker_array);
 
         // local_path_extraction.cpp
-        
+        void initializeLocalPathExtraction(const lanelet2_route_planning_interfaces::msg::Route& route_global);
+        void extractLocalMapInfo(const geometry_msgs::msg::PoseWithCovarianceStamped& cur_pose,
+                                const lanelet2_route_planning_interfaces::msg::DriveableSpace& driveable_space_global,
+                                lanelet2_route_planning_interfaces::msg::DriveableSpace& driveable_space_local,
+                                const lanelet2_route_planning_interfaces::msg::Route& route_global,
+                                lanelet2_route_planning_interfaces::msg::Route& route_local);
+        double accumulatedLength(const std::vector<geometry_msgs::msg::Point>& point_list);
+        double distance(const geometry_msgs::msg::Point& p1, const geometry_msgs::msg::Point& p2);
+        unsigned int findNearestSample(const geometry_msgs::msg::Point& ref_point, const std::vector<geometry_msgs::msg::Point>& point_list, const unsigned int& start_index=0);
 
 
         // maneuver_action_fcns.cpp
