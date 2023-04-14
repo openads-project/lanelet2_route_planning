@@ -42,7 +42,7 @@ void GlobalPlanner::initializeGlobalPlanner()
 
 bool GlobalPlanner::egoPositionSanityCheck()
 {
-  if((now() - ego_pose_.header.stamp).seconds()>1.0)
+  if((now() - ego_pose_.header.stamp).seconds()>2.0) // Change later to 0.2
   {
     RCLCPP_ERROR_STREAM(get_logger(), "Latest ego-pose message is depracted (age: " << (now() - ego_pose_.header.stamp).seconds() << " s)!");
     return false;

@@ -7,14 +7,16 @@ void GlobalPlanner::mapPoseCallback(geometry_msgs::msg::PoseWithCovarianceStampe
 
 void GlobalPlanner::goalPoseCallback(geometry_msgs::msg::PoseStamped::SharedPtr msg)
 {
+  RCLCPP_INFO(this->get_logger(), "Received a new goal-pose!");
   // Check for running actions
   if(goal_handle_future_.valid())
   {
     auto goal_handle = goal_handle_future_.get();
-    RCLCPP_WARN_STREAM(this->get_logger(), "goal_handle->get_status(): " << (int)goal_handle->get_status());
-    if(goal_handle->get_status() == rclcpp_action::GoalStatus::STATUS_EXECUTING || goal_handle->get_status() == rclcpp_action::GoalStatus::STATUS_ACCEPTED)
+    auto goal_status = goal_handle->get_status();
+    if(goal_status == rclcpp_action::GoalStatus::STATUS_EXECUTING || goal_status == rclcpp_action::GoalStatus::STATUS_ACCEPTED)
     {
-      RCLCPP_WARN(this->get_logger(), "There is a running action!");
+      RCLCPP_WARN(this->get_logger(), "There is a running action that will be canceled now!");
+      auto cancel_future = maneuver_action_client_->async_cancel_goal(goal_handle);
     }
   }
 
@@ -27,9 +29,8 @@ void GlobalPlanner::goalPoseCallback(geometry_msgs::msg::PoseStamped::SharedPtr 
   action_goal.target_pos_x = msg->pose.position.x;
   action_goal.target_pos_y = msg->pose.position.y;
 
-  RCLCPP_INFO(this->get_logger(), "Sending goal");
+  RCLCPP_INFO(this->get_logger(), "Sending a new action goal to plan a maneuver to the desired goal-pose!");
   auto send_goal_options = rclcpp_action::Client<lanelet2_route_planning_interfaces::action::GlobalManeuver>::SendGoalOptions();
   goal_handle_future_ = this->maneuver_action_client_->async_send_goal(action_goal, send_goal_options);
-  RCLCPP_INFO(this->get_logger(), "async_send_goal finshed");
 }
 
