@@ -14,6 +14,10 @@ find_package(rosidl_default_generators REQUIRED)
 find_package(std_msgs REQUIRED)
 find_package(builtin_interfaces REQUIRED)
 find_package(geometry_msgs REQUIRED)
+find_package(rclcpp REQUIRED)
+find_package(tf2 REQUIRED)
+find_package(tf2_geometry_msgs REQUIRED)
+find_package(tf2_ros REQUIRED)
 
 rosidl_generate_interfaces(${PROJECT_NAME}
   "action/GlobalManeuver.action"
@@ -25,7 +29,28 @@ rosidl_generate_interfaces(${PROJECT_NAME}
   DEPENDENCIES std_msgs builtin_interfaces geometry_msgs
 )
 
-ament_export_dependencies(rosidl_default_runtime)
+add_library(tf_${PROJECT_NAME} INTERFACE)
+
+target_include_directories(tf_${PROJECT_NAME} INTERFACE
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+    $<INSTALL_INTERFACE:include>
+)
+
+ament_export_targets(tf_${PROJECT_NAME}Targets HAS_LIBRARY_TARGET)
+ament_export_dependencies(rosidl_default_runtime tf2 tf2_geometry_msgs tf2_ros)
+
+install(
+  DIRECTORY include/
+  DESTINATION include
+)
+
+install(TARGETS tf_${PROJECT_NAME}
+  EXPORT tf_${PROJECT_NAME}Targets
+  ARCHIVE DESTINATION lib
+  LIBRARY DESTINATION lib
+  RUNTIME DESTINATION lib
+  INCLUDES DESTINATION include
+)
 
 if(BUILD_TESTING)
   find_package(ament_lint_auto REQUIRED)
