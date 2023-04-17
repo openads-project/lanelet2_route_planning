@@ -4,6 +4,9 @@
 #include <tf2/impl/utils.h>
 #include <tf2_geometry_msgs/tf2_geometry_msgs.hpp>
 
+#include <tf2_ros/buffer.h>
+#include <tf2_ros/transform_listener.h>
+
 #include <geometry_msgs/msg/pose_stamped.hpp>
 #include <geometry_msgs/msg/pose_with_covariance_stamped.hpp>
 #include <geometry_msgs/msg/point.hpp>
@@ -20,6 +23,8 @@
 #include "lanelet2_route_planning_interfaces/msg/regulatory_element.hpp"
 #include "lanelet2_route_planning_interfaces/msg/road_marking.hpp"
 #include "lanelet2_route_planning_interfaces/msg/route.hpp"
+
+#include "lanelet2_route_planning_interfaces/tf2_lanelet2_route_planning_interfaces.hpp"
 
 #include <lanelet2_traffic_rules/TrafficRules.h>
 #include <lanelet2_traffic_rules/TrafficRulesFactory.h>
@@ -45,6 +50,10 @@ class GlobalPlanner : public rclcpp::Node
         
         
     private:
+        //tf2
+        std::shared_ptr<tf2_ros::TransformListener> tf_listener_;
+        std::unique_ptr<tf2_ros::Buffer> tf_buffer_;
+
         // Variables
         LL2MapInterface *ll2if_;
         geometry_msgs::msg::PoseWithCovarianceStamped ego_pose_;
@@ -78,10 +87,18 @@ class GlobalPlanner : public rclcpp::Node
         rclcpp::Time maneuver_start_time_;
 
         // Local Path Extraction
+        std::string local_vehicle_frame_id_="base_link";
         double path_extraction_rate_=10.0;
         unsigned int target_sample_cl_;
-        unsigned int ego_pos_sample_cl_, ego_pos_sample_lb_, ego_pos_sample_rb_;
+        unsigned int ego_pos_sample_cl_;
+        unsigned int lbehind_sample_drivspace_left_, lbehind_sample_drivspace_right_;
+        unsigned int lahead_sample_drivspace_left_, lahead_sample_drivspace_right_;
         std::vector<geometry_msgs::msg::Point> remaining_shortest_path_;
+        double look_ahead_time_ = 10.0;
+        double look_ahead_distance_min_ = 50.0;
+        double look_behind_distance_ = 20.0;
+        rclcpp::Publisher<lanelet2_route_planning_interfaces::msg::Route>::SharedPtr local_route_pub_;
+        rclcpp::Publisher<lanelet2_route_planning_interfaces::msg::DriveableSpace>::SharedPtr local_driveable_space_pub_;
         
         // Timer
         rclcpp::TimerBase::SharedPtr startup_timer_;
@@ -100,6 +117,8 @@ class GlobalPlanner : public rclcpp::Node
         lanelet2_route_planning_interfaces::action::GlobalManeuver::Result::SharedPtr maneuver_result_;
 
         // Publisher
+        rclcpp::Publisher<lanelet2_route_planning_interfaces::msg::Route>::SharedPtr route_pub_;
+        rclcpp::Publisher<lanelet2_route_planning_interfaces::msg::DriveableSpace>::SharedPtr driveable_space_pub_;
         rclcpp::Publisher<visualization_msgs::msg::Marker>::SharedPtr viz_destination_pub_;
         rclcpp::Publisher<visualization_msgs::msg::MarkerArray>::SharedPtr viz_route_pub_;
         rclcpp::Publisher<visualization_msgs::msg::MarkerArray>::SharedPtr viz_boundary_pub_;
@@ -119,9 +138,10 @@ class GlobalPlanner : public rclcpp::Node
                                 lanelet2_route_planning_interfaces::msg::DriveableSpace& driveable_space_local,
                                 const lanelet2_route_planning_interfaces::msg::Route& route_global,
                                 lanelet2_route_planning_interfaces::msg::Route& route_local);
-        double accumulatedLength(const std::vector<geometry_msgs::msg::Point>& point_list);
+        double accumulatedLength(const std::vector<geometry_msgs::msg::Point>& point_list, std::vector<double>& accumulated_length);
         double distance(const geometry_msgs::msg::Point& p1, const geometry_msgs::msg::Point& p2);
         unsigned int findNearestSample(const geometry_msgs::msg::Point& ref_point, const std::vector<geometry_msgs::msg::Point>& point_list, const unsigned int& start_index=0);
+        unsigned int findNearestSampleReverse(const geometry_msgs::msg::Point& ref_point, const std::vector<geometry_msgs::msg::Point>& point_list);
 
 
         // maneuver_action_fcns.cpp

@@ -6,6 +6,10 @@ GlobalPlanner::GlobalPlanner() : Node("global_planner")
   map_pose_sub_ = create_subscription<geometry_msgs::msg::PoseWithCovarianceStamped>("/ego_vehicle/map_pose", 1, std::bind(&GlobalPlanner::mapPoseCallback, this, std::placeholders::_1));
   goal_pose_sub_ = create_subscription<geometry_msgs::msg::PoseStamped>("/goal_pose", 1, std::bind(&GlobalPlanner::goalPoseCallback, this, std::placeholders::_1));
   maneuver_action_client_ = rclcpp_action::create_client<lanelet2_route_planning_interfaces::action::GlobalManeuver>(this, "~/execute_global_maneuver");
+
+  // create a transform listener
+  tf_buffer_ = std::make_unique<tf2_ros::Buffer>(this->get_clock());
+  tf_listener_ = std::make_shared<tf2_ros::TransformListener>(*tf_buffer_);
 }
 
 void GlobalPlanner::initializeMapInterface()
@@ -35,6 +39,13 @@ void GlobalPlanner::initializeGlobalPlanner()
     viz_destination_pub_ = create_publisher<visualization_msgs::msg::Marker>("~/destination_marker",1);
     viz_route_pub_ = create_publisher<visualization_msgs::msg::MarkerArray>("~/route_marker",1);
     viz_boundary_pub_ = create_publisher<visualization_msgs::msg::MarkerArray>("~/boundary_marker",1);
+
+    route_pub_ = create_publisher<lanelet2_route_planning_interfaces::msg::Route>("~/global/route",1);
+    driveable_space_pub_ = create_publisher<lanelet2_route_planning_interfaces::msg::DriveableSpace>("~/global/driveable_space",1);
+
+    // local path extraction
+    local_route_pub_ = create_publisher<lanelet2_route_planning_interfaces::msg::Route>("~/local/route",1);
+    local_driveable_space_pub_ = create_publisher<lanelet2_route_planning_interfaces::msg::DriveableSpace>("~/local/driveable_space",1);
 
     startup_timer_->cancel();
   }
@@ -203,6 +214,10 @@ bool GlobalPlanner::planRoute(lanelet::ConstLanelet start_ll, lanelet::ConstLane
     // Process shortest path boundaries
 
     // Get regulatory elements along shortest path
+
+    // Publish
+    route_pub_->publish(global_route_);
+    driveable_space_pub_->publish(global_driveable_space_);
 
     // Visualize
     viz_route_pub_->publish(marker_array_route);
