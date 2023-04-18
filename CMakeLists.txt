@@ -12,7 +12,7 @@ find_package(ament_cmake REQUIRED)
 # find_package(<dependency> REQUIRED)
 find_package(geometry_msgs REQUIRED)
 find_package(lanelet2_map_interface REQUIRED)
-find_package(lanelet2_route_planning_interfaces REQUIRED)
+find_package(route_planning_interfaces REQUIRED)
 find_package(lanelet2_routing REQUIRED)
 find_package(lanelet2_traffic_rules REQUIRED)
 find_package(lanelet2_utilities REQUIRED)
@@ -35,7 +35,7 @@ add_executable(global_planner_node
 ament_target_dependencies(global_planner_node
   geometry_msgs
   lanelet2_map_interface
-  lanelet2_route_planning_interfaces
+  route_planning_interfaces
   lanelet2_routing
   lanelet2_traffic_rules
   lanelet2_utilities

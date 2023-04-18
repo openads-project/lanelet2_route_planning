@@ -25,12 +25,12 @@ void GlobalPlanner::goalPoseCallback(geometry_msgs::msg::PoseStamped::SharedPtr 
     return;
   }
 
-  auto action_goal = lanelet2_route_planning_interfaces::action::GlobalManeuver::Goal();
+  auto action_goal = route_planning_interfaces::action::GlobalManeuver::Goal();
   action_goal.target_pos_x = msg->pose.position.x;
   action_goal.target_pos_y = msg->pose.position.y;
 
   RCLCPP_INFO(this->get_logger(), "Sending a new action goal to plan a maneuver to the desired goal-pose!");
-  auto send_goal_options = rclcpp_action::Client<lanelet2_route_planning_interfaces::action::GlobalManeuver>::SendGoalOptions();
+  auto send_goal_options = rclcpp_action::Client<route_planning_interfaces::action::GlobalManeuver>::SendGoalOptions();
   goal_handle_future_ = this->maneuver_action_client_->async_send_goal(action_goal, send_goal_options);
 }
 

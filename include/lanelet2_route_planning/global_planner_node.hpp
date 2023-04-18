@@ -15,16 +15,16 @@
 
 
 #include "lanelet2_map_interface/lanelet2_map_interface.hpp"
-#include "lanelet2_route_planning_interfaces/action/global_maneuver.hpp"
+#include "route_planning_interfaces/action/global_maneuver.hpp"
 #include "lanelet2_utilities/lanelet2_utils.hpp"
 
-#include "lanelet2_route_planning_interfaces/msg/boundaries.hpp"
-#include "lanelet2_route_planning_interfaces/msg/driveable_space.hpp"
-#include "lanelet2_route_planning_interfaces/msg/regulatory_element.hpp"
-#include "lanelet2_route_planning_interfaces/msg/road_marking.hpp"
-#include "lanelet2_route_planning_interfaces/msg/route.hpp"
+#include "route_planning_interfaces/msg/boundaries.hpp"
+#include "route_planning_interfaces/msg/driveable_space.hpp"
+#include "route_planning_interfaces/msg/regulatory_element.hpp"
+#include "route_planning_interfaces/msg/road_marking.hpp"
+#include "route_planning_interfaces/msg/route.hpp"
 
-#include "lanelet2_route_planning_interfaces/tf2_lanelet2_route_planning_interfaces.hpp"
+#include "route_planning_interfaces/tf2_route_planning_interfaces.hpp"
 
 #include <lanelet2_traffic_rules/TrafficRules.h>
 #include <lanelet2_traffic_rules/TrafficRulesFactory.h>
@@ -72,8 +72,8 @@ class GlobalPlanner : public rclcpp::Node
         lanelet::ConstLanelet target_ll_;
         int16_t target_lane_id_;
         double target_lane_s_dest_;
-        lanelet2_route_planning_interfaces::msg::DriveableSpace global_driveable_space_;
-        lanelet2_route_planning_interfaces::msg::Route global_route_;
+        route_planning_interfaces::msg::DriveableSpace global_driveable_space_;
+        route_planning_interfaces::msg::Route global_route_;
 
         std::vector<int64_t> shortest_path_ll_ids_;
 
@@ -97,8 +97,8 @@ class GlobalPlanner : public rclcpp::Node
         double look_ahead_time_ = 10.0;
         double look_ahead_distance_min_ = 50.0;
         double look_behind_distance_ = 20.0;
-        rclcpp::Publisher<lanelet2_route_planning_interfaces::msg::Route>::SharedPtr local_route_pub_;
-        rclcpp::Publisher<lanelet2_route_planning_interfaces::msg::DriveableSpace>::SharedPtr local_driveable_space_pub_;
+        rclcpp::Publisher<route_planning_interfaces::msg::Route>::SharedPtr local_route_pub_;
+        rclcpp::Publisher<route_planning_interfaces::msg::DriveableSpace>::SharedPtr local_driveable_space_pub_;
         
         // Timer
         rclcpp::TimerBase::SharedPtr startup_timer_;
@@ -108,17 +108,17 @@ class GlobalPlanner : public rclcpp::Node
         rclcpp::Subscription<geometry_msgs::msg::PoseStamped>::SharedPtr goal_pose_sub_;
 
         // Action Client
-        rclcpp_action::Client<lanelet2_route_planning_interfaces::action::GlobalManeuver>::SharedPtr maneuver_action_client_;
-        std::shared_future<rclcpp_action::ClientGoalHandle<lanelet2_route_planning_interfaces::action::GlobalManeuver>::SharedPtr> goal_handle_future_;
+        rclcpp_action::Client<route_planning_interfaces::action::GlobalManeuver>::SharedPtr maneuver_action_client_;
+        std::shared_future<rclcpp_action::ClientGoalHandle<route_planning_interfaces::action::GlobalManeuver>::SharedPtr> goal_handle_future_;
 
         // Action Server
-        rclcpp_action::Server<lanelet2_route_planning_interfaces::action::GlobalManeuver>::SharedPtr maneuver_action_server_;
-        lanelet2_route_planning_interfaces::action::GlobalManeuver::Feedback::SharedPtr maneuver_feedback_;
-        lanelet2_route_planning_interfaces::action::GlobalManeuver::Result::SharedPtr maneuver_result_;
+        rclcpp_action::Server<route_planning_interfaces::action::GlobalManeuver>::SharedPtr maneuver_action_server_;
+        route_planning_interfaces::action::GlobalManeuver::Feedback::SharedPtr maneuver_feedback_;
+        route_planning_interfaces::action::GlobalManeuver::Result::SharedPtr maneuver_result_;
 
         // Publisher
-        rclcpp::Publisher<lanelet2_route_planning_interfaces::msg::Route>::SharedPtr route_pub_;
-        rclcpp::Publisher<lanelet2_route_planning_interfaces::msg::DriveableSpace>::SharedPtr driveable_space_pub_;
+        rclcpp::Publisher<route_planning_interfaces::msg::Route>::SharedPtr route_pub_;
+        rclcpp::Publisher<route_planning_interfaces::msg::DriveableSpace>::SharedPtr driveable_space_pub_;
         rclcpp::Publisher<visualization_msgs::msg::Marker>::SharedPtr viz_destination_pub_;
         rclcpp::Publisher<visualization_msgs::msg::MarkerArray>::SharedPtr viz_route_pub_;
         rclcpp::Publisher<visualization_msgs::msg::MarkerArray>::SharedPtr viz_boundary_pub_;
@@ -132,12 +132,12 @@ class GlobalPlanner : public rclcpp::Node
         void constructLaneNetwork(const lanelet::routing::LaneletPath &shortestPath, visualization_msgs::msg::MarkerArray &viz_marker_array);
 
         // local_path_extraction.cpp
-        void initializeLocalPathExtraction(const lanelet2_route_planning_interfaces::msg::Route& route_global);
+        void initializeLocalPathExtraction(const route_planning_interfaces::msg::Route& route_global);
         void extractLocalMapInfo(const geometry_msgs::msg::PoseWithCovarianceStamped& cur_pose,
-                                const lanelet2_route_planning_interfaces::msg::DriveableSpace& driveable_space_global,
-                                lanelet2_route_planning_interfaces::msg::DriveableSpace& driveable_space_local,
-                                const lanelet2_route_planning_interfaces::msg::Route& route_global,
-                                lanelet2_route_planning_interfaces::msg::Route& route_local);
+                                const route_planning_interfaces::msg::DriveableSpace& driveable_space_global,
+                                route_planning_interfaces::msg::DriveableSpace& driveable_space_local,
+                                const route_planning_interfaces::msg::Route& route_global,
+                                route_planning_interfaces::msg::Route& route_local);
         double accumulatedLength(const std::vector<geometry_msgs::msg::Point>& point_list, std::vector<double>& accumulated_length);
         double distance(const geometry_msgs::msg::Point& p1, const geometry_msgs::msg::Point& p2);
         unsigned int findNearestSample(const geometry_msgs::msg::Point& ref_point, const std::vector<geometry_msgs::msg::Point>& point_list, const unsigned int& start_index=0);
@@ -147,16 +147,16 @@ class GlobalPlanner : public rclcpp::Node
         // maneuver_action_fcns.cpp
         rclcpp_action::GoalResponse actionHandleGoal(
             const rclcpp_action::GoalUUID& uuid,
-            std::shared_ptr<const lanelet2_route_planning_interfaces::action::GlobalManeuver::Goal> goal);
+            std::shared_ptr<const route_planning_interfaces::action::GlobalManeuver::Goal> goal);
 
         rclcpp_action::CancelResponse actionHandleCancel(
-            const std::shared_ptr<rclcpp_action::ServerGoalHandle<lanelet2_route_planning_interfaces::action::GlobalManeuver>> goal_handle);
+            const std::shared_ptr<rclcpp_action::ServerGoalHandle<route_planning_interfaces::action::GlobalManeuver>> goal_handle);
 
         void actionHandleAccepted(
-            const std::shared_ptr<rclcpp_action::ServerGoalHandle<lanelet2_route_planning_interfaces::action::GlobalManeuver>> goal_handle);
+            const std::shared_ptr<rclcpp_action::ServerGoalHandle<route_planning_interfaces::action::GlobalManeuver>> goal_handle);
 
         void actionExecute(
-            const std::shared_ptr<rclcpp_action::ServerGoalHandle<lanelet2_route_planning_interfaces::action::GlobalManeuver>> goal_handle);
+            const std::shared_ptr<rclcpp_action::ServerGoalHandle<route_planning_interfaces::action::GlobalManeuver>> goal_handle);
 
         // callbacks.cpp
         void mapPoseCallback(geometry_msgs::msg::PoseWithCovarianceStamped::SharedPtr msg);
@@ -170,7 +170,7 @@ class GlobalPlanner : public rclcpp::Node
                                                 visualization_msgs::msg::MarkerArray &marker_array,
                                                 std::vector<float> colors,
                                                 std::vector<float> colors_smoothed);
-        lanelet2_route_planning_interfaces::msg::DriveableSpace sampleDriveableSpace(
+        route_planning_interfaces::msg::DriveableSpace sampleDriveableSpace(
                                                         const lanelet::BasicLineString2d &centerline,
                                                         visualization_msgs::msg::MarkerArray& marker_array);
         std::vector<geometry_msgs::msg::Point> sampleLinestring(

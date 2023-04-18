@@ -126,11 +126,11 @@ std::vector<geometry_msgs::msg::Point> GlobalPlanner::processLineString(lanelet:
 //   return bound;
 // }
 
-lanelet2_route_planning_interfaces::msg::DriveableSpace GlobalPlanner::sampleDriveableSpace(
+route_planning_interfaces::msg::DriveableSpace GlobalPlanner::sampleDriveableSpace(
                                                         const lanelet::BasicLineString2d &centerline,
                                                         visualization_msgs::msg::MarkerArray& marker_array)
 {
-  lanelet2_route_planning_interfaces::msg::DriveableSpace driveable_space;
+  route_planning_interfaces::msg::DriveableSpace driveable_space;
   driveable_space.header.frame_id = ll2if_->map_frame_id_;
   driveable_space.header.stamp = now();
   driveable_space.boundaries.left = sampleLinestring(centerline, 10.0, false);

@@ -5,7 +5,7 @@ GlobalPlanner::GlobalPlanner() : Node("global_planner")
   startup_timer_ = create_wall_timer(0.1s, std::bind(&GlobalPlanner::initializeGlobalPlanner, this));
   map_pose_sub_ = create_subscription<geometry_msgs::msg::PoseWithCovarianceStamped>("/ego_vehicle/map_pose", 1, std::bind(&GlobalPlanner::mapPoseCallback, this, std::placeholders::_1));
   goal_pose_sub_ = create_subscription<geometry_msgs::msg::PoseStamped>("/goal_pose", 1, std::bind(&GlobalPlanner::goalPoseCallback, this, std::placeholders::_1));
-  maneuver_action_client_ = rclcpp_action::create_client<lanelet2_route_planning_interfaces::action::GlobalManeuver>(this, "~/execute_global_maneuver");
+  maneuver_action_client_ = rclcpp_action::create_client<route_planning_interfaces::action::GlobalManeuver>(this, "~/execute_global_maneuver");
 
   // create a transform listener
   tf_buffer_ = std::make_unique<tf2_ros::Buffer>(this->get_clock());
@@ -30,7 +30,7 @@ void GlobalPlanner::initializeGlobalPlanner()
   else
   {
     // create an action server for handling action goal requests
-    maneuver_action_server_ = rclcpp_action::create_server<lanelet2_route_planning_interfaces::action::GlobalManeuver>(this, "~/execute_global_maneuver",
+    maneuver_action_server_ = rclcpp_action::create_server<route_planning_interfaces::action::GlobalManeuver>(this, "~/execute_global_maneuver",
     std::bind(&GlobalPlanner::actionHandleGoal, this, std::placeholders::_1, std::placeholders::_2),
     std::bind(&GlobalPlanner::actionHandleCancel, this, std::placeholders::_1),
     std::bind(&GlobalPlanner::actionHandleAccepted, this, std::placeholders::_1));
@@ -40,12 +40,12 @@ void GlobalPlanner::initializeGlobalPlanner()
     viz_route_pub_ = create_publisher<visualization_msgs::msg::MarkerArray>("~/route_marker",1);
     viz_boundary_pub_ = create_publisher<visualization_msgs::msg::MarkerArray>("~/boundary_marker",1);
 
-    route_pub_ = create_publisher<lanelet2_route_planning_interfaces::msg::Route>("~/global/route",1);
-    driveable_space_pub_ = create_publisher<lanelet2_route_planning_interfaces::msg::DriveableSpace>("~/global/driveable_space",1);
+    route_pub_ = create_publisher<route_planning_interfaces::msg::Route>("~/global/route",1);
+    driveable_space_pub_ = create_publisher<route_planning_interfaces::msg::DriveableSpace>("~/global/driveable_space",1);
 
     // local path extraction
-    local_route_pub_ = create_publisher<lanelet2_route_planning_interfaces::msg::Route>("~/local/route",1);
-    local_driveable_space_pub_ = create_publisher<lanelet2_route_planning_interfaces::msg::DriveableSpace>("~/local/driveable_space",1);
+    local_route_pub_ = create_publisher<route_planning_interfaces::msg::Route>("~/local/route",1);
+    local_driveable_space_pub_ = create_publisher<route_planning_interfaces::msg::DriveableSpace>("~/local/driveable_space",1);
 
     startup_timer_->cancel();
   }

@@ -1,6 +1,6 @@
 #include "lanelet2_route_planning/global_planner_node.hpp"
 
-        void GlobalPlanner::initializeLocalPathExtraction(const lanelet2_route_planning_interfaces::msg::Route& route_global)
+        void GlobalPlanner::initializeLocalPathExtraction(const route_planning_interfaces::msg::Route& route_global)
         {
             // Reset sample values
             ego_pos_sample_cl_ = 0;
@@ -15,10 +15,10 @@
         }
         
         void GlobalPlanner::extractLocalMapInfo(const geometry_msgs::msg::PoseWithCovarianceStamped& cur_pose,
-                                const lanelet2_route_planning_interfaces::msg::DriveableSpace& driveable_space_global,
-                                lanelet2_route_planning_interfaces::msg::DriveableSpace& driveable_space_local,
-                                const lanelet2_route_planning_interfaces::msg::Route& route_global,
-                                lanelet2_route_planning_interfaces::msg::Route& route_local)
+                                const route_planning_interfaces::msg::DriveableSpace& driveable_space_global,
+                                route_planning_interfaces::msg::DriveableSpace& driveable_space_local,
+                                const route_planning_interfaces::msg::Route& route_global,
+                                route_planning_interfaces::msg::Route& route_local)
         {
             rclcpp::Time stamp_time = now();
             // Find sample of shortest path centerline correspondint to the current ego-position
@@ -66,7 +66,7 @@
             // ...
 
             // Now we've got our local-section of the route
-            lanelet2_route_planning_interfaces::msg::Route temp_route;
+            route_planning_interfaces::msg::Route temp_route;
             temp_route.header.stamp = stamp_time;
             temp_route.header.frame_id = ll2if_->map_frame_id_; // currently it's map --> will be changed through transform function
             temp_route.shortest_path = {route_global.shortest_path.begin() + look_behind_sample, route_global.shortest_path.begin() + look_ahead_sample};
@@ -88,7 +88,7 @@
             // ...
 
             // Now we've got our local-section of the driveable space
-            lanelet2_route_planning_interfaces::msg::DriveableSpace temp_ds;
+            route_planning_interfaces::msg::DriveableSpace temp_ds;
             temp_ds.header.stamp = stamp_time;
             temp_ds.header.frame_id = ll2if_->map_frame_id_; // currently it's map --> will be changed through transform function
             temp_ds.boundaries.left = {driveable_space_global.boundaries.left.begin() + lbehind_sample_drivspace_left_, driveable_space_global.boundaries.left.begin() + lahead_sample_drivspace_left_};
