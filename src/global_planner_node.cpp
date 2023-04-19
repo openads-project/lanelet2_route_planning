@@ -189,6 +189,8 @@ bool GlobalPlanner::planRoute(lanelet::ConstLanelet start_ll, lanelet::ConstLane
     lanelet::BasicLineString2d shortest_path_centerline = Lanelet2Utilities::convertLLPath2LineString2dSBased(ConstLanelets(shortestPath.begin(), shortestPath.end()), start_pos, 10., 3., std::numeric_limits<double>::max(), ds_sample_, target_pos, lane_boundaries, *routingGraphBicycle_);
     visualization_msgs::msg::MarkerArray marker_array_route;
     //Start filling global route
+    global_route_.header.frame_id = ll2if_->map_frame_id_;
+    global_route_.header.stamp = now();
     global_route_.target_position.x = target.x();
     global_route_.target_position.y = target.y();
     global_route_.target_position.y = target.y();
