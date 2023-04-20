@@ -34,8 +34,8 @@
             double sp_length = accumulatedLength(remaining_shortest_path_, sp_accumulated_length_vec);
             RCLCPP_INFO_STREAM(get_logger(), "Length of remaining shortest path: " << sp_length);
             // Get the start and end sample of the local shortest path with respect to look-ahead/behind distance
-            double velocity = 38.0; // To-Do: add actual vehicle velocity here
-            double look_ahead_distance = std::min(look_ahead_distance_min_, look_ahead_time_*velocity);
+            double velocity = 38.0/3.6; // To-Do: add actual vehicle velocity here
+            double look_ahead_distance = std::max(look_ahead_distance_min_, look_ahead_time_*velocity);
             // Find the look-ahead sample
             unsigned int look_ahead_sample;
             for(int i=0; i<sp_accumulated_length_vec.size(); i++)
@@ -68,13 +68,13 @@
             // Now we've got our local-section of the route
             route_planning_interfaces::msg::Route temp_route;
             temp_route.header.stamp = stamp_time;
+            temp_route.target_position = route_global.target_position;
             temp_route.header.frame_id = ll2if_->map_frame_id_; // currently it's map --> will be changed through transform function
             temp_route.shortest_path = {route_global.shortest_path.begin() + look_behind_sample, route_global.shortest_path.begin() + look_ahead_sample};
    
 
             // Now extract the local driveable space
             // Find nearest Boundary-Sample for left and right boundary at look-ahead and look-behind point
-            double offset = 5;
             lbehind_sample_drivspace_left_ = findNearestSample(temp_route.shortest_path.front(), driveable_space_global.boundaries.left, lbehind_sample_drivspace_left_);
             RCLCPP_INFO_STREAM(get_logger(), "lbehind_sample_drivspace_left_ " << lbehind_sample_drivspace_left_);
             lbehind_sample_drivspace_right_ = findNearestSample(temp_route.shortest_path.front(), driveable_space_global.boundaries.right, lbehind_sample_drivspace_right_);
