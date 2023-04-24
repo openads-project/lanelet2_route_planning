@@ -10,36 +10,38 @@ find_package(ament_cmake REQUIRED)
 # uncomment the following section in order to fill in
 # further dependencies manually.
 # find_package(<dependency> REQUIRED)
+find_package(geometry_msgs REQUIRED)
+find_package(lanelet2_map_interface REQUIRED)
+find_package(route_planning_interfaces REQUIRED)
+find_package(lanelet2_routing REQUIRED)
+find_package(lanelet2_traffic_rules REQUIRED)
+find_package(lanelet2_utilities REQUIRED)
 find_package(rclcpp REQUIRED)
 find_package(rclcpp_action REQUIRED)
-find_package(lanelet2_map_interface REQUIRED)
-find_package(lanelet2_route_planning_interfaces REQUIRED)
-find_package(lanelet2_utilities REQUIRED)
-find_package(lanelet2_traffic_rules REQUIRED)
-find_package(lanelet2_routing REQUIRED)
-find_package(geometry_msgs REQUIRED)
-find_package(visualization_msgs REQUIRED)
 find_package(tf2 REQUIRED)
+find_package(tf2_geometry_msgs REQUIRED)
+find_package(tf2_ros REQUIRED)
 
 add_executable(global_planner_node
-  src/global_planner_node.cpp
-  src/maneuver_action_fcns.cpp
   src/callbacks.cpp
-  src/utils.cpp
-  src/visualization.cpp
-  src/dummy_bicycle_rules.cpp)
+  src/dummy_bicycle_rules.cpp
+  src/global_planner_node.cpp
+  src/local_path_extraction.cpp
+  src/maneuver_action_fcns.cpp
+  src/utils.cpp)
 
 ament_target_dependencies(global_planner_node
+  geometry_msgs
+  lanelet2_map_interface
+  route_planning_interfaces
+  lanelet2_routing
+  lanelet2_traffic_rules
+  lanelet2_utilities
   rclcpp
   rclcpp_action
-  lanelet2_map_interface
-  lanelet2_route_planning_interfaces
-  lanelet2_utilities
-  lanelet2_traffic_rules
-  lanelet2_routing
-  geometry_msgs
-  visualization_msgs
   tf2
+  tf2_geometry_msgs
+  tf2_ros
 )
 
 target_include_directories(global_planner_node PUBLIC

@@ -7,16 +7,17 @@
   <maintainer email="guido.kueppers@ika.rwth-aachen.de">Guido Küppers</maintainer>
   <license>TODO: License declaration</license>
 
-  <depend>rclcpp</depend>
-  <depend>rclcpp_action</depend>
-  <depend>lanelet2_map_interface</depend>
-  <depend>lanelet2_route_planning_interfaces</depend>
-  <depend>lanelet2_utilities</depend>
-  <depend>lanelet2_traffic_rules</depend>
-  <depend>lanelet2_routing</depend>
   <depend>geometry_msgs</depend>
-  <depend>visualization_msgs</depend>
+  <depend>lanelet2_map_interface</depend>
+  <depend>route_planning_interfaces</depend>
+  <depend>lanelet2_routing</depend>
+  <depend>lanelet2_traffic_rules</depend>
+  <depend>lanelet2_utilities</depend>
+  <depend>rclcpp_action</depend>
+  <depend>rclcpp</depend>
   <depend>tf2</depend>
+  <depend>tf2_geometry_msgs</depend>
+  <depend>tf2_ros</depend>
   
   <buildtool_depend>ament_cmake</buildtool_depend>
 
