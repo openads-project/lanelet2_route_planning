@@ -113,7 +113,6 @@ class GlobalPlanner : public rclcpp::Node
         bool egoPositionSanityCheck();
         bool targetPositionSanityCheck(double target_x, double target_y);
         bool planRoute(lanelet::ConstLanelet start_ll, lanelet::ConstLanelet target_ll);
-        void constructLaneNetwork(const lanelet::routing::LaneletPath &shortestPath, visualization_msgs::msg::MarkerArray &viz_marker_array);
 
         // local_path_extraction.cpp
         void initializeLocalPathExtraction(const route_planning_interfaces::msg::Route& route_global);
@@ -148,15 +147,8 @@ class GlobalPlanner : public rclcpp::Node
 
 
         // utils.cpp
-        std::vector<geometry_msgs::msg::Point> processLineString(
-                                                lanelet::BasicLineString2d& line_string,
-                                                const std::string& desc,
-                                                visualization_msgs::msg::MarkerArray &marker_array,
-                                                std::vector<float> colors,
-                                                std::vector<float> colors_smoothed);
-        route_planning_interfaces::msg::DriveableSpace sampleDriveableSpace(
-                                                        const lanelet::BasicLineString2d &centerline,
-                                                        visualization_msgs::msg::MarkerArray& marker_array);
+        std::vector<geometry_msgs::msg::Point> processLineString(lanelet::BasicLineString2d& line_string);
+        route_planning_interfaces::msg::DriveableSpace sampleDriveableSpace(const lanelet::BasicLineString2d &centerline);
         std::vector<geometry_msgs::msg::Point> sampleLinestring(
                                           const lanelet::BasicLineString2d &centerline,
                                           const double test_dis,
