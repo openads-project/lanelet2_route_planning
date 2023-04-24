@@ -10,4 +10,4 @@ repositories:
   lanelet2_utilities:
     type: git
     url: https://gitlab.ika.rwth-aachen.de/fb-fi/its-modules/localization/lanelet2_utilities
-    version: feature/refactor_visu_utils
+    version: main
