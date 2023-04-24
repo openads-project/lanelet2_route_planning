@@ -179,19 +179,17 @@ bool GlobalPlanner::planRoute(lanelet::ConstLanelet start_ll, lanelet::ConstLane
 
     std::pair<lanelet::BasicLineString2d, lanelet::BasicLineString2d> lane_boundaries;
     lanelet::BasicLineString2d shortest_path_centerline = Lanelet2Utilities::convertLLPath2LineString2dSBased(ConstLanelets(shortestPath.begin(), shortestPath.end()), start_pos, 10., 3., std::numeric_limits<double>::max(), ds_sample_, target_pos, lane_boundaries, *routingGraphBicycle_);
-    visualization_msgs::msg::MarkerArray marker_array_route;
     //Start filling global route
     global_route_.header.frame_id = ll2if_->map_frame_id_;
     global_route_.header.stamp = now();
     global_route_.target_position.x = target.x();
     global_route_.target_position.y = target.y();
     global_route_.target_position.y = target.y();
-    global_route_.shortest_path = processLineString(shortest_path_centerline, "shortest path", marker_array_route, {0.1, 0.35, 0.3}, {0.2, 0.5, 0.15});
+    global_route_.shortest_path = processLineString(shortest_path_centerline);
 
     // Process boundaries
     start_time = now();
-    visualization_msgs::msg::MarkerArray marker_array_boundary;
-    global_driveable_space_ = sampleDriveableSpace(shortest_path_centerline, marker_array_boundary);
+    global_driveable_space_ = sampleDriveableSpace(shortest_path_centerline);
     RCLCPP_INFO_STREAM(get_logger(), "Duration for calculation of driveable-space: " << (now() - start_time).seconds() << "s");
 
     // Process route boundaries

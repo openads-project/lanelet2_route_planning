@@ -1,7 +1,7 @@
 #include "lanelet2_route_planning/global_planner_node.hpp"
 
 // Convert to linestring, smooth and visualize
-std::vector<geometry_msgs::msg::Point> GlobalPlanner::processLineString(lanelet::BasicLineString2d& line_string, const std::string& desc, visualization_msgs::msg::MarkerArray& marker_array, std::vector<float> colors, std::vector<float> colors_smoothed)
+std::vector<geometry_msgs::msg::Point> GlobalPlanner::processLineString(lanelet::BasicLineString2d& line_string)
 {
   // to Linestring
   std::vector<geometry_msgs::msg::Point> points = Lanelet2Utilities::convertLaneletLine2Linestring(line_string);
@@ -84,8 +84,7 @@ std::vector<geometry_msgs::msg::Point> GlobalPlanner::processLineString(lanelet:
 // }
 
 route_planning_interfaces::msg::DriveableSpace GlobalPlanner::sampleDriveableSpace(
-                                                        const lanelet::BasicLineString2d &centerline,
-                                                        visualization_msgs::msg::MarkerArray& marker_array)
+                                                        const lanelet::BasicLineString2d &centerline)
 {
   route_planning_interfaces::msg::DriveableSpace driveable_space;
   driveable_space.header.frame_id = ll2if_->map_frame_id_;
