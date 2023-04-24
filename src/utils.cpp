@@ -5,12 +5,8 @@ std::vector<geometry_msgs::msg::Point> GlobalPlanner::processLineString(lanelet:
 {
   // to Linestring
   std::vector<geometry_msgs::msg::Point> points = Lanelet2Utilities::convertLaneletLine2Linestring(line_string);
-  // Visualize
-  visualizeLinestring(points, ll2if_->map_frame_id_, desc, marker_array, colors);
   // Smooth
   line_string = Lanelet2Utilities::smoothByQuadraticBezierCurve(line_string, smooth_factor_);
-  // Visualize
-  visualizeLinestring(points, ll2if_->map_frame_id_, desc+" smoothed", marker_array, colors_smoothed);
   // to Linestring
   points = Lanelet2Utilities::convertLaneletLine2Linestring(line_string);
   return points;
@@ -82,47 +78,8 @@ std::vector<geometry_msgs::msg::Point> GlobalPlanner::processLineString(lanelet:
 //     bound.push_back(best_point);
 //     index_mapping.push_back(idx);
 
-//     // Visualize final point and test line
-//     if (visualize_lvl_ > 1)
-//     {
-//       visualization_msgs::msg::Marker marker;
-
-//       // Test line
-//       left_right_colors[3] = 0.5;
-//       Lanelet2Utilities::convertLaneletLine2VisuLineStrip(test_line, marker, ll2if_->map_frame_id_, now(), "lvl2_boundary_test_line_" + left_right_string, left_right_colors);
-//       marker.id = ids_test_line++;
-//       marker_array.markers.push_back(marker);
-
-//       // Final point
-//       lanelet::BasicLineString2d outerpoint;
-//       outerpoint.push_back(best_point);
-//       left_right_colors[3] = 1.0;
-//       Lanelet2Utilities::convertLaneletLine2VisuSphere(outerpoint, marker, ll2if_->map_frame_id_, now(), "lvl2_boundary_points_" + left_right_string, left_right_colors);
-//       marker.id = ids_final_point++;
-//       marker_array.markers.push_back(marker);
-//     }
 //   }
 
-//   // Visualize final boundary
-//   if (visualize_lvl_ > 0)
-//   {
-//     visualization_msgs::msg::Marker marker;
-
-//     if (visualize_lvl_ > 1)
-//     {
-//       left_right_colors[3] = 0.5;
-//       Lanelet2Utilities::convertLaneletLine2VisuLineStrip(lane_boundary, marker, ll2if_->map_frame_id_, now(), "lvl1_boundary_raw_" + left_right_string, left_right_colors, 0.25);
-//       marker.id = ids_final_bound++;
-//       marker_array.markers.push_back(marker);
-//     }
-
-//     left_right_colors[3] = 1.0;
-//     Lanelet2Utilities::convertLaneletLine2VisuLineStrip(bound, marker, ll2if_->map_frame_id_, now(), "lvl1_boundary_final_" + left_right_string, left_right_colors, 0.25);
-//     marker.id = ids_final_bound++;
-//     marker_array.markers.push_back(marker);
-
-//     visualizeIndexMapping(marker, marker_array, bound, left_right_string, "lvl2_boundary_index", index_mapping);
-//   }
 //   return bound;
 // }
 
@@ -135,8 +92,6 @@ route_planning_interfaces::msg::DriveableSpace GlobalPlanner::sampleDriveableSpa
   driveable_space.header.stamp = now();
   driveable_space.boundaries.left = sampleLinestring(centerline, 10.0, false);
   driveable_space.boundaries.right = sampleLinestring(centerline, 10.0, true);
-  visualizeLinestring(driveable_space.boundaries.left, driveable_space.header.frame_id, "driveable space left", marker_array, {1.0, 0.53, 0.0, 1.0});
-  visualizeLinestring(driveable_space.boundaries.right, driveable_space.header.frame_id, "driveable space right", marker_array, {1.0, 0.53, 0.0, 1.0});
   return driveable_space;
 }
 

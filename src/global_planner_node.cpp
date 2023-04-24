@@ -36,10 +36,6 @@ void GlobalPlanner::initializeGlobalPlanner()
     std::bind(&GlobalPlanner::actionHandleAccepted, this, std::placeholders::_1));
     RCLCPP_INFO(get_logger(), "Created 'execute_global_maneuver' action-server!");
 
-    viz_destination_pub_ = create_publisher<visualization_msgs::msg::Marker>("~/destination_marker",1);
-    viz_route_pub_ = create_publisher<visualization_msgs::msg::MarkerArray>("~/route_marker",1);
-    viz_boundary_pub_ = create_publisher<visualization_msgs::msg::MarkerArray>("~/boundary_marker",1);
-
     route_pub_ = create_publisher<route_planning_interfaces::msg::Route>("~/global/route",1);
     driveable_space_pub_ = create_publisher<route_planning_interfaces::msg::DriveableSpace>("~/global/driveable_space",1);
 
@@ -180,11 +176,7 @@ bool GlobalPlanner::planRoute(lanelet::ConstLanelet start_ll, lanelet::ConstLane
     
     // Extract shortest path and its boundaries
     lanelet::routing::LaneletPath shortestPath = route_->shortestPath(); // shortestPath = sorted Lanelets
-    shortest_path_ll_ids_.clear();
-    for(const auto& ll : shortestPath)
-    {
-      shortest_path_ll_ids_.push_back(ll.id());
-    }
+
     std::pair<lanelet::BasicLineString2d, lanelet::BasicLineString2d> lane_boundaries;
     lanelet::BasicLineString2d shortest_path_centerline = Lanelet2Utilities::convertLLPath2LineString2dSBased(ConstLanelets(shortestPath.begin(), shortestPath.end()), start_pos, 10., 3., std::numeric_limits<double>::max(), ds_sample_, target_pos, lane_boundaries, *routingGraphBicycle_);
     visualization_msgs::msg::MarkerArray marker_array_route;
@@ -195,11 +187,6 @@ bool GlobalPlanner::planRoute(lanelet::ConstLanelet start_ll, lanelet::ConstLane
     global_route_.target_position.y = target.y();
     global_route_.target_position.y = target.y();
     global_route_.shortest_path = processLineString(shortest_path_centerline, "shortest path", marker_array_route, {0.1, 0.35, 0.3}, {0.2, 0.5, 0.15});
-
-    // Construct lane network
-    //start_time = now();
-    //constructLaneNetwork(shortestPath, marker_array_route);
-    //RCLCPP_INFO_STREAM(get_logger(), "Duration for lane network creation: " << (now() - start_time).seconds() << "s");
 
     // Process boundaries
     start_time = now();
@@ -221,10 +208,6 @@ bool GlobalPlanner::planRoute(lanelet::ConstLanelet start_ll, lanelet::ConstLane
     route_pub_->publish(global_route_);
     driveable_space_pub_->publish(global_driveable_space_);
 
-    // Visualize
-    viz_route_pub_->publish(marker_array_route);
-    viz_boundary_pub_->publish(marker_array_boundary);
-
     return true;
   }
   else
@@ -233,145 +216,6 @@ bool GlobalPlanner::planRoute(lanelet::ConstLanelet start_ll, lanelet::ConstLane
     return false;
   }
 }
-
-
-// void GlobalPlanner::constructLaneNetwork(const lanelet::routing::LaneletPath &shortestPath, visualization_msgs::msg::MarkerArray &viz_marker_array)
-// {
-//   // Datastructures
-//   std::vector<std::pair<lanelet::ConstLanelets, size_t>> lanes_hierarchy(shortestPath.size());  // Contains the spatial hierarchy along the route (First entry of pair contains all neighboring lanelets per route section; second entry is the shortest path index in this list)
-//   std::vector<lanelet::ConstLanelets> lanes;                                                    // All dedicated lanes of the route. Their index in this vector is their lane id which is used to refer to them.
-//   std::vector<lanelet::BasicLineString2d> lanes_line;                                           // Extracted and smoothed linestring for earch lane.
-//   std::unordered_map<int64_t, int16_t> lane_id_mapping;                                         // Maps a lanelet id to its lane id
-//   std::unordered_map<int64_t, std::pair<size_t, size_t> > lane_hierarchy_mapping;               // Maps the lanelets of a lane to their spatial hierarchy entry.
-
-//   // Construct lane network. Work along shortest path.
-//   int lane_id = -1;
-//   size_t index_1 = 0;
-//   for (const lanelet::ConstLanelet &ll: shortestPath)
-//   {
-//     // Is this part of the shortest path a new lane?
-//     if(lane_id_mapping.find(ll.id()) == lane_id_mapping.end())
-//     {
-//       lane_id++;
-//       lanes.push_back(ConstLanelets());
-
-//       const lanelet::LaneletSequence rl = route_->remainingLane(ll);
-//       for (const lanelet::ConstLanelet &rl_ll: rl)
-//       {
-//         lane_id_mapping[rl_ll.id()] = lane_id;
-//         lanes[lane_id].push_back(rl_ll);
-//       }
-//     }
-
-//     // Right neighbors
-//     lanelet::ConstLanelets right_neighbors;
-//     Optional<routing::LaneletRelation> neighbour_relation = route_->rightRelation(ll);
-//     while (!!neighbour_relation)
-//     {
-//       // Not yet visited?
-//       if(lane_id_mapping.find(neighbour_relation->lanelet.id()) == lane_id_mapping.end())
-//       {
-//         lane_id++;
-//         lanes.push_back(lanelet::ConstLanelets());
-
-//         const lanelet::LaneletSequence rl = route_->remainingLane(neighbour_relation->lanelet);
-//         for (const lanelet::ConstLanelet &rl_ll: rl)
-//         {
-//           lane_id_mapping[rl_ll.id()] = lane_id;
-//           lanes[lane_id].push_back(rl_ll);
-//         }
-//       }
-//       right_neighbors.push_back(neighbour_relation->lanelet);
-
-//       // Next right neighbor
-//       neighbour_relation = route_->rightRelation(neighbour_relation->lanelet);
-//     }
-
-//     // Left neighbors
-//     lanelet::ConstLanelets left_neighbors;
-//     neighbour_relation = route_->leftRelation(ll);
-//     while (!!neighbour_relation)
-//     {
-//       // Not yet visited?
-//       if(lane_id_mapping.find(neighbour_relation->lanelet.id()) == lane_id_mapping.end())
-//       {
-//         lane_id++;
-//         lanes.push_back(lanelet::ConstLanelets());
-
-//         const lanelet::LaneletSequence rl = route_->remainingLane(neighbour_relation->lanelet);
-//         for (const ConstLanelet &rl_ll: rl)
-//         {
-//           lane_id_mapping[rl_ll.id()] = lane_id;
-//           lanes[lane_id].push_back(rl_ll);
-//         }
-//       }
-//       left_neighbors.push_back(neighbour_relation->lanelet);
-
-//       // Next left neighbor
-//       neighbour_relation = route_->leftRelation(neighbour_relation->lanelet);
-//     }
-
-//     // Construct lanes hierarchy
-//     lanelet::ConstLanelets lane_hierarchy;
-//     lane_hierarchy.insert(lane_hierarchy.end(), right_neighbors.begin(), right_neighbors.end());
-//     lane_hierarchy.push_back(ll);
-//     lane_hierarchy.insert(lane_hierarchy.end(), left_neighbors.begin(), left_neighbors.end());
-//     for(size_t index_2=0; index_2<lane_hierarchy.size(); index_2++)
-//     {
-//       lane_hierarchy_mapping[lane_hierarchy[index_2].id()] = std::make_pair(index_1, index_2);
-//     }
-//     lanes_hierarchy[index_1++] = std::make_pair(lane_hierarchy, right_neighbors.size());
-//   }
-
-//   RCLCPP_INFO_STREAM(get_logger(), "Number of lanes: " << lanes.size());
-
-//   // Extract line string for lanes; smooth it and visualize
-//   lanes_line.resize(lanes.size());
-//   for(size_t i=0; i<lanes.size(); i++)
-//   {
-//     lanes_line[i] = Lanelet2Utilities::convertLLPath2LineString2dSBased(lanes[i], lanes[i].front().centerline2d().front(), 10., 3., std::numeric_limits<double>::max(), ds_sample_, {}, {}, {});
-//     processLineString(lanes_line[i], "lane " + std::to_string(i), viz_marker_array, {0.0f, 0.75f - i/(lanes.size()-1.0f) * 0.5f, 0.25f + i/(lanes.size()-1.0f) * 0.5f}, {0.75f - i/(lanes.size()-1.0f) * 0.5f, 0.0f, 0.25f + i/(lanes.size()-1.0f) * 0.5f});
-//   }
-
-//   // Fill lane_network_ variable
-//   lane_network_.lane_hierarchy.resize(lanes_hierarchy.size());
-//   for(size_t i=0; i<lane_network_.lane_hierarchy.size(); i++)
-//   {
-//     lane_network_.lane_hierarchy[i].neighboring_lanelets.resize(lanes_hierarchy[i].first.size());
-
-//     for(size_t j=0; j<lanes_hierarchy[i].first.size(); j++)
-//     {
-//       Lanelet2RoutePlanningDatatypes::LaneletExtended lanelet_extended;
-//       lanelet_extended.lanelet_id = (lanes_hierarchy[i].first)[j].id();
-//       lanelet_extended.lane_id    = lane_id_mapping[lanelet_extended.lanelet_id];
-//       lanelet_extended.v_max      = lanelet::units::KmHQuantity(trafficRules_->speedLimit((lanes_hierarchy[i].first)[j]).speedLimit).value() / 3.6;
-//       lane_network_.lane_hierarchy[i].neighboring_lanelets[j] = lanelet_extended;
-//     }
-//     lane_network_.lane_hierarchy[i].shortest_path_index = lanes_hierarchy[i].second;
-//   }
-//   lane_network_.lanes.resize(lanes.size());
-//   for(size_t i=0; i<lanes.size(); i++)
-//   {
-//     lane_network_.lanes[i].lane_sections.resize(lanes[i].size());
-//     std::vector<std::pair<int64_t,bool>> ll_ids = Lanelet2Utilities::convertLLRoute2IdVec(lanes[i]);
-//     double s = 0;
-//     for(size_t j=0; j<lane_network_.lanes[i].lane_sections.size(); j++)
-//     {
-//       lane_network_.lanes[i].lane_sections[j].accumulated_s = s += geometry::length2d(lanes[i][j]);
-//       lane_network_.lanes[i].lane_sections[j].route_index   = lane_hierarchy_mapping[ll_ids[j].first].first;
-//       lane_network_.lanes[i].lane_sections[j].spatial_index = lane_hierarchy_mapping[ll_ids[j].first].second;
-
-//       if(lanes[i][j] == target_ll_)
-//       {
-//         target_lane_s_dest_ = lane_network_.lanes[i].lane_sections[j].accumulated_s;
-//       }
-//     }
-//     lane_network_.lanes[i].line = lanes_line[i];
-//   }
-
-//   start_lane_id_  = lane_id_mapping[start_ll_.id()];
-//   target_lane_id_ = lane_id_mapping[target_ll_.id()];
-// }
 
 int main(int argc, char ** argv)
 {

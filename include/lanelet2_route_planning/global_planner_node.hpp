@@ -10,9 +10,6 @@
 #include <geometry_msgs/msg/pose_stamped.hpp>
 #include <geometry_msgs/msg/pose_with_covariance_stamped.hpp>
 #include <geometry_msgs/msg/point.hpp>
-#include <visualization_msgs/msg/marker.hpp>
-#include <visualization_msgs/msg/marker_array.hpp>
-
 
 #include "lanelet2_map_interface/lanelet2_map_interface.hpp"
 #include "route_planning_interfaces/action/global_maneuver.hpp"
@@ -38,8 +35,6 @@
 #include <lanelet2_core/geometry/Lanelet.h>
 #include <lanelet2_core/geometry/LaneletMap.h>
 
-#include "lanelet2_route_planning/ll2_route_planning_datatypes.hpp"
-
 using namespace std::chrono_literals;
 
 class GlobalPlanner : public rclcpp::Node
@@ -64,24 +59,16 @@ class GlobalPlanner : public rclcpp::Node
         traffic_rules::TrafficRulesPtr trafficRulesBicycle_ = traffic_rules::TrafficRulesFactory::create(std::string(Locations::Germany) + ":dummy", Participants::Bicycle);
         routing::RoutingGraphUPtr routingGraphBicycle_;
 
-        int visualize_lvl_=1;
-
         // Route Planning
         lanelet::ConstLanelet start_ll_;    // most probable current Lanelet
-        int16_t start_lane_id_;
         lanelet::ConstLanelet target_ll_;
-        int16_t target_lane_id_;
-        double target_lane_s_dest_;
         route_planning_interfaces::msg::DriveableSpace global_driveable_space_;
         route_planning_interfaces::msg::Route global_route_;
-
-        std::vector<int64_t> shortest_path_ll_ids_;
 
         double ds_sample_ = 2.0;
         double smooth_factor_ = 2.0;
 
         Optional<lanelet::routing::Route> route_;
-        Lanelet2RoutePlanningDatatypes::LaneletLaneNetwork lane_network_;
 
         // Maneuver Execution
         rclcpp::Time maneuver_start_time_;
@@ -119,9 +106,6 @@ class GlobalPlanner : public rclcpp::Node
         // Publisher
         rclcpp::Publisher<route_planning_interfaces::msg::Route>::SharedPtr route_pub_;
         rclcpp::Publisher<route_planning_interfaces::msg::DriveableSpace>::SharedPtr driveable_space_pub_;
-        rclcpp::Publisher<visualization_msgs::msg::Marker>::SharedPtr viz_destination_pub_;
-        rclcpp::Publisher<visualization_msgs::msg::MarkerArray>::SharedPtr viz_route_pub_;
-        rclcpp::Publisher<visualization_msgs::msg::MarkerArray>::SharedPtr viz_boundary_pub_;
 
         // Function Definitions
         // global_planner_node.cpp
@@ -190,12 +174,5 @@ class GlobalPlanner : public rclcpp::Node
                                                 const uint& idx, std::deque<std::pair<lanelet::BasicLineString2d, size_t>>& last_test_lines,
                                                 lanelet::BasicLineString2d& bound);
         bool checkLineDrivability(const lanelet::ConstLineString3d &lineToCheck);
-
-
-        // visualization.cpp
-        void visualizeLinestring(const std::vector<geometry_msgs::msg::Point>& line_string, const std::string& frame_id, const std::string& desc, visualization_msgs::msg::MarkerArray& marker_array, std::vector<float> colors);
-        visualization_msgs::msg::Marker convertDestination2Marker(double target_x, double target_y, std::string frame_id);
-        // void visualizeIndexMapping(visualization_msgs::msg::Marker& marker, visualization_msgs::msg::MarkerArray& marker_array, const lanelet::BasicLineString2d& bound,
-        //                             const std::string& left_right_string, const std::string& ns, const std::vector<int>& index_mapping);
 
 };

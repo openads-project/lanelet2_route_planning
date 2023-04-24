@@ -35,9 +35,6 @@ rclcpp_action::GoalResponse GlobalPlanner::actionHandleGoal(
     return rclcpp_action::GoalResponse::REJECT;
   }
 
-  visualization_msgs::msg::Marker marker = convertDestination2Marker(goal->target_pos_x, goal->target_pos_y, ll2if_->map_frame_id_);
-  viz_destination_pub_->publish(marker);
-
   maneuver_result_ = std::make_shared<route_planning_interfaces::action::GlobalManeuver::Result>();
   maneuver_feedback_ = std::make_shared<route_planning_interfaces::action::GlobalManeuver::Feedback>();
 

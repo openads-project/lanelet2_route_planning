@@ -21,7 +21,6 @@ find_package(rclcpp_action REQUIRED)
 find_package(tf2 REQUIRED)
 find_package(tf2_geometry_msgs REQUIRED)
 find_package(tf2_ros REQUIRED)
-find_package(visualization_msgs REQUIRED)
 
 add_executable(global_planner_node
   src/callbacks.cpp
@@ -29,8 +28,7 @@ add_executable(global_planner_node
   src/global_planner_node.cpp
   src/local_path_extraction.cpp
   src/maneuver_action_fcns.cpp
-  src/utils.cpp
-  src/visualization.cpp)
+  src/utils.cpp)
 
 ament_target_dependencies(global_planner_node
   geometry_msgs
@@ -44,7 +42,6 @@ ament_target_dependencies(global_planner_node
   tf2
   tf2_geometry_msgs
   tf2_ros
-  visualization_msgs
 )
 
 target_include_directories(global_planner_node PUBLIC
