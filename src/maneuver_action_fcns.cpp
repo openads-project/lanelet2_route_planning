@@ -29,7 +29,7 @@ rclcpp_action::GoalResponse GlobalPlanner::actionHandleGoal(
     return rclcpp_action::GoalResponse::REJECT;
   }
 
-  if (geometry::distance(start_ll_.polygon2d(), lanelet::BasicPoint2d(ego_pose_.pose.pose.position.x, ego_pose_.pose.pose.position.y)) > 0.5)
+  if (geometry::distance(start_ll_.polygon2d(), lanelet::BasicPoint2d(ego_pose_.pose.position.x, ego_pose_.pose.position.y)) > 0.5)
   {
     RCLCPP_ERROR(get_logger(), "Current ego-pose is not on the start lanelet anymore!");
     return rclcpp_action::GoalResponse::REJECT;
@@ -100,7 +100,7 @@ void GlobalPlanner::actionExecute(
     {
       bool require_standstill = false;
       double velocity = 0.0;
-      if (geometry::distance(lanelet::BasicPoint2d(goal->target_pos_x, goal->target_pos_y), lanelet::BasicPoint2d(ego_pose_.pose.pose.position.x, ego_pose_.pose.pose.position.y)) < 1.0 && (std::fabs(velocity) < 0.05 || !require_standstill))
+      if (geometry::distance(lanelet::BasicPoint2d(goal->target_pos_x, goal->target_pos_y), lanelet::BasicPoint2d(ego_pose_.pose.position.x, ego_pose_.pose.position.y)) < 1.0 && (std::fabs(velocity) < 0.05 || !require_standstill))
       {
         RCLCPP_INFO(get_logger(),"Destination reached!");
         maneuver_result_->destination_reached = true;

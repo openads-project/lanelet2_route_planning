@@ -1,8 +1,9 @@
 #include "lanelet2_route_planning/global_planner_node.hpp"
 
-void GlobalPlanner::mapPoseCallback(geometry_msgs::msg::PoseWithCovarianceStamped::SharedPtr msg)
+void GlobalPlanner::mapPoseCallback(perception_interfaces::msg::EgoData::SharedPtr msg)
 {
-  ego_pose_ = *msg.get();
+  ego_data_ = *msg.get();
+  ego_pose_ = perception_interfaces::object_access::getPoseWithCovariance(ego_data_);
 }
 
 void GlobalPlanner::goalPoseCallback(geometry_msgs::msg::PoseStamped::SharedPtr msg)

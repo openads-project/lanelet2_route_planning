@@ -14,7 +14,7 @@
 
         }
         
-        void GlobalPlanner::extractLocalMapInfo(const geometry_msgs::msg::PoseWithCovarianceStamped& cur_pose,
+        void GlobalPlanner::extractLocalMapInfo(const geometry_msgs::msg::PoseWithCovariance& cur_pose,
                                 const route_planning_interfaces::msg::DriveableSpace& driveable_space_global,
                                 route_planning_interfaces::msg::DriveableSpace& driveable_space_local,
                                 const route_planning_interfaces::msg::Route& route_global,
@@ -22,7 +22,7 @@
         {
             rclcpp::Time stamp_time = now();
             // Find sample of shortest path centerline correspondint to the current ego-position
-            ego_pos_sample_cl_ = findNearestSample(cur_pose.pose.pose.position, route_global.shortest_path, ego_pos_sample_cl_);
+            ego_pos_sample_cl_ = findNearestSample(cur_pose.pose.position, route_global.shortest_path, ego_pos_sample_cl_);
             if(ego_pos_sample_cl_>=target_sample_cl_)
             {
                 return;

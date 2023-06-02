@@ -16,6 +16,7 @@ find_package(route_planning_interfaces REQUIRED)
 find_package(lanelet2_routing REQUIRED)
 find_package(lanelet2_traffic_rules REQUIRED)
 find_package(lanelet2_utilities REQUIRED)
+find_package(perception_interfaces REQUIRED)
 find_package(rclcpp REQUIRED)
 find_package(rclcpp_action REQUIRED)
 find_package(tf2 REQUIRED)
@@ -37,6 +38,7 @@ ament_target_dependencies(global_planner_node
   lanelet2_routing
   lanelet2_traffic_rules
   lanelet2_utilities
+  perception_interfaces
   rclcpp
   rclcpp_action
   tf2
