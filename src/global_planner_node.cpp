@@ -3,8 +3,8 @@
 GlobalPlanner::GlobalPlanner() : Node("global_planner")
 {
   startup_timer_ = create_wall_timer(0.1s, std::bind(&GlobalPlanner::initializeGlobalPlanner, this));
-  map_pose_sub_ = create_subscription<perception_interfaces::msg::EgoData>("/ego_vehicle/map_pose", 1, std::bind(&GlobalPlanner::mapPoseCallback, this, std::placeholders::_1));
-  goal_pose_sub_ = create_subscription<geometry_msgs::msg::PoseStamped>("/goal_pose", 1, std::bind(&GlobalPlanner::goalPoseCallback, this, std::placeholders::_1));
+  map_pose_sub_ = create_subscription<perception_interfaces::msg::EgoData>("/carla_its_converter/egoData", 1, std::bind(&GlobalPlanner::mapPoseCallback, this, std::placeholders::_1));
+  goal_pose_sub_ = create_subscription<geometry_msgs::msg::PoseStamped>("/move_base_simple/goal", 1, std::bind(&GlobalPlanner::goalPoseCallback, this, std::placeholders::_1));
   maneuver_action_client_ = rclcpp_action::create_client<route_planning_interfaces::action::GlobalManeuver>(this, "~/execute_global_maneuver");
 
   // create a transform listener
