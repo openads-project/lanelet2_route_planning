@@ -45,7 +45,7 @@ rclcpp_action::GoalResponse GlobalPlanner::actionHandleGoal(
   planRoute(start_ll_, target_ll_);
 
   // accept action goal request
-  maneuver_start_time_ = now();
+  maneuver_start_time_ = rclcpp::Clock{RCL_ROS_TIME}.now();
   return rclcpp_action::GoalResponse::ACCEPT_AND_EXECUTE;
 }
 
@@ -104,7 +104,7 @@ void GlobalPlanner::actionExecute(
       {
         RCLCPP_INFO(get_logger(),"Destination reached!");
         maneuver_result_->destination_reached = true;
-        rclcpp::Duration diff = now()-maneuver_start_time_;
+        rclcpp::Duration diff = rclcpp::Clock{RCL_ROS_TIME}.now()-maneuver_start_time_;
         maneuver_result_->duration.sec = diff.seconds();
         maneuver_result_->duration.nanosec = diff.nanoseconds();
         // Check if goal is done
@@ -116,9 +116,9 @@ void GlobalPlanner::actionExecute(
       route_planning_interfaces::msg::DriveableSpace driveable_space_local;
       route_planning_interfaces::msg::Route route_local;
 
-      rclcpp::Time start = now();
+      rclcpp::Time start = rclcpp::Clock{RCL_ROS_TIME}.now();
       extractLocalMapInfo(ego_pose_, global_driveable_space_, driveable_space_local, global_route_, route_local);
-      rclcpp::Duration diff = now()-start;
+      rclcpp::Duration diff = rclcpp::Clock{RCL_ROS_TIME}.now()-start;
       RCLCPP_INFO_STREAM(get_logger(), "Duration to extract the local map information: " << std::setprecision(10) << (diff.seconds() + (double)diff.nanoseconds() / 1e9));
       // publish the current sequence as action feedback
       goal_handle->publish_feedback(maneuver_feedback_);

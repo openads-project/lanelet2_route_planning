@@ -20,7 +20,7 @@
                                 const route_planning_interfaces::msg::Route& route_global,
                                 route_planning_interfaces::msg::Route& route_local)
         {
-            rclcpp::Time stamp_time = now();
+            rclcpp::Time stamp_time = rclcpp::Clock{RCL_ROS_TIME}.now();
             // Find sample of shortest path centerline correspondint to the current ego-position
             ego_pos_sample_cl_ = findNearestSample(cur_pose.pose.position, route_global.shortest_path, ego_pos_sample_cl_);
             if(ego_pos_sample_cl_>=target_sample_cl_)
