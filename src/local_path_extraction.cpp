@@ -20,7 +20,7 @@
                                 const route_planning_interfaces::msg::Route& route_global,
                                 route_planning_interfaces::msg::Route& route_local)
         {
-            rclcpp::Time stamp_time = rclcpp::Clock{RCL_ROS_TIME}.now();
+            rclcpp::Time stamp_time = now();
             // Find sample of shortest path centerline correspondint to the current ego-position
             ego_pos_sample_cl_ = findNearestSample(cur_pose.pose.position, route_global.shortest_path, ego_pos_sample_cl_);
             if(ego_pos_sample_cl_>=target_sample_cl_)
@@ -104,7 +104,7 @@
                 local_route_pub_->publish(route_local);
                 local_driveable_space_pub_->publish(driveable_space_local);
             } catch (const tf2::TransformException &ex) {
-                RCLCPP_ERROR_STREAM(this->get_logger(), "Could not transform " << ll2if_->map_frame_id_ << "to " << local_vehicle_frame_id_ << ": " << ex.what());
+                RCLCPP_ERROR_STREAM(this->get_logger(), "Could not transform " << ll2if_->map_frame_id_ << " to " << local_vehicle_frame_id_ << ": " << ex.what());
                 return;
             }
         } 

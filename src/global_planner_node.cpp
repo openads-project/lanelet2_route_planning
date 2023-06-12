@@ -49,9 +49,9 @@ void GlobalPlanner::initializeGlobalPlanner()
 
 bool GlobalPlanner::egoPositionSanityCheck()
 {
-  if((rclcpp::Clock{RCL_ROS_TIME}.now() - ego_data_.header.stamp).seconds()>2.0) // Change later to 0.2
+  if((now() - ego_data_.header.stamp).seconds()>2.0) // Change later to 0.2
   {
-    RCLCPP_ERROR_STREAM(get_logger(), "Latest ego-pose message is depracted (age: " << (rclcpp::Clock{RCL_ROS_TIME}.now() - ego_data_.header.stamp).seconds() << " s)!");
+    RCLCPP_ERROR_STREAM(get_logger(), "Latest ego-pose message is depracted (age: " << (now() - ego_data_.header.stamp).seconds() << " s)!");
     return false;
   }
   else
@@ -120,7 +120,7 @@ bool GlobalPlanner::targetPositionSanityCheck(double target_x, double target_y)
 
 bool GlobalPlanner::planRoute(lanelet::ConstLanelet start_ll, lanelet::ConstLanelet target_ll)
 {
-  builtin_interfaces::msg::Time start_time = rclcpp::Clock{RCL_ROS_TIME}.now();
+  builtin_interfaces::msg::Time start_time = now();
   // Start and end positions
   lanelet::BasicPoint3d target;
   target.x()=maneuver_feedback_->destination_x;
@@ -168,7 +168,7 @@ bool GlobalPlanner::planRoute(lanelet::ConstLanelet start_ll, lanelet::ConstLane
 
   // Get route
   route_ = routingGraph_->getRoute(start_ll_offset, target_ll_offset, 0); // 0 = routingCostId distance
-  RCLCPP_INFO_STREAM(get_logger(), "Time core route planning: " << (rclcpp::Clock{RCL_ROS_TIME}.now() - start_time).seconds() << "s");
+  RCLCPP_INFO_STREAM(get_logger(), "Time core route planning: " << (now() - start_time).seconds() << "s");
   // Is route-planning possible?
   if (!!route_)
   {
@@ -181,16 +181,16 @@ bool GlobalPlanner::planRoute(lanelet::ConstLanelet start_ll, lanelet::ConstLane
     lanelet::BasicLineString2d shortest_path_centerline = Lanelet2Utilities::convertLLPath2LineString2dSBased(ConstLanelets(shortestPath.begin(), shortestPath.end()), start_pos, 10., 3., std::numeric_limits<double>::max(), ds_sample_, target_pos, lane_boundaries, *routingGraphBicycle_);
     //Start filling global route
     global_route_.header.frame_id = ll2if_->map_frame_id_;
-    global_route_.header.stamp = rclcpp::Clock{RCL_ROS_TIME}.now();
+    global_route_.header.stamp = now();
     global_route_.target_position.x = target.x();
     global_route_.target_position.y = target.y();
     global_route_.target_position.y = target.y();
     global_route_.shortest_path = processLineString(shortest_path_centerline);
 
     // Process boundaries
-    start_time = rclcpp::Clock{RCL_ROS_TIME}.now();
+    start_time = now();
     global_driveable_space_ = sampleDriveableSpace(shortest_path_centerline);
-    RCLCPP_INFO_STREAM(get_logger(), "Duration for calculation of driveable-space: " << (rclcpp::Clock{RCL_ROS_TIME}.now() - start_time).seconds() << "s");
+    RCLCPP_INFO_STREAM(get_logger(), "Duration for calculation of driveable-space: " << (now() - start_time).seconds() << "s");
 
     // Process route boundaries
     // lanelet::BasicLineString2d shortest_path_bound_left  = sampleBoundaries(shortest_path_centerline, 10., false, shortest_path_bound_left_mapping, lane_boundaries.first, marker_array_boundary);
