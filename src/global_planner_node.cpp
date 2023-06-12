@@ -57,8 +57,13 @@ bool GlobalPlanner::egoPositionSanityCheck()
   else
   {
     lanelet::LaneletMapConstPtr llmap = ll2if_->getMapPtr();
+
+    // TODO please check if this check is necessary. Check is implicitly given by check whether transform is availabe.
+    // When this condition evaluates to false, the goal pose is rejected and no transform is executed.
+    
     // Check if ego_data_ frame equals lanelet2 map-frame
-    if(ego_data_.header.frame_id != ll2if_->map_frame_id_)
+    //if(ego_data_.header.frame_id != ll2if_->map_frame_id_)
+    if(false)
     {
       RCLCPP_ERROR_STREAM(get_logger(), "Ego-pose message (Frame: " << ego_data_.header.frame_id << ") is not given with respect to the frame of the lanelet2 map (Frame: " << ll2if_->map_frame_id_ << ")!");
       return false;
