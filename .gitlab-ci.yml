@@ -1,7 +1,9 @@
 include:
-  - project: fb-fi/ops/docker-ros
-    ref: main
-    file: templates/.gitlab-ci.template.yml
+  - remote: 'https://raw.githubusercontent.com/ika-rwth-aachen/docker-ros/fix/gitlab-ci-run-image/.gitlab-ci/docker-ros.yml'
 
 variables:
-  NOT_TEST_BUILD: 'true'
+  BASE_IMAGE: rwthika/ros2:humble
+  COMMAND: ros2 run lanelet2_route_planning global_planner_node
+  TARGET: dev,run
+  PLATFORM: amd64
+  ENABLE_INDUSTRIAL_CI: 'true'
