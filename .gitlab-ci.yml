@@ -1,8 +1,8 @@
 include:
-  - remote: 'https://raw.githubusercontent.com/ika-rwth-aachen/docker-ros/fix/gitlab-ci-run-image/.gitlab-ci/docker-ros.yml'
+  - remote: 'https://raw.githubusercontent.com/ika-rwth-aachen/docker-ros/main/.gitlab-ci/docker-ros.yml'
 
 variables:
-  BASE_IMAGE: rwthika/ros2:humble
+  BASE_IMAGE: rwthika/ros2:rolling
   COMMAND: ros2 run lanelet2_route_planning global_planner_node
   TARGET: dev,run
   PLATFORM: amd64
