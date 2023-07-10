@@ -69,7 +69,7 @@ class GlobalPlanner : public rclcpp::Node
         route_planning_interfaces::msg::DriveableSpace global_driveable_space_;
         route_planning_interfaces::msg::Route global_route_;
 
-        double ds_sample_ = 2.0;
+        double ds_sample_ = 0.5;
         double smooth_factor_ = 2.0;
 
         Optional<lanelet::routing::Route> route_;
