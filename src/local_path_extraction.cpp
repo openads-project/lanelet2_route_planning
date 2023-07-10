@@ -46,7 +46,7 @@
                     break;
                 }
             }
-            RCLCPP_INFO_STREAM(get_logger(), "The the look-ahead-sample of the centerline has id " << look_ahead_sample);
+            RCLCPP_INFO_STREAM(get_logger(), "The look-ahead-sample of the centerline has id " << look_ahead_sample);
 
             // Find the look-behind sample
             unsigned int look_behind_sample;
@@ -60,7 +60,7 @@
                     break;
                 }
             }
-            RCLCPP_INFO_STREAM(get_logger(), "The the look-behind-sample of the centerline has id " << look_behind_sample);
+            RCLCPP_INFO_STREAM(get_logger(), "The look-behind-sample of the centerline has id " << look_behind_sample);
 
             // To-Do: Rest of Route-Object
             // ...
@@ -142,9 +142,11 @@
                 if (dist < min_distance) {
                     min_distance = dist;
                     nearest_index = i; // Update the last index to the current index
-                } else if (dist > min_distance) {
-                    break; // Stop searching if the distance starts increasing again
                 }
+                // Comment else-if to stop searach for now, since finding the nearest sample seems to be buggy 
+                // else if (dist > min_distance) {
+                //     break; // Stop searching if the distance starts increasing again
+                // }
             }
             return nearest_index;
         }
