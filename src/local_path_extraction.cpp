@@ -74,6 +74,11 @@
    
 
             // Now extract the local driveable space
+            // There is something wrong with getting the right sample for the left boundary! Set the start values to 0 for each iteration for now!
+            lbehind_sample_drivspace_left_ = 0; // Hack!
+            lbehind_sample_drivspace_right_ = 0; // Hack!
+            lahead_sample_drivspace_left_ = 0; // Hack!
+            lahead_sample_drivspace_right_ = 0; // Hack!
             // Find nearest Boundary-Sample for left and right boundary at look-ahead and look-behind point
             lbehind_sample_drivspace_left_ = findNearestSample(temp_route.shortest_path.front(), driveable_space_global.boundaries.left, lbehind_sample_drivspace_left_);
             RCLCPP_INFO_STREAM(get_logger(), "lbehind_sample_drivspace_left_ " << lbehind_sample_drivspace_left_);

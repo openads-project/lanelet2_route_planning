@@ -86,7 +86,7 @@ class GlobalPlanner : public rclcpp::Node
         unsigned int lahead_sample_drivspace_left_, lahead_sample_drivspace_right_;
         std::vector<geometry_msgs::msg::Point> remaining_shortest_path_;
         double look_ahead_time_ = 10.0;
-        double look_ahead_distance_min_ = 500.0; // To-Do reset this to a shorter distance e.g. 50 m when local path extraction is fixed
+        double look_ahead_distance_min_ = 50.0;
         double look_behind_distance_ = 20.0;
         rclcpp::Publisher<route_planning_interfaces::msg::Route>::SharedPtr local_route_pub_;
         rclcpp::Publisher<route_planning_interfaces::msg::DriveableSpace>::SharedPtr local_driveable_space_pub_;
