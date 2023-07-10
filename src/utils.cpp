@@ -89,8 +89,8 @@ route_planning_interfaces::msg::DriveableSpace GlobalPlanner::sampleDriveableSpa
   route_planning_interfaces::msg::DriveableSpace driveable_space;
   driveable_space.header.frame_id = ll2if_->map_frame_id_;
   driveable_space.header.stamp = now();
-  driveable_space.boundaries.left = sampleLinestring(centerline, 10.0, false);
-  driveable_space.boundaries.right = sampleLinestring(centerline, 10.0, true);
+  driveable_space.boundaries.left = sampleLinestring(centerline, 50.0, false);
+  driveable_space.boundaries.right = sampleLinestring(centerline, 50.0, true);
   return driveable_space;
 }
 
