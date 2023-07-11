@@ -27,12 +27,9 @@
             {
                 return;
             }
-            RCLCPP_INFO_STREAM(get_logger(), "The sample in the shortest path corresponding to the current ego-position has id " << ego_pos_sample_cl_);
-            RCLCPP_INFO_STREAM(get_logger(), "The sample in the shortest path corresponding to the current target-position has id " << target_sample_cl_);
             remaining_shortest_path_ = {route_global.shortest_path.begin() + ego_pos_sample_cl_, route_global.shortest_path.begin() + target_sample_cl_}; 
             std::vector<double> sp_accumulated_length_vec;
             double sp_length = accumulatedLength(remaining_shortest_path_, sp_accumulated_length_vec);
-            RCLCPP_INFO_STREAM(get_logger(), "Length of remaining shortest path: " << sp_length);
             // Get the start and end sample of the local shortest path with respect to look-ahead/behind distance
             double velocity = 38.0/3.6; // To-Do: add actual vehicle velocity here
             double look_ahead_distance = std::max(look_ahead_distance_min_, look_ahead_time_*velocity);
@@ -46,7 +43,6 @@
                     break;
                 }
             }
-            RCLCPP_INFO_STREAM(get_logger(), "The look-ahead-sample of the centerline has id " << look_ahead_sample);
 
             // Find the look-behind sample
             unsigned int look_behind_sample;
@@ -60,7 +56,6 @@
                     break;
                 }
             }
-            RCLCPP_INFO_STREAM(get_logger(), "The look-behind-sample of the centerline has id " << look_behind_sample);
 
             // To-Do: Rest of Route-Object
             // ...
@@ -76,13 +71,9 @@
             // Now extract the local driveable space
             // Find nearest Boundary-Sample for left and right boundary at look-ahead and look-behind point
             lbehind_sample_drivspace_left_ = findNearestSample(temp_route.shortest_path.front(), driveable_space_global.boundaries.left, lbehind_sample_drivspace_left_);
-            RCLCPP_INFO_STREAM(get_logger(), "lbehind_sample_drivspace_left_ " << lbehind_sample_drivspace_left_);
             lbehind_sample_drivspace_right_ = findNearestSample(temp_route.shortest_path.front(), driveable_space_global.boundaries.right, lbehind_sample_drivspace_right_);
-            RCLCPP_INFO_STREAM(get_logger(), "lbehind_sample_drivspace_right_ " << lbehind_sample_drivspace_right_);
             lahead_sample_drivspace_left_ = findNearestSample(temp_route.shortest_path.back(), driveable_space_global.boundaries.left, lahead_sample_drivspace_left_);
-            RCLCPP_INFO_STREAM(get_logger(), "lahead_sample_drivspace_left_ " << lahead_sample_drivspace_left_);
             lahead_sample_drivspace_right_ = findNearestSample(temp_route.shortest_path.back(), driveable_space_global.boundaries.right, lahead_sample_drivspace_right_);
-            RCLCPP_INFO_STREAM(get_logger(), "lahead_sample_drivspace_right_ " << lahead_sample_drivspace_right_);
 
             // To-Do: Extract restricting areas
             // ...
@@ -93,8 +84,6 @@
             temp_ds.header.frame_id = ll2if_->map_frame_id_; // currently it's map --> will be changed through transform function
             temp_ds.boundaries.left = {driveable_space_global.boundaries.left.begin() + lbehind_sample_drivspace_left_, driveable_space_global.boundaries.left.begin() + lahead_sample_drivspace_left_};
             temp_ds.boundaries.right = {driveable_space_global.boundaries.right.begin() + lbehind_sample_drivspace_right_, driveable_space_global.boundaries.right.begin() + lahead_sample_drivspace_right_};
-            RCLCPP_INFO_STREAM(get_logger(), "temp_ds.boundaries.left.size() " << temp_ds.boundaries.left.size());
-            RCLCPP_INFO_STREAM(get_logger(), "temp_ds.boundaries.right.size() " << temp_ds.boundaries.right.size());
             // Now transform the route- and driveable-space-object
             geometry_msgs::msg::TransformStamped tf;
             try {
