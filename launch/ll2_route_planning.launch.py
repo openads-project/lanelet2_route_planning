@@ -16,21 +16,20 @@ def generate_launch_description():
         LaunchConfiguration('params')
     ])
 
-    node_name_default = 'global_planner_node'
+    node_name_default = 'global_planner'
     node_name_arg = DeclareLaunchArgument('node_name',
                                           default_value=node_name_default)
     
-    use_sim_time_arg = DeclareLaunchArgument('use_sim_time_arg',
-                                          default_value=False)
+    use_sim_time_arg = DeclareLaunchArgument('use_sim_time_arg', default_value='False')
 
     node = LifecycleNode(
-        package="sample_package_cpp",
-        executable="sample_package_cpp_node",
+        package="lanelet2_route_planning",
+        executable="global_planner_node",
         name=LaunchConfiguration('node_name'),
         namespace="",
         output="screen",
         emulate_tty=True,
-        parameters=[config],
+        parameters=[config]
     )
 
     node_group = GroupAction(actions=[
@@ -44,5 +43,5 @@ def generate_launch_description():
         params_arg,
         node_name_arg,
         use_sim_time_arg,
-        node_group,
+        node_group
     ])
