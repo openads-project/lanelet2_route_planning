@@ -4,6 +4,10 @@
         {
             // Reset sample values
             ego_pos_sample_cl_ = 0;
+            lbehind_sample_rbound_left_ = 0;
+            lbehind_sample_rbound_right_ = 0;
+            lahead_sample_rbound_left_ = 0;
+            lahead_sample_rbound_right_ = 0;
             lbehind_sample_drivspace_left_ = 0;
             lbehind_sample_drivspace_right_ = 0;
             lahead_sample_drivspace_left_ = 0;
@@ -57,16 +61,23 @@
                 }
             }
 
-            // To-Do: Rest of Route-Object
-            // ...
-
-            // Now we've got our local-section of the route
+            // Now can extract the local-section of the route
             route_planning_interfaces::msg::Route temp_route;
             temp_route.header.stamp = stamp_time;
             temp_route.target_position = route_global.target_position;
             temp_route.header.frame_id = ll2if_->map_frame_id_; // currently it's map --> will be changed through transform function
             temp_route.shortest_path = {route_global.shortest_path.begin() + look_behind_sample, route_global.shortest_path.begin() + look_ahead_sample};
-   
+
+            // Find nearest Boundary-Sample for left and right boundary at look-ahead and look-behind point
+            lbehind_sample_rbound_left_ = findNearestSample(temp_route.shortest_path.front(), route_global.boundaries.left, lbehind_sample_rbound_left_);
+            lbehind_sample_rbound_right_ = findNearestSample(temp_route.shortest_path.front(), route_global.boundaries.right, lbehind_sample_rbound_right_);
+            lahead_sample_rbound_left_ = findNearestSample(temp_route.shortest_path.back(), route_global.boundaries.left, lahead_sample_rbound_left_);
+            lahead_sample_rbound_right_ = findNearestSample(temp_route.shortest_path.back(), route_global.boundaries.right, lahead_sample_rbound_right_);
+            temp_route.boundaries.left = {route_global.boundaries.left.begin() + lbehind_sample_rbound_left_, route_global.boundaries.left.begin() + lahead_sample_rbound_left_};
+            temp_route.boundaries.right = {route_global.boundaries.right.begin() + lbehind_sample_rbound_right_, route_global.boundaries.right.begin() + lahead_sample_rbound_right_};
+
+            // To-Do: Rest of Route-Object
+            // ...   
 
             // Now extract the local driveable space
             // Find nearest Boundary-Sample for left and right boundary at look-ahead and look-behind point

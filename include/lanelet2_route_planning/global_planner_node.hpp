@@ -82,6 +82,8 @@ class GlobalPlanner : public rclcpp::Node
         double path_extraction_rate_=10.0;
         unsigned int target_sample_cl_;
         unsigned int ego_pos_sample_cl_;
+        unsigned int lbehind_sample_rbound_left_, lbehind_sample_rbound_right_;
+        unsigned int lahead_sample_rbound_left_, lahead_sample_rbound_right_;
         unsigned int lbehind_sample_drivspace_left_, lbehind_sample_drivspace_right_;
         unsigned int lahead_sample_drivspace_left_, lahead_sample_drivspace_right_;
         std::vector<geometry_msgs::msg::Point> remaining_shortest_path_;
