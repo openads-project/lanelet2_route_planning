@@ -3,7 +3,7 @@
 GlobalPlanner::GlobalPlanner() : Node("global_planner")
 {
   startup_timer_ = create_wall_timer(0.1s, std::bind(&GlobalPlanner::initializeGlobalPlanner, this));
-  map_pose_sub_ = create_subscription<perception_interfaces::msg::EgoData>("/carla_its_converter/ego_data", 1, std::bind(&GlobalPlanner::mapPoseCallback, this, std::placeholders::_1));
+  map_pose_sub_ = create_subscription<perception_interfaces::msg::EgoData>("/carla_its_converter/ego_vehicle/ego_data", 1, std::bind(&GlobalPlanner::mapPoseCallback, this, std::placeholders::_1));
   goal_pose_sub_ = create_subscription<geometry_msgs::msg::PoseStamped>("/goal_pose", 1, std::bind(&GlobalPlanner::goalPoseCallback, this, std::placeholders::_1));
   maneuver_action_client_ = rclcpp_action::create_client<route_planning_interfaces::action::GlobalManeuver>(this, "~/execute_global_maneuver");
 
@@ -198,8 +198,8 @@ bool GlobalPlanner::planRoute(lanelet::ConstLanelet start_ll, lanelet::ConstLane
     RCLCPP_INFO_STREAM(get_logger(), "Duration for calculation of driveable-space: " << (now() - start_time).seconds() << "s");
 
     // Process route boundaries
-    // lanelet::BasicLineString2d shortest_path_bound_left  = sampleBoundaries(shortest_path_centerline, 10., false, shortest_path_bound_left_mapping, lane_boundaries.first, marker_array_boundary);
-    // lanelet::BasicLineString2d shortest_path_bound_right = sampleBoundaries(shortest_path_centerline, 10., true,  shortest_path_bound_right_mapping, lane_boundaries.second, marker_array_boundary);
+    global_route_.boundaries.left = sampleRouteBoundary(shortest_path_centerline, 10., false);
+    global_route_.boundaries.right = sampleRouteBoundary(shortest_path_centerline, 10., true);
 
     // Get regulatory elements along route
 
