@@ -198,8 +198,9 @@ bool GlobalPlanner::planRoute(lanelet::ConstLanelet start_ll, lanelet::ConstLane
     RCLCPP_INFO_STREAM(get_logger(), "Duration for calculation of driveable-space: " << (now() - start_time).seconds() << "s");
 
     // Process route boundaries
-    global_route_.boundaries.left = sampleRouteBoundary(shortest_path_centerline, 10., false);
-    global_route_.boundaries.right = sampleRouteBoundary(shortest_path_centerline, 10., true);
+    global_route_.boundaries.left.clear();
+    global_route_.boundaries.right.clear();
+    sampleRouteBoundary(route_.get(), shortestPath, global_route_.boundaries.left, global_route_.boundaries.right);
 
     // Get regulatory elements along route
 
