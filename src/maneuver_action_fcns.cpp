@@ -99,7 +99,7 @@ void GlobalPlanner::actionExecute(
     if(egoPositionSanityCheck())
     {
       bool require_standstill = false;
-      double velocity = 0.0;
+      double velocity = perception_interfaces::object_access::getVelLon(ego_data_)
       if (geometry::distance(lanelet::BasicPoint2d(goal->target_pos_x, goal->target_pos_y), lanelet::BasicPoint2d(ego_pose_.pose.position.x, ego_pose_.pose.position.y)) < 1.0 && (std::fabs(velocity) < 0.05 || !require_standstill))
       {
         RCLCPP_INFO(get_logger(),"Destination reached!");
