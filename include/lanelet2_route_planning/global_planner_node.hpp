@@ -54,6 +54,7 @@ class GlobalPlanner : public rclcpp::Node
 
         // Variables
         LL2MapInterface *ll2if_;
+        std::string map_server_name_ = "ll2_map_server";
         perception_interfaces::msg::EgoData ego_data_;
         geometry_msgs::msg::PoseWithCovariance ego_pose_;
         lanelet::LaneletMapConstPtr llmap_;
@@ -71,6 +72,12 @@ class GlobalPlanner : public rclcpp::Node
 
         double ds_sample_ = 0.5;
         double smooth_factor_ = 2.0;
+
+        double ego_data_timeout_ = 0.2;
+        double vel_threshold_target_ = 1.0; // m/s
+        double target_reached_thr_ = 1.0; // m
+        bool require_standstill_ = false;
+
 
         Optional<lanelet::routing::Route> route_;
 
@@ -116,6 +123,7 @@ class GlobalPlanner : public rclcpp::Node
         // Function Definitions
         // global_planner_node.cpp
         void initializeGlobalPlanner();
+        void loadParameters();
         bool egoPositionSanityCheck();
         bool targetPositionSanityCheck(double target_x, double target_y);
         bool planRoute(lanelet::ConstLanelet start_ll, lanelet::ConstLanelet target_ll);

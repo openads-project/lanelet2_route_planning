@@ -98,9 +98,8 @@ void GlobalPlanner::actionExecute(
     // To-Do: add subscriber for actual vehicle velocity and check for standstill if require_standstill parameter is set!
     if(egoPositionSanityCheck())
     {
-      bool require_standstill = false;
-      double velocity = perception_interfaces::object_access::getVelLon(ego_data_)
-      if (geometry::distance(lanelet::BasicPoint2d(goal->target_pos_x, goal->target_pos_y), lanelet::BasicPoint2d(ego_pose_.pose.position.x, ego_pose_.pose.position.y)) < 1.0 && (std::fabs(velocity) < 0.05 || !require_standstill))
+      double velocity = perception_interfaces::object_access::getVelLon(ego_data_);
+      if (geometry::distance(lanelet::BasicPoint2d(goal->target_pos_x, goal->target_pos_y), lanelet::BasicPoint2d(ego_pose_.pose.position.x, ego_pose_.pose.position.y)) < target_reached_thr_ && (std::fabs(velocity) < vel_threshold_target_ || !require_standstill_))
       {
         RCLCPP_INFO(get_logger(),"Destination reached!");
         maneuver_result_->destination_reached = true;

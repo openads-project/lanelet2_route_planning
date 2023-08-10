@@ -12,12 +12,117 @@ GlobalPlanner::GlobalPlanner() : Node("global_planner")
   tf_listener_ = std::make_shared<tf2_ros::TransformListener>(*tf_buffer_);
 }
 
+
+void GlobalPlanner::loadParameters() {
+
+  // General and Sanity Checks
+  this->declare_parameter("ego_data_timeout", rclcpp::ParameterType::PARAMETER_DOUBLE);
+  try {
+    ego_data_timeout_ = this->get_parameter("ego_data_timeout").as_double();
+  } catch (rclcpp::exceptions::InvalidParameterTypeException&) {
+    RCLCPP_WARN_STREAM(this->get_logger(), "Parameter \'ego_data_timeout\' is not set correctly, using default value: "+std::to_string(ego_data_timeout_));
+  } catch (rclcpp::exceptions::ParameterUninitializedException&) {
+    RCLCPP_WARN_STREAM(this->get_logger(), "Parameter \'ego_data_timeout\' is not set, using default value: "+std::to_string(ego_data_timeout_));
+  }
+
+  this->declare_parameter("map_server_name", rclcpp::ParameterType::PARAMETER_STRING);
+  try {
+    map_server_name_ = this->get_parameter("map_server_name").as_string();
+  } catch (rclcpp::exceptions::InvalidParameterTypeException&) {
+    RCLCPP_WARN_STREAM(this->get_logger(), "Parameter \'map_server_name\' is not set correctly, using default value: "+map_server_name_);
+  } catch (rclcpp::exceptions::ParameterUninitializedException&) {
+    RCLCPP_WARN_STREAM(this->get_logger(), "Parameter \'map_server_name\' is not set, using default value: "+map_server_name_);
+  }
+
+  // Route Planning
+  this->declare_parameter("route_sample_distance", rclcpp::ParameterType::PARAMETER_DOUBLE);
+  try {
+    ds_sample_ = this->get_parameter("route_sample_distance").as_double();
+  } catch (rclcpp::exceptions::InvalidParameterTypeException&) {
+    RCLCPP_WARN_STREAM(this->get_logger(), "Parameter \'route_sample_distance\' is not set correctly, using default value: "+std::to_string(ds_sample_));
+  } catch (rclcpp::exceptions::ParameterUninitializedException&) {
+    RCLCPP_WARN_STREAM(this->get_logger(), "Parameter \'route_sample_distance\' is not set, using default value: "+std::to_string(ds_sample_));
+  }
+
+  this->declare_parameter("route_smoothing_factor", rclcpp::ParameterType::PARAMETER_DOUBLE);
+  try {
+    smooth_factor_ = this->get_parameter("route_smoothing_factor").as_double();
+  } catch (rclcpp::exceptions::InvalidParameterTypeException&) {
+    RCLCPP_WARN_STREAM(this->get_logger(), "Parameter \'route_smoothing_factor\' is not set correctly, using default value: "+std::to_string(smooth_factor_));
+  } catch (rclcpp::exceptions::ParameterUninitializedException&) {
+    RCLCPP_WARN_STREAM(this->get_logger(), "Parameter \'route_smoothing_factor\' is not set, using default value: "+std::to_string(smooth_factor_));
+  }
+
+  this->declare_parameter("vel_threshold_target", rclcpp::ParameterType::PARAMETER_DOUBLE);
+  try {
+    vel_threshold_target_ = this->get_parameter("vel_threshold_target").as_double();
+  } catch (rclcpp::exceptions::InvalidParameterTypeException&) {
+    RCLCPP_WARN_STREAM(this->get_logger(), "Parameter \'vel_threshold_target\' is not set correctly, using default value: "+std::to_string(vel_threshold_target_));
+  } catch (rclcpp::exceptions::ParameterUninitializedException&) {
+    RCLCPP_WARN_STREAM(this->get_logger(), "Parameter \'vel_threshold_target\' is not set, using default value: "+std::to_string(vel_threshold_target_));
+  }
+
+  this->declare_parameter("target_reached_thr", rclcpp::ParameterType::PARAMETER_DOUBLE);
+  try {
+    target_reached_thr_ = this->get_parameter("target_reached_thr").as_double();
+  } catch (rclcpp::exceptions::InvalidParameterTypeException&) {
+    RCLCPP_WARN_STREAM(this->get_logger(), "Parameter \'target_reached_thr\' is not set correctly, using default value: "+std::to_string(target_reached_thr_));
+  } catch (rclcpp::exceptions::ParameterUninitializedException&) {
+    RCLCPP_WARN_STREAM(this->get_logger(), "Parameter \'target_reached_thr\' is not set, using default value: "+std::to_string(target_reached_thr_));
+  }
+
+  this->declare_parameter("require_standstill", rclcpp::ParameterType::PARAMETER_BOOL);
+  try {
+    require_standstill_ = this->get_parameter("vel_threshold_target").as_bool();
+  } catch (rclcpp::exceptions::InvalidParameterTypeException&) {
+    RCLCPP_WARN_STREAM(this->get_logger(), "Parameter \'require_standstill\' is not set correctly, using default value: "+std::to_string(require_standstill_));
+  } catch (rclcpp::exceptions::ParameterUninitializedException&) {
+    RCLCPP_WARN_STREAM(this->get_logger(), "Parameter \'require_standstill\' is not set, using default value: "+std::to_string(require_standstill_));
+  }
+
+  // Local Path Extraction
+  this->declare_parameter("local_path_extraction_rate", rclcpp::ParameterType::PARAMETER_DOUBLE);
+  try {
+    path_extraction_rate_ = this->get_parameter("local_path_extraction_rate").as_double();
+  } catch (rclcpp::exceptions::InvalidParameterTypeException&) {
+    RCLCPP_WARN_STREAM(this->get_logger(), "Parameter \'local_path_extraction_rate\' is not set correctly, using default value: "+std::to_string(path_extraction_rate_));
+  } catch (rclcpp::exceptions::ParameterUninitializedException&) {
+    RCLCPP_WARN_STREAM(this->get_logger(), "Parameter \'local_path_extraction_rate\' is not set, using default value: "+std::to_string(path_extraction_rate_));
+  }
+
+  this->declare_parameter("look_ahead_time", rclcpp::ParameterType::PARAMETER_DOUBLE);
+  try {
+    look_ahead_time_ = this->get_parameter("look_ahead_time").as_double();
+  } catch (rclcpp::exceptions::InvalidParameterTypeException&) {
+    RCLCPP_WARN_STREAM(this->get_logger(), "Parameter \'look_ahead_time\' is not set correctly, using default value: "+std::to_string(look_ahead_time_));
+  } catch (rclcpp::exceptions::ParameterUninitializedException&) {
+    RCLCPP_WARN_STREAM(this->get_logger(), "Parameter \'look_ahead_time\' is not set, using default value: "+std::to_string(look_ahead_time_));
+  }
+
+  this->declare_parameter("look_ahead_distance_min", rclcpp::ParameterType::PARAMETER_DOUBLE);
+  try {
+    look_ahead_distance_min_ = this->get_parameter("look_ahead_distance_min").as_double();
+  } catch (rclcpp::exceptions::InvalidParameterTypeException&) {
+    RCLCPP_WARN_STREAM(this->get_logger(), "Parameter \'look_ahead_distance_min\' is not set correctly, using default value: "+std::to_string(look_ahead_distance_min_));
+  } catch (rclcpp::exceptions::ParameterUninitializedException&) {
+    RCLCPP_WARN_STREAM(this->get_logger(), "Parameter \'look_ahead_distance_min\' is not set, using default value: "+std::to_string(look_ahead_distance_min_));
+  }
+
+  this->declare_parameter("look_behind_distance", rclcpp::ParameterType::PARAMETER_DOUBLE);
+  try {
+    look_behind_distance_ = this->get_parameter("look_behind_distance").as_double();
+  } catch (rclcpp::exceptions::InvalidParameterTypeException&) {
+    RCLCPP_WARN_STREAM(this->get_logger(), "Parameter \'look_behind_distance\' is not set correctly, using default value: "+std::to_string(look_behind_distance_));
+  } catch (rclcpp::exceptions::ParameterUninitializedException&) {
+    RCLCPP_WARN_STREAM(this->get_logger(), "Parameter \'look_behind_distance\' is not set, using default value: "+std::to_string(look_behind_distance_));
+  }
+}
+
+
 void GlobalPlanner::initializeMapInterface()
 {
-  // To-Do load name as parameter
-  std::string map_server_name = "ll2_map_server";
   // Important: shared_from_this() can not be called from within the constructor
-  ll2if_ = new LL2MapInterface(shared_from_this(), map_server_name);
+  ll2if_ = new LL2MapInterface(shared_from_this(), map_server_name_);
 }
 
 void GlobalPlanner::initializeGlobalPlanner()
@@ -49,7 +154,7 @@ void GlobalPlanner::initializeGlobalPlanner()
 
 bool GlobalPlanner::egoPositionSanityCheck()
 {
-  if((now() - ego_data_.header.stamp).seconds()>2.0) // Change later to 0.2
+  if((now() - ego_data_.header.stamp).seconds()>ego_data_timeout_) // Change later to 0.2
   {
     RCLCPP_ERROR_STREAM(get_logger(), "Latest ego-pose message is depracted (age: " << (now() - ego_data_.header.stamp).seconds() << " s)!");
     return false;
@@ -58,12 +163,7 @@ bool GlobalPlanner::egoPositionSanityCheck()
   {
     lanelet::LaneletMapConstPtr llmap = ll2if_->getMapPtr();
 
-    // TODO please check if this check is necessary. Check is implicitly given by check whether transform is availabe.
-    // When this condition evaluates to false, the goal pose is rejected and no transform is executed.
-    
-    // Check if ego_data_ frame equals lanelet2 map-frame
-    //if(ego_data_.header.frame_id != ll2if_->map_frame_id_)
-    if(false)
+    if(ego_data_.header.frame_id != ll2if_->map_frame_id_)
     {
       RCLCPP_ERROR_STREAM(get_logger(), "Ego-pose message (Frame: " << ego_data_.header.frame_id << ") is not given with respect to the frame of the lanelet2 map (Frame: " << ll2if_->map_frame_id_ << ")!");
       return false;
