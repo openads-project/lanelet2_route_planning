@@ -72,6 +72,7 @@ class GlobalPlanner : public rclcpp::Node
 
         double ds_sample_ = 0.5;
         double smooth_factor_ = 2.0;
+        double lateral_driv_space_width_ = 100.0;
 
         double ego_data_timeout_ = 0.2;
         double vel_threshold_target_ = 1.0; // m/s

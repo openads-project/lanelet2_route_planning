@@ -53,6 +53,15 @@ void GlobalPlanner::loadParameters() {
     RCLCPP_WARN_STREAM(this->get_logger(), "Parameter \'route_smoothing_factor\' is not set, using default value: "+std::to_string(smooth_factor_));
   }
 
+  this->declare_parameter("lateral_driveable_space_width", rclcpp::ParameterType::PARAMETER_DOUBLE);
+  try {
+    lateral_driv_space_width_ = this->get_parameter("lateral_driveable_space_width").as_double();
+  } catch (rclcpp::exceptions::InvalidParameterTypeException&) {
+    RCLCPP_WARN_STREAM(this->get_logger(), "Parameter \'lateral_driveable_space_width\' is not set correctly, using default value: "+std::to_string(lateral_driv_space_width_));
+  } catch (rclcpp::exceptions::ParameterUninitializedException&) {
+    RCLCPP_WARN_STREAM(this->get_logger(), "Parameter \'lateral_driveable_space_width\' is not set, using default value: "+std::to_string(lateral_driv_space_width_));
+  }
+
   this->declare_parameter("vel_threshold_target", rclcpp::ParameterType::PARAMETER_DOUBLE);
   try {
     vel_threshold_target_ = this->get_parameter("vel_threshold_target").as_double();
