@@ -61,7 +61,7 @@
                 }
             }
 
-            // Now can extract the local-section of the route
+            // Now we can extract the local-section of the route
             route_planning_interfaces::msg::Route temp_route;
             temp_route.header.stamp = stamp_time;
             temp_route.target_position = route_global.target_position;
