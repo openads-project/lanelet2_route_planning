@@ -23,7 +23,8 @@ It has the following functionalities:
 
 | Topic | Type | Description |
 | --- | --- | --- |
-| `input_topic` | `sample_interfaces/msg/SampleMessage` | Echo the received message |
+| `/carla_its_converter/ego_vehicle/ego_data` | `perception_interfaces/msg/EgoData` | EgoData-Message of the vehicle --> should be changed to `/carla_its_adapter/...` soon! |
+| `/goal_pose` | `geometry_msgs/msg/PoseStamped` | PoseStamped-Message to define the goal pose. Could be used to trigger the route planning via RViz using the 2D-Goal-Pose-Tool without needing to trigger a specific action. |
 
 #### Published Topics
 
