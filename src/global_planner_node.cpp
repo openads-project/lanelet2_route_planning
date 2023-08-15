@@ -187,7 +187,8 @@ bool GlobalPlanner::egoPositionSanityCheck()
   {
     lanelet::LaneletMapConstPtr llmap = ll2if_->getMapPtr();
 
-    if(ego_data_.header.frame_id != ll2if_->map_frame_id_)
+    // To-Do: Remove carla_map here when ego-data in map-frame is available!
+    if(ego_data_.header.frame_id != ll2if_->map_frame_id_ && ego_data_.header.frame_id != "carla_map")
     {
       RCLCPP_ERROR_STREAM(get_logger(), "Ego-pose message (Frame: " << ego_data_.header.frame_id << ") is not given with respect to the frame of the lanelet2 map (Frame: " << ll2if_->map_frame_id_ << ")!");
       return false;

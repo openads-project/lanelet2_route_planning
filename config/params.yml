@@ -2,7 +2,7 @@ global_planner:
   ros__parameters:
 
     # General Parameters
-    ego_data_timeout: 0.2 # Time-delta for which a EgoData message is classified as to old [s]
+    ego_data_timeout: 1.0 # Time-delta for which a EgoData message is classified as to old [s]
     map_server_name: "ll2_map_server" # Name of the Lanelet2 Map Server Node
 
     # Route Planning
