@@ -12,92 +12,19 @@ std::vector<geometry_msgs::msg::Point> GlobalPlanner::processLineString(lanelet:
   return points;
 }
 
-// lanelet::BasicLineString2d GlobalPlanner::sampleBoundaries(const lanelet::BasicLineString2d &centerline,
-//                                                   const double test_dis,
-//                                                   const bool &b_right,
-//                                                   std::vector<int>& index_mapping,
-//                                                   const lanelet::BasicLineString2d& lane_boundary,
-//                                                   visualization_msgs::msg::MarkerArray& marker_array)
-// {
-//   double test_dis_left_right = test_dis;
-//   double factor_left_right = 1.0;
-//   std::string left_right_string = "left";
-//   std::vector<float> left_right_colors = {0.95, 0.25, 0.25, 1.0};
-//   if (b_right)
-//   {
-//     test_dis_left_right *= -1.;
-//     factor_left_right *= -1.;
-//     left_right_string = "right";
-//     left_right_colors = {0.25, 0.25, 0.95, 1.0};
-//   }
-
-//   const size_t max_queue_size = 30;
-//   std::deque<std::pair<lanelet::BasicLineString2d, size_t>> last_test_lines; // Test line till boundary sample, full length test line, index
-//   lanelet::BasicLineString2d previous_test_line; // Full length
-//   const std::pair<lanelet::BasicLineString2d, size_t>* last_intersection_free_test_line = nullptr;
-//   lanelet::BasicLineString2d bound;
-
-//   // For visualization
-//   size_t ids_final_point = 0;
-//   size_t ids_test_line = 0;
-//   size_t ids_final_bound = 0;
-
-//   // Process route
-//   for (uint idx = 0; idx < centerline.size(); idx++)
-//   {
-//     const lanelet::BasicPoint2d &base_p = centerline.at(idx);
-//     lanelet::BasicPoint2d best_point = geometry::internal::lateralShiftPointAtIndex(centerline, idx, test_dis_left_right);
-//     const lanelet::BasicLineString2d test_line({base_p, best_point});
-
-//     // Get all intersecting points
-//     lanelet::BasicPoints2d interpoints;
-//     boost::geometry::intersection(lane_boundary, test_line, interpoints);
-
-//     // Sort according to distance
-//     std::vector<std::pair<double, lanelet::BasicPoint2d> > all_interpoints;
-//     for (const BasicPoint2d &poi : interpoints)
-//     {
-//       all_interpoints.emplace_back(geometry::distance(base_p, poi), poi);
-//     }
-//     std::sort(all_interpoints.begin(), all_interpoints.end(),
-//               [](auto const &t1, auto const &t2) {
-//                 return t1.first < t2.first;
-//               });
-//     if(interpoints.size())
-//     {
-//       best_point = all_interpoints.front().second;
-//     }
-
-//     // Special handling for inward corners
-//     if(!handleInwardCorner(base_p, best_point, last_intersection_free_test_line, previous_test_line, idx, last_test_lines, bound, index_mapping))
-//     {
-//       continue;
-//     }
-
-//     // Add final point to boundary samples
-//     bound.push_back(best_point);
-//     index_mapping.push_back(idx);
-
-//   }
-
-//   return bound;
-// }
-
-route_planning_interfaces::msg::DriveableSpace GlobalPlanner::sampleDriveableSpace(
-                                                        const lanelet::BasicLineString2d &centerline)
+route_planning_interfaces::msg::DriveableSpace GlobalPlanner::sampleDriveableSpace(const lanelet::BasicLineString2d &centerline)
 {
   route_planning_interfaces::msg::DriveableSpace driveable_space;
   driveable_space.header.frame_id = ll2if_->map_frame_id_;
   driveable_space.header.stamp = now();
-  driveable_space.boundaries.left = sampleLinestring(centerline, 10.0, false);
-  driveable_space.boundaries.right = sampleLinestring(centerline, 10.0, true);
+  driveable_space.boundaries.left = sampleLinestring(centerline, lateral_driv_space_width_/2.0, false);
+  driveable_space.boundaries.right = sampleLinestring(centerline, lateral_driv_space_width_/2.0, true);
   return driveable_space;
 }
 
-std::vector<geometry_msgs::msg::Point> GlobalPlanner::sampleLinestring(
-                                          const lanelet::BasicLineString2d &centerline,
-                                          const double test_dis,
-                                          bool b_right)
+std::vector<geometry_msgs::msg::Point> GlobalPlanner::sampleLinestring(const lanelet::BasicLineString2d &centerline,
+                                                                      const double test_dis,
+                                                                      bool b_right)
 {
   double test_dis_left_right = test_dis;
   double factor_left_right = 1.0;
@@ -167,10 +94,62 @@ std::vector<geometry_msgs::msg::Point> GlobalPlanner::sampleLinestring(
   return bound; 
 }
 
+void GlobalPlanner::sampleRouteBoundary(const lanelet::routing::Route &route,
+                                        const lanelet::routing::LaneletPath &shortest_path,
+                                        std::vector<geometry_msgs::msg::Point> &bound_left,
+                                        std::vector<geometry_msgs::msg::Point> &bound_right)
+{
+  //for current and flowing lanelets
+  for(int i=0; i<shortest_path.size(); i++)
+  {
+    
+    lanelet::ConstLanelet cur_ll = shortest_path[i];
+    lanelet::ConstLanelet outer_left_ll=cur_ll;
+    lanelet::ConstLanelet outer_right_ll=cur_ll;
+    
+    bool left_is_present=true;
+    bool right_is_present=true;
+
+    //prove of routable lane on lefthandside
+    while(left_is_present)
+    {
+      Optional<lanelet::ConstLanelet> left{routingGraph_->left(outer_left_ll)}; // Get routable left lanelet if it exists
+      left_is_present=left.has_value();
+      if(left_is_present)
+      {
+        outer_left_ll=left.get(); //get outer left lanelet
+      }
+    }
+
+    //prove of routable lane on righthandside
+    while(right_is_present) 
+    {
+      Optional<lanelet::ConstLanelet> right{routingGraph_->right(outer_right_ll)}; // Get routable right lanelet if it exists
+      right_is_present=right.has_value();
+      if(right_is_present)
+      {
+        outer_right_ll=right.get(); //get outer right lanelet
+      }
+    }
+
+    //get boundaries of outer lanelet
+    lanelet::ConstLineString2d outer_left_bound_ll = outer_left_ll.leftBound2d();  
+    lanelet::ConstLineString2d outer_right_bound_ll = outer_right_ll.rightBound2d();
+
+    //Convert to std::vector<geometry_msgs::msg::Point>
+    std::vector<geometry_msgs::msg::Point> bound_left_ls = Lanelet2Utilities::convertLaneletLine2Linestring(outer_left_bound_ll.basicLineString());
+    std::vector<geometry_msgs::msg::Point> bound_right_ls = Lanelet2Utilities::convertLaneletLine2Linestring(outer_right_bound_ll.basicLineString());
+
+    //add boundaries to boundarielinestring
+    bound_left.insert(bound_left.end(), bound_left_ls.begin(), bound_left_ls.end());     
+    bound_right.insert(bound_right.end(), bound_right_ls.begin(), bound_right_ls.end());  
+  }
+}
+
 bool GlobalPlanner::handleInwardCorner(const lanelet::BasicPoint2d &base_p, lanelet::BasicPoint2d& best_point,
-                                        const std::pair<lanelet::BasicLineString2d, size_t>*& last_intersection_free_test_line,
-                                        lanelet::BasicLineString2d& previous_test_line, const uint& idx,
-                                        std::deque<std::pair<lanelet::BasicLineString2d, size_t>>& last_test_lines, lanelet::BasicLineString2d& bound)
+                                      const std::pair<lanelet::BasicLineString2d, size_t>*& last_intersection_free_test_line,
+                                      lanelet::BasicLineString2d& previous_test_line, const uint& idx,
+                                      std::deque<std::pair<lanelet::BasicLineString2d, size_t>>& last_test_lines, lanelet::BasicLineString2d& bound)
 {
   const size_t max_queue_size = 30;
 

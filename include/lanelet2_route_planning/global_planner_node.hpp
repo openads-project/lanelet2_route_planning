@@ -8,7 +8,7 @@
 #include <tf2_ros/transform_listener.h>
 
 #include <geometry_msgs/msg/pose_stamped.hpp>
-#include <geometry_msgs/msg/pose_with_covariance_stamped.hpp>
+#include <geometry_msgs/msg/pose_with_covariance.hpp>
 #include <geometry_msgs/msg/point.hpp>
 
 #include "lanelet2_map_interface/lanelet2_map_interface.hpp"
@@ -20,6 +20,9 @@
 #include "route_planning_interfaces/msg/regulatory_element.hpp"
 #include "route_planning_interfaces/msg/road_marking.hpp"
 #include "route_planning_interfaces/msg/route.hpp"
+
+#include "perception_interfaces/msg/ego_data.hpp"
+#include "perception_interfaces/object_access.hpp"
 
 #include "route_planning_interfaces/tf2_route_planning_interfaces.hpp"
 
@@ -51,7 +54,9 @@ class GlobalPlanner : public rclcpp::Node
 
         // Variables
         LL2MapInterface *ll2if_;
-        geometry_msgs::msg::PoseWithCovarianceStamped ego_pose_;
+        std::string map_server_name_ = "ll2_map_server";
+        perception_interfaces::msg::EgoData ego_data_;
+        geometry_msgs::msg::PoseWithCovariance ego_pose_;
         lanelet::LaneletMapConstPtr llmap_;
         traffic_rules::TrafficRulesPtr trafficRules_ = lanelet::traffic_rules::TrafficRulesFactory::create(lanelet::Locations::Germany, std::string(lanelet::Participants::Vehicle) + ":ika");
         routing::RoutingGraphUPtr routingGraph_;
@@ -65,8 +70,15 @@ class GlobalPlanner : public rclcpp::Node
         route_planning_interfaces::msg::DriveableSpace global_driveable_space_;
         route_planning_interfaces::msg::Route global_route_;
 
-        double ds_sample_ = 2.0;
+        double ds_sample_ = 0.5;
         double smooth_factor_ = 2.0;
+        double lateral_driv_space_width_ = 100.0;
+
+        double ego_data_timeout_ = 0.2;
+        double vel_threshold_target_ = 1.0; // m/s
+        double target_reached_thr_ = 1.0; // m
+        bool require_standstill_ = false;
+
 
         Optional<lanelet::routing::Route> route_;
 
@@ -78,6 +90,8 @@ class GlobalPlanner : public rclcpp::Node
         double path_extraction_rate_=10.0;
         unsigned int target_sample_cl_;
         unsigned int ego_pos_sample_cl_;
+        unsigned int lbehind_sample_rbound_left_, lbehind_sample_rbound_right_;
+        unsigned int lahead_sample_rbound_left_, lahead_sample_rbound_right_;
         unsigned int lbehind_sample_drivspace_left_, lbehind_sample_drivspace_right_;
         unsigned int lahead_sample_drivspace_left_, lahead_sample_drivspace_right_;
         std::vector<geometry_msgs::msg::Point> remaining_shortest_path_;
@@ -91,7 +105,7 @@ class GlobalPlanner : public rclcpp::Node
         rclcpp::TimerBase::SharedPtr startup_timer_;
 
         // Subscriptions
-        rclcpp::Subscription<geometry_msgs::msg::PoseWithCovarianceStamped>::SharedPtr map_pose_sub_;
+        rclcpp::Subscription<perception_interfaces::msg::EgoData>::SharedPtr map_pose_sub_;
         rclcpp::Subscription<geometry_msgs::msg::PoseStamped>::SharedPtr goal_pose_sub_;
 
         // Action Client
@@ -110,13 +124,14 @@ class GlobalPlanner : public rclcpp::Node
         // Function Definitions
         // global_planner_node.cpp
         void initializeGlobalPlanner();
+        void loadParameters();
         bool egoPositionSanityCheck();
         bool targetPositionSanityCheck(double target_x, double target_y);
         bool planRoute(lanelet::ConstLanelet start_ll, lanelet::ConstLanelet target_ll);
 
         // local_path_extraction.cpp
         void initializeLocalPathExtraction(const route_planning_interfaces::msg::Route& route_global);
-        void extractLocalMapInfo(const geometry_msgs::msg::PoseWithCovarianceStamped& cur_pose,
+        void extractLocalMapInfo(const geometry_msgs::msg::PoseWithCovariance& cur_pose,
                                 const route_planning_interfaces::msg::DriveableSpace& driveable_space_global,
                                 route_planning_interfaces::msg::DriveableSpace& driveable_space_local,
                                 const route_planning_interfaces::msg::Route& route_global,
@@ -142,7 +157,7 @@ class GlobalPlanner : public rclcpp::Node
             const std::shared_ptr<rclcpp_action::ServerGoalHandle<route_planning_interfaces::action::GlobalManeuver>> goal_handle);
 
         // callbacks.cpp
-        void mapPoseCallback(geometry_msgs::msg::PoseWithCovarianceStamped::SharedPtr msg);
+        void mapPoseCallback(perception_interfaces::msg::EgoData::SharedPtr msg);
         void goalPoseCallback(geometry_msgs::msg::PoseStamped::SharedPtr msg);
 
 
@@ -153,6 +168,10 @@ class GlobalPlanner : public rclcpp::Node
                                           const lanelet::BasicLineString2d &centerline,
                                           const double test_dis,
                                           bool b_right);
+        void sampleRouteBoundary(   const lanelet::routing::Route &route,
+                                    const lanelet::routing::LaneletPath &shortest_path,
+                                    std::vector<geometry_msgs::msg::Point> &bound_left,
+                                    std::vector<geometry_msgs::msg::Point> &bound_right);
         // lanelet::BasicLineString2d sampleBoundaries(const lanelet::BasicLineString2d &centerline,
         //                                             const double test_dis,
         //                                             const bool &b_right,
