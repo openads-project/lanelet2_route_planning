@@ -3,7 +3,7 @@
 GlobalPlanner::GlobalPlanner() : Node("global_planner")
 {
   startup_timer_ = create_wall_timer(0.1s, std::bind(&GlobalPlanner::initializeGlobalPlanner, this));
-  map_pose_sub_ = create_subscription<perception_interfaces::msg::EgoData>("/carla_its_converter/ego_vehicle/ego_data", 1, std::bind(&GlobalPlanner::mapPoseCallback, this, std::placeholders::_1));
+  map_pose_sub_ = create_subscription<perception_interfaces::msg::EgoData>("/carla_its_adapter/ego_data", 1, std::bind(&GlobalPlanner::mapPoseCallback, this, std::placeholders::_1));
   goal_pose_sub_ = create_subscription<geometry_msgs::msg::PoseStamped>("/goal_pose", 1, std::bind(&GlobalPlanner::goalPoseCallback, this, std::placeholders::_1));
   maneuver_action_client_ = rclcpp_action::create_client<route_planning_interfaces::action::GlobalManeuver>(this, "~/execute_global_maneuver");
 
@@ -187,8 +187,7 @@ bool GlobalPlanner::egoPositionSanityCheck()
   {
     lanelet::LaneletMapConstPtr llmap = ll2if_->getMapPtr();
 
-    // To-Do: Remove carla_map here when ego-data in map-frame is available!
-    if(ego_data_.header.frame_id != ll2if_->map_frame_id_ && ego_data_.header.frame_id != "carla_map")
+    if(ego_data_.header.frame_id != ll2if_->map_frame_id_)
     {
       RCLCPP_ERROR_STREAM(get_logger(), "Ego-pose message (Frame: " << ego_data_.header.frame_id << ") is not given with respect to the frame of the lanelet2 map (Frame: " << ll2if_->map_frame_id_ << ")!");
       return false;
