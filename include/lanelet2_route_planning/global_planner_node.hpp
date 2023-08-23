@@ -19,7 +19,7 @@
 #include "route_planning_interfaces/msg/driveable_space.hpp"
 #include "route_planning_interfaces/msg/regulatory_element.hpp"
 #include "route_planning_interfaces/msg/lane.hpp"
-#include "route_planning_interfaces/msg/lane_separators.hpp"
+#include "route_planning_interfaces/msg/lane_separator.hpp"
 #include "route_planning_interfaces/msg/route.hpp"
 
 #include "perception_interfaces/msg/ego_data.hpp"
