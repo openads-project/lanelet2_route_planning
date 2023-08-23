@@ -76,9 +76,6 @@
             temp_route.boundaries.left = {route_global.boundaries.left.begin() + lbehind_sample_rbound_left_, route_global.boundaries.left.begin() + lahead_sample_rbound_left_};
             temp_route.boundaries.right = {route_global.boundaries.right.begin() + lbehind_sample_rbound_right_, route_global.boundaries.right.begin() + lahead_sample_rbound_right_};
 
-            // To-Do: Rest of Route-Object
-            // ...   
-
             // Now extract the local driveable space
             // Find nearest Boundary-Sample for left and right boundary at look-ahead and look-behind point
             lbehind_sample_drivspace_left_ = findNearestSample(temp_route.shortest_path.front(), driveable_space_global.boundaries.left, lbehind_sample_drivspace_left_);
@@ -95,6 +92,53 @@
             temp_ds.header.frame_id = ll2if_->map_frame_id_; // currently it's map --> will be changed through transform function
             temp_ds.boundaries.left = {driveable_space_global.boundaries.left.begin() + lbehind_sample_drivspace_left_, driveable_space_global.boundaries.left.begin() + lahead_sample_drivspace_left_};
             temp_ds.boundaries.right = {driveable_space_global.boundaries.right.begin() + lbehind_sample_drivspace_right_, driveable_space_global.boundaries.right.begin() + lahead_sample_drivspace_right_};
+            
+            // To-Do: Rest of Route-Object
+            // ...
+            // First we need to identify the area of interest to extract all Regulatory Elements and Lanes within this area
+            // The area of interest (AoI) is derived as an rectangle that envelops the entire local driveable space
+            double min_x=INFINITY, min_y=INFINITY, max_x=-INFINITY, max_y=-INFINITY; // Parameters describing the rectangle of the area of interest
+            
+            // Iterate over left boundary of driveable space
+            for(int i=0; i<temp_ds.boundaries.left.size(); i++)
+            {
+                if(temp_ds.boundaries.left[i].x>max_x) max_x = temp_ds.boundaries.left[i].x;
+                if(temp_ds.boundaries.left[i].y>max_y) max_y = temp_ds.boundaries.left[i].y;
+                if(temp_ds.boundaries.left[i].x<min_x) min_x = temp_ds.boundaries.left[i].x;
+                if(temp_ds.boundaries.left[i].y<min_y) min_y = temp_ds.boundaries.left[i].y;
+            }
+            // Iterate over right boundary of driveable space
+            for(int i=0; i<temp_ds.boundaries.left.size(); i++)
+            {
+                if(temp_ds.boundaries.left[i].x>max_x) max_x = temp_ds.boundaries.left[i].x;
+                if(temp_ds.boundaries.left[i].y>max_y) max_y = temp_ds.boundaries.left[i].y;
+                if(temp_ds.boundaries.left[i].x<min_x) min_x = temp_ds.boundaries.left[i].x;
+                if(temp_ds.boundaries.left[i].y<min_y) min_y = temp_ds.boundaries.left[i].y;
+            }
+
+            // Determine Center Point of AoI
+            double aoi_center_x = min_x + (max_x-min_x)/2.0;
+            double aoi_center_y = min_y + (max_y-min_y)/2.0;
+
+            // Determine Diagonal Length of AoI
+            double diag_length = std::sqrt(std::pow(max_x-min_x,2.0)+std::pow(max_y-min_y,2.0));
+
+            // Find all Lanelets within AoI
+            std::vector<std::pair<double, lanelet::ConstLanelet>> aoi_lanelets = lanelet::geometry::findWithin2d(llmap_->laneletLayer, lanelet::BasicPoint2d(aoi_center_x, aoi_center_y), diag_length/2.0);
+            for(int i = 0; i<aoi_lanelets.size(); i++)
+            {
+                // Generate a Lane-Object from each Lanelet
+                route_planning_interfaces::msg::Lane lane;
+                Lanelet::ConstLanelet cur_ll = aoi_lanelets[i].second;
+                lane.centerline = Lanelet2Utilities::convertLaneletLine2Linestring(cur_ll.centerline().basicLineString());
+                lane.left = deriveLaneSeparator(cur_ll.leftBound());
+                lane.right = deriveLaneSeparator(cur_ll.rightBound());
+                temp_route.lanes.push_back(lane);
+            }
+
+            // Find all Regulatory Elements within AoI
+            //std::vector<std::pair<double, lanelet::RegulatoryElement>> aoi_regelems = lanelet::geometry::findWithin2d(llmap_->regulatoryElementLayer, lanelet::BasicPoint2d(aoi_center_x, aoi_center_y), diag_length/2.0);
+            
             // Now transform the route- and driveable-space-object
             geometry_msgs::msg::TransformStamped tf;
             try {

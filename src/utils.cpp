@@ -245,3 +245,45 @@ bool GlobalPlanner::checkLineDrivability(const lanelet::ConstLineString3d &lineT
 
   return false;
 }
+
+route_planning_interfaces::msg::LaneSeparator GlobalPlanner::deriveLaneSeparator(const lanelet::ConstLineString3d &linestring)
+{
+  route_planning_interfaces::msg::LaneSeparator lane_sep;
+  lanelet::Attribute type_str;
+  if (!linestring.hasAttribute("type"))
+  {
+    // We're not considering linestrings without type --> line is empty
+    lane_sep.type = route_planning_interfaces::msg::LaneSeparator::TYPE_UNKNOWN;
+    return lane_sep;
+  } 
+  if(type_str == "road_boarder")
+  {
+    lane_sep.type = route_planning_interfaces::msg::LaneSeparator::TYPE_CROSSING_RESTRICTED;
+    lane_sep.line = Lanelet2Utilities::convertLaneletLine2Linestring(linestring.basicLineString());
+    return lane_sep;
+  } 
+  if(type_str == "virtual")
+  {
+    // We're not considering linestrings with type virtual --> line is empty
+    lane_sep.type = route_planning_interfaces::msg::LaneSeparator::TYPE_UNKNOWN;
+    return lane_sep;
+  }
+  if(type_str == "line_thin" || type_str == "line_thick")
+  {
+    lane_sep.line = Lanelet2Utilities::convertLaneletLine2Linestring(linestring.basicLineString());
+    lane_sep.type = route_planning_interfaces::msg::LaneSeparator::TYPE_UNKNOWN;
+    if (linestring.hasAttribute("subtype"))
+    {
+      lanelet::Attribute subtype_str = linestring.attribute("subtype");
+      if(subtype_str == "solid" || subtype_str == "solid_solid") lane_sep.type = route_planning_interfaces::msg::LaneSeparator::TYPE_CROSSING_RESTRICTED;
+      if(subtype_str == "dashed") lane_sep.type = route_planning_interfaces::msg::LaneSeparator::TYPE_CROSSING_ALLOWED;
+      if(subtype_str == "dashed_solid") lane_sep.type = route_planning_interfaces::msg::LaneSeparator::TYPE_CROSSING_ALLOWED_FROM_LEFT;
+      if(subtype_str == "solid_dashed") lane_sep.type = route_planning_interfaces::msg::LaneSeparator::TYPE_CROSSING_ALLOWED_FROM_RIGHT;
+    }
+    return lane_sep;
+  }
+
+  // Unknown type_str --> line keeps empty
+  lane_sep.type = route_planning_interfaces::msg::LaneSeparator::TYPE_UNKNOWN; 
+  return lane_sep;
+}
