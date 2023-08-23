@@ -38,6 +38,7 @@
 #include <lanelet2_core/utility/Units.h>
 #include <lanelet2_core/geometry/Lanelet.h>
 #include <lanelet2_core/geometry/LaneletMap.h>
+#include <lanelet2_core/geometry/Area.h>
 
 using namespace std::chrono_literals;
 
