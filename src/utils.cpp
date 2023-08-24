@@ -252,10 +252,15 @@ route_planning_interfaces::msg::LaneSeparator GlobalPlanner::deriveLaneSeparator
   lanelet::Attribute type_str;
   if (!linestring.hasAttribute("type"))
   {
+    RCLCPP_INFO(get_logger(), "The linestring does not have the attribute 'type'!");
     // We're not considering linestrings without type --> line is empty
     lane_sep.type = route_planning_interfaces::msg::LaneSeparator::TYPE_UNKNOWN;
     return lane_sep;
-  } 
+  }
+  else
+  {
+    type_str = linestring.attribute("type");
+  }
   if(type_str == "road_boarder")
   {
     lane_sep.type = route_planning_interfaces::msg::LaneSeparator::TYPE_CROSSING_RESTRICTED;
