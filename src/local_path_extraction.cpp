@@ -138,7 +138,36 @@
             }
 
             // Find all Regulatory Elements within AoI
-            //std::vector<std::shared_ptr<lanelet::ConstRegulatoryElement>> aoi_regelems = llmap_->regulatoryElementLayer.search(aoi_box);
+            std::vector<std::shared_ptr<const lanelet::RegulatoryElement>> aoi_regelems = llmap_->regulatoryElementLayer.search(aoi_box);
+            for(int i = 0; i<aoi_regelems.size(); i++)
+            {
+                // Generate Regulatory Elements
+                route_planning_interfaces::msg::RegulatoryElement regelem;
+                regelem.type = route_planning_interfaces::msg::RegulatoryElement::TYPE_UNKNOWN;
+                std::vector<lanelet::ConstLineString3d> linestrings = aoi_regelems[i]->getParameters<lanelet::ConstLineString3d>(RoleName::RefLine);
+                // std::vector<geometry_msgs::msg::Point> ref_points = Lanelet2Utilities::convertLaneletLine2Linestring(linestrings.basicLineString());
+                // if(ref_points.size()>1)
+                // {
+                //     regelem.effect_line[0] = ref_points.front();
+                //     regelem.effect_line[1] = ref_points.back();
+                // }
+                if (aoi_regelems[i]->hasAttribute("subtype"))
+                {
+                    std::string subtype = aoi_regelems[i]->attribute("subtype").value();
+                    if(subtype == "traffic_light") regelem.type = route_planning_interfaces::msg::RegulatoryElement::TYPE_TRAFFIC_LIGHT;
+                    if(subtype == "speed_limit") regelem.type = route_planning_interfaces::msg::RegulatoryElement::TYPE_SPEED_LIMIT;
+                    if(subtype == "right_of_way") regelem.type = route_planning_interfaces::msg::RegulatoryElement::TYPE_YIELD;
+                    //if(subtype == "all_way_stop") regelem.type = route_planning_interfaces::msg::RegulatoryElement::TYPE_STOP;
+                    // if(subtype == "traffic_sign")
+                    // {
+                        
+                    // }
+                }
+                temp_route.regulatory_elements.push_back(regelem);
+            }
+
+            // Get the current speed limit
+            //double speed_limit = lanelet::units::KmHQuantity(trafficRules_->speedLimit(TODO->CURRENT LANELET)).value() / 3.6;
             
             // Now transform the route- and driveable-space-object
             geometry_msgs::msg::TransformStamped tf;
