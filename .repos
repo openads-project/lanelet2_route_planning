@@ -2,7 +2,7 @@ repositories:
   planning_interfaces:
     type: git
     url: https://gitlab.ika.rwth-aachen.de/fb-fi/definitions/planning_interfaces
-    version: improvement/route_planning_interfaces
+    version: main
   perception_interfaces:
     type: git
     url: https://gitlab.ika.rwth-aachen.de/fb-fi/definitions/perception_interfaces
