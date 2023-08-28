@@ -18,7 +18,8 @@
 #include "route_planning_interfaces/msg/boundaries.hpp"
 #include "route_planning_interfaces/msg/driveable_space.hpp"
 #include "route_planning_interfaces/msg/regulatory_element.hpp"
-#include "route_planning_interfaces/msg/road_marking.hpp"
+#include "route_planning_interfaces/msg/lane.hpp"
+#include "route_planning_interfaces/msg/lane_separator.hpp"
 #include "route_planning_interfaces/msg/route.hpp"
 
 #include "perception_interfaces/msg/ego_data.hpp"
@@ -37,6 +38,9 @@
 #include <lanelet2_core/utility/Units.h>
 #include <lanelet2_core/geometry/Lanelet.h>
 #include <lanelet2_core/geometry/LaneletMap.h>
+#include <lanelet2_core/geometry/Area.h>
+
+#include <boost/geometry.hpp>
 
 using namespace std::chrono_literals;
 
@@ -172,12 +176,6 @@ class GlobalPlanner : public rclcpp::Node
                                     const lanelet::routing::LaneletPath &shortest_path,
                                     std::vector<geometry_msgs::msg::Point> &bound_left,
                                     std::vector<geometry_msgs::msg::Point> &bound_right);
-        // lanelet::BasicLineString2d sampleBoundaries(const lanelet::BasicLineString2d &centerline,
-        //                                             const double test_dis,
-        //                                             const bool &b_right,
-        //                                             std::vector<int>& index_mapping,
-        //                                             const lanelet::BasicLineString2d& lane_boundary,
-        //                                             visualization_msgs::msg::MarkerArray& marker_array);
 
         bool handleInwardCorner(const lanelet::BasicPoint2d &base_p, lanelet::BasicPoint2d& best_point,
                                                 const std::pair<lanelet::BasicLineString2d, size_t>*& last_intersection_free_test_line,
@@ -185,5 +183,8 @@ class GlobalPlanner : public rclcpp::Node
                                                 const uint& idx, std::deque<std::pair<lanelet::BasicLineString2d, size_t>>& last_test_lines,
                                                 lanelet::BasicLineString2d& bound);
         bool checkLineDrivability(const lanelet::ConstLineString3d &lineToCheck);
+        route_planning_interfaces::msg::LaneSeparator deriveLaneSeparator(const lanelet::ConstLineString3d &linestring);
+        uint8_t deriveValueForSpeedLimitType(const std::shared_ptr<const lanelet::RegulatoryElement> regelem, const std::vector<lanelet::ConstLineString3d> refering_elems);
+        uint8_t trafficSignCode2Type(const std::string tsign_code);
 
 };

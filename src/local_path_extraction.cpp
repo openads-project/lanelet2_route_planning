@@ -25,6 +25,18 @@
                                 route_planning_interfaces::msg::Route& route_local)
         {
             rclcpp::Time stamp_time = now();
+
+            // Determine current lanelet
+            // Get actual Heading
+            tf2::Quaternion quat;
+            tf2::fromMsg(cur_pose.pose.orientation, quat);
+            float yaw = tf2::impl::getYaw(quat);
+            // Get nearest Lanelets
+            std::vector<std::pair<double, lanelet::ConstLanelet>> nearestLanelets = lanelet::geometry::findNearest(llmap_->laneletLayer, lanelet::BasicPoint2d(cur_pose.pose.position.x, cur_pose.pose.position.y), 5);
+            // Sort laneletes
+            Lanelet2Utilities::laneletSorting(lanelet::BasicPoint2d(cur_pose.pose.position.x, cur_pose.pose.position.y), nearestLanelets, yaw, trafficRules_, {});
+            lanelet::ConstLanelet current_ego_ll = nearestLanelets.at(0).second; // most probable current Lanelet
+
             // Find sample of shortest path centerline correspondint to the current ego-position
             ego_pos_sample_cl_ = findNearestSample(cur_pose.pose.position, route_global.shortest_path, ego_pos_sample_cl_);
             if(ego_pos_sample_cl_>=target_sample_cl_)
@@ -76,9 +88,6 @@
             temp_route.boundaries.left = {route_global.boundaries.left.begin() + lbehind_sample_rbound_left_, route_global.boundaries.left.begin() + lahead_sample_rbound_left_};
             temp_route.boundaries.right = {route_global.boundaries.right.begin() + lbehind_sample_rbound_right_, route_global.boundaries.right.begin() + lahead_sample_rbound_right_};
 
-            // To-Do: Rest of Route-Object
-            // ...   
-
             // Now extract the local driveable space
             // Find nearest Boundary-Sample for left and right boundary at look-ahead and look-behind point
             lbehind_sample_drivspace_left_ = findNearestSample(temp_route.shortest_path.front(), driveable_space_global.boundaries.left, lbehind_sample_drivspace_left_);
@@ -95,6 +104,106 @@
             temp_ds.header.frame_id = ll2if_->map_frame_id_; // currently it's map --> will be changed through transform function
             temp_ds.boundaries.left = {driveable_space_global.boundaries.left.begin() + lbehind_sample_drivspace_left_, driveable_space_global.boundaries.left.begin() + lahead_sample_drivspace_left_};
             temp_ds.boundaries.right = {driveable_space_global.boundaries.right.begin() + lbehind_sample_drivspace_right_, driveable_space_global.boundaries.right.begin() + lahead_sample_drivspace_right_};
+            
+            // To-Do: Rest of Route-Object
+            // ...
+            // First we need to identify the area of interest to extract all Regulatory Elements and Lanes within this area
+            // The area of interest (AoI) is derived as an rectangle that envelops the entire local driveable space
+            double min_x=INFINITY, min_y=INFINITY, max_x=-INFINITY, max_y=-INFINITY; // Parameters describing the rectangle of the area of interest
+            
+            // Iterate over left boundary of driveable space
+            for(int i=0; i<temp_ds.boundaries.left.size(); i++)
+            {
+                if(temp_ds.boundaries.left[i].x>max_x) max_x = temp_ds.boundaries.left[i].x;
+                if(temp_ds.boundaries.left[i].y>max_y) max_y = temp_ds.boundaries.left[i].y;
+                if(temp_ds.boundaries.left[i].x<min_x) min_x = temp_ds.boundaries.left[i].x;
+                if(temp_ds.boundaries.left[i].y<min_y) min_y = temp_ds.boundaries.left[i].y;
+            }
+            // Iterate over right boundary of driveable space
+            for(int i=0; i<temp_ds.boundaries.left.size(); i++)
+            {
+                if(temp_ds.boundaries.left[i].x>max_x) max_x = temp_ds.boundaries.left[i].x;
+                if(temp_ds.boundaries.left[i].y>max_y) max_y = temp_ds.boundaries.left[i].y;
+                if(temp_ds.boundaries.left[i].x<min_x) min_x = temp_ds.boundaries.left[i].x;
+                if(temp_ds.boundaries.left[i].y<min_y) min_y = temp_ds.boundaries.left[i].y;
+            }
+
+            // Create a bounding-box (via an area) that envelops the entire local driveable space
+            lanelet::LineString3d top(lanelet::utils::getId(), {lanelet::Point3d{lanelet::utils::getId(), max_x, min_y, 0}, lanelet::Point3d{utils::getId(), max_x, max_y, 0}});
+            lanelet::LineString3d right(lanelet::utils::getId(), {lanelet::Point3d{lanelet::utils::getId(), max_x, max_y, 0}, lanelet::Point3d{utils::getId(), min_x, max_y, 0}});
+            lanelet::LineString3d bottom(lanelet::utils::getId(), {lanelet::Point3d{lanelet::utils::getId(), min_x, max_y, 0}, lanelet::Point3d{utils::getId(), min_x, min_y, 0}});
+            lanelet::LineString3d left(lanelet::utils::getId(), {lanelet::Point3d{lanelet::utils::getId(), min_x, min_y, 0}, lanelet::Point3d{utils::getId(), max_y, min_y, 0}});
+            lanelet::Area aoi_area(lanelet::utils::getId(), {top, right, bottom, left});
+            lanelet::BoundingBox2d aoi_box = lanelet::geometry::boundingBox2d(aoi_area);
+
+            // Find all Lanelets within AoI
+            std::vector<lanelet::ConstLanelet> aoi_lanelets = llmap_->laneletLayer.search(aoi_box);
+            for(int i = 0; i<aoi_lanelets.size(); i++)
+            {
+                // Generate a Lane-Object from each Lanelet
+                route_planning_interfaces::msg::Lane lane;
+                Lanelet::ConstLanelet cur_ll = aoi_lanelets[i];
+                lane.centerline = Lanelet2Utilities::convertLaneletLine2Linestring(cur_ll.centerline().basicLineString());
+                lane.left = deriveLaneSeparator(cur_ll.leftBound());
+                lane.right = deriveLaneSeparator(cur_ll.rightBound());
+                temp_route.lanes.push_back(lane);
+            }
+
+            // Find all Regulatory Elements within AoI
+            std::vector<std::shared_ptr<const lanelet::RegulatoryElement>> aoi_regelems = llmap_->regulatoryElementLayer.search(aoi_box);
+            for(int i = 0; i<aoi_regelems.size(); i++)
+            {
+                // Generate Regulatory Elements
+                route_planning_interfaces::msg::RegulatoryElement regelem;
+                // Set type and state to unknown initially
+                regelem.type = route_planning_interfaces::msg::RegulatoryElement::TYPE_UNKNOWN;
+                regelem.value = route_planning_interfaces::msg::RegulatoryElement::STATE_UNKNOWN;
+                // Get the ref-line Linestring
+                std::vector<lanelet::ConstLineString3d> ref_lines = aoi_regelems[i]->getParameters<lanelet::ConstLineString3d>(RoleName::RefLine);
+                if(ref_lines.size())
+                {
+                    std::vector<geometry_msgs::msg::Point> ref_points = Lanelet2Utilities::convertLaneletLine2Linestring(ref_lines[0].basicLineString());
+                    if(ref_points.size()>1)
+                    {
+                        regelem.effect_line[0] = ref_points.front();
+                        regelem.effect_line[1] = ref_points.back();
+                    }
+                }
+                // Get all refering elements
+                std::vector<lanelet::ConstLineString3d> refering_elems = aoi_regelems[i]->getParameters<lanelet::ConstLineString3d>(RoleName::Refers);
+                for(int j=0; j<refering_elems.size(); j++)
+                {
+                    std::vector<geometry_msgs::msg::Point> ref_points = Lanelet2Utilities::convertLaneletLine2Linestring(refering_elems[j].basicLineString());
+                    regelem.signal_positions.push_back(ref_points[0]);
+                }
+                // Set the Type
+                if (aoi_regelems[i]->hasAttribute("subtype"))
+                {
+                    std::string subtype = aoi_regelems[i]->attribute("subtype").value();
+                    if(subtype == "traffic_light") regelem.type = route_planning_interfaces::msg::RegulatoryElement::TYPE_TRAFFIC_LIGHT;
+                    if(subtype == "speed_limit")
+                    {
+                        regelem.type = route_planning_interfaces::msg::RegulatoryElement::TYPE_SPEED_LIMIT;
+                        regelem.value = deriveValueForSpeedLimitType(aoi_regelems[i], refering_elems);
+                    }
+                    if(subtype == "right_of_way") regelem.type = route_planning_interfaces::msg::RegulatoryElement::TYPE_YIELD;
+                    if(subtype == "all_way_stop") regelem.type = route_planning_interfaces::msg::RegulatoryElement::TYPE_STOP;
+                    if(subtype == "traffic_sign")
+                    {
+                        if(refering_elems.size() && refering_elems[0].hasAttribute("type") && refering_elems[0].attribute("type").value()=="traffic_sign" && refering_elems[0].hasAttribute("subtype"))
+                        {
+                            std::string tsign_code = refering_elems[0].attribute("subtype").value();
+                            regelem.value = trafficSignCode2Type(tsign_code);
+                        }
+                    }
+                }
+                // Add to route
+                temp_route.regulatory_elements.push_back(regelem);
+            }
+
+            // Get the current speed limit
+            temp_route.current_speed_limit = std::round(lanelet::units::KmHQuantity(trafficRules_->speedLimit(current_ego_ll).speedLimit).value());
+            
             // Now transform the route- and driveable-space-object
             geometry_msgs::msg::TransformStamped tf;
             try {

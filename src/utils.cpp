@@ -245,3 +245,130 @@ bool GlobalPlanner::checkLineDrivability(const lanelet::ConstLineString3d &lineT
 
   return false;
 }
+
+route_planning_interfaces::msg::LaneSeparator GlobalPlanner::deriveLaneSeparator(const lanelet::ConstLineString3d &linestring)
+{
+  route_planning_interfaces::msg::LaneSeparator lane_sep;
+  lanelet::Attribute type_str;
+  if (!linestring.hasAttribute("type"))
+  {
+    RCLCPP_INFO(get_logger(), "The linestring does not have the attribute 'type'!");
+    // We're not considering linestrings without type --> line is empty
+    lane_sep.type = route_planning_interfaces::msg::LaneSeparator::TYPE_UNKNOWN;
+    return lane_sep;
+  }
+  else
+  {
+    type_str = linestring.attribute("type");
+  }
+  if(type_str == "road_boarder")
+  {
+    lane_sep.type = route_planning_interfaces::msg::LaneSeparator::TYPE_CROSSING_RESTRICTED;
+    lane_sep.line = Lanelet2Utilities::convertLaneletLine2Linestring(linestring.basicLineString());
+    return lane_sep;
+  } 
+  if(type_str == "virtual")
+  {
+    // We're not considering linestrings with type virtual --> line is empty
+    lane_sep.type = route_planning_interfaces::msg::LaneSeparator::TYPE_UNKNOWN;
+    return lane_sep;
+  }
+  if(type_str == "line_thin" || type_str == "line_thick")
+  {
+    lane_sep.line = Lanelet2Utilities::convertLaneletLine2Linestring(linestring.basicLineString());
+    lane_sep.type = route_planning_interfaces::msg::LaneSeparator::TYPE_UNKNOWN;
+    if (linestring.hasAttribute("subtype"))
+    {
+      lanelet::Attribute subtype_str = linestring.attribute("subtype");
+      if(subtype_str == "solid" || subtype_str == "solid_solid") lane_sep.type = route_planning_interfaces::msg::LaneSeparator::TYPE_CROSSING_RESTRICTED;
+      if(subtype_str == "dashed") lane_sep.type = route_planning_interfaces::msg::LaneSeparator::TYPE_CROSSING_ALLOWED;
+      if(subtype_str == "dashed_solid") lane_sep.type = route_planning_interfaces::msg::LaneSeparator::TYPE_CROSSING_ALLOWED_FROM_LEFT;
+      if(subtype_str == "solid_dashed") lane_sep.type = route_planning_interfaces::msg::LaneSeparator::TYPE_CROSSING_ALLOWED_FROM_RIGHT;
+    }
+    return lane_sep;
+  }
+
+  // Unknown type_str --> line keeps empty
+  lane_sep.type = route_planning_interfaces::msg::LaneSeparator::TYPE_UNKNOWN; 
+  return lane_sep;
+}
+
+uint8_t GlobalPlanner::deriveValueForSpeedLimitType(const std::shared_ptr<const lanelet::RegulatoryElement> regelem, const std::vector<lanelet::ConstLineString3d> refering_elems)
+{
+  if(regelem->hasAttribute("sign_type"))
+  {
+      std::string tsign_val = refering_elems[0].attribute("sign_type").value();
+      boost::algorithm::erase_all(tsign_val, " ");
+      boost::algorithm::to_lower(tsign_val); 
+      if(tsign_val.find("km/h")!=std::string::npos)
+      {
+          boost::algorithm::erase_all(tsign_val, "km/h");
+          int val = std::stoi(tsign_val);
+          if(val==30) return route_planning_interfaces::msg::RegulatoryElement::SPEED_30;
+          else if(val==50) return route_planning_interfaces::msg::RegulatoryElement::SPEED_50;
+          else if(val==70) return route_planning_interfaces::msg::RegulatoryElement::SPEED_70;
+          else
+          {
+              RCLCPP_WARN_STREAM(get_logger(), "Unknown sign type for Speed-Limit: " << val);
+              return route_planning_interfaces::msg::RegulatoryElement::STATE_UNKNOWN;
+          }
+      }
+      else if(tsign_val.find("mps")!=std::string::npos)
+      {
+          boost::algorithm::erase_all(tsign_val, "mps");
+          int val = (int)std::round(std::stod(tsign_val)*3.6);
+          if(val<33 && val>27) return route_planning_interfaces::msg::RegulatoryElement::SPEED_30;
+          else if(val<53 && val>47) return route_planning_interfaces::msg::RegulatoryElement::SPEED_50;
+          else if(val<73 && val>67) return route_planning_interfaces::msg::RegulatoryElement::SPEED_70;
+          else
+          {
+              RCLCPP_WARN_STREAM(get_logger(), "Unknown sign type for Speed-Limit: " << val);
+              return route_planning_interfaces::msg::RegulatoryElement::STATE_UNKNOWN;
+          }
+          
+      }
+      else if(tsign_val.find("mph")!=std::string::npos)
+      {
+          boost::algorithm::erase_all(tsign_val, "mph");
+          int val = (int)std::round(std::stod(tsign_val)*1.60934);
+          if(val<33 && val>27) return route_planning_interfaces::msg::RegulatoryElement::SPEED_30;
+          else if(val<53 && val>47) return route_planning_interfaces::msg::RegulatoryElement::SPEED_50;
+          else if(val<73 && val>67) return route_planning_interfaces::msg::RegulatoryElement::SPEED_70;
+          else
+          {
+              RCLCPP_WARN_STREAM(get_logger(), "Unknown sign type for Speed-Limit: " << val);
+              return route_planning_interfaces::msg::RegulatoryElement::STATE_UNKNOWN;
+          }
+      }
+      else
+      {
+        // Interpret as km/h according to documentation
+        int val = std::stoi(tsign_val);
+        if(val==30) return route_planning_interfaces::msg::RegulatoryElement::SPEED_30;
+        else if(val==50) return route_planning_interfaces::msg::RegulatoryElement::SPEED_50;
+        else if(val==70) return route_planning_interfaces::msg::RegulatoryElement::SPEED_70;
+        else
+        {
+            RCLCPP_WARN_STREAM(get_logger(), "Unknown sign type for Speed-Limit: " << val);
+            return route_planning_interfaces::msg::RegulatoryElement::STATE_UNKNOWN;
+        }
+      }
+  }
+  else if(refering_elems.size() && refering_elems[0].hasAttribute("type") && refering_elems[0].attribute("type").value()=="traffic_sign" && refering_elems[0].hasAttribute("subtype"))
+  {
+      std::string tsign_code = refering_elems[0].attribute("subtype").value();
+      return trafficSignCode2Type(tsign_code);
+  }
+}
+
+uint8_t GlobalPlanner::trafficSignCode2Type(const std::string tsign_code)
+{
+    if(tsign_code=="de274-30") return route_planning_interfaces::msg::RegulatoryElement::SPEED_30;
+    else if(tsign_code=="de274-50") return route_planning_interfaces::msg::RegulatoryElement::SPEED_50;
+    else if(tsign_code=="de274-70") return route_planning_interfaces::msg::RegulatoryElement::SPEED_70;
+    else
+    {
+        RCLCPP_WARN_STREAM(get_logger(), "Unknown sign code for Traffic-Sign: " << tsign_code);
+        return route_planning_interfaces::msg::RegulatoryElement::STATE_UNKNOWN;
+    }
+}
