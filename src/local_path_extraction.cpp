@@ -155,26 +155,49 @@
             {
                 // Generate Regulatory Elements
                 route_planning_interfaces::msg::RegulatoryElement regelem;
+                // Set type and state to unknown initially
                 regelem.type = route_planning_interfaces::msg::RegulatoryElement::TYPE_UNKNOWN;
-                std::vector<lanelet::ConstLineString3d> linestrings = aoi_regelems[i]->getParameters<lanelet::ConstLineString3d>(RoleName::RefLine);
-                // std::vector<geometry_msgs::msg::Point> ref_points = Lanelet2Utilities::convertLaneletLine2Linestring(linestrings.basicLineString());
-                // if(ref_points.size()>1)
-                // {
-                //     regelem.effect_line[0] = ref_points.front();
-                //     regelem.effect_line[1] = ref_points.back();
-                // }
+                regelem.value = route_planning_interfaces::msg::RegulatoryElement::STATE_UNKNOWN;
+                // Get the ref-line Linestring
+                std::vector<lanelet::ConstLineString3d> ref_lines = aoi_regelems[i]->getParameters<lanelet::ConstLineString3d>(RoleName::RefLine);
+                if(ref_lines.size())
+                {
+                    std::vector<geometry_msgs::msg::Point> ref_points = Lanelet2Utilities::convertLaneletLine2Linestring(ref_lines[0].basicLineString());
+                    if(ref_points.size()>1)
+                    {
+                        regelem.effect_line[0] = ref_points.front();
+                        regelem.effect_line[1] = ref_points.back();
+                    }
+                }
+                // Get all refering elements
+                std::vector<lanelet::ConstLineString3d> refering_elems = aoi_regelems[i]->getParameters<lanelet::ConstLineString3d>(RoleName::Refers);
+                for(int j=0; j<refering_elems.size(); j++)
+                {
+                    std::vector<geometry_msgs::msg::Point> ref_points = Lanelet2Utilities::convertLaneletLine2Linestring(refering_elems[j].basicLineString());
+                    regelem.signal_positions.push_back(ref_points[0]);
+                }
+                // Set the Type
                 if (aoi_regelems[i]->hasAttribute("subtype"))
                 {
                     std::string subtype = aoi_regelems[i]->attribute("subtype").value();
                     if(subtype == "traffic_light") regelem.type = route_planning_interfaces::msg::RegulatoryElement::TYPE_TRAFFIC_LIGHT;
-                    if(subtype == "speed_limit") regelem.type = route_planning_interfaces::msg::RegulatoryElement::TYPE_SPEED_LIMIT;
+                    if(subtype == "speed_limit")
+                    {
+                        regelem.type = route_planning_interfaces::msg::RegulatoryElement::TYPE_SPEED_LIMIT;
+                        regelem.value = deriveValueForSpeedLimitType(aoi_regelems[i], refering_elems);
+                    }
                     if(subtype == "right_of_way") regelem.type = route_planning_interfaces::msg::RegulatoryElement::TYPE_YIELD;
-                    //if(subtype == "all_way_stop") regelem.type = route_planning_interfaces::msg::RegulatoryElement::TYPE_STOP;
-                    // if(subtype == "traffic_sign")
-                    // {
-                        
-                    // }
+                    if(subtype == "all_way_stop") regelem.type = route_planning_interfaces::msg::RegulatoryElement::TYPE_STOP;
+                    if(subtype == "traffic_sign")
+                    {
+                        if(refering_elems.size() && refering_elems[0].hasAttribute("type") && refering_elems[0].attribute("type").value()=="traffic_sign" && refering_elems[0].hasAttribute("subtype"))
+                        {
+                            std::string tsign_code = refering_elems[0].attribute("subtype").value();
+                            regelem.value = trafficSignCode2Type(tsign_code);
+                        }
+                    }
                 }
+                // Add to route
                 temp_route.regulatory_elements.push_back(regelem);
             }
 

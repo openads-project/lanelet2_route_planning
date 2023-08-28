@@ -184,5 +184,7 @@ class GlobalPlanner : public rclcpp::Node
                                                 lanelet::BasicLineString2d& bound);
         bool checkLineDrivability(const lanelet::ConstLineString3d &lineToCheck);
         route_planning_interfaces::msg::LaneSeparator deriveLaneSeparator(const lanelet::ConstLineString3d &linestring);
+        uint8_t deriveValueForSpeedLimitType(const std::shared_ptr<const lanelet::RegulatoryElement> regelem, const std::vector<lanelet::ConstLineString3d> refering_elems);
+        uint8_t trafficSignCode2Type(const std::string tsign_code);
 
 };
