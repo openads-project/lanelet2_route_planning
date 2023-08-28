@@ -25,6 +25,18 @@
                                 route_planning_interfaces::msg::Route& route_local)
         {
             rclcpp::Time stamp_time = now();
+
+            // Determine current lanelet
+            // Get actual Heading
+            tf2::Quaternion quat;
+            tf2::fromMsg(cur_pose.pose.orientation, quat);
+            float yaw = tf2::impl::getYaw(quat);
+            // Get nearest Lanelets
+            std::vector<std::pair<double, lanelet::ConstLanelet>> nearestLanelets = lanelet::geometry::findNearest(llmap_->laneletLayer, lanelet::BasicPoint2d(cur_pose.pose.position.x, cur_pose.pose.position.y), 5);
+            // Sort laneletes
+            Lanelet2Utilities::laneletSorting(lanelet::BasicPoint2d(cur_pose.pose.position.x, cur_pose.pose.position.y), nearestLanelets, yaw, trafficRules_, {});
+            lanelet::ConstLanelet current_ego_ll = nearestLanelets.at(0).second; // most probable current Lanelet
+
             // Find sample of shortest path centerline correspondint to the current ego-position
             ego_pos_sample_cl_ = findNearestSample(cur_pose.pose.position, route_global.shortest_path, ego_pos_sample_cl_);
             if(ego_pos_sample_cl_>=target_sample_cl_)
@@ -167,7 +179,7 @@
             }
 
             // Get the current speed limit
-            //double speed_limit = lanelet::units::KmHQuantity(trafficRules_->speedLimit(TODO->CURRENT LANELET)).value() / 3.6;
+            temp_route.current_speed_limit = std::round(lanelet::units::KmHQuantity(trafficRules_->speedLimit(current_ego_ll).speedLimit).value());
             
             // Now transform the route- and driveable-space-object
             geometry_msgs::msg::TransformStamped tf;

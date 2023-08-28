@@ -40,6 +40,8 @@
 #include <lanelet2_core/geometry/LaneletMap.h>
 #include <lanelet2_core/geometry/Area.h>
 
+#include <boost/geometry.hpp>
+
 using namespace std::chrono_literals;
 
 class GlobalPlanner : public rclcpp::Node
