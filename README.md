@@ -30,16 +30,16 @@ It has the following functionalities:
 
 | Topic | Type | Description |
 | --- | --- | --- |
-| `~/global/driveable_space` | `route_planning_interfaces/msg/DriveableSpace` | Publish a `route_planning_interfaces::msg::DriveableSpace` in the frame of the Lanelet2 map everytime a new global route is planned |
-| `~/global/route` | `route_planning_interfaces/msg/Route` | Publish a `route_planning_interfaces::msg::Route` in the frame of the Lanelet2 map everytime a new global route is planned |
-| `~/local/driveable_space` | `route_planning_interfaces/msg/DriveableSpace` | Publish a `route_planning_interfaces::msg::DriveableSpace` in the local vehicle frame (`base_link`) and environment with a frequency defined by the parameter `local_path_extraction_rate` |
-| `~/local/route` | `route_planning_interfaces/msg/Route` | Publish a `route_planning_interfaces::msg::Route` in the local vehicle frame (`base_link`) and environment with a frequency defined by the parameter `local_path_extraction_rate` |
+| `~/global/driveable_space` | `route_planning_msgs/msg/DriveableSpace` | Publish a `route_planning_msgs::msg::DriveableSpace` in the frame of the Lanelet2 map everytime a new global route is planned |
+| `~/global/route` | `route_planning_msgs/msg/Route` | Publish a `route_planning_msgs::msg::Route` in the frame of the Lanelet2 map everytime a new global route is planned |
+| `~/local/driveable_space` | `route_planning_msgs/msg/DriveableSpace` | Publish a `route_planning_msgs::msg::DriveableSpace` in the local vehicle frame (`base_link`) and environment with a frequency defined by the parameter `local_path_extraction_rate` |
+| `~/local/route` | `route_planning_msgs/msg/Route` | Publish a `route_planning_msgs::msg::Route` in the local vehicle frame (`base_link`) and environment with a frequency defined by the parameter `local_path_extraction_rate` |
 
 #### Actions
 
 | Action | Type | Description |
 | --- | --- | --- |
-| `~/execute_global_maneuver` | `route_planning_interfaces/action/GlobalManeuver` | Plan and execute a global maneuver |
+| `~/execute_global_maneuver` | `route_planning_msgs/action/GlobalManeuver` | Plan and execute a global maneuver |
 
 #### Parameters
 

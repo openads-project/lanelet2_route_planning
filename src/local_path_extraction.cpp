@@ -1,6 +1,6 @@
 #include "lanelet2_route_planning/global_planner_node.hpp"
 
-        void GlobalPlanner::initializeLocalPathExtraction(const route_planning_interfaces::msg::Route& route_global)
+        void GlobalPlanner::initializeLocalPathExtraction(const route_planning_msgs::msg::Route& route_global)
         {
             // Reset sample values
             ego_pos_sample_cl_ = 0;
@@ -19,10 +19,10 @@
         }
         
         void GlobalPlanner::extractLocalMapInfo(const geometry_msgs::msg::PoseWithCovariance& cur_pose,
-                                const route_planning_interfaces::msg::DriveableSpace& driveable_space_global,
-                                route_planning_interfaces::msg::DriveableSpace& driveable_space_local,
-                                const route_planning_interfaces::msg::Route& route_global,
-                                route_planning_interfaces::msg::Route& route_local)
+                                const route_planning_msgs::msg::DriveableSpace& driveable_space_global,
+                                route_planning_msgs::msg::DriveableSpace& driveable_space_local,
+                                const route_planning_msgs::msg::Route& route_global,
+                                route_planning_msgs::msg::Route& route_local)
         {
             rclcpp::Time stamp_time = now();
 
@@ -51,7 +51,7 @@
             double look_ahead_distance = std::max(look_ahead_distance_min_, look_ahead_time_*velocity);
             // Find the look-ahead sample
             unsigned int look_ahead_sample;
-            for(int i=0; i<sp_accumulated_length_vec.size(); i++)
+            for(size_t i=0; i<sp_accumulated_length_vec.size(); i++)
             {
                 look_ahead_sample=ego_pos_sample_cl_+i;
                 if(sp_accumulated_length_vec[i]>=look_ahead_distance)
@@ -63,7 +63,7 @@
             // Find the look-behind sample
             unsigned int look_behind_sample;
             double accum_length=0.0;
-            for(int i=ego_pos_sample_cl_; i>0; i--)
+            for(size_t i=ego_pos_sample_cl_; i>0; i--)
             {
                 accum_length+=distance(route_global.shortest_path[i],route_global.shortest_path[i-1]);
                 look_behind_sample=i;
@@ -74,7 +74,7 @@
             }
 
             // Now we can extract the local-section of the route
-            route_planning_interfaces::msg::Route temp_route;
+            route_planning_msgs::msg::Route temp_route;
             temp_route.header.stamp = stamp_time;
             temp_route.target_position = route_global.target_position;
             temp_route.header.frame_id = ll2if_->map_frame_id_; // currently it's map --> will be changed through transform function
@@ -99,7 +99,7 @@
             // ...
 
             // Now we've got our local-section of the driveable space
-            route_planning_interfaces::msg::DriveableSpace temp_ds;
+            route_planning_msgs::msg::DriveableSpace temp_ds;
             temp_ds.header.stamp = stamp_time;
             temp_ds.header.frame_id = ll2if_->map_frame_id_; // currently it's map --> will be changed through transform function
             temp_ds.boundaries.left = {driveable_space_global.boundaries.left.begin() + lbehind_sample_drivspace_left_, driveable_space_global.boundaries.left.begin() + lahead_sample_drivspace_left_};
@@ -112,7 +112,7 @@
             double min_x=INFINITY, min_y=INFINITY, max_x=-INFINITY, max_y=-INFINITY; // Parameters describing the rectangle of the area of interest
             
             // Iterate over left boundary of driveable space
-            for(int i=0; i<temp_ds.boundaries.left.size(); i++)
+            for(size_t i=0; i<temp_ds.boundaries.left.size(); i++)
             {
                 if(temp_ds.boundaries.left[i].x>max_x) max_x = temp_ds.boundaries.left[i].x;
                 if(temp_ds.boundaries.left[i].y>max_y) max_y = temp_ds.boundaries.left[i].y;
@@ -120,7 +120,7 @@
                 if(temp_ds.boundaries.left[i].y<min_y) min_y = temp_ds.boundaries.left[i].y;
             }
             // Iterate over right boundary of driveable space
-            for(int i=0; i<temp_ds.boundaries.left.size(); i++)
+            for(size_t i=0; i<temp_ds.boundaries.left.size(); i++)
             {
                 if(temp_ds.boundaries.left[i].x>max_x) max_x = temp_ds.boundaries.left[i].x;
                 if(temp_ds.boundaries.left[i].y>max_y) max_y = temp_ds.boundaries.left[i].y;
@@ -138,10 +138,10 @@
 
             // Find all Lanelets within AoI
             std::vector<lanelet::ConstLanelet> aoi_lanelets = llmap_->laneletLayer.search(aoi_box);
-            for(int i = 0; i<aoi_lanelets.size(); i++)
+            for(size_t i = 0; i<aoi_lanelets.size(); i++)
             {
                 // Generate a Lane-Object from each Lanelet
-                route_planning_interfaces::msg::Lane lane;
+                route_planning_msgs::msg::Lane lane;
                 Lanelet::ConstLanelet cur_ll = aoi_lanelets[i];
                 lane.centerline = Lanelet2Utilities::convertLaneletLine2Linestring(cur_ll.centerline().basicLineString());
                 lane.left = deriveLaneSeparator(cur_ll.leftBound());
@@ -151,13 +151,13 @@
 
             // Find all Regulatory Elements within AoI
             std::vector<std::shared_ptr<const lanelet::RegulatoryElement>> aoi_regelems = llmap_->regulatoryElementLayer.search(aoi_box);
-            for(int i = 0; i<aoi_regelems.size(); i++)
+            for(size_t i = 0; i<aoi_regelems.size(); i++)
             {
                 // Generate Regulatory Elements
-                route_planning_interfaces::msg::RegulatoryElement regelem;
+                route_planning_msgs::msg::RegulatoryElement regelem;
                 // Set type and state to unknown initially
-                regelem.type = route_planning_interfaces::msg::RegulatoryElement::TYPE_UNKNOWN;
-                regelem.value = route_planning_interfaces::msg::RegulatoryElement::STATE_UNKNOWN;
+                regelem.type = route_planning_msgs::msg::RegulatoryElement::TYPE_UNKNOWN;
+                regelem.value = route_planning_msgs::msg::RegulatoryElement::STATE_UNKNOWN;
                 // Get the ref-line Linestring
                 std::vector<lanelet::ConstLineString3d> ref_lines = aoi_regelems[i]->getParameters<lanelet::ConstLineString3d>(RoleName::RefLine);
                 if(ref_lines.size())
@@ -171,7 +171,7 @@
                 }
                 // Get all refering elements
                 std::vector<lanelet::ConstLineString3d> refering_elems = aoi_regelems[i]->getParameters<lanelet::ConstLineString3d>(RoleName::Refers);
-                for(int j=0; j<refering_elems.size(); j++)
+                for(size_t j=0; j<refering_elems.size(); j++)
                 {
                     std::vector<geometry_msgs::msg::Point> ref_points = Lanelet2Utilities::convertLaneletLine2Linestring(refering_elems[j].basicLineString());
                     regelem.signal_positions.push_back(ref_points[0]);
@@ -180,14 +180,14 @@
                 if (aoi_regelems[i]->hasAttribute("subtype"))
                 {
                     std::string subtype = aoi_regelems[i]->attribute("subtype").value();
-                    if(subtype == "traffic_light") regelem.type = route_planning_interfaces::msg::RegulatoryElement::TYPE_TRAFFIC_LIGHT;
+                    if(subtype == "traffic_light") regelem.type = route_planning_msgs::msg::RegulatoryElement::TYPE_TRAFFIC_LIGHT;
                     if(subtype == "speed_limit")
                     {
-                        regelem.type = route_planning_interfaces::msg::RegulatoryElement::TYPE_SPEED_LIMIT;
+                        regelem.type = route_planning_msgs::msg::RegulatoryElement::TYPE_SPEED_LIMIT;
                         regelem.value = deriveValueForSpeedLimitType(aoi_regelems[i], refering_elems);
                     }
-                    if(subtype == "right_of_way") regelem.type = route_planning_interfaces::msg::RegulatoryElement::TYPE_YIELD;
-                    if(subtype == "all_way_stop") regelem.type = route_planning_interfaces::msg::RegulatoryElement::TYPE_STOP;
+                    if(subtype == "right_of_way") regelem.type = route_planning_msgs::msg::RegulatoryElement::TYPE_YIELD;
+                    if(subtype == "all_way_stop") regelem.type = route_planning_msgs::msg::RegulatoryElement::TYPE_STOP;
                     if(subtype == "traffic_sign")
                     {
                         if(refering_elems.size() && refering_elems[0].hasAttribute("type") && refering_elems[0].attribute("type").value()=="traffic_sign" && refering_elems[0].hasAttribute("subtype"))
@@ -222,7 +222,7 @@
         {
             double length=0.0;
             accumulated_length.push_back(length);
-            for(int i=0; i<point_list.size()-1; i++)
+            for(size_t i=0; i<point_list.size()-1; i++)
             {
                 length+=distance(point_list[i],point_list[i+1]);
                 accumulated_length.push_back(length);
