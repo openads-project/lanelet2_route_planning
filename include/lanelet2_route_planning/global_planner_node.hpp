@@ -22,8 +22,8 @@
 #include "route_planning_msgs/msg/lane_separator.hpp"
 #include "route_planning_msgs/msg/route.hpp"
 
-#include "perception_interfaces/msg/ego_data.hpp"
-#include "perception_interfaces/object_access.hpp"
+#include "perception_msgs/msg/ego_data.hpp"
+#include "perception_msgs_utils/object_access.hpp"
 
 #include "tf2_route_planning_msgs/tf2_route_planning_msgs.hpp"
 
@@ -59,7 +59,7 @@ class GlobalPlanner : public rclcpp::Node
         // Variables
         LL2MapInterface *ll2if_;
         std::string map_server_name_ = "ll2_map_server";
-        perception_interfaces::msg::EgoData ego_data_;
+        perception_msgs::msg::EgoData ego_data_;
         geometry_msgs::msg::PoseWithCovariance ego_pose_;
         lanelet::LaneletMapConstPtr llmap_;
         traffic_rules::TrafficRulesPtr trafficRules_ = lanelet::traffic_rules::TrafficRulesFactory::create(lanelet::Locations::Germany, std::string(lanelet::Participants::Vehicle) + ":ika");
@@ -109,7 +109,7 @@ class GlobalPlanner : public rclcpp::Node
         rclcpp::TimerBase::SharedPtr startup_timer_;
 
         // Subscriptions
-        rclcpp::Subscription<perception_interfaces::msg::EgoData>::SharedPtr map_pose_sub_;
+        rclcpp::Subscription<perception_msgs::msg::EgoData>::SharedPtr map_pose_sub_;
         rclcpp::Subscription<geometry_msgs::msg::PoseStamped>::SharedPtr goal_pose_sub_;
 
         // Action Client
@@ -161,7 +161,7 @@ class GlobalPlanner : public rclcpp::Node
             const std::shared_ptr<rclcpp_action::ServerGoalHandle<route_planning_msgs::action::GlobalManeuver>> goal_handle);
 
         // callbacks.cpp
-        void mapPoseCallback(perception_interfaces::msg::EgoData::SharedPtr msg);
+        void mapPoseCallback(perception_msgs::msg::EgoData::SharedPtr msg);
         void goalPoseCallback(geometry_msgs::msg::PoseStamped::SharedPtr msg);
 
 

@@ -47,7 +47,7 @@
             std::vector<double> sp_accumulated_length_vec;
             double sp_length = accumulatedLength(remaining_shortest_path_, sp_accumulated_length_vec);
             // Get the start and end sample of the local shortest path with respect to look-ahead/behind distance
-            double velocity = perception_interfaces::object_access::getVelLon(ego_data_)/3.6;
+            double velocity = perception_msgs::object_access::getVelLon(ego_data_)/3.6;
             double look_ahead_distance = std::max(look_ahead_distance_min_, look_ahead_time_*velocity);
             // Find the look-ahead sample
             unsigned int look_ahead_sample;

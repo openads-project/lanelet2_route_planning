@@ -6,7 +6,7 @@ repositories:
   perception_interfaces:
     type: git
     url: https://gitlab.ika.rwth-aachen.de/fb-fi/definitions/perception_interfaces
-    version: main
+    version: improvement/renaming
   lanelet2_map_interface:
     type: git
     url: https://gitlab.ika.rwth-aachen.de/fb-fi/its-modules/localization/lanelet2_map_interface
