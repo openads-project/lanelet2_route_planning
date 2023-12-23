@@ -2,7 +2,7 @@
 
 rclcpp_action::GoalResponse GlobalPlanner::actionHandleGoal(
   const rclcpp_action::GoalUUID& uuid,
-  std::shared_ptr<const route_planning_interfaces::action::GlobalManeuver::Goal> goal)
+  std::shared_ptr<const route_planning_msgs::action::GlobalManeuver::Goal> goal)
 {
   RCLCPP_INFO(get_logger(), "Received a global maneuver request!");
   RCLCPP_INFO_STREAM(get_logger(), "Target Position X: " << goal->target_pos_x);
@@ -15,7 +15,7 @@ rclcpp_action::GoalResponse GlobalPlanner::actionHandleGoal(
   if(err.size()>0)
   {
     RCLCPP_ERROR(get_logger(), "Routing-Graph of given lanelet-map is invalid!");
-    for(int i = 0; i<err.size(); i++)
+    for(size_t i = 0; i<err.size(); i++)
     {
       RCLCPP_ERROR_STREAM(get_logger(), err[i]);
     }
@@ -35,8 +35,8 @@ rclcpp_action::GoalResponse GlobalPlanner::actionHandleGoal(
     return rclcpp_action::GoalResponse::REJECT;
   }
 
-  maneuver_result_ = std::make_shared<route_planning_interfaces::action::GlobalManeuver::Result>();
-  maneuver_feedback_ = std::make_shared<route_planning_interfaces::action::GlobalManeuver::Feedback>();
+  maneuver_result_ = std::make_shared<route_planning_msgs::action::GlobalManeuver::Result>();
+  maneuver_feedback_ = std::make_shared<route_planning_msgs::action::GlobalManeuver::Feedback>();
 
   maneuver_result_->destination_reached = false;
   maneuver_feedback_->destination_x = goal->target_pos_x;
@@ -50,7 +50,7 @@ rclcpp_action::GoalResponse GlobalPlanner::actionHandleGoal(
 }
 
 rclcpp_action::CancelResponse GlobalPlanner::actionHandleCancel(
-  const std::shared_ptr<rclcpp_action::ServerGoalHandle<route_planning_interfaces::action::GlobalManeuver>> goal_handle)
+  const std::shared_ptr<rclcpp_action::ServerGoalHandle<route_planning_msgs::action::GlobalManeuver>> goal_handle)
 {
   // this callback is invoked when a running action is requested to cancel
   RCLCPP_INFO(get_logger(), "Received request to cancel action goal");
@@ -61,7 +61,7 @@ rclcpp_action::CancelResponse GlobalPlanner::actionHandleCancel(
 }
 
 void GlobalPlanner::actionHandleAccepted(
-  const std::shared_ptr<rclcpp_action::ServerGoalHandle<route_planning_interfaces::action::GlobalManeuver>> goal_handle)
+  const std::shared_ptr<rclcpp_action::ServerGoalHandle<route_planning_msgs::action::GlobalManeuver>> goal_handle)
 {
   // this callback is invoked when an action goal request is accepted
   // execute the action in a separate thread to avoid blocking
@@ -69,7 +69,7 @@ void GlobalPlanner::actionHandleAccepted(
 }
 
 void GlobalPlanner::actionExecute(
-  const std::shared_ptr<rclcpp_action::ServerGoalHandle<route_planning_interfaces::action::GlobalManeuver>> goal_handle)
+  const std::shared_ptr<rclcpp_action::ServerGoalHandle<route_planning_msgs::action::GlobalManeuver>> goal_handle)
 {
   RCLCPP_INFO(get_logger(), "Executing action goal");
   // Reset / Initialize
@@ -98,7 +98,7 @@ void GlobalPlanner::actionExecute(
     // To-Do: add subscriber for actual vehicle velocity and check for standstill if require_standstill parameter is set!
     if(egoPositionSanityCheck())
     {
-      double velocity = perception_interfaces::object_access::getVelLon(ego_data_);
+      double velocity = perception_msgs::object_access::getVelLon(ego_data_);
       if (geometry::distance(lanelet::BasicPoint2d(goal->target_pos_x, goal->target_pos_y), lanelet::BasicPoint2d(ego_pose_.pose.position.x, ego_pose_.pose.position.y)) < target_reached_thr_ && (std::fabs(velocity) < vel_threshold_target_ || !require_standstill_))
       {
         RCLCPP_INFO(get_logger(),"Destination reached!");
@@ -112,8 +112,8 @@ void GlobalPlanner::actionExecute(
         }
       }
       // Extract local section of driveable space and route
-      route_planning_interfaces::msg::DriveableSpace driveable_space_local;
-      route_planning_interfaces::msg::Route route_local;
+      route_planning_msgs::msg::DriveableSpace driveable_space_local;
+      route_planning_msgs::msg::Route route_local;
 
       rclcpp::Time start = now();
       extractLocalMapInfo(ego_pose_, global_driveable_space_, driveable_space_local, global_route_, route_local);
