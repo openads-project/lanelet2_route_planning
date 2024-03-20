@@ -146,7 +146,7 @@ void GlobalPlanner::loadParameters() {
 void GlobalPlanner::initializeMapInterface()
 {
   // Important: shared_from_this() can not be called from within the constructor
-  ll2if_ = new LL2MapInterface(shared_from_this(), map_server_name_);
+  ll2if_ = new LL2MapInterface(*shared_from_this(), map_server_name_);
 }
 
 void GlobalPlanner::initializeGlobalPlanner()
