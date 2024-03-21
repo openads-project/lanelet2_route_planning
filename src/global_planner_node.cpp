@@ -146,7 +146,7 @@ void GlobalPlanner::loadParameters() {
 void GlobalPlanner::initializeMapInterface()
 {
   // Important: shared_from_this() can not be called from within the constructor
-  ll2if_ = new LL2MapInterface(shared_from_this(), map_server_name_);
+  ll2if_ = new LL2MapInterface(*shared_from_this(), map_server_name_);
 }
 
 void GlobalPlanner::initializeGlobalPlanner()
@@ -307,7 +307,7 @@ bool GlobalPlanner::planRoute(lanelet::ConstLanelet start_ll, lanelet::ConstLane
     lanelet::routing::LaneletPath shortestPath = route_->shortestPath(); // shortestPath = sorted Lanelets
 
     std::pair<lanelet::BasicLineString2d, lanelet::BasicLineString2d> lane_boundaries;
-    lanelet::BasicLineString2d shortest_path_centerline = Lanelet2Utilities::convertLLPath2LineString2dSBased(ConstLanelets(shortestPath.begin(), shortestPath.end()), start_pos, 10., 3., std::numeric_limits<double>::max(), ds_sample_, target_pos, lane_boundaries, *routingGraphBicycle_);
+    lanelet::BasicLineString2d shortest_path_centerline = Lanelet2Utilities::llPath2llLineDistanceBased(ConstLanelets(shortestPath.begin(), shortestPath.end()), start_pos, 10., 3., std::numeric_limits<double>::max(), ds_sample_, target_pos, lane_boundaries, *routingGraphBicycle_);
     //Start filling global route
     global_route_.header.frame_id = ll2if_->map_frame_id_;
     global_route_.header.stamp = now();
