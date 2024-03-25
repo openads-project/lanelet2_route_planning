@@ -7,7 +7,6 @@
 #include <tf2_ros/buffer.h>
 #include <tf2_ros/transform_listener.h>
 
-#include <geometry_msgs/msg/pose_stamped.hpp>
 #include <geometry_msgs/msg/pose_with_covariance.hpp>
 #include <geometry_msgs/msg/point.hpp>
 
@@ -110,11 +109,6 @@ class GlobalPlanner : public rclcpp::Node
 
         // Subscriptions
         rclcpp::Subscription<perception_msgs::msg::EgoData>::SharedPtr map_pose_sub_;
-        rclcpp::Subscription<geometry_msgs::msg::PoseStamped>::SharedPtr goal_pose_sub_;
-
-        // Action Client
-        rclcpp_action::Client<route_planning_msgs::action::GlobalManeuver>::SharedPtr maneuver_action_client_;
-        std::shared_future<rclcpp_action::ClientGoalHandle<route_planning_msgs::action::GlobalManeuver>::SharedPtr> goal_handle_future_;
 
         // Action Server
         rclcpp_action::Server<route_planning_msgs::action::GlobalManeuver>::SharedPtr maneuver_action_server_;
@@ -162,8 +156,6 @@ class GlobalPlanner : public rclcpp::Node
 
         // callbacks.cpp
         void mapPoseCallback(perception_msgs::msg::EgoData::SharedPtr msg);
-        void goalPoseCallback(geometry_msgs::msg::PoseStamped::SharedPtr msg);
-
 
         // utils.cpp
         std::vector<geometry_msgs::msg::Point> processLineString(lanelet::BasicLineString2d& line_string);
