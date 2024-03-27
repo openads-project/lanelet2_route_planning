@@ -215,7 +215,7 @@ bool GlobalPlanner::checkLineDrivability(const lanelet::ConstLineString3d &lineT
   lanelet::Attribute subtype_str;
   if (lineToCheck.hasAttribute("type") == false)
   {
-    return true; // no type detectable, therefore for safety reasons don't look any further this direction
+    return false; // no type detectable, therefore for safety reasons don't look any further this direction
   }
   if (lineToCheck.hasAttribute("subtype") == false)
   {
@@ -238,6 +238,7 @@ bool GlobalPlanner::checkLineDrivability(const lanelet::ConstLineString3d &lineT
       type_str == "traffic_light" ||
       type_str == "roadpainting" || //Atlatec Maps
       type_str == "lane_center" || //Atlatec Maps
+      type_str == "centerline" || //Atlatec Maps
       (type_str == "curbstone" && subtype_str == "low") )
   {
     return true;
