@@ -215,7 +215,7 @@ bool GlobalPlanner::checkLineDrivability(const lanelet::ConstLineString3d &lineT
   lanelet::Attribute subtype_str;
   if (lineToCheck.hasAttribute("type") == false)
   {
-    return false; // no type detectable, therefore for safety reasons don't look any further this direction
+    return true; // no type detectable, therefore for safety reasons don't look any further this direction
   }
   if (lineToCheck.hasAttribute("subtype") == false)
   {
