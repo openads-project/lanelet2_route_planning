@@ -22,10 +22,20 @@ def generate_launch_description():
     
     use_sim_time_arg = DeclareLaunchArgument('use_sim_time_arg', default_value='False')
 
-    node = LifecycleNode(
+    planner_node = LifecycleNode(
         package="lanelet2_route_planning",
         executable="global_planner_node",
         name=LaunchConfiguration('node_name'),
+        namespace="",
+        output="screen",
+        emulate_tty=True,
+        parameters=[config]
+    )
+
+    poin2maneuver_node = LifecycleNode(
+        package="point2maneuver",
+        executable="point2maneuver_node",
+        name="goal_pose_to_maneuver",
         namespace="",
         output="screen",
         emulate_tty=True,
@@ -36,7 +46,7 @@ def generate_launch_description():
         SetParameter(name='use_sim_time',
                      value=LaunchConfiguration('use_sim_time_arg'),
                      condition=LaunchConfigurationNotEquals(
-                         'use_sim_time_arg', "None")), node
+                         'use_sim_time_arg', "None")), planner_node, poin2maneuver_node
     ])
 
     return LaunchDescription([

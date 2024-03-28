@@ -1,11 +1,17 @@
 # Lanelet2 Route Planning
 
 
-The [`lanelet2_route_planning`](.) contains a C++ node [`global_planner_node`](src/global_planner_node.cpp) for route planning based on the Lanelet2 framework.
+The [`lanelet2_route_planning`](.) contains two C++ nodes: [`global_planner_node`](lanelet2_route_planning/src/global_planner_node.cpp) and  [`point2maneuver`](point2maneuver/src/point2maneuver_node.cpp) for route planning based on the Lanelet2 framework. While the global_planner ist responsible for the planning task, the point2maneuver node, converts a goal_pose topic to a maneuver action request.
+
 It has the following functionalities:
 
 - [Lanelet2 Route Planning](#lanelet2-route-planning)
     - [lanelet2\_route\_planning/global\_planner\_node](#lanelet2_route_planningglobal_planner_node)
+      - [Subscribed Topics](#subscribed-topics)
+      - [Published Topics](#published-topics)
+      - [Actions](#actions)
+      - [Parameters](#parameters)
+    - [point2maneuver/point2maneuver_node](#point2maneuverpoint2maneuver)
       - [Subscribed Topics](#subscribed-topics)
       - [Published Topics](#published-topics)
       - [Actions](#actions)
@@ -24,7 +30,6 @@ It has the following functionalities:
 | Topic | Type | Description |
 | --- | --- | --- |
 | `/carla_its_converter/ego_vehicle/ego_data` | `perception_msgs/msg/EgoData` | EgoData-Message of the vehicle --> should be changed to `/carla_its_adapter/...` soon! |
-| `/goal_pose` | `geometry_msgs/msg/PoseStamped` | PoseStamped-Message to define the goal pose. Could be used to trigger the route planning via RViz using the 2D-Goal-Pose-Tool without needing to trigger a specific action. |
 
 #### Published Topics
 
@@ -57,6 +62,32 @@ It has the following functionalities:
 | `look_ahead_time` | `double` | Look ahead time for extracting the local path [s] |
 | `look_ahead_distance_min` | `double` | Minimum Look-Ahead distance for the local path extraction [m] |
 | `look_behind_distance` | `double` | Look-Behind distance for the local path extraction [m] |
+
+### point2maneuver/point2maneuver
+
+#### Subscribed Topics
+
+| Topic | Type | Description |
+| --- | --- | --- |
+| `/goal_pose` | `geometry_msgs/msg/PoseStamped` | PoseStamped-Message to define the goal pose. Could be used to trigger the route planning via RViz using the 2D-Goal-Pose-Tool without needing to trigger a specific action. |
+
+#### Published Topics
+
+| Topic | Type | Description |
+| --- | --- | --- |
+| --- | --- | --- |
+
+#### Actions
+
+| Action | Type | Description |
+| --- | --- | --- |
+| `~/execute_global_maneuver` | `route_planning_msgs/action/GlobalManeuver` | Plan and execute a global maneuver |
+
+#### Parameters
+
+| Parameter | Type | Description |
+| --- | --- | --- |
+| --- | --- | --- |
 
 ## Usage of docker-ros Images
 
