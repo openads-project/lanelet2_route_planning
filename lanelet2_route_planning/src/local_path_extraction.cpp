@@ -36,7 +36,7 @@
             // Sort laneletes
             Lanelet2Utilities::laneletSorting(lanelet::BasicPoint2d(cur_pose.pose.position.x, cur_pose.pose.position.y), nearestLanelets, yaw, trafficRules_, {});
             lanelet::ConstLanelet current_ego_ll = nearestLanelets.at(0).second; // most probable current Lanelet
-
+            
             // Find sample of shortest path centerline correspondint to the current ego-position
             ego_pos_sample_cl_ = findNearestSample(cur_pose.pose.position, route_global.shortest_path, ego_pos_sample_cl_);
             if(ego_pos_sample_cl_>=target_sample_cl_)
@@ -59,7 +59,7 @@
                     break;
                 }
             }
-
+            
             // Find the look-behind sample
             unsigned int look_behind_sample;
             double accum_length=0.0;
@@ -79,7 +79,7 @@
             temp_route.target_position = route_global.target_position;
             temp_route.header.frame_id = ll2if_->map_frame_id_; // currently it's map --> will be changed through transform function
             temp_route.shortest_path = {route_global.shortest_path.begin() + look_behind_sample, route_global.shortest_path.begin() + look_ahead_sample};
-
+            
             // Find nearest Boundary-Sample for left and right boundary at look-ahead and look-behind point
             lbehind_sample_rbound_left_ = findNearestSample(temp_route.shortest_path.front(), route_global.boundaries.left, lbehind_sample_rbound_left_);
             lbehind_sample_rbound_right_ = findNearestSample(temp_route.shortest_path.front(), route_global.boundaries.right, lbehind_sample_rbound_right_);
@@ -94,7 +94,7 @@
             lbehind_sample_drivspace_right_ = findNearestSample(temp_route.shortest_path.front(), driveable_space_global.boundaries.right, lbehind_sample_drivspace_right_);
             lahead_sample_drivspace_left_ = findNearestSample(temp_route.shortest_path.back(), driveable_space_global.boundaries.left, lahead_sample_drivspace_left_);
             lahead_sample_drivspace_right_ = findNearestSample(temp_route.shortest_path.back(), driveable_space_global.boundaries.right, lahead_sample_drivspace_right_);
-
+            
             // To-Do: Extract restricting areas
             // ...
 
@@ -102,9 +102,19 @@
             route_planning_msgs::msg::DriveableSpace temp_ds;
             temp_ds.header.stamp = stamp_time;
             temp_ds.header.frame_id = ll2if_->map_frame_id_; // currently it's map --> will be changed through transform function
-            temp_ds.boundaries.left = {driveable_space_global.boundaries.left.begin() + lbehind_sample_drivspace_left_, driveable_space_global.boundaries.left.begin() + lahead_sample_drivspace_left_};
-            temp_ds.boundaries.right = {driveable_space_global.boundaries.right.begin() + lbehind_sample_drivspace_right_, driveable_space_global.boundaries.right.begin() + lahead_sample_drivspace_right_};
             
+            // Check if the found samples are valid
+            if (lbehind_sample_drivspace_left_ < driveable_space_global.boundaries.left.size() && lahead_sample_drivspace_left_ <= driveable_space_global.boundaries.left.size() && lahead_sample_drivspace_left_ > lbehind_sample_drivspace_left_) {
+                temp_ds.boundaries.left = {driveable_space_global.boundaries.left.begin() + lbehind_sample_drivspace_left_, driveable_space_global.boundaries.left.begin() + lahead_sample_drivspace_left_};
+            } else {
+                temp_ds.boundaries.left = driveable_space_global.boundaries.left;
+            }
+
+            if (lbehind_sample_drivspace_right_ < driveable_space_global.boundaries.right.size() && lahead_sample_drivspace_right_ <= driveable_space_global.boundaries.right.size() && lahead_sample_drivspace_right_ > lbehind_sample_drivspace_right_) {
+                temp_ds.boundaries.right = {driveable_space_global.boundaries.right.begin() + lbehind_sample_drivspace_right_, driveable_space_global.boundaries.right.begin() + lahead_sample_drivspace_right_};
+            } else {
+                temp_ds.boundaries.right = driveable_space_global.boundaries.right;
+            }
             // To-Do: Rest of Route-Object
             // ...
             // First we need to identify the area of interest to extract all Regulatory Elements and Lanes within this area
@@ -127,7 +137,7 @@
                 if(temp_ds.boundaries.left[i].x<min_x) min_x = temp_ds.boundaries.left[i].x;
                 if(temp_ds.boundaries.left[i].y<min_y) min_y = temp_ds.boundaries.left[i].y;
             }
-
+            
             // Create a bounding-box (via an area) that envelops the entire local driveable space
             lanelet::LineString3d top(lanelet::utils::getId(), {lanelet::Point3d{lanelet::utils::getId(), max_x, min_y, 0}, lanelet::Point3d{utils::getId(), max_x, max_y, 0}});
             lanelet::LineString3d right(lanelet::utils::getId(), {lanelet::Point3d{lanelet::utils::getId(), max_x, max_y, 0}, lanelet::Point3d{utils::getId(), min_x, max_y, 0}});
@@ -136,7 +146,7 @@
             lanelet::Area aoi_area(lanelet::utils::getId(), {top, right, bottom, left});
             lanelet::BoundingBox2d aoi_box = lanelet::geometry::boundingBox2d(aoi_area);
 
-            // Find all Lanelets within AoI
+                        // Find all Lanelets within AoI
             std::vector<lanelet::ConstLanelet> aoi_lanelets = llmap_->laneletLayer.search(aoi_box);
             for(size_t i = 0; i<aoi_lanelets.size(); i++)
             {
@@ -149,9 +159,9 @@
                 temp_route.lanes.push_back(lane);
             }
 
-            // Find all Regulatory Elements within AoI
+                        // Find all Regulatory Elements within AoI
             std::vector<std::shared_ptr<const lanelet::RegulatoryElement>> aoi_regelems = llmap_->regulatoryElementLayer.search(aoi_box);
-            for(size_t i = 0; i<aoi_regelems.size(); i++)
+                        for(size_t i = 0; i<aoi_regelems.size(); i++)
             {
                 // Generate Regulatory Elements
                 route_planning_msgs::msg::RegulatoryElement regelem;
@@ -169,14 +179,14 @@
                         regelem.effect_line[1] = ref_points.back();
                     }
                 }
-                // Get all refering elements
+                                // Get all refering elements
                 std::vector<lanelet::ConstLineString3d> refering_elems = aoi_regelems[i]->getParameters<lanelet::ConstLineString3d>(RoleName::Refers);
                 for(size_t j=0; j<refering_elems.size(); j++)
                 {
                     std::vector<geometry_msgs::msg::Point> ref_points = Lanelet2Utilities::convertLaneletLine2Linestring(refering_elems[j].basicLineString());
                     regelem.signal_positions.push_back(ref_points[0]);
                 }
-                // Set the Type
+                                // Set the Type
                 if (aoi_regelems[i]->hasAttribute("subtype"))
                 {
                     std::string subtype = aoi_regelems[i]->attribute("subtype").value();
@@ -184,9 +194,9 @@
                     if(subtype == "speed_limit")
                     {
                         regelem.type = route_planning_msgs::msg::RegulatoryElement::TYPE_SPEED_LIMIT;
-                        regelem.value = deriveValueForSpeedLimitType(aoi_regelems[i], refering_elems);
+                                                regelem.value = deriveValueForSpeedLimitType(aoi_regelems[i], refering_elems);
                     }
-                    if(subtype == "right_of_way") regelem.type = route_planning_msgs::msg::RegulatoryElement::TYPE_YIELD;
+                                        if(subtype == "right_of_way") regelem.type = route_planning_msgs::msg::RegulatoryElement::TYPE_YIELD;
                     if(subtype == "all_way_stop") regelem.type = route_planning_msgs::msg::RegulatoryElement::TYPE_STOP;
                     if(subtype == "traffic_sign")
                     {
@@ -197,7 +207,7 @@
                         }
                     }
                 }
-                // Add to route
+                                // Add to route
                 temp_route.regulatory_elements.push_back(regelem);
             }
 

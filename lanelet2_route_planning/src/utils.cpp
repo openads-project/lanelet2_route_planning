@@ -228,6 +228,7 @@ bool GlobalPlanner::checkLineDrivability(const lanelet::ConstLineString3d &lineT
 
   type_str = lineToCheck.attribute("type");
 
+  // the following types are considered drivable
   if (type_str == "line_thin" ||
       type_str == "line_thick" ||
       type_str == "virtual" ||
@@ -240,6 +241,12 @@ bool GlobalPlanner::checkLineDrivability(const lanelet::ConstLineString3d &lineT
       type_str == "lane_center" || //Atlatec Maps
       type_str == "centerline" || //Atlatec Maps
       (type_str == "curbstone" && subtype_str == "low") )
+  {
+    return true;
+  }
+
+  // the following keys are considered drivable
+  if (lineToCheck.hasAttribute("HoldingLine"))
   {
     return true;
   }
@@ -262,7 +269,7 @@ route_planning_msgs::msg::LaneSeparator GlobalPlanner::deriveLaneSeparator(const
   {
     type_str = linestring.attribute("type");
   }
-  if(type_str == "road_boarder")
+  if(type_str == "road_boarder" || type_str == "barrier")
   {
     lane_sep.type = route_planning_msgs::msg::LaneSeparator::TYPE_CROSSING_RESTRICTED;
     lane_sep.line = Lanelet2Utilities::convertLaneletLine2Linestring(linestring.basicLineString());
@@ -298,12 +305,17 @@ uint8_t GlobalPlanner::deriveValueForSpeedLimitType(const std::shared_ptr<const 
 {
   if(regelem->hasAttribute("sign_type"))
   {
+      if (refering_elems.size() == 0)
+      {
+        RCLCPP_WARN(get_logger(), "No refering elements found for speed limit sign!");
+        return route_planning_msgs::msg::RegulatoryElement::STATE_UNKNOWN;
+      }
       std::string tsign_val = refering_elems[0].attribute("sign_type").value();
       boost::algorithm::erase_all(tsign_val, " ");
       boost::algorithm::to_lower(tsign_val); 
-      if(tsign_val.find("km/h")!=std::string::npos)
+            if(tsign_val.find("km/h")!=std::string::npos)
       {
-          boost::algorithm::erase_all(tsign_val, "km/h");
+                    boost::algorithm::erase_all(tsign_val, "km/h");
           int val = std::stoi(tsign_val);
           if(val==30) return route_planning_msgs::msg::RegulatoryElement::SPEED_30;
           else if(val==50) return route_planning_msgs::msg::RegulatoryElement::SPEED_50;
@@ -316,7 +328,7 @@ uint8_t GlobalPlanner::deriveValueForSpeedLimitType(const std::shared_ptr<const 
       }
       else if(tsign_val.find("mps")!=std::string::npos)
       {
-          boost::algorithm::erase_all(tsign_val, "mps");
+                    boost::algorithm::erase_all(tsign_val, "mps");
           int val = (int)std::round(std::stod(tsign_val)*3.6);
           if(val<33 && val>27) return route_planning_msgs::msg::RegulatoryElement::SPEED_30;
           else if(val<53 && val>47) return route_planning_msgs::msg::RegulatoryElement::SPEED_50;
@@ -330,7 +342,7 @@ uint8_t GlobalPlanner::deriveValueForSpeedLimitType(const std::shared_ptr<const 
       }
       else if(tsign_val.find("mph")!=std::string::npos)
       {
-          boost::algorithm::erase_all(tsign_val, "mph");
+                    boost::algorithm::erase_all(tsign_val, "mph");
           int val = (int)std::round(std::stod(tsign_val)*1.60934);
           if(val<33 && val>27) return route_planning_msgs::msg::RegulatoryElement::SPEED_30;
           else if(val<53 && val>47) return route_planning_msgs::msg::RegulatoryElement::SPEED_50;
@@ -344,7 +356,7 @@ uint8_t GlobalPlanner::deriveValueForSpeedLimitType(const std::shared_ptr<const 
       else
       {
         // Interpret as km/h according to documentation
-        int val = std::stoi(tsign_val);
+                int val = std::stoi(tsign_val);
         if(val==30) return route_planning_msgs::msg::RegulatoryElement::SPEED_30;
         else if(val==50) return route_planning_msgs::msg::RegulatoryElement::SPEED_50;
         else if(val==70) return route_planning_msgs::msg::RegulatoryElement::SPEED_70;
