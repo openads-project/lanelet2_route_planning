@@ -23,8 +23,8 @@ void Point2Maneuver::goalPoseCallback(geometry_msgs::msg::PoseStamped::SharedPtr
   }
 
   auto action_goal = route_planning_msgs::action::GlobalManeuver::Goal();
-  action_goal.target_pos_x = msg->pose.position.x;
-  action_goal.target_pos_y = msg->pose.position.y;
+  action_goal.target_pose.position.x = msg->pose.position.x;
+  action_goal.target_pose.position.y = msg->pose.position.y;
 
   RCLCPP_INFO(this->get_logger(), "Sending a new action goal to plan a maneuver to the desired goal-pose!");
   auto send_goal_options = rclcpp_action::Client<route_planning_msgs::action::GlobalManeuver>::SendGoalOptions();

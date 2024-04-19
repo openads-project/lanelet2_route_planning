@@ -5,8 +5,8 @@ rclcpp_action::GoalResponse GlobalPlanner::actionHandleGoal(
   std::shared_ptr<const route_planning_msgs::action::GlobalManeuver::Goal> goal)
 {
   RCLCPP_INFO(get_logger(), "Received a global maneuver request!");
-  RCLCPP_INFO_STREAM(get_logger(), "Target Position X: " << goal->target_pos_x);
-  RCLCPP_INFO_STREAM(get_logger(), "Target Position Y: " << goal->target_pos_y);
+  RCLCPP_INFO_STREAM(get_logger(), "Target Position X: " << goal->target_pose.position.x);
+  RCLCPP_INFO_STREAM(get_logger(), "Target Position Y: " << goal->target_pose.position.y);
 
   llmap_ = ll2if_->getMapPtr();
   routingGraph_ = routing::RoutingGraph::build(*llmap_, *trafficRules_);
@@ -23,7 +23,7 @@ rclcpp_action::GoalResponse GlobalPlanner::actionHandleGoal(
   }
 
   // Check for global position of ego-vehicle
-  if(!egoPositionSanityCheck() || !targetPositionSanityCheck(goal->target_pos_x, goal->target_pos_y))
+  if(!egoPositionSanityCheck() || !targetPositionSanityCheck(goal->target_pose.position.x, goal->target_pose.position.y))
   {
     RCLCPP_ERROR(get_logger(), "Unable to plan a global maneuver!");
     return rclcpp_action::GoalResponse::REJECT;
@@ -39,8 +39,7 @@ rclcpp_action::GoalResponse GlobalPlanner::actionHandleGoal(
   maneuver_feedback_ = std::make_shared<route_planning_msgs::action::GlobalManeuver::Feedback>();
 
   maneuver_result_->destination_reached = false;
-  maneuver_feedback_->destination_x = goal->target_pos_x;
-  maneuver_feedback_->destination_y = goal->target_pos_y;
+  maneuver_feedback_->destination = goal->target_pose;
 
   planRoute(start_ll_, target_ll_);
 
@@ -99,7 +98,7 @@ void GlobalPlanner::actionExecute(
     if(egoPositionSanityCheck())
     {
       double velocity = perception_msgs::object_access::getVelLon(ego_data_);
-      if (geometry::distance(lanelet::BasicPoint2d(goal->target_pos_x, goal->target_pos_y), lanelet::BasicPoint2d(ego_pose_.pose.position.x, ego_pose_.pose.position.y)) < target_reached_thr_ && (std::fabs(velocity) < vel_threshold_target_ || !require_standstill_))
+      if (geometry::distance(lanelet::BasicPoint2d(goal->target_pose.position.x, goal->target_pose.position.y), lanelet::BasicPoint2d(ego_pose_.pose.position.x, ego_pose_.pose.position.y)) < target_reached_thr_ && (std::fabs(velocity) < vel_threshold_target_ || !require_standstill_))
       {
         RCLCPP_INFO(get_logger(),"Destination reached!");
         maneuver_result_->destination_reached = true;

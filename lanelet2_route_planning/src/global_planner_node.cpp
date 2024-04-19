@@ -250,12 +250,12 @@ bool GlobalPlanner::planRoute(lanelet::ConstLanelet start_ll, lanelet::ConstLane
   builtin_interfaces::msg::Time start_time = now();
   // Start and end positions
   lanelet::BasicPoint3d target;
-  target.x()=maneuver_feedback_->destination_x;
-  target.y()=maneuver_feedback_->destination_y;
+  target.x()=maneuver_feedback_->destination.position.x;
+  target.y()=maneuver_feedback_->destination.position.y;
   target.z()=0.0;
   target = lanelet::geometry::project(target_ll_.centerline(), target);
-  maneuver_feedback_->destination_x = target.x();
-  maneuver_feedback_->destination_y = target.y();
+  maneuver_feedback_->destination.position.x = target.x();
+  maneuver_feedback_->destination.position.y = target.y();
   lanelet::BasicPoint2d start_pos = lanelet::BasicPoint2d(ego_pose_.pose.position.x, ego_pose_.pose.position.y);
   lanelet::BasicPoint2d target_pos = lanelet::BasicPoint2d(target.x(), target.y());
 
