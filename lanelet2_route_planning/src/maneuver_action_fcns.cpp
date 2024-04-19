@@ -118,6 +118,11 @@ void GlobalPlanner::actionExecute(
       extractLocalMapInfo(ego_pose_, global_driveable_space_, driveable_space_local, global_route_, route_local);
       rclcpp::Duration diff = now()-start;
       RCLCPP_INFO_STREAM(get_logger(), "Duration to extract the local map information: " << std::setprecision(10) << (diff.seconds() + (double)diff.nanoseconds() / 1e9));
+
+      // Fill in the current ego pose in the action feedback
+      maneuver_feedback_->current_pose.position.x = perception_msgs::object_access::getX(ego_data_);
+      maneuver_feedback_->current_pose.position.y = perception_msgs::object_access::getY(ego_data_);
+
       // publish the current sequence as action feedback
       goal_handle->publish_feedback(maneuver_feedback_);
       RCLCPP_INFO(get_logger(), "Publishing action feedback");
