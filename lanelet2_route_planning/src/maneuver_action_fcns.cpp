@@ -5,7 +5,9 @@ rclcpp_action::GoalResponse GlobalPlanner::actionHandleGoal(
   std::shared_ptr<const route_planning_msgs::action::GlobalManeuver::Goal> goal)
 {
 
-  geometry_msgs::msg::PointStamped& destination = goal->destination;
+  (void)uuid;
+
+  const geometry_msgs::msg::PointStamped& destination = goal->destination;
   RCLCPP_INFO(this->get_logger(), "Received global maneuver request to destination (%.3f, %.3f, %.3f) in frame '%s'", destination.point.x, destination.point.y, destination.point.z, destination.header.frame_id.c_str());
 
   // transform destination to map frame
@@ -52,7 +54,7 @@ rclcpp_action::GoalResponse GlobalPlanner::actionHandleGoal(
 
   maneuver_feedback_ = std::make_shared<route_planning_msgs::action::GlobalManeuver::Feedback>();
   maneuver_feedback_->distance_remaining = global_route_.distance_from_start.back();
-  maneuver_feedback_->time_remaining = rclcpp::Duration(maneuver_feedback_->distance_remaining / global_route_.current_speed_limit); // TODO: improve estimate by accumulating with speed limits over path
+  maneuver_feedback_->time_remaining = rclcpp::Duration::from_seconds(maneuver_feedback_->distance_remaining / global_route_.current_speed_limit); // TODO: improve estimate by accumulating with speed limits over path
 
   maneuver_result_ = std::make_shared<route_planning_msgs::action::GlobalManeuver::Result>();
 
@@ -64,6 +66,8 @@ rclcpp_action::GoalResponse GlobalPlanner::actionHandleGoal(
 rclcpp_action::CancelResponse GlobalPlanner::actionHandleCancel(
   const std::shared_ptr<rclcpp_action::ServerGoalHandle<route_planning_msgs::action::GlobalManeuver>> goal_handle)
 {
+  (void)goal_handle;
+
   // this callback is invoked when a running action is requested to cancel
   RCLCPP_INFO(get_logger(), "Received request to cancel action goal");
 
@@ -88,7 +92,7 @@ void GlobalPlanner::actionExecute(
   initializeLocalPathExtraction(global_route_);
 
   const auto goal = goal_handle->get_goal();
-  geometry_msgs::msg::PointStamped& destination = goal->destination;
+  const geometry_msgs::msg::PointStamped& destination = goal->destination;
 
   // transform destination to map frame
   geometry_msgs::msg::PointStamped destination_map;
@@ -147,7 +151,7 @@ void GlobalPlanner::actionExecute(
       maneuver_feedback_->distance_traveled = distance_traveled_to_last_path_point + distance_last_path_point_to_ego;
       maneuver_feedback_->time_traveled = this->now() - maneuver_start_time_;
       maneuver_feedback_->distance_remaining = global_route_.distance_from_start.back() - maneuver_feedback_->distance_traveled;
-      maneuver_feedback_->time_remaining = rclcpp::Duration(maneuver_feedback_->distance_remaining / route_local.current_speed_limit); // TODO: improve estimate by accumulating with speed limits over path
+      maneuver_feedback_->time_remaining = rclcpp::Duration::from_seconds(maneuver_feedback_->distance_remaining / route_local.current_speed_limit); // TODO: improve estimate by accumulating with speed limits over path
 
       // publish the current sequence as action feedback
       goal_handle->publish_feedback(maneuver_feedback_);
