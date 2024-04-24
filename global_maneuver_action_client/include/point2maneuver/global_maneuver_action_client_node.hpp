@@ -12,12 +12,12 @@ class GlobalManeuverActionClient : public rclcpp::Node
     private:
 
         // Subscriptions
-        rclcpp::Subscription<geometry_msgs::msg::PoseStamped>::SharedPtr goal_pose_sub_;
+        rclcpp::Subscription<geometry_msgs::msg::PointStamped>::SharedPtr subscriber_;
 
         // Action Client
-        rclcpp_action::Client<route_planning_msgs::action::GlobalManeuver>::SharedPtr maneuver_action_client_;
+        rclcpp_action::Client<route_planning_msgs::action::GlobalManeuver>::SharedPtr action_client_;
         std::shared_future<rclcpp_action::ClientGoalHandle<route_planning_msgs::action::GlobalManeuver>::SharedPtr> goal_handle_future_;
 
         // Callbacks
-        void goalPoseCallback(geometry_msgs::msg::PoseStamped::SharedPtr msg);
+        void pointCallback(geometry_msgs::msg::PointStamped::SharedPtr msg);
 };
