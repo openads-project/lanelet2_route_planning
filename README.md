@@ -1,7 +1,7 @@
 # Lanelet2 Route Planning
 
 
-The [`lanelet2_route_planning`](.) contains two C++ nodes: [`global_planner_node`](lanelet2_route_planning/src/global_planner_node.cpp) and  [`point2maneuver`](point2maneuver/src/point2maneuver_node.cpp) for route planning based on the Lanelet2 framework. While the global_planner ist responsible for the planning task, the point2maneuver node, converts a goal_pose topic to a maneuver action request.
+The [`lanelet2_route_planning`](.) contains two C++ nodes: [`global_planner_node`](lanelet2_route_planning/src/global_planner_node.cpp) and  [`global_maneuver_action_client`](global_maneuver_action_client/src/global_maneuver_action_client_node.cpp) for route planning based on the Lanelet2 framework. While the global_planner ist responsible for the planning task, the global_maneuver_action_client node, converts a goal_pose topic to a maneuver action request.
 
 It has the following functionalities:
 
@@ -11,7 +11,7 @@ It has the following functionalities:
       - [Published Topics](#published-topics)
       - [Actions](#actions)
       - [Parameters](#parameters)
-    - [point2maneuver/point2maneuver_node](#point2maneuverpoint2maneuver)
+    - [global_maneuver_action_client/global_maneuver_action_client_node](#global_maneuver_action_clientglobal_maneuver_action_client)
       - [Subscribed Topics](#subscribed-topics)
       - [Published Topics](#published-topics)
       - [Actions](#actions)
@@ -63,7 +63,7 @@ It has the following functionalities:
 | `look_ahead_distance_min` | `double` | Minimum Look-Ahead distance for the local path extraction [m] |
 | `look_behind_distance` | `double` | Look-Behind distance for the local path extraction [m] |
 
-### point2maneuver/point2maneuver
+### global_maneuver_action_client/global_maneuver_action_client
 
 #### Subscribed Topics
 

@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.8)
-project(point2maneuver)
+project(global_maneuver_action_client)
 
 if(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
   add_compile_options(-Wall -Wextra -Wpedantic)
@@ -15,22 +15,22 @@ find_package(route_planning_msgs REQUIRED)
 find_package(rclcpp REQUIRED)
 find_package(rclcpp_action REQUIRED)
 
-add_executable(point2maneuver_node
-  src/point2maneuver_node.cpp)
+add_executable(global_maneuver_action_client_node
+  src/global_maneuver_action_client_node.cpp)
 
-ament_target_dependencies(point2maneuver_node
+ament_target_dependencies(global_maneuver_action_client_node
   geometry_msgs
   route_planning_msgs
   rclcpp
   rclcpp_action
 )
 
-target_include_directories(point2maneuver_node PUBLIC
+target_include_directories(global_maneuver_action_client_node PUBLIC
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
   $<INSTALL_INTERFACE:include>)
-target_compile_features(point2maneuver_node PUBLIC c_std_99 cxx_std_17)  # Require C99 and C++17
+target_compile_features(global_maneuver_action_client_node PUBLIC c_std_99 cxx_std_17)  # Require C99 and C++17
 
-install(TARGETS point2maneuver_node
+install(TARGETS global_maneuver_action_client_node
   DESTINATION lib/${PROJECT_NAME})
 
 # Install launch and config files.

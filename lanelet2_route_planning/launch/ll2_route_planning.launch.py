@@ -19,7 +19,7 @@ def generate_launch_description():
     node_name_default = 'global_planner'
     node_name_arg = DeclareLaunchArgument('node_name',
                                           default_value=node_name_default)
-    
+
     use_sim_time_arg = DeclareLaunchArgument('use_sim_time_arg', default_value='False')
 
     planner_node = LifecycleNode(
@@ -33,8 +33,8 @@ def generate_launch_description():
     )
 
     poin2maneuver_node = LifecycleNode(
-        package="point2maneuver",
-        executable="point2maneuver_node",
+        package="global_maneuver_action_client",
+        executable="global_maneuver_action_client_node",
         name="goal_pose_to_maneuver",
         namespace="",
         output="screen",

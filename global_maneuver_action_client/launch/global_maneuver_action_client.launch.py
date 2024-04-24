@@ -8,15 +8,15 @@ from launch_ros.actions import LifecycleNode, SetParameter
 
 
 def generate_launch_description():
-    node_name_default = 'point2maneuver'
+    node_name_default = 'global_maneuver_action_client'
     node_name_arg = DeclareLaunchArgument('node_name',
                                           default_value=node_name_default)
-    
+
     use_sim_time_arg = DeclareLaunchArgument('use_sim_time_arg', default_value='False')
 
     node = LifecycleNode(
-        package="point2maneuver",
-        executable="point2maneuver_node",
+        package="global_maneuver_action_client",
+        executable="global_maneuver_action_client_node",
         name=LaunchConfiguration('node_name'),
         namespace="",
         output="screen",

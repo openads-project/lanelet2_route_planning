@@ -1,12 +1,12 @@
-#include "point2maneuver/point2maneuver_node.hpp"
+#include "global_maneuver_action_client/global_maneuver_action_client_node.hpp"
 
-Point2Maneuver::Point2Maneuver() : Node("point2maneuver")
+GlobalManeuverActionClient::GlobalManeuverActionClient() : Node("global_maneuver_action_client")
 {
-  goal_pose_sub_ = create_subscription<geometry_msgs::msg::PoseStamped>("/goal_pose", 1, std::bind(&Point2Maneuver::goalPoseCallback, this, std::placeholders::_1));
+  goal_pose_sub_ = create_subscription<geometry_msgs::msg::PoseStamped>("/goal_pose", 1, std::bind(&GlobalManeuverActionClient::goalPoseCallback, this, std::placeholders::_1));
   maneuver_action_client_ = rclcpp_action::create_client<route_planning_msgs::action::GlobalManeuver>(this, "ll2_route_planning/execute_global_maneuver");
 }
 
-void Point2Maneuver::goalPoseCallback(geometry_msgs::msg::PoseStamped::SharedPtr msg)
+void GlobalManeuverActionClient::goalPoseCallback(geometry_msgs::msg::PoseStamped::SharedPtr msg)
 {
   RCLCPP_INFO(this->get_logger(), "Received a new goal-pose!");
   // Check for running actions
@@ -34,7 +34,7 @@ void Point2Maneuver::goalPoseCallback(geometry_msgs::msg::PoseStamped::SharedPtr
 int main(int argc, char ** argv)
 {
   rclcpp::init(argc, argv);
-  auto planner = std::make_shared<Point2Maneuver>();
+  auto planner = std::make_shared<GlobalManeuverActionClient>();
   rclcpp::spin(planner);
   rclcpp::shutdown();
   return 0;

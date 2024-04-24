@@ -4,11 +4,11 @@
 #include <geometry_msgs/msg/pose_stamped.hpp>
 #include "route_planning_msgs/action/global_maneuver.hpp"
 
-class Point2Maneuver : public rclcpp::Node
+class GlobalManeuverActionClient : public rclcpp::Node
 {
     public:
-        Point2Maneuver();
-        
+        GlobalManeuverActionClient();
+
     private:
 
         // Subscriptions
