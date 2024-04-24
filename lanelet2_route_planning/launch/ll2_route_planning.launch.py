@@ -5,7 +5,7 @@ from launch import LaunchDescription
 from launch.actions import DeclareLaunchArgument, GroupAction
 from launch.conditions import LaunchConfigurationNotEquals
 from launch.substitutions import LaunchConfiguration, PathJoinSubstitution
-from launch_ros.actions import LifecycleNode, SetParameter
+from launch_ros.actions import Node, SetParameter
 
 
 def generate_launch_description():
@@ -22,7 +22,7 @@ def generate_launch_description():
 
     use_sim_time_arg = DeclareLaunchArgument('use_sim_time_arg', default_value='False')
 
-    planner_node = LifecycleNode(
+    planner_node = Node(
         package="lanelet2_route_planning",
         executable="global_planner_node",
         name=LaunchConfiguration('node_name'),
@@ -32,21 +32,19 @@ def generate_launch_description():
         parameters=[config]
     )
 
-    poin2maneuver_node = LifecycleNode(
+    global_maneuver_action_client_node = Node(
         package="global_maneuver_action_client",
         executable="global_maneuver_action_client_node",
-        name="goal_pose_to_maneuver",
+        name="global_maneuver_action_client",
         namespace="",
         output="screen",
-        emulate_tty=True,
-        parameters=[config]
     )
 
     node_group = GroupAction(actions=[
         SetParameter(name='use_sim_time',
                      value=LaunchConfiguration('use_sim_time_arg'),
                      condition=LaunchConfigurationNotEquals(
-                         'use_sim_time_arg', "None")), planner_node, poin2maneuver_node
+                         'use_sim_time_arg', "None")), planner_node, global_maneuver_action_client_node
     ])
 
     return LaunchDescription([
