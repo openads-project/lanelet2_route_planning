@@ -4,9 +4,19 @@ rclcpp_action::GoalResponse GlobalPlanner::actionHandleGoal(
   const rclcpp_action::GoalUUID& uuid,
   std::shared_ptr<const route_planning_msgs::action::GlobalManeuver::Goal> goal)
 {
-  RCLCPP_INFO(get_logger(), "Received a global maneuver request!");
-  RCLCPP_INFO_STREAM(get_logger(), "Target Position X: " << goal->target_pose.position.x);
-  RCLCPP_INFO_STREAM(get_logger(), "Target Position Y: " << goal->target_pose.position.y);
+
+  geometry_msgs::msg::PointStamped& destination = goal->destination;
+  RCLCPP_INFO(this->get_logger(), "Received global maneuver request to destination (%.3f, %.3f, %.3f) in frame '%s'", destination.point.x, destination.point.y, destination.point.z, destination.header.frame_id.c_str());
+
+  // transform destination to map frame
+  geometry_msgs::msg::PointStamped destination_map;
+  try {
+    destination_map = tf_buffer_->transform(destination, ll2if_->map_frame_id_);
+  } catch (tf2::TransformException &ex) {
+    RCLCPP_ERROR(this->get_logger(), "Could not transform destination from frame '%s' to frame '%s': %s", destination.header.frame_id.c_str(), ll2if_->map_frame_id_.c_str(), ex.what());
+    return rclcpp_action::GoalResponse::REJECT;
+  }
+  RCLCPP_INFO(this->get_logger(), "Transformed global maneuver request to destination (%.3f, %.3f, %.3f) in frame '%s'", destination_map.point.x, destination_map.point.y, destination_map.point.z, destination_map.header.frame_id.c_str());
 
   llmap_ = ll2if_->getMapPtr();
   routingGraph_ = routing::RoutingGraph::build(*llmap_, *trafficRules_);
@@ -23,7 +33,7 @@ rclcpp_action::GoalResponse GlobalPlanner::actionHandleGoal(
   }
 
   // Check for global position of ego-vehicle
-  if(!egoPositionSanityCheck() || !targetPositionSanityCheck(goal->target_pose.position.x, goal->target_pose.position.y))
+  if(!egoPositionSanityCheck() || !targetPositionSanityCheck(destination_map.point.x, destination_map.point.y))
   {
     RCLCPP_ERROR(get_logger(), "Unable to plan a global maneuver!");
     return rclcpp_action::GoalResponse::REJECT;
@@ -35,13 +45,16 @@ rclcpp_action::GoalResponse GlobalPlanner::actionHandleGoal(
     return rclcpp_action::GoalResponse::REJECT;
   }
 
-  maneuver_result_ = std::make_shared<route_planning_msgs::action::GlobalManeuver::Result>();
+  // plan route
+  lanelet::BasicPoint2d start_point(ego_pose_.pose.position.x, ego_pose_.pose.position.y);
+  lanelet::BasicPoint2d target_point(destination_map.point.x, destination_map.point.y);
+  planRoute(start_point, target_point, start_ll_, target_ll_);
+
   maneuver_feedback_ = std::make_shared<route_planning_msgs::action::GlobalManeuver::Feedback>();
+  maneuver_feedback_->distance_remaining = global_route_.distance_from_start.back();
+  maneuver_feedback_->time_remaining = rclcpp::Duration(maneuver_feedback_->distance_remaining / global_route_.current_speed_limit); // TODO: improve estimate by accumulating with speed limits over path
 
-  maneuver_result_->destination_reached = false;
-  maneuver_feedback_->destination = goal->target_pose;
-
-  planRoute(start_ll_, target_ll_);
+  maneuver_result_ = std::make_shared<route_planning_msgs::action::GlobalManeuver::Result>();
 
   // accept action goal request
   maneuver_start_time_ = now();
@@ -74,16 +87,26 @@ void GlobalPlanner::actionExecute(
   // Reset / Initialize
   initializeLocalPathExtraction(global_route_);
 
-  // define a sleeping rate
-  rclcpp::Rate loop_rate(path_extraction_rate_);
-  // create handy accessors for the action goal
   const auto goal = goal_handle->get_goal();
+  geometry_msgs::msg::PointStamped& destination = goal->destination;
+
+  // transform destination to map frame
+  geometry_msgs::msg::PointStamped destination_map;
+  try {
+    destination_map = tf_buffer_->transform(destination, ll2if_->map_frame_id_);
+  } catch (tf2::TransformException &ex) {
+    RCLCPP_ERROR(this->get_logger(), "Could not transform destination from frame '%s' to frame '%s', canceling action: %s", destination.header.frame_id.c_str(), ll2if_->map_frame_id_.c_str(), ex.what());
+    goal_handle->canceled(maneuver_result_);
+    return;
+  }
+
+  rclcpp::Rate loop_rate(path_extraction_rate_);
   while(!maneuver_result_->destination_reached)
   {
     // cancel, if requested
     if (goal_handle->is_canceling()) {
       goal_handle->canceled(maneuver_result_);
-      RCLCPP_INFO(get_logger(), "Action goal canceled");
+      RCLCPP_WARN(get_logger(), "Action goal canceled");
       return;
     }
 
@@ -98,13 +121,12 @@ void GlobalPlanner::actionExecute(
     if(egoPositionSanityCheck())
     {
       double velocity = perception_msgs::object_access::getVelLon(ego_data_);
-      if (geometry::distance(lanelet::BasicPoint2d(goal->target_pose.position.x, goal->target_pose.position.y), lanelet::BasicPoint2d(ego_pose_.pose.position.x, ego_pose_.pose.position.y)) < target_reached_thr_ && (std::fabs(velocity) < vel_threshold_target_ || !require_standstill_))
+      if (geometry::distance(lanelet::BasicPoint2d(global_route_.shortest_path.back().x, global_route_.shortest_path.back().y), lanelet::BasicPoint2d(ego_pose_.pose.position.x, ego_pose_.pose.position.y)) < target_reached_thr_ && (std::fabs(velocity) < vel_threshold_target_ || !require_standstill_))
       {
         RCLCPP_INFO(get_logger(),"Destination reached!");
         maneuver_result_->destination_reached = true;
-        rclcpp::Duration diff = now()-maneuver_start_time_;
-        maneuver_result_->duration.sec = diff.seconds();
-        maneuver_result_->duration.nanosec = diff.nanoseconds();
+        maneuver_result_->distance_traveled = global_route_.distance_from_start.back();
+        maneuver_result_->time_traveled = this->now() - maneuver_start_time_;
         // Check if goal is done
         if (rclcpp::ok()) {
           goal_handle->succeed(maneuver_result_);
@@ -119,9 +141,13 @@ void GlobalPlanner::actionExecute(
       rclcpp::Duration diff = now()-start;
       RCLCPP_INFO_STREAM(get_logger(), "Duration to extract the local map information: " << std::setprecision(10) << (diff.seconds() + (double)diff.nanoseconds() / 1e9));
 
-      // Fill in the current ego pose in the action feedback
-      maneuver_feedback_->current_pose.position.x = perception_msgs::object_access::getX(ego_data_);
-      maneuver_feedback_->current_pose.position.y = perception_msgs::object_access::getY(ego_data_);
+      // update feedback
+      double distance_traveled_to_last_path_point = global_route_.distance_from_start[ego_pos_sample_cl_];
+      double distance_last_path_point_to_ego = std::sqrt(std::pow(ego_pose_.pose.position.x - global_route_.shortest_path[ego_pos_sample_cl_].x, 2) + std::pow(ego_pose_.pose.position.y - global_route_.shortest_path[ego_pos_sample_cl_].y, 2));
+      maneuver_feedback_->distance_traveled = distance_traveled_to_last_path_point + distance_last_path_point_to_ego;
+      maneuver_feedback_->time_traveled = this->now() - maneuver_start_time_;
+      maneuver_feedback_->distance_remaining = global_route_.distance_from_start.back() - maneuver_feedback_->distance_traveled;
+      maneuver_feedback_->time_remaining = rclcpp::Duration(maneuver_feedback_->distance_remaining / route_local.current_speed_limit); // TODO: improve estimate by accumulating with speed limits over path
 
       // publish the current sequence as action feedback
       goal_handle->publish_feedback(maneuver_feedback_);

@@ -17,7 +17,7 @@
             target_sample_cl_ = findNearestSampleReverse(route_global.target_position, route_global.shortest_path);
 
         }
-        
+
         void GlobalPlanner::extractLocalMapInfo(const geometry_msgs::msg::PoseWithCovariance& cur_pose,
                                 const route_planning_msgs::msg::DriveableSpace& driveable_space_global,
                                 route_planning_msgs::msg::DriveableSpace& driveable_space_local,
@@ -36,14 +36,14 @@
             // Sort laneletes
             Lanelet2Utilities::laneletSorting(lanelet::BasicPoint2d(cur_pose.pose.position.x, cur_pose.pose.position.y), nearestLanelets, yaw, trafficRules_, {});
             lanelet::ConstLanelet current_ego_ll = nearestLanelets.at(0).second; // most probable current Lanelet
-            
+
             // Find sample of shortest path centerline correspondint to the current ego-position
             ego_pos_sample_cl_ = findNearestSample(cur_pose.pose.position, route_global.shortest_path, ego_pos_sample_cl_);
             if(ego_pos_sample_cl_>=target_sample_cl_)
             {
                 return;
             }
-            remaining_shortest_path_ = {route_global.shortest_path.begin() + ego_pos_sample_cl_, route_global.shortest_path.begin() + target_sample_cl_}; 
+            remaining_shortest_path_ = {route_global.shortest_path.begin() + ego_pos_sample_cl_, route_global.shortest_path.begin() + target_sample_cl_};
             std::vector<double> sp_accumulated_length_vec;
             double sp_length = accumulatedLength(remaining_shortest_path_, sp_accumulated_length_vec);
             // Get the start and end sample of the local shortest path with respect to look-ahead/behind distance
@@ -59,7 +59,7 @@
                     break;
                 }
             }
-            
+
             // Find the look-behind sample
             unsigned int look_behind_sample;
             double accum_length=0.0;
@@ -79,7 +79,8 @@
             temp_route.target_position = route_global.target_position;
             temp_route.header.frame_id = ll2if_->map_frame_id_; // currently it's map --> will be changed through transform function
             temp_route.shortest_path = {route_global.shortest_path.begin() + look_behind_sample, route_global.shortest_path.begin() + look_ahead_sample};
-            
+            temp_route.distance_from_start = {route_global.distance_from_start.begin() + look_behind_sample, route_global.distance_from_start.begin() + look_ahead_sample};
+
             // Find nearest Boundary-Sample for left and right boundary at look-ahead and look-behind point
             lbehind_sample_rbound_left_ = findNearestSample(temp_route.shortest_path.front(), route_global.boundaries.left, lbehind_sample_rbound_left_);
             lbehind_sample_rbound_right_ = findNearestSample(temp_route.shortest_path.front(), route_global.boundaries.right, lbehind_sample_rbound_right_);
@@ -94,7 +95,7 @@
             lbehind_sample_drivspace_right_ = findNearestSample(temp_route.shortest_path.front(), driveable_space_global.boundaries.right, lbehind_sample_drivspace_right_);
             lahead_sample_drivspace_left_ = findNearestSample(temp_route.shortest_path.back(), driveable_space_global.boundaries.left, lahead_sample_drivspace_left_);
             lahead_sample_drivspace_right_ = findNearestSample(temp_route.shortest_path.back(), driveable_space_global.boundaries.right, lahead_sample_drivspace_right_);
-            
+
             // To-Do: Extract restricting areas
             // ...
 
@@ -102,7 +103,7 @@
             route_planning_msgs::msg::DriveableSpace temp_ds;
             temp_ds.header.stamp = stamp_time;
             temp_ds.header.frame_id = ll2if_->map_frame_id_; // currently it's map --> will be changed through transform function
-            
+
             // Check if the found samples are valid
             if (lbehind_sample_drivspace_left_ < driveable_space_global.boundaries.left.size() && lahead_sample_drivspace_left_ <= driveable_space_global.boundaries.left.size() && lahead_sample_drivspace_left_ > lbehind_sample_drivspace_left_) {
                 temp_ds.boundaries.left = {driveable_space_global.boundaries.left.begin() + lbehind_sample_drivspace_left_, driveable_space_global.boundaries.left.begin() + lahead_sample_drivspace_left_};
@@ -120,7 +121,7 @@
             // First we need to identify the area of interest to extract all Regulatory Elements and Lanes within this area
             // The area of interest (AoI) is derived as an rectangle that envelops the entire local driveable space
             double min_x=INFINITY, min_y=INFINITY, max_x=-INFINITY, max_y=-INFINITY; // Parameters describing the rectangle of the area of interest
-            
+
             // Iterate over left boundary of driveable space
             for(size_t i=0; i<temp_ds.boundaries.left.size(); i++)
             {
@@ -137,7 +138,7 @@
                 if(temp_ds.boundaries.left[i].x<min_x) min_x = temp_ds.boundaries.left[i].x;
                 if(temp_ds.boundaries.left[i].y<min_y) min_y = temp_ds.boundaries.left[i].y;
             }
-            
+
             // Create a bounding-box (via an area) that envelops the entire local driveable space
             lanelet::LineString3d top(lanelet::utils::getId(), {lanelet::Point3d{lanelet::utils::getId(), max_x, min_y, 0}, lanelet::Point3d{utils::getId(), max_x, max_y, 0}});
             lanelet::LineString3d right(lanelet::utils::getId(), {lanelet::Point3d{lanelet::utils::getId(), max_x, max_y, 0}, lanelet::Point3d{utils::getId(), min_x, max_y, 0}});
@@ -146,7 +147,7 @@
             lanelet::Area aoi_area(lanelet::utils::getId(), {top, right, bottom, left});
             lanelet::BoundingBox2d aoi_box = lanelet::geometry::boundingBox2d(aoi_area);
 
-                        // Find all Lanelets within AoI
+            // Find all Lanelets within AoI
             std::vector<lanelet::ConstLanelet> aoi_lanelets = llmap_->laneletLayer.search(aoi_box);
             for(size_t i = 0; i<aoi_lanelets.size(); i++)
             {
@@ -159,9 +160,9 @@
                 temp_route.lanes.push_back(lane);
             }
 
-                        // Find all Regulatory Elements within AoI
+            // Find all Regulatory Elements within AoI
             std::vector<std::shared_ptr<const lanelet::RegulatoryElement>> aoi_regelems = llmap_->regulatoryElementLayer.search(aoi_box);
-                        for(size_t i = 0; i<aoi_regelems.size(); i++)
+            for(size_t i = 0; i<aoi_regelems.size(); i++)
             {
                 // Generate Regulatory Elements
                 route_planning_msgs::msg::RegulatoryElement regelem;
@@ -179,7 +180,7 @@
                         regelem.effect_line[1] = ref_points.back();
                     }
                 }
-                                // Get all refering elements
+                // Get all refering elements
                 std::vector<lanelet::ConstLineString3d> refering_elems = aoi_regelems[i]->getParameters<lanelet::ConstLineString3d>(RoleName::Refers);
                 for(size_t j=0; j<refering_elems.size(); j++)
                 {
@@ -194,7 +195,7 @@
                     if(subtype == "speed_limit")
                     {
                         regelem.type = route_planning_msgs::msg::RegulatoryElement::TYPE_SPEED_LIMIT;
-                                                regelem.value = deriveValueForSpeedLimitType(aoi_regelems[i], refering_elems);
+                        regelem.value = deriveValueForSpeedLimitType(aoi_regelems[i], refering_elems);
                     }
                                         if(subtype == "right_of_way") regelem.type = route_planning_msgs::msg::RegulatoryElement::TYPE_YIELD;
                     if(subtype == "all_way_stop") regelem.type = route_planning_msgs::msg::RegulatoryElement::TYPE_STOP;
@@ -207,13 +208,13 @@
                         }
                     }
                 }
-                                // Add to route
+                // Add to route
                 temp_route.regulatory_elements.push_back(regelem);
             }
 
             // Get the current speed limit
             temp_route.current_speed_limit = std::round(lanelet::units::KmHQuantity(trafficRules_->speedLimit(current_ego_ll).speedLimit).value());
-            
+
             // Now transform the route- and driveable-space-object
             geometry_msgs::msg::TransformStamped tf;
             try {
@@ -226,7 +227,7 @@
                 RCLCPP_ERROR_STREAM(this->get_logger(), "Could not transform " << ll2if_->map_frame_id_ << " to " << local_vehicle_frame_id_ << ": " << ex.what());
                 return;
             }
-        } 
+        }
 
         double GlobalPlanner::accumulatedLength(const std::vector<geometry_msgs::msg::Point>& point_list, std::vector<double>& accumulated_length)
         {
@@ -257,7 +258,7 @@
                     min_distance = dist;
                     nearest_index = i; // Update the last index to the current index
                 }
-                // Comment else-if to stop searach for now, since finding the nearest sample seems to be buggy 
+                // Comment else-if to stop searach for now, since finding the nearest sample seems to be buggy
                 // else if (dist > min_distance) {
                 //     break; // Stop searching if the distance starts increasing again
                 // }

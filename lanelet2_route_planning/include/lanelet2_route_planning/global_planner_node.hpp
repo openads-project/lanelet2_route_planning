@@ -126,7 +126,7 @@ class GlobalPlanner : public rclcpp::Node
         void loadParameters();
         bool egoPositionSanityCheck();
         bool targetPositionSanityCheck(double target_x, double target_y);
-        bool planRoute(lanelet::ConstLanelet start_ll, lanelet::ConstLanelet target_ll);
+        bool planRoute(const lanelet::BasicPoint2d& start_point, const lanelet::BasicPoint2d& target_point, lanelet::ConstLanelet start_ll, lanelet::ConstLanelet target_ll);
 
         // local_path_extraction.cpp
         void initializeLocalPathExtraction(const route_planning_msgs::msg::Route& route_global);
@@ -163,6 +163,7 @@ class GlobalPlanner : public rclcpp::Node
         void mapPoseCallback(perception_msgs::msg::EgoData::SharedPtr msg);
 
         // utils.cpp
+        std::vector<double> accumulateDistanceAlongPath(const std::vector<geometry_msgs::msg::Point>& path);
         std::vector<geometry_msgs::msg::Point> processLineString(lanelet::BasicLineString2d& line_string);
         route_planning_msgs::msg::DriveableSpace sampleDriveableSpace(const lanelet::BasicLineString2d &centerline);
         std::vector<geometry_msgs::msg::Point> sampleLinestring(
@@ -183,5 +184,4 @@ class GlobalPlanner : public rclcpp::Node
         route_planning_msgs::msg::LaneSeparator deriveLaneSeparator(const lanelet::ConstLineString3d &linestring);
         uint8_t deriveValueForSpeedLimitType(const std::shared_ptr<const lanelet::RegulatoryElement> regelem, const std::vector<lanelet::ConstLineString3d> refering_elems);
         uint8_t trafficSignCode2Type(const std::string tsign_code);
-
 };

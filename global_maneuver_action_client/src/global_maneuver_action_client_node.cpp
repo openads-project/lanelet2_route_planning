@@ -10,7 +10,7 @@ GlobalManeuverActionClient::GlobalManeuverActionClient() : Node("global_maneuver
 
 void GlobalManeuverActionClient::sendGoal(geometry_msgs::msg::PointStamped::SharedPtr msg)
 {
-  RCLCPP_INFO(this->get_logger(), "Triggering global maneuver to destination in frame '%s' at position (%.3f, %.3f, %.3f)", msg->header.frame_id.c_str(), msg->point.x, msg->point.y, msg->point.z);
+  RCLCPP_INFO(this->get_logger(), "Triggering global maneuver to destination (%.3f, %.3f, %.3f) in frame '%s'", msg->point.x, msg->point.y, msg->point.z, msg->header.frame_id.c_str());
 
   // check for action server
   if(!this->action_client_->wait_for_action_server()) {

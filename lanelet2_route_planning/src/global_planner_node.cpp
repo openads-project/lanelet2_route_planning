@@ -245,19 +245,14 @@ bool GlobalPlanner::targetPositionSanityCheck(double target_x, double target_y)
   return b_found_target_ll;
 }
 
-bool GlobalPlanner::planRoute(lanelet::ConstLanelet start_ll, lanelet::ConstLanelet target_ll)
+bool GlobalPlanner::planRoute(const lanelet::BasicPoint2d& start_point, const lanelet::BasicPoint2d& target_point, lanelet::ConstLanelet start_ll, lanelet::ConstLanelet target_ll)
 {
   builtin_interfaces::msg::Time start_time = now();
   // Start and end positions
-  lanelet::BasicPoint3d target;
-  target.x()=maneuver_feedback_->destination.position.x;
-  target.y()=maneuver_feedback_->destination.position.y;
-  target.z()=0.0;
-  target = lanelet::geometry::project(target_ll_.centerline(), target);
-  maneuver_feedback_->destination.position.x = target.x();
-  maneuver_feedback_->destination.position.y = target.y();
-  lanelet::BasicPoint2d start_pos = lanelet::BasicPoint2d(ego_pose_.pose.position.x, ego_pose_.pose.position.y);
-  lanelet::BasicPoint2d target_pos = lanelet::BasicPoint2d(target.x(), target.y());
+  lanelet::BasicPoint3d target_point_on_centerline(target_point.x(), target_point.y(), 0.0);
+  target_point_on_centerline = lanelet::geometry::project(target_ll_.centerline(), target_point_on_centerline);
+  lanelet::BasicPoint2d start_pos = start_point;
+  lanelet::BasicPoint2d target_pos(target_point_on_centerline.x(), target_point_on_centerline.y());
 
   // Add small offset to start
   lanelet::ConstLanelet start_ll_offset = start_ll_;
@@ -309,10 +304,11 @@ bool GlobalPlanner::planRoute(lanelet::ConstLanelet start_ll, lanelet::ConstLane
     //Start filling global route
     global_route_.header.frame_id = ll2if_->map_frame_id_;
     global_route_.header.stamp = now();
-    global_route_.target_position.x = target.x();
-    global_route_.target_position.y = target.y();
-    global_route_.target_position.y = target.y();
+    global_route_.target_position.x = target_point_on_centerline.x();
+    global_route_.target_position.y = target_point_on_centerline.y();
+    global_route_.target_position.z = target_point_on_centerline.z();
     global_route_.shortest_path = processLineString(shortest_path_centerline);
+    global_route_.distance_from_start = this->accumulateDistanceAlongPath(global_route_.shortest_path);
 
     // Process boundaries
     start_time = now();
