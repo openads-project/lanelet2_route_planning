@@ -163,8 +163,8 @@ void GlobalPlanner::initializeGlobalPlanner()
     std::bind(&GlobalPlanner::actionHandleAccepted, this, std::placeholders::_1));
     RCLCPP_INFO(get_logger(), "Created 'execute_global_maneuver' action-server!");
 
-    route_pub_ = create_publisher<route_planning_msgs::msg::Route>("~/global/route",1);
-    driveable_space_pub_ = create_publisher<route_planning_msgs::msg::DriveableSpace>("~/global/driveable_space",1);
+    // service server for initial route
+    initial_route_service_server_ = this->create_service<route_planning_msgs::srv::RouteAndDriveableSpace>("~/get_initial_route", std::bind(&GlobalPlanner::initialRouteServiceCallback, this, std::placeholders::_1, std::placeholders::_2));
 
     // local path extraction
     local_route_pub_ = create_publisher<route_planning_msgs::msg::Route>("~/local/route",1);
@@ -198,7 +198,7 @@ bool GlobalPlanner::egoPositionSanityCheck()
       RCLCPP_ERROR(get_logger(), "No Lanelet at current ego-pose!");
       return false;
     }
-    
+
     return true;
   }
 }
@@ -218,7 +218,7 @@ bool GlobalPlanner::targetPositionSanityCheck(double target_x, double target_y)
   {
     if (ll_target.first < 10. && trafficRules_->canPass(ll_target.second))
     {
-        
+
       // Determine start lanelet
       // Get actual Heading
       tf2::Quaternion quat;
@@ -300,7 +300,7 @@ bool GlobalPlanner::planRoute(lanelet::ConstLanelet start_ll, lanelet::ConstLane
   if (!!route_)
   {
     RCLCPP_INFO_STREAM(get_logger(), "Calculated new route! Start Lanelet: " << start_ll_.id() << " | Target Lanelet: " << target_ll_.id());
-    
+
     // Extract shortest path and its boundaries
     lanelet::routing::LaneletPath shortestPath = route_->shortestPath(); // shortestPath = sorted Lanelets
 
@@ -330,10 +330,6 @@ bool GlobalPlanner::planRoute(lanelet::ConstLanelet start_ll, lanelet::ConstLane
 
     // Get regulatory elements along shortest path
 
-    // Publish
-    route_pub_->publish(global_route_);
-    driveable_space_pub_->publish(global_driveable_space_);
-
     return true;
   }
   else
@@ -341,6 +337,17 @@ bool GlobalPlanner::planRoute(lanelet::ConstLanelet start_ll, lanelet::ConstLane
     RCLCPP_ERROR_STREAM(get_logger(), "No routing possibility from Lanelet " << start_ll_.id() << " to Lanelet " << target_ll_.id());
     return false;
   }
+}
+
+void GlobalPlanner::initialRouteServiceCallback(route_planning_msgs::srv::RouteAndDriveableSpace::Request::SharedPtr request,
+                                                route_planning_msgs::srv::RouteAndDriveableSpace::Response::SharedPtr response) {
+
+  (void) request;
+
+  RCLCPP_INFO(this->get_logger(), "Received request for initial route");
+
+  response->route = global_route_;
+  response->driveable_space = global_driveable_space_;
 }
 
 int main(int argc, char ** argv)
