@@ -1,4 +1,4 @@
-#include "global_maneuver_action_client/global_action_client_node.hpp"
+#include "global_maneuver_action_client/global_maneuver_action_client_node.hpp"
 
 namespace global_maneuver_action_client {
 
@@ -28,20 +28,19 @@ void GlobalManeuverActionClient::sendGoal(geometry_msgs::msg::PointStamped::Shar
 
   // build goal
   auto goal = GlobalManeuver::Goal();
-  goal.destination = msg;
+  goal.destination = *msg;
 
   // send goal
   RCLCPP_INFO(this->get_logger(), "Sending goal");
   auto send_goal_options = rclcpp_action::Client<GlobalManeuver>::SendGoalOptions();
-  send_goal_options.goal_response_callback = std::bind(&GlobalManeuverActionClient::goalResponseCallback, this, std::placeholders::_1);
+//  send_goal_options.goal_response_callback = std::bind(&GlobalManeuverActionClient::goalResponseCallback, this, std::placeholders::_1);
   send_goal_options.feedback_callback = std::bind(&GlobalManeuverActionClient::feedbackCallback, this, std::placeholders::_1, std::placeholders::_2);
   send_goal_options.result_callback = std::bind(&GlobalManeuverActionClient::resultCallback, this, std::placeholders::_1);
   goal_handle_future_ = this->action_client_->async_send_goal(goal, send_goal_options);
 }
 
-void GlobalManeuverActionClient::goal_response_callback(std::shared_future<GoalHandleGlobalManeuver>::SharedPtr> future) {
+void GlobalManeuverActionClient::goalResponseCallback(const GoalHandleGlobalManeuver::SharedPtr& goal_handle) {
 
-  auto goal_handle = future->get();
   if (!goal_handle) {
     RCLCPP_ERROR(this->get_logger(), "Goal rejected by server");
   } else {
@@ -49,23 +48,34 @@ void GlobalManeuverActionClient::goal_response_callback(std::shared_future<GoalH
   }
 }
 
-void GlobalManeuverActionClient::feedback_callback(GoalHandleGlobalManeuver::SharedPtr goal_handle, const std::shared_ptr<const GlobalManeuver::Feedback> feedback) {
+void GlobalManeuverActionClient::feedbackCallback(GoalHandleGlobalManeuver::SharedPtr goal_handle, const std::shared_ptr<const GlobalManeuver::Feedback> feedback) {
+
+  (void)goal_handle;
 
   double distance_remaining = feedback->distance_remaining;
   double distance_total = feedback->distance_traveled + distance_remaining;
-  builtin_interfaces::msg::Duration time_remaining = feedback->time_remaining;
-  builtin_interfaces::msg::Duration time_total = feedback->time_traveled + time_remaining;
-  RCLCPP_INFO(this->get_logger(), "Progress towards destination: %.2f / %.2f m, %d / %d s", distance_remaining, distance_total, time_remaining.sec, time_total.sec);
+  rclcpp::Duration rcl_time_traveled(feedback->time_traveled.sec, feedback->time_traveled.nanosec);
+  rclcpp::Duration rcl_time_remaining(feedback->time_remaining.sec, feedback->time_remaining.nanosec);
+  rclcpp::Duration rcl_time_total = rcl_time_traveled + rcl_time_remaining;
+  RCLCPP_INFO(this->get_logger(), "Progress towards destination: %.2f / %.2f m, %.1f / %.1f s", distance_remaining, distance_total, rcl_time_traveled.seconds(), rcl_time_total.seconds());
 }
 
-void GlobalManeuverActionClient::result_callback(const GoalHandleGlobalManeuver::WrappedResult& result) {
+void GlobalManeuverActionClient::resultCallback(const GoalHandleGlobalManeuver::WrappedResult& result) {
 
-  double distance_traveled = result.result->distance_traveled;
-  builtin_interfaces::msg::Duration time_traveled = result.result->time_traveled;
-  if (feedback->destination_reached) {
-    RCLCPP_INFO(this->get_logger(), "Destination reached after %.2fm and %.2fs", distance_traveled, time_traveled.sec);
+  if (result.code == rclcpp_action::ResultCode::SUCCEEDED) {
+    double distance_traveled = result.result->distance_traveled;
+    builtin_interfaces::msg::Duration time_traveled = result.result->time_traveled;
+    if (result.result->destination_reached) {
+      RCLCPP_INFO(this->get_logger(), "Goal succeeded: destination reached after %.2fm and %ds", distance_traveled, time_traveled.sec);
+    } else {
+      RCLCPP_WARN(this->get_logger(), "Goal succeeded, but destination not reached after %.2fm and %ds", distance_traveled, time_traveled.sec);
+    }
+  } else if (result.code == rclcpp_action::ResultCode::CANCELED) {
+    RCLCPP_WARN(this->get_logger(), "Goal was canceled");
+  } else if (result.code == rclcpp_action::ResultCode::ABORTED) {
+    RCLCPP_ERROR(this->get_logger(), "Goal was aborted");
   } else {
-    RCLCPP_WARN(this->get_logger(), "Action finished, but destination not reached after %.2fm and %ds", distance_traveled, time_traveled.sec);
+    RCLCPP_ERROR(this->get_logger(), "Goal finished with unknown result code");
   }
 }
 
@@ -74,8 +84,8 @@ void GlobalManeuverActionClient::result_callback(const GoalHandleGlobalManeuver:
 int main(int argc, char ** argv)
 {
   rclcpp::init(argc, argv);
-  auto planner = std::make_shared<GlobalManeuverActionClient>();
-  rclcpp::spin(planner);
+  auto node = std::make_shared<global_maneuver_action_client::GlobalManeuverActionClient>();
+  rclcpp::spin(node);
   rclcpp::shutdown();
   return 0;
 }
