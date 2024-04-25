@@ -1,3 +1,5 @@
 - was ist mit global/drivable_space? -> nicht mehr publishen
 - simplify launch
 - rviz colors for remaining/traveled
+- global route: kann die offset_behind? traveled aktuell immer 0?
+- global route: kann die offset_ahead? wichtig beim erkennen der destination / und bei total_distance für action feedback
