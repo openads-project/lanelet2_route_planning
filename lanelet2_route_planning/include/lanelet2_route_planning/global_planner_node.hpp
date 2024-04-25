@@ -84,6 +84,9 @@ class GlobalPlanner : public rclcpp::Node
         double target_reached_thr_ = 1.0; // m
         bool require_standstill_ = false;
 
+        double offset_behind_distance_ = 0.0;
+        double offset_ahead_distance_ = 0.0;
+
 
         Optional<lanelet::routing::Route> route_;
 

@@ -98,6 +98,26 @@ void GlobalPlanner::loadParameters() {
     RCLCPP_WARN_STREAM(this->get_logger(), "Parameter \'vel_threshold_target\' is not set, using default value: "+std::to_string(vel_threshold_target_));
   }
 
+  this->declare_parameter("offset_behind_distance", rclcpp::ParameterType::PARAMETER_DOUBLE);
+  try {
+    offset_behind_distance_ = this->get_parameter("offset_behind_distance").as_double();
+    RCLCPP_INFO_STREAM(this->get_logger(), "Parameter \'offset_behind_distance\' set to: "+std::to_string(offset_behind_distance_));
+  } catch (rclcpp::exceptions::InvalidParameterTypeException&) {
+    RCLCPP_WARN_STREAM(this->get_logger(), "Parameter \'offset_behind_distance\' is not set correctly, using default value: "+std::to_string(offset_behind_distance_));
+  } catch (rclcpp::exceptions::ParameterUninitializedException&) {
+    RCLCPP_WARN_STREAM(this->get_logger(), "Parameter \'offset_behind_distance\' is not set, using default value: "+std::to_string(offset_behind_distance_));
+  }
+
+  this->declare_parameter("offset_ahead_distance", rclcpp::ParameterType::PARAMETER_DOUBLE);
+  try {
+    offset_ahead_distance_ = this->get_parameter("offset_ahead_distance").as_double();
+    RCLCPP_INFO_STREAM(this->get_logger(), "Parameter \'offset_ahead_distance\' set to: "+std::to_string(offset_ahead_distance_));
+  } catch (rclcpp::exceptions::InvalidParameterTypeException&) {
+    RCLCPP_WARN_STREAM(this->get_logger(), "Parameter \'offset_ahead_distance\' is not set correctly, using default value: "+std::to_string(offset_ahead_distance_));
+  } catch (rclcpp::exceptions::ParameterUninitializedException&) {
+    RCLCPP_WARN_STREAM(this->get_logger(), "Parameter \'offset_ahead_distance\' is not set, using default value: "+std::to_string(offset_ahead_distance_));
+  }
+
   // Local Path Extraction
   this->declare_parameter("local_path_extraction_rate", rclcpp::ParameterType::PARAMETER_DOUBLE);
   try {
@@ -257,7 +277,7 @@ bool GlobalPlanner::planRoute(const lanelet::BasicPoint2d& start_point, const la
   // Add small offset to start
   lanelet::ConstLanelet start_ll_offset = start_ll_;
   lanelet::ConstLanelet target_ll_offset = target_ll_;
-  double remaining = lanelet::geometry::toArcCoordinates(start_ll_offset.centerline2d(), start_pos).length - 10.;
+  double remaining = lanelet::geometry::toArcCoordinates(start_ll_offset.centerline2d(), start_pos).length - offset_behind_distance_;
   while (remaining < 0.)
   {
     lanelet::ConstLanelets prevs = routingGraph_->previous(start_ll_offset);
@@ -273,7 +293,7 @@ bool GlobalPlanner::planRoute(const lanelet::BasicPoint2d& start_point, const la
 
   // Add small offset to end (so drivable space does not end directly at target)
   double len_target_ll = lanelet::geometry::length(target_ll_offset.centerline2d());
-  remaining = len_target_ll - (lanelet::geometry::toArcCoordinates(target_ll_offset.centerline2d(), target_pos).length + 20.);
+  remaining = len_target_ll - (lanelet::geometry::toArcCoordinates(target_ll_offset.centerline2d(), target_pos).length + offset_ahead_distance_);
   while (remaining < 0.)
   {
     lanelet::ConstLanelets following_lls = routingGraph_->following(target_ll_offset, false);

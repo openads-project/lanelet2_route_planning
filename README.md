@@ -63,10 +63,12 @@ It has the following functionalities:
 | `target_reached_thr` | `double` | Distance to the target-position to reach the destination [m] |
 | `require_standstill` | `bool` |Bool indicating if it's necessary for the vehicle to stand still at the target-position |
 | `vel_threshold_target` | `double` | Velocity threshold to define if the target is reached if `require_standstill` is true [m/s] |
+| `offset_behind_distance` | `double` | distance behind current position where the route should start [m] |
+| `offset_ahead_distance` | `double` | distance ahead of target position where the route should end [m] |
 | `local_path_extraction_rate` | `double` | Rate to extract and publish the local path / route / driveable space [Hz] |
-| `look_ahead_time` | `double` | Look ahead time for extracting the local path [s] |
-| `look_ahead_distance_min` | `double` | Minimum Look-Ahead distance for the local path extraction [m] |
-| `look_behind_distance` | `double` | Look-Behind distance for the local path extraction [m] |
+| `look_ahead_time` | `double` | Look ahead time for extracting the local path [s]; limited by offset_ahead_distance |
+| `look_ahead_distance_min` | `double` | Minimum Look-Ahead distance for the local path extraction [m]; limited by offset_ahead_distance |
+| `look_behind_distance` | `double` | Look-Behind distance for the local path extraction [m]; limited by offset_behind_distance |
 
 ### global_maneuver_action_client/global_maneuver_action_client
 
