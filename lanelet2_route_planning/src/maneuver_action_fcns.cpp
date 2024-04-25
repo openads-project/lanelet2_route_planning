@@ -124,40 +124,52 @@ void GlobalPlanner::actionExecute(
     // To-Do: add subscriber for actual vehicle velocity and check for standstill if require_standstill parameter is set!
     if(egoPositionSanityCheck())
     {
+
+      // check if destination is reached -> goal succeeded
       double velocity = perception_msgs::object_access::getVelLon(ego_data_);
-      if (geometry::distance(lanelet::BasicPoint2d(global_route_.remaining_route.back().x, global_route_.remaining_route.back().y), lanelet::BasicPoint2d(ego_pose_.pose.position.x, ego_pose_.pose.position.y)) < target_reached_thr_ && (std::fabs(velocity) < vel_threshold_target_ || !require_standstill_))
+      if (geometry::distance(lanelet::BasicPoint2d(global_route_.destination.x, global_route_.destination.y), lanelet::BasicPoint2d(ego_pose_.pose.position.x, ego_pose_.pose.position.y)) < target_reached_thr_ && (std::fabs(velocity) < vel_threshold_target_ || !require_standstill_))
       {
         RCLCPP_INFO(get_logger(),"Destination reached!");
         maneuver_result_->destination_reached = true;
         maneuver_result_->distance_traveled = global_route_.remaining_route.back().z;
         maneuver_result_->time_traveled = this->now() - maneuver_start_time_;
-        // Check if goal is done
-        if (rclcpp::ok()) {
-          goal_handle->succeed(maneuver_result_);
-        }
+        goal_handle->succeed(maneuver_result_);
+        return;
       }
+
       // Extract local section of driveable space and route
       route_planning_msgs::msg::DriveableSpace driveable_space_local;
       route_planning_msgs::msg::Route route_local;
       rclcpp::Clock wall_clock(RCL_SYSTEM_TIME);
       rclcpp::Time map_extraction_t0 = wall_clock.now();
       extractLocalMapInfo(ego_pose_, global_driveable_space_, driveable_space_local, global_route_, route_local);
-      rclcpp::Duration map_extraction_duration = wall_clock.now() - map_extraction_t0; 
+      rclcpp::Duration map_extraction_duration = wall_clock.now() - map_extraction_t0;
       RCLCPP_INFO(this->get_logger(), "Local path extraction took %.3f ms", map_extraction_duration.nanoseconds() / 1e6);
+
+      // check if route has been completed without reaching destination -> abort goal
+      if (route_local.remaining_route.size() <= 1)
+      {
+        RCLCPP_ERROR(this->get_logger(), "Route completed without reaching destination");
+        maneuver_result_->destination_reached = false;
+        maneuver_result_->distance_traveled = route_local.traveled_route.back().z;
+        maneuver_result_->time_traveled = this->now() - maneuver_start_time_;
+        goal_handle->abort(maneuver_result_);
+        return;
+      }
 
       // update feedback
       double distance_traveled_to_last_path_point = 0.0;
       double distance_last_path_point_to_ego = 0.0;
       if (!route_local.traveled_route.empty()) {
         distance_traveled_to_last_path_point = route_local.traveled_route.back().z;
-        distance_last_path_point_to_ego = std::sqrt(std::pow(ego_pose_.pose.position.x - route_local.traveled_route.back().x, 2) + std::pow(ego_pose_.pose.position.y - route_local.traveled_route.back().y, 2));
+        distance_last_path_point_to_ego = std::sqrt(std::pow(route_local.traveled_route.back().x, 2) + std::pow(route_local.traveled_route.back().y, 2));
       }
       maneuver_feedback_->distance_traveled = distance_traveled_to_last_path_point + distance_last_path_point_to_ego;
       maneuver_feedback_->time_traveled = this->now() - maneuver_start_time_;
       maneuver_feedback_->distance_remaining = 0.0;
       maneuver_feedback_->time_remaining = rclcpp::Duration::from_seconds(0.0);
       if (!route_local.remaining_route.empty()) {
-        maneuver_feedback_->distance_remaining = route_local.remaining_route.back().z - maneuver_feedback_->distance_traveled;
+        maneuver_feedback_->distance_remaining = route_local.remaining_route.back().z - maneuver_feedback_->distance_traveled; // TODO: will be wrong if offset_ahead_distance > 0
         maneuver_feedback_->time_remaining = rclcpp::Duration::from_seconds(maneuver_feedback_->distance_remaining / (route_local.current_speed_limit / 3.6)); // TODO: improve estimate by accumulating with speed limits over path
       }
 
