@@ -4,13 +4,13 @@ namespace global_maneuver_action_client {
 
 GlobalManeuverActionClient::GlobalManeuverActionClient() : Node("global_maneuver_action_client")
 {
-  subscriber_ = create_subscription<geometry_msgs::msg::PointStamped>("/clicked_point", 1, std::bind(&GlobalManeuverActionClient::sendGoal, this, std::placeholders::_1));
+  subscriber_ = create_subscription<geometry_msgs::msg::PoseStamped>("/goal_pose", 1, std::bind(&GlobalManeuverActionClient::sendGoal, this, std::placeholders::_1));
   action_client_ = rclcpp_action::create_client<GlobalManeuver>(this, "ll2_route_planning/execute_global_maneuver");
 }
 
-void GlobalManeuverActionClient::sendGoal(geometry_msgs::msg::PointStamped::SharedPtr msg)
+void GlobalManeuverActionClient::sendGoal(geometry_msgs::msg::PoseStamped::SharedPtr msg)
 {
-  RCLCPP_INFO(this->get_logger(), "Triggering global maneuver to destination (%.3f, %.3f, %.3f) in frame '%s'", msg->point.x, msg->point.y, msg->point.z, msg->header.frame_id.c_str());
+  RCLCPP_INFO(this->get_logger(), "Triggering global maneuver to destination (%.3f, %.3f, %.3f) in frame '%s'", msg->pose.position.x, msg->pose.position.y, msg->pose.position.z, msg->header.frame_id.c_str());
 
   // check for action server
   if(!this->action_client_->wait_for_action_server()) {
@@ -28,7 +28,9 @@ void GlobalManeuverActionClient::sendGoal(geometry_msgs::msg::PointStamped::Shar
 
   // build goal
   auto goal = GlobalManeuver::Goal();
-  goal.destination = *msg;
+  goal.destination = geometry_msgs::msg::PointStamped();
+  goal.destination.header = msg->header;
+  goal.destination.point = msg->pose.position;
 
   // send goal
   RCLCPP_INFO(this->get_logger(), "Sending goal");

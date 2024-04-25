@@ -1,7 +1,7 @@
 # Lanelet2 Route Planning
 
 
-The [`lanelet2_route_planning`](.) contains two C++ nodes: [`global_planner_node`](lanelet2_route_planning/src/global_planner_node.cpp) and  [`global_maneuver_action_client`](global_maneuver_action_client/src/global_maneuver_action_client_node.cpp) for route planning based on the Lanelet2 framework. While the global_planner ist responsible for the planning task, the global_maneuver_action_client node, converts a stamped point (e.g. through RViz's *Publish Point*) to a maneuver action request.
+The [`lanelet2_route_planning`](.) contains two C++ nodes: [`global_planner_node`](lanelet2_route_planning/src/global_planner_node.cpp) and  [`global_maneuver_action_client`](global_maneuver_action_client/src/global_maneuver_action_client_node.cpp) for route planning based on the Lanelet2 framework. While the global_planner ist responsible for the planning task, the global_maneuver_action_client node, converts a stamped point (e.g. through RViz's *2D Goal Pose*) to a maneuver action request.
 
 It has the following functionalities:
 
@@ -74,7 +74,7 @@ It has the following functionalities:
 
 | Topic | Type | Description |
 | --- | --- | --- |
-| `/clicked_point` | `geometry_msgs/msg/PointStamped` | destination for global maneuver; supports RViz's *Publish Point* functionality |
+| `/goal_pose` | `geometry_msgs/msg/PoseStamped` | destination position for global maneuver; supports RViz's *2D Goal Pose* functionality |
 
 #### Published Topics
 

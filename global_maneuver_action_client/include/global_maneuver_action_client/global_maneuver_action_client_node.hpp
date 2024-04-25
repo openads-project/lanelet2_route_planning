@@ -15,7 +15,7 @@ class GlobalManeuverActionClient : public rclcpp::Node
         GlobalManeuverActionClient();
 
     private:
-        void sendGoal(geometry_msgs::msg::PointStamped::SharedPtr msg);
+        void sendGoal(geometry_msgs::msg::PoseStamped::SharedPtr msg);
 
         // action callbacks
         void goalResponseCallback(const GoalHandleGlobalManeuver::SharedPtr& goal_handle);
@@ -23,7 +23,7 @@ class GlobalManeuverActionClient : public rclcpp::Node
         void resultCallback(const GoalHandleGlobalManeuver::WrappedResult& result);
 
     private:
-        rclcpp::Subscription<geometry_msgs::msg::PointStamped>::SharedPtr subscriber_;
+        rclcpp::Subscription<geometry_msgs::msg::PoseStamped>::SharedPtr subscriber_;
 
         // action client
         rclcpp_action::Client<GlobalManeuver>::SharedPtr action_client_;
