@@ -54,12 +54,12 @@ void GlobalManeuverActionClient::feedbackCallback(GoalHandleGlobalManeuver::Shar
 
   (void)goal_handle;
 
-  double distance_remaining = feedback->distance_remaining;
-  double distance_total = feedback->distance_traveled + distance_remaining;
+  double distance_traveled = feedback->distance_traveled;
+  double distance_total = feedback->distance_remaining + feedback->distance_traveled;
   rclcpp::Duration rcl_time_traveled(feedback->time_traveled.sec, feedback->time_traveled.nanosec);
   rclcpp::Duration rcl_time_remaining(feedback->time_remaining.sec, feedback->time_remaining.nanosec);
   rclcpp::Duration rcl_time_total = rcl_time_traveled + rcl_time_remaining;
-  RCLCPP_INFO(this->get_logger(), "Progress towards destination: %.2f / %.2f m, %.1f / %.1f s", distance_remaining, distance_total, rcl_time_traveled.seconds(), rcl_time_total.seconds());
+  RCLCPP_INFO(this->get_logger(), "Progress towards destination: %.2f / %.2f m, %.1f / %.1f s", distance_traveled, distance_total, rcl_time_traveled.seconds(), rcl_time_total.seconds());
 }
 
 void GlobalManeuverActionClient::resultCallback(const GoalHandleGlobalManeuver::WrappedResult& result) {
