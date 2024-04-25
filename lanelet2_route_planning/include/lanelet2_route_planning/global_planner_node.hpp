@@ -134,7 +134,7 @@ class GlobalPlanner : public rclcpp::Node
                                 const route_planning_msgs::msg::Route& route_global,
                                 route_planning_msgs::msg::Route& route_local);
         double accumulatedLength(const std::vector<geometry_msgs::msg::Point>& point_list, std::vector<double>& accumulated_length);
-        double distance(const geometry_msgs::msg::Point& p1, const geometry_msgs::msg::Point& p2);
+        double distance(const geometry_msgs::msg::Point& p1, const geometry_msgs::msg::Point& p2, const bool ignore_z = true);
         unsigned int findNearestSample(const geometry_msgs::msg::Point& ref_point, const std::vector<geometry_msgs::msg::Point>& point_list, const unsigned int& start_index=0);
         unsigned int findNearestSampleReverse(const geometry_msgs::msg::Point& ref_point, const std::vector<geometry_msgs::msg::Point>& point_list);
 
@@ -157,7 +157,7 @@ class GlobalPlanner : public rclcpp::Node
         void mapPoseCallback(perception_msgs::msg::EgoData::SharedPtr msg);
 
         // utils.cpp
-        std::vector<double> accumulateDistanceAlongPath(const std::vector<geometry_msgs::msg::Point>& path);
+        void accumulateDistanceAlong2DPath(std::vector<geometry_msgs::msg::Point>& path, const double initial_distance = 0.0);
         std::vector<geometry_msgs::msg::Point> processLineString(lanelet::BasicLineString2d& line_string);
         route_planning_msgs::msg::DriveableSpace sampleDriveableSpace(const lanelet::BasicLineString2d &centerline);
         std::vector<geometry_msgs::msg::Point> sampleLinestring(

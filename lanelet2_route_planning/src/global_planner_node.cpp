@@ -184,8 +184,8 @@ void GlobalPlanner::initializeGlobalPlanner()
     RCLCPP_INFO(get_logger(), "Created 'execute_global_maneuver' action-server!");
 
     // local path extraction
-    local_route_pub_ = create_publisher<route_planning_msgs::msg::Route>("~/local/route",1);
-    local_driveable_space_pub_ = create_publisher<route_planning_msgs::msg::DriveableSpace>("~/local/driveable_space",1);
+    local_route_pub_ = create_publisher<route_planning_msgs::msg::Route>("~/route",1);
+    local_driveable_space_pub_ = create_publisher<route_planning_msgs::msg::DriveableSpace>("~/driveable_space",1);
 
     startup_timer_->cancel();
   }
@@ -321,11 +321,12 @@ bool GlobalPlanner::planRoute(const lanelet::BasicPoint2d& start_point, const la
     //Start filling global route
     global_route_.header.frame_id = ll2if_->map_frame_id_;
     global_route_.header.stamp = now();
-    global_route_.target_position.x = target_point_on_centerline.x();
-    global_route_.target_position.y = target_point_on_centerline.y();
-    global_route_.target_position.z = target_point_on_centerline.z();
-    global_route_.shortest_path = processLineString(shortest_path_centerline);
-    global_route_.distance_from_start = this->accumulateDistanceAlongPath(global_route_.shortest_path);
+    global_route_.destination.x = target_point_on_centerline.x();
+    global_route_.destination.y = target_point_on_centerline.y();
+    global_route_.destination.z = target_point_on_centerline.z();
+    global_route_.traveled_route = {};
+    global_route_.remaining_route = processLineString(shortest_path_centerline);
+    this->accumulateDistanceAlong2DPath(global_route_.remaining_route);
 
     // Process boundaries
     start_time = now();

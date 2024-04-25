@@ -1,0 +1,3 @@
+- was ist mit global/drivable_space? -> nicht mehr publishen
+- simplify launch
+- rviz colors for remaining/traveled

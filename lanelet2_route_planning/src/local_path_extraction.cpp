@@ -14,7 +14,7 @@
             lahead_sample_drivspace_right_ = 0;
 
             // Get the shortest-path-centerline sample of the target position
-            target_sample_cl_ = findNearestSampleReverse(route_global.target_position, route_global.shortest_path);
+            target_sample_cl_ = findNearestSampleReverse(route_global.destination, route_global.remaining_route);
 
         }
 
@@ -25,6 +25,15 @@
                                 route_planning_msgs::msg::Route& route_local)
         {
             rclcpp::Time stamp_time = now();
+
+            // create temporary local route to fill in this function
+            // local route = full route with local boundaries, lanes, regulatory elements, ...
+            route_planning_msgs::msg::Route route_local_tmp;
+            route_local_tmp.header.stamp = stamp_time;
+            route_local_tmp.destination = route_global.destination;
+            route_local_tmp.header.frame_id = ll2if_->map_frame_id_; // currently it's map --> will be changed through transform function
+            route_local_tmp.traveled_route = {route_global.remaining_route.begin(), route_global.remaining_route.begin() + ego_pos_sample_cl_};
+            route_local_tmp.remaining_route = {route_global.remaining_route.begin() + ego_pos_sample_cl_, route_global.remaining_route.end()};
 
             // Determine current lanelet
             // Get actual Heading
@@ -38,12 +47,12 @@
             lanelet::ConstLanelet current_ego_ll = nearestLanelets.at(0).second; // most probable current Lanelet
 
             // Find sample of shortest path centerline correspondint to the current ego-position
-            ego_pos_sample_cl_ = findNearestSample(cur_pose.pose.position, route_global.shortest_path, ego_pos_sample_cl_);
+            ego_pos_sample_cl_ = findNearestSample(cur_pose.pose.position, route_global.remaining_route, ego_pos_sample_cl_);
             if(ego_pos_sample_cl_>=target_sample_cl_)
             {
                 return;
             }
-            remaining_shortest_path_ = {route_global.shortest_path.begin() + ego_pos_sample_cl_, route_global.shortest_path.begin() + target_sample_cl_};
+            remaining_shortest_path_ = {route_global.remaining_route.begin() + ego_pos_sample_cl_, route_global.remaining_route.begin() + target_sample_cl_};
             std::vector<double> sp_accumulated_length_vec;
             double sp_length = accumulatedLength(remaining_shortest_path_, sp_accumulated_length_vec);
             // Get the start and end sample of the local shortest path with respect to look-ahead/behind distance
@@ -61,11 +70,11 @@
             }
 
             // Find the look-behind sample
-            unsigned int look_behind_sample;
-            double accum_length=0.0;
+            unsigned int look_behind_sample = 0;
+            double accum_length = 0.0;
             for(size_t i=ego_pos_sample_cl_; i>0; i--)
             {
-                accum_length+=distance(route_global.shortest_path[i],route_global.shortest_path[i-1]);
+                accum_length+=distance(route_global.remaining_route[i],route_global.remaining_route[i-1]);
                 look_behind_sample=i;
                 if(accum_length>=look_behind_distance_)
                 {
@@ -74,27 +83,23 @@
             }
 
             // Now we can extract the local-section of the route
-            route_planning_msgs::msg::Route temp_route;
-            temp_route.header.stamp = stamp_time;
-            temp_route.target_position = route_global.target_position;
-            temp_route.header.frame_id = ll2if_->map_frame_id_; // currently it's map --> will be changed through transform function
-            temp_route.shortest_path = {route_global.shortest_path.begin() + look_behind_sample, route_global.shortest_path.begin() + look_ahead_sample};
-            temp_route.distance_from_start = {route_global.distance_from_start.begin() + look_behind_sample, route_global.distance_from_start.begin() + look_ahead_sample};
+            std::vector<geometry_msgs::msg::Point> local_route_local_path;
+            local_route_local_path = {route_global.remaining_route.begin() + look_behind_sample, route_global.remaining_route.begin() + look_ahead_sample};
 
             // Find nearest Boundary-Sample for left and right boundary at look-ahead and look-behind point
-            lbehind_sample_rbound_left_ = findNearestSample(temp_route.shortest_path.front(), route_global.boundaries.left, lbehind_sample_rbound_left_);
-            lbehind_sample_rbound_right_ = findNearestSample(temp_route.shortest_path.front(), route_global.boundaries.right, lbehind_sample_rbound_right_);
-            lahead_sample_rbound_left_ = findNearestSample(temp_route.shortest_path.back(), route_global.boundaries.left, lahead_sample_rbound_left_);
-            lahead_sample_rbound_right_ = findNearestSample(temp_route.shortest_path.back(), route_global.boundaries.right, lahead_sample_rbound_right_);
-            temp_route.boundaries.left = {route_global.boundaries.left.begin() + lbehind_sample_rbound_left_, route_global.boundaries.left.begin() + lahead_sample_rbound_left_};
-            temp_route.boundaries.right = {route_global.boundaries.right.begin() + lbehind_sample_rbound_right_, route_global.boundaries.right.begin() + lahead_sample_rbound_right_};
+            lbehind_sample_rbound_left_ = findNearestSample(local_route_local_path.front(), route_global.boundaries.left, lbehind_sample_rbound_left_);
+            lbehind_sample_rbound_right_ = findNearestSample(local_route_local_path.front(), route_global.boundaries.right, lbehind_sample_rbound_right_);
+            lahead_sample_rbound_left_ = findNearestSample(local_route_local_path.back(), route_global.boundaries.left, lahead_sample_rbound_left_);
+            lahead_sample_rbound_right_ = findNearestSample(local_route_local_path.back(), route_global.boundaries.right, lahead_sample_rbound_right_);
+            route_local_tmp.boundaries.left = {route_global.boundaries.left.begin() + lbehind_sample_rbound_left_, route_global.boundaries.left.begin() + lahead_sample_rbound_left_};
+            route_local_tmp.boundaries.right = {route_global.boundaries.right.begin() + lbehind_sample_rbound_right_, route_global.boundaries.right.begin() + lahead_sample_rbound_right_};
 
             // Now extract the local driveable space
             // Find nearest Boundary-Sample for left and right boundary at look-ahead and look-behind point
-            lbehind_sample_drivspace_left_ = findNearestSample(temp_route.shortest_path.front(), driveable_space_global.boundaries.left, lbehind_sample_drivspace_left_);
-            lbehind_sample_drivspace_right_ = findNearestSample(temp_route.shortest_path.front(), driveable_space_global.boundaries.right, lbehind_sample_drivspace_right_);
-            lahead_sample_drivspace_left_ = findNearestSample(temp_route.shortest_path.back(), driveable_space_global.boundaries.left, lahead_sample_drivspace_left_);
-            lahead_sample_drivspace_right_ = findNearestSample(temp_route.shortest_path.back(), driveable_space_global.boundaries.right, lahead_sample_drivspace_right_);
+            lbehind_sample_drivspace_left_ = findNearestSample(local_route_local_path.front(), driveable_space_global.boundaries.left, lbehind_sample_drivspace_left_);
+            lbehind_sample_drivspace_right_ = findNearestSample(local_route_local_path.front(), driveable_space_global.boundaries.right, lbehind_sample_drivspace_right_);
+            lahead_sample_drivspace_left_ = findNearestSample(local_route_local_path.back(), driveable_space_global.boundaries.left, lahead_sample_drivspace_left_);
+            lahead_sample_drivspace_right_ = findNearestSample(local_route_local_path.back(), driveable_space_global.boundaries.right, lahead_sample_drivspace_right_);
 
             // To-Do: Extract restricting areas
             // ...
@@ -157,7 +162,7 @@
                 lane.centerline = Lanelet2Utilities::convertLaneletLine2Linestring(cur_ll.centerline().basicLineString());
                 lane.left = deriveLaneSeparator(cur_ll.leftBound());
                 lane.right = deriveLaneSeparator(cur_ll.rightBound());
-                temp_route.lanes.push_back(lane);
+                route_local_tmp.lanes.push_back(lane);
             }
 
             // Find all Regulatory Elements within AoI
@@ -209,17 +214,17 @@
                     }
                 }
                 // Add to route
-                temp_route.regulatory_elements.push_back(regelem);
+                route_local_tmp.regulatory_elements.push_back(regelem);
             }
 
             // Get the current speed limit
-            temp_route.current_speed_limit = std::round(lanelet::units::KmHQuantity(trafficRules_->speedLimit(current_ego_ll).speedLimit).value());
+            route_local_tmp.current_speed_limit = std::round(lanelet::units::KmHQuantity(trafficRules_->speedLimit(current_ego_ll).speedLimit).value());
 
             // Now transform the route- and driveable-space-object
             geometry_msgs::msg::TransformStamped tf;
             try {
                 tf = tf_buffer_->lookupTransform(local_vehicle_frame_id_, ll2if_->map_frame_id_, tf2::TimePointZero);
-                tf2::doTransform(temp_route, route_local, tf);
+                tf2::doTransform(route_local_tmp, route_local, tf);
                 tf2::doTransform(temp_ds, driveable_space_local, tf);
                 local_route_pub_->publish(route_local);
                 local_driveable_space_pub_->publish(driveable_space_local);
@@ -241,11 +246,13 @@
             return length;
         }
 
-        double GlobalPlanner::distance(const geometry_msgs::msg::Point& p1, const geometry_msgs::msg::Point& p2)
+        double GlobalPlanner::distance(const geometry_msgs::msg::Point& p1, const geometry_msgs::msg::Point& p2, const bool ignore_z)
         {
-            return std::sqrt(std::pow(p1.x - p2.x, 2) +
-                            std::pow(p1.y - p2.y, 2) +
-                            std::pow(p1.z - p2.z, 2));
+            if (ignore_z) {
+                return std::sqrt(std::pow(p1.x - p2.x, 2) + std::pow(p1.y - p2.y, 2));
+            } else {
+                return std::sqrt(std::pow(p1.x - p2.x, 2) + std::pow(p1.y - p2.y, 2) + std::pow(p1.z - p2.z, 2));
+            }
         }
 
         unsigned int GlobalPlanner::findNearestSample(const geometry_msgs::msg::Point& ref_point, const std::vector<geometry_msgs::msg::Point>& point_list, const unsigned int& start_index)
