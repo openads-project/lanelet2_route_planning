@@ -39,12 +39,6 @@ It has the following functionalities:
 | `~/local/driveable_space` | `route_planning_msgs/msg/DriveableSpace` | Publish a `route_planning_msgs::msg::DriveableSpace` in the local vehicle frame (`base_link`) and environment with a frequency defined by the parameter `local_path_extraction_rate` |
 | `~/local/route` | `route_planning_msgs/msg/Route` | Publish a `route_planning_msgs::msg::Route` in the local vehicle frame (`base_link`) and environment with a frequency defined by the parameter `local_path_extraction_rate` |
 
-#### Services
-
-| Service | Type | Description |
-| --- | --- | --- |
-| `~/get_initial_route` | `route_planning_msgs/srv/RouteAndDriveableSpace` | get initial/global route and driveable space |
-
 #### Actions
 
 | Action | Type | Description |

@@ -183,9 +183,6 @@ void GlobalPlanner::initializeGlobalPlanner()
     std::bind(&GlobalPlanner::actionHandleAccepted, this, std::placeholders::_1));
     RCLCPP_INFO(get_logger(), "Created 'execute_global_maneuver' action-server!");
 
-    // service server for initial route
-    initial_route_service_server_ = this->create_service<route_planning_msgs::srv::RouteAndDriveableSpace>("~/get_initial_route", std::bind(&GlobalPlanner::initialRouteServiceCallback, this, std::placeholders::_1, std::placeholders::_2));
-
     // local path extraction
     local_route_pub_ = create_publisher<route_planning_msgs::msg::Route>("~/local/route",1);
     local_driveable_space_pub_ = create_publisher<route_planning_msgs::msg::DriveableSpace>("~/local/driveable_space",1);
@@ -355,16 +352,6 @@ bool GlobalPlanner::planRoute(const lanelet::BasicPoint2d& start_point, const la
   }
 }
 
-void GlobalPlanner::initialRouteServiceCallback(route_planning_msgs::srv::RouteAndDriveableSpace::Request::SharedPtr request,
-                                                route_planning_msgs::srv::RouteAndDriveableSpace::Response::SharedPtr response) {
-
-  (void) request;
-
-  RCLCPP_INFO(this->get_logger(), "Received request for initial route");
-
-  response->route = global_route_;
-  response->driveable_space = global_driveable_space_;
-}
 
 int main(int argc, char ** argv)
 {

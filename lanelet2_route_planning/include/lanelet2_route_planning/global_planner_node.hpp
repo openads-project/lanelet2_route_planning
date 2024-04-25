@@ -14,8 +14,6 @@
 #include "route_planning_msgs/action/global_maneuver.hpp"
 #include "lanelet2_utilities/lanelet2_utils.hpp"
 
-#include "route_planning_msgs/srv/route_and_driveable_space.hpp"
-
 #include "route_planning_msgs/msg/boundaries.hpp"
 #include "route_planning_msgs/msg/driveable_space.hpp"
 #include "route_planning_msgs/msg/regulatory_element.hpp"
@@ -120,9 +118,6 @@ class GlobalPlanner : public rclcpp::Node
         route_planning_msgs::action::GlobalManeuver::Feedback::SharedPtr maneuver_feedback_;
         route_planning_msgs::action::GlobalManeuver::Result::SharedPtr maneuver_result_;
 
-        // service server for initial route
-        rclcpp::Service<route_planning_msgs::srv::RouteAndDriveableSpace>::SharedPtr initial_route_service_server_;
-
         // Function Definitions
         // global_planner_node.cpp
         void initializeGlobalPlanner();
@@ -157,10 +152,6 @@ class GlobalPlanner : public rclcpp::Node
 
         void actionExecute(
             const std::shared_ptr<rclcpp_action::ServerGoalHandle<route_planning_msgs::action::GlobalManeuver>> goal_handle);
-
-        // initial route service callback
-        void initialRouteServiceCallback(route_planning_msgs::srv::RouteAndDriveableSpace::Request::SharedPtr request,
-                                         route_planning_msgs::srv::RouteAndDriveableSpace::Response::SharedPtr response);
 
         // callbacks.cpp
         void mapPoseCallback(perception_msgs::msg::EgoData::SharedPtr msg);
