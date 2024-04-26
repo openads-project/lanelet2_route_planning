@@ -130,6 +130,7 @@ void GlobalPlanner::actionExecute(
       if (geometry::distance(lanelet::BasicPoint2d(global_route_.destination.x, global_route_.destination.y), lanelet::BasicPoint2d(ego_pose_.pose.position.x, ego_pose_.pose.position.y)) < target_reached_thr_ && (std::fabs(velocity) < vel_threshold_target_ || !require_standstill_))
       {
         RCLCPP_INFO(get_logger(),"Destination reached!");
+        publishEmptyRoute();
         maneuver_result_->destination_reached = true;
         maneuver_result_->distance_traveled = global_route_.remaining_route.back().z;
         maneuver_result_->time_traveled = this->now() - maneuver_start_time_;
@@ -150,6 +151,7 @@ void GlobalPlanner::actionExecute(
       if (route_local.remaining_route.size() <= 1)
       {
         RCLCPP_ERROR(this->get_logger(), "Route completed without reaching destination");
+        publishEmptyRoute();
         maneuver_result_->destination_reached = false;
         maneuver_result_->distance_traveled = route_local.traveled_route.back().z;
         maneuver_result_->time_traveled = this->now() - maneuver_start_time_;

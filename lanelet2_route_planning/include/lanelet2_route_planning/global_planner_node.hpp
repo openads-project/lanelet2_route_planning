@@ -125,6 +125,7 @@ class GlobalPlanner : public rclcpp::Node
         bool egoPositionSanityCheck();
         bool targetPositionSanityCheck(double target_x, double target_y);
         bool planRoute(const lanelet::BasicPoint2d& start_point, const lanelet::BasicPoint2d& target_point, lanelet::ConstLanelet start_ll, lanelet::ConstLanelet target_ll);
+        void publishEmptyRoute();
 
         // local_path_extraction.cpp
         void initializeLocalPathExtraction(const route_planning_msgs::msg::Route& route_global);

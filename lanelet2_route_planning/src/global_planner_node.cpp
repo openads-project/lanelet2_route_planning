@@ -353,6 +353,17 @@ bool GlobalPlanner::planRoute(const lanelet::BasicPoint2d& start_point, const la
   }
 }
 
+void GlobalPlanner::publishEmptyRoute() {
+  route_planning_msgs::msg::DriveableSpace empty_driveable_space;
+  empty_driveable_space.header.frame_id = local_vehicle_frame_id_;
+  empty_driveable_space.header.stamp = now();
+  local_driveable_space_pub_->publish(empty_driveable_space);
+
+  route_planning_msgs::msg::Route empty_route;
+  empty_route.header.frame_id = local_vehicle_frame_id_;
+  empty_route.header.stamp = now();
+  local_route_pub_->publish(empty_route);
+}
 
 int main(int argc, char ** argv)
 {
