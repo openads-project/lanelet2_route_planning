@@ -7,7 +7,6 @@
 #include <tf2_ros/buffer.h>
 #include <tf2_ros/transform_listener.h>
 
-#include <geometry_msgs/msg/pose_stamped.hpp>
 #include <geometry_msgs/msg/pose_with_covariance.hpp>
 #include <geometry_msgs/msg/point.hpp>
 
@@ -49,8 +48,8 @@ class GlobalPlanner : public rclcpp::Node
     public:
         GlobalPlanner();
         void initializeMapInterface();
-        
-        
+
+
     private:
         //tf2
         std::shared_ptr<tf2_ros::TransformListener> tf_listener_;
@@ -83,6 +82,9 @@ class GlobalPlanner : public rclcpp::Node
         double target_reached_thr_ = 1.0; // m
         bool require_standstill_ = false;
 
+        double offset_behind_distance_ = 0.0;
+        double offset_ahead_distance_ = 0.0;
+
 
         Optional<lanelet::routing::Route> route_;
 
@@ -104,26 +106,17 @@ class GlobalPlanner : public rclcpp::Node
         double look_behind_distance_ = 20.0;
         rclcpp::Publisher<route_planning_msgs::msg::Route>::SharedPtr local_route_pub_;
         rclcpp::Publisher<route_planning_msgs::msg::DriveableSpace>::SharedPtr local_driveable_space_pub_;
-        
+
         // Timer
         rclcpp::TimerBase::SharedPtr startup_timer_;
 
         // Subscriptions
         rclcpp::Subscription<perception_msgs::msg::EgoData>::SharedPtr map_pose_sub_;
-        rclcpp::Subscription<geometry_msgs::msg::PoseStamped>::SharedPtr goal_pose_sub_;
-
-        // Action Client
-        rclcpp_action::Client<route_planning_msgs::action::GlobalManeuver>::SharedPtr maneuver_action_client_;
-        std::shared_future<rclcpp_action::ClientGoalHandle<route_planning_msgs::action::GlobalManeuver>::SharedPtr> goal_handle_future_;
 
         // Action Server
         rclcpp_action::Server<route_planning_msgs::action::GlobalManeuver>::SharedPtr maneuver_action_server_;
         route_planning_msgs::action::GlobalManeuver::Feedback::SharedPtr maneuver_feedback_;
         route_planning_msgs::action::GlobalManeuver::Result::SharedPtr maneuver_result_;
-
-        // Publisher
-        rclcpp::Publisher<route_planning_msgs::msg::Route>::SharedPtr route_pub_;
-        rclcpp::Publisher<route_planning_msgs::msg::DriveableSpace>::SharedPtr driveable_space_pub_;
 
         // Function Definitions
         // global_planner_node.cpp
@@ -131,7 +124,8 @@ class GlobalPlanner : public rclcpp::Node
         void loadParameters();
         bool egoPositionSanityCheck();
         bool targetPositionSanityCheck(double target_x, double target_y);
-        bool planRoute(lanelet::ConstLanelet start_ll, lanelet::ConstLanelet target_ll);
+        bool planRoute(const lanelet::BasicPoint2d& start_point, const lanelet::BasicPoint2d& target_point, lanelet::ConstLanelet start_ll, lanelet::ConstLanelet target_ll);
+        void publishEmptyRoute();
 
         // local_path_extraction.cpp
         void initializeLocalPathExtraction(const route_planning_msgs::msg::Route& route_global);
@@ -141,7 +135,7 @@ class GlobalPlanner : public rclcpp::Node
                                 const route_planning_msgs::msg::Route& route_global,
                                 route_planning_msgs::msg::Route& route_local);
         double accumulatedLength(const std::vector<geometry_msgs::msg::Point>& point_list, std::vector<double>& accumulated_length);
-        double distance(const geometry_msgs::msg::Point& p1, const geometry_msgs::msg::Point& p2);
+        double distance(const geometry_msgs::msg::Point& p1, const geometry_msgs::msg::Point& p2, const bool ignore_z = true);
         unsigned int findNearestSample(const geometry_msgs::msg::Point& ref_point, const std::vector<geometry_msgs::msg::Point>& point_list, const unsigned int& start_index=0);
         unsigned int findNearestSampleReverse(const geometry_msgs::msg::Point& ref_point, const std::vector<geometry_msgs::msg::Point>& point_list);
 
@@ -162,10 +156,9 @@ class GlobalPlanner : public rclcpp::Node
 
         // callbacks.cpp
         void mapPoseCallback(perception_msgs::msg::EgoData::SharedPtr msg);
-        void goalPoseCallback(geometry_msgs::msg::PoseStamped::SharedPtr msg);
-
 
         // utils.cpp
+        void accumulateDistanceAlong2DPath(std::vector<geometry_msgs::msg::Point>& path, const double initial_distance = 0.0);
         std::vector<geometry_msgs::msg::Point> processLineString(lanelet::BasicLineString2d& line_string);
         route_planning_msgs::msg::DriveableSpace sampleDriveableSpace(const lanelet::BasicLineString2d &centerline);
         std::vector<geometry_msgs::msg::Point> sampleLinestring(
@@ -186,5 +179,4 @@ class GlobalPlanner : public rclcpp::Node
         route_planning_msgs::msg::LaneSeparator deriveLaneSeparator(const lanelet::ConstLineString3d &linestring);
         uint8_t deriveValueForSpeedLimitType(const std::shared_ptr<const lanelet::RegulatoryElement> regelem, const std::vector<lanelet::ConstLineString3d> refering_elems);
         uint8_t trafficSignCode2Type(const std::string tsign_code);
-
 };

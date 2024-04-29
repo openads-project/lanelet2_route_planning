@@ -5,7 +5,7 @@ from launch import LaunchDescription
 from launch.actions import DeclareLaunchArgument, GroupAction
 from launch.conditions import LaunchConfigurationNotEquals
 from launch.substitutions import LaunchConfiguration, PathJoinSubstitution
-from launch_ros.actions import LifecycleNode, SetParameter
+from launch_ros.actions import Node, SetParameter
 
 
 def generate_launch_description():
@@ -19,13 +19,13 @@ def generate_launch_description():
     node_name_default = 'global_planner'
     node_name_arg = DeclareLaunchArgument('node_name',
                                           default_value=node_name_default)
-    
+
     use_sim_time_arg = DeclareLaunchArgument('use_sim_time_arg', default_value='False')
 
     ego_data_topic_arg = DeclareLaunchArgument('ego_data_topic',
                                                default_value='~/ego_data')
 
-    node = LifecycleNode(
+    planner_node = Node(
         package="lanelet2_route_planning",
         executable="global_planner_node",
         name=LaunchConfiguration('node_name'),
@@ -36,11 +36,19 @@ def generate_launch_description():
         remappings=[('~/ego_data', LaunchConfiguration('ego_data_topic'))],
     )
 
+    global_maneuver_action_client_node = Node(
+        package="global_maneuver_action_client",
+        executable="global_maneuver_action_client_node",
+        name="global_maneuver_action_client",
+        namespace="",
+        output="screen",
+    )
+
     node_group = GroupAction(actions=[
         SetParameter(name='use_sim_time',
                      value=LaunchConfiguration('use_sim_time_arg'),
                      condition=LaunchConfigurationNotEquals(
-                         'use_sim_time_arg', "None")), node
+                         'use_sim_time_arg', "None")), planner_node, global_maneuver_action_client_node
     ])
 
     return LaunchDescription([

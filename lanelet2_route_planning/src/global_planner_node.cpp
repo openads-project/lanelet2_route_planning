@@ -4,8 +4,6 @@ GlobalPlanner::GlobalPlanner() : Node("global_planner")
 {
   startup_timer_ = create_wall_timer(0.1s, std::bind(&GlobalPlanner::initializeGlobalPlanner, this));
   map_pose_sub_ = create_subscription<perception_msgs::msg::EgoData>("~/ego_data", 1, std::bind(&GlobalPlanner::mapPoseCallback, this, std::placeholders::_1));
-  goal_pose_sub_ = create_subscription<geometry_msgs::msg::PoseStamped>("/goal_pose", 1, std::bind(&GlobalPlanner::goalPoseCallback, this, std::placeholders::_1));
-  maneuver_action_client_ = rclcpp_action::create_client<route_planning_msgs::action::GlobalManeuver>(this, "~/execute_global_maneuver");
 
   // create a transform listener
   tf_buffer_ = std::make_unique<tf2_ros::Buffer>(this->get_clock());
@@ -100,6 +98,26 @@ void GlobalPlanner::loadParameters() {
     RCLCPP_WARN_STREAM(this->get_logger(), "Parameter \'vel_threshold_target\' is not set, using default value: "+std::to_string(vel_threshold_target_));
   }
 
+  this->declare_parameter("offset_behind_distance", rclcpp::ParameterType::PARAMETER_DOUBLE);
+  try {
+    offset_behind_distance_ = this->get_parameter("offset_behind_distance").as_double();
+    RCLCPP_INFO_STREAM(this->get_logger(), "Parameter \'offset_behind_distance\' set to: "+std::to_string(offset_behind_distance_));
+  } catch (rclcpp::exceptions::InvalidParameterTypeException&) {
+    RCLCPP_WARN_STREAM(this->get_logger(), "Parameter \'offset_behind_distance\' is not set correctly, using default value: "+std::to_string(offset_behind_distance_));
+  } catch (rclcpp::exceptions::ParameterUninitializedException&) {
+    RCLCPP_WARN_STREAM(this->get_logger(), "Parameter \'offset_behind_distance\' is not set, using default value: "+std::to_string(offset_behind_distance_));
+  }
+
+  this->declare_parameter("offset_ahead_distance", rclcpp::ParameterType::PARAMETER_DOUBLE);
+  try {
+    offset_ahead_distance_ = this->get_parameter("offset_ahead_distance").as_double();
+    RCLCPP_INFO_STREAM(this->get_logger(), "Parameter \'offset_ahead_distance\' set to: "+std::to_string(offset_ahead_distance_));
+  } catch (rclcpp::exceptions::InvalidParameterTypeException&) {
+    RCLCPP_WARN_STREAM(this->get_logger(), "Parameter \'offset_ahead_distance\' is not set correctly, using default value: "+std::to_string(offset_ahead_distance_));
+  } catch (rclcpp::exceptions::ParameterUninitializedException&) {
+    RCLCPP_WARN_STREAM(this->get_logger(), "Parameter \'offset_ahead_distance\' is not set, using default value: "+std::to_string(offset_ahead_distance_));
+  }
+
   // Local Path Extraction
   this->declare_parameter("local_path_extraction_rate", rclcpp::ParameterType::PARAMETER_DOUBLE);
   try {
@@ -159,18 +177,15 @@ void GlobalPlanner::initializeGlobalPlanner()
   else
   {
     // create an action server for handling action goal requests
-    maneuver_action_server_ = rclcpp_action::create_server<route_planning_msgs::action::GlobalManeuver>(this, "~/execute_global_maneuver",
+    maneuver_action_server_ = rclcpp_action::create_server<route_planning_msgs::action::GlobalManeuver>(this, "ll2_route_planning/execute_global_maneuver",
     std::bind(&GlobalPlanner::actionHandleGoal, this, std::placeholders::_1, std::placeholders::_2),
     std::bind(&GlobalPlanner::actionHandleCancel, this, std::placeholders::_1),
     std::bind(&GlobalPlanner::actionHandleAccepted, this, std::placeholders::_1));
     RCLCPP_INFO(get_logger(), "Created 'execute_global_maneuver' action-server!");
 
-    route_pub_ = create_publisher<route_planning_msgs::msg::Route>("~/global/route",1);
-    driveable_space_pub_ = create_publisher<route_planning_msgs::msg::DriveableSpace>("~/global/driveable_space",1);
-
     // local path extraction
-    local_route_pub_ = create_publisher<route_planning_msgs::msg::Route>("~/local/route",1);
-    local_driveable_space_pub_ = create_publisher<route_planning_msgs::msg::DriveableSpace>("~/local/driveable_space",1);
+    local_route_pub_ = create_publisher<route_planning_msgs::msg::Route>("~/route",1);
+    local_driveable_space_pub_ = create_publisher<route_planning_msgs::msg::DriveableSpace>("~/driveable_space",1);
 
     startup_timer_->cancel();
   }
@@ -200,7 +215,7 @@ bool GlobalPlanner::egoPositionSanityCheck()
       RCLCPP_ERROR(get_logger(), "No Lanelet at current ego-pose!");
       return false;
     }
-    
+
     return true;
   }
 }
@@ -220,7 +235,7 @@ bool GlobalPlanner::targetPositionSanityCheck(double target_x, double target_y)
   {
     if (ll_target.first < 10. && trafficRules_->canPass(ll_target.second))
     {
-        
+
       // Determine start lanelet
       // Get actual Heading
       tf2::Quaternion quat;
@@ -247,24 +262,19 @@ bool GlobalPlanner::targetPositionSanityCheck(double target_x, double target_y)
   return b_found_target_ll;
 }
 
-bool GlobalPlanner::planRoute(lanelet::ConstLanelet start_ll, lanelet::ConstLanelet target_ll)
+bool GlobalPlanner::planRoute(const lanelet::BasicPoint2d& start_point, const lanelet::BasicPoint2d& target_point, lanelet::ConstLanelet start_ll, lanelet::ConstLanelet target_ll)
 {
   builtin_interfaces::msg::Time start_time = now();
   // Start and end positions
-  lanelet::BasicPoint3d target;
-  target.x()=maneuver_feedback_->destination_x;
-  target.y()=maneuver_feedback_->destination_y;
-  target.z()=0.0;
-  target = lanelet::geometry::project(target_ll_.centerline(), target);
-  maneuver_feedback_->destination_x = target.x();
-  maneuver_feedback_->destination_y = target.y();
-  lanelet::BasicPoint2d start_pos = lanelet::BasicPoint2d(ego_pose_.pose.position.x, ego_pose_.pose.position.y);
-  lanelet::BasicPoint2d target_pos = lanelet::BasicPoint2d(target.x(), target.y());
+  lanelet::BasicPoint3d target_point_on_centerline(target_point.x(), target_point.y(), 0.0);
+  target_point_on_centerline = lanelet::geometry::project(target_ll_.centerline(), target_point_on_centerline);
+  lanelet::BasicPoint2d start_pos = start_point;
+  lanelet::BasicPoint2d target_pos(target_point_on_centerline.x(), target_point_on_centerline.y());
 
   // Add small offset to start
   lanelet::ConstLanelet start_ll_offset = start_ll_;
   lanelet::ConstLanelet target_ll_offset = target_ll_;
-  double remaining = lanelet::geometry::toArcCoordinates(start_ll_offset.centerline2d(), start_pos).length - 10.;
+  double remaining = lanelet::geometry::toArcCoordinates(start_ll_offset.centerline2d(), start_pos).length - offset_behind_distance_;
   while (remaining < 0.)
   {
     lanelet::ConstLanelets prevs = routingGraph_->previous(start_ll_offset);
@@ -280,7 +290,7 @@ bool GlobalPlanner::planRoute(lanelet::ConstLanelet start_ll, lanelet::ConstLane
 
   // Add small offset to end (so drivable space does not end directly at target)
   double len_target_ll = lanelet::geometry::length(target_ll_offset.centerline2d());
-  remaining = len_target_ll - (lanelet::geometry::toArcCoordinates(target_ll_offset.centerline2d(), target_pos).length + 20.);
+  remaining = len_target_ll - (lanelet::geometry::toArcCoordinates(target_ll_offset.centerline2d(), target_pos).length + offset_ahead_distance_);
   while (remaining < 0.)
   {
     lanelet::ConstLanelets following_lls = routingGraph_->following(target_ll_offset, false);
@@ -302,7 +312,7 @@ bool GlobalPlanner::planRoute(lanelet::ConstLanelet start_ll, lanelet::ConstLane
   if (!!route_)
   {
     RCLCPP_INFO_STREAM(get_logger(), "Calculated new route! Start Lanelet: " << start_ll_.id() << " | Target Lanelet: " << target_ll_.id());
-    
+
     // Extract shortest path and its boundaries
     lanelet::routing::LaneletPath shortestPath = route_->shortestPath(); // shortestPath = sorted Lanelets
 
@@ -311,10 +321,12 @@ bool GlobalPlanner::planRoute(lanelet::ConstLanelet start_ll, lanelet::ConstLane
     //Start filling global route
     global_route_.header.frame_id = ll2if_->map_frame_id_;
     global_route_.header.stamp = now();
-    global_route_.target_position.x = target.x();
-    global_route_.target_position.y = target.y();
-    global_route_.target_position.y = target.y();
-    global_route_.shortest_path = processLineString(shortest_path_centerline);
+    global_route_.destination.x = target_point_on_centerline.x();
+    global_route_.destination.y = target_point_on_centerline.y();
+    global_route_.destination.z = target_point_on_centerline.z();
+    global_route_.traveled_route = {};
+    global_route_.remaining_route = processLineString(shortest_path_centerline);
+    this->accumulateDistanceAlong2DPath(global_route_.remaining_route);
 
     // Process boundaries
     start_time = now();
@@ -332,10 +344,6 @@ bool GlobalPlanner::planRoute(lanelet::ConstLanelet start_ll, lanelet::ConstLane
 
     // Get regulatory elements along shortest path
 
-    // Publish
-    route_pub_->publish(global_route_);
-    driveable_space_pub_->publish(global_driveable_space_);
-
     return true;
   }
   else
@@ -343,6 +351,18 @@ bool GlobalPlanner::planRoute(lanelet::ConstLanelet start_ll, lanelet::ConstLane
     RCLCPP_ERROR_STREAM(get_logger(), "No routing possibility from Lanelet " << start_ll_.id() << " to Lanelet " << target_ll_.id());
     return false;
   }
+}
+
+void GlobalPlanner::publishEmptyRoute() {
+  route_planning_msgs::msg::DriveableSpace empty_driveable_space;
+  empty_driveable_space.header.frame_id = local_vehicle_frame_id_;
+  empty_driveable_space.header.stamp = now();
+  local_driveable_space_pub_->publish(empty_driveable_space);
+
+  route_planning_msgs::msg::Route empty_route;
+  empty_route.header.frame_id = local_vehicle_frame_id_;
+  empty_route.header.stamp = now();
+  local_route_pub_->publish(empty_route);
 }
 
 int main(int argc, char ** argv)

@@ -91,7 +91,7 @@ std::vector<geometry_msgs::msg::Point> GlobalPlanner::sampleLinestring(const lan
   }
   // Convert to std::vector<geometry_msgs::msg::Point>
   std::vector<geometry_msgs::msg::Point> bound = Lanelet2Utilities::convertLaneletLine2Linestring(ll_bound);
-  return bound; 
+  return bound;
 }
 
 void GlobalPlanner::sampleRouteBoundary(const lanelet::routing::Route &route,
@@ -102,11 +102,11 @@ void GlobalPlanner::sampleRouteBoundary(const lanelet::routing::Route &route,
   //for current and flowing lanelets
   for(size_t i=0; i<shortest_path.size(); i++)
   {
-    
+
     lanelet::ConstLanelet cur_ll = shortest_path[i];
     lanelet::ConstLanelet outer_left_ll=cur_ll;
     lanelet::ConstLanelet outer_right_ll=cur_ll;
-    
+
     bool left_is_present=true;
     bool right_is_present=true;
 
@@ -122,7 +122,7 @@ void GlobalPlanner::sampleRouteBoundary(const lanelet::routing::Route &route,
     }
 
     //prove of routable lane on righthandside
-    while(right_is_present) 
+    while(right_is_present)
     {
       Optional<lanelet::ConstLanelet> right{routingGraph_->right(outer_right_ll)}; // Get routable right lanelet if it exists
       right_is_present=right.has_value();
@@ -133,7 +133,7 @@ void GlobalPlanner::sampleRouteBoundary(const lanelet::routing::Route &route,
     }
 
     //get boundaries of outer lanelet
-    lanelet::ConstLineString2d outer_left_bound_ll = outer_left_ll.leftBound2d();  
+    lanelet::ConstLineString2d outer_left_bound_ll = outer_left_ll.leftBound2d();
     lanelet::ConstLineString2d outer_right_bound_ll = outer_right_ll.rightBound2d();
 
     //Convert to std::vector<geometry_msgs::msg::Point>
@@ -141,8 +141,8 @@ void GlobalPlanner::sampleRouteBoundary(const lanelet::routing::Route &route,
     std::vector<geometry_msgs::msg::Point> bound_right_ls = Lanelet2Utilities::convertLaneletLine2Linestring(outer_right_bound_ll.basicLineString());
 
     //add boundaries to boundarielinestring
-    bound_left.insert(bound_left.end(), bound_left_ls.begin(), bound_left_ls.end());     
-    bound_right.insert(bound_right.end(), bound_right_ls.begin(), bound_right_ls.end());  
+    bound_left.insert(bound_left.end(), bound_left_ls.begin(), bound_left_ls.end());
+    bound_right.insert(bound_right.end(), bound_right_ls.begin(), bound_right_ls.end());
   }
 }
 
@@ -228,6 +228,7 @@ bool GlobalPlanner::checkLineDrivability(const lanelet::ConstLineString3d &lineT
 
   type_str = lineToCheck.attribute("type");
 
+  // the following types are considered drivable
   if (type_str == "line_thin" ||
       type_str == "line_thick" ||
       type_str == "virtual" ||
@@ -238,7 +239,14 @@ bool GlobalPlanner::checkLineDrivability(const lanelet::ConstLineString3d &lineT
       type_str == "traffic_light" ||
       type_str == "roadpainting" || //Atlatec Maps
       type_str == "lane_center" || //Atlatec Maps
+      type_str == "centerline" || //Atlatec Maps
       (type_str == "curbstone" && subtype_str == "low") )
+  {
+    return true;
+  }
+
+  // the following keys are considered drivable
+  if (lineToCheck.hasAttribute("HoldingLine"))
   {
     return true;
   }
@@ -261,12 +269,12 @@ route_planning_msgs::msg::LaneSeparator GlobalPlanner::deriveLaneSeparator(const
   {
     type_str = linestring.attribute("type");
   }
-  if(type_str == "road_boarder")
+  if(type_str == "road_boarder" || type_str == "barrier")
   {
     lane_sep.type = route_planning_msgs::msg::LaneSeparator::TYPE_CROSSING_RESTRICTED;
     lane_sep.line = Lanelet2Utilities::convertLaneletLine2Linestring(linestring.basicLineString());
     return lane_sep;
-  } 
+  }
   if(type_str == "virtual")
   {
     // We're not considering linestrings with type virtual --> line is empty
@@ -289,7 +297,7 @@ route_planning_msgs::msg::LaneSeparator GlobalPlanner::deriveLaneSeparator(const
   }
 
   // Unknown type_str --> line keeps empty
-  lane_sep.type = route_planning_msgs::msg::LaneSeparator::TYPE_UNKNOWN; 
+  lane_sep.type = route_planning_msgs::msg::LaneSeparator::TYPE_UNKNOWN;
   return lane_sep;
 }
 
@@ -297,12 +305,17 @@ uint8_t GlobalPlanner::deriveValueForSpeedLimitType(const std::shared_ptr<const 
 {
   if(regelem->hasAttribute("sign_type"))
   {
+      if (refering_elems.size() == 0)
+      {
+        RCLCPP_WARN(get_logger(), "No refering elements found for speed limit sign!");
+        return route_planning_msgs::msg::RegulatoryElement::STATE_UNKNOWN;
+      }
       std::string tsign_val = refering_elems[0].attribute("sign_type").value();
       boost::algorithm::erase_all(tsign_val, " ");
-      boost::algorithm::to_lower(tsign_val); 
-      if(tsign_val.find("km/h")!=std::string::npos)
+      boost::algorithm::to_lower(tsign_val);
+            if(tsign_val.find("km/h")!=std::string::npos)
       {
-          boost::algorithm::erase_all(tsign_val, "km/h");
+                    boost::algorithm::erase_all(tsign_val, "km/h");
           int val = std::stoi(tsign_val);
           if(val==30) return route_planning_msgs::msg::RegulatoryElement::SPEED_30;
           else if(val==50) return route_planning_msgs::msg::RegulatoryElement::SPEED_50;
@@ -315,7 +328,7 @@ uint8_t GlobalPlanner::deriveValueForSpeedLimitType(const std::shared_ptr<const 
       }
       else if(tsign_val.find("mps")!=std::string::npos)
       {
-          boost::algorithm::erase_all(tsign_val, "mps");
+                    boost::algorithm::erase_all(tsign_val, "mps");
           int val = (int)std::round(std::stod(tsign_val)*3.6);
           if(val<33 && val>27) return route_planning_msgs::msg::RegulatoryElement::SPEED_30;
           else if(val<53 && val>47) return route_planning_msgs::msg::RegulatoryElement::SPEED_50;
@@ -325,11 +338,11 @@ uint8_t GlobalPlanner::deriveValueForSpeedLimitType(const std::shared_ptr<const 
               RCLCPP_WARN_STREAM(get_logger(), "Unknown sign type for Speed-Limit: " << val);
               return route_planning_msgs::msg::RegulatoryElement::STATE_UNKNOWN;
           }
-          
+
       }
       else if(tsign_val.find("mph")!=std::string::npos)
       {
-          boost::algorithm::erase_all(tsign_val, "mph");
+                    boost::algorithm::erase_all(tsign_val, "mph");
           int val = (int)std::round(std::stod(tsign_val)*1.60934);
           if(val<33 && val>27) return route_planning_msgs::msg::RegulatoryElement::SPEED_30;
           else if(val<53 && val>47) return route_planning_msgs::msg::RegulatoryElement::SPEED_50;
@@ -343,7 +356,7 @@ uint8_t GlobalPlanner::deriveValueForSpeedLimitType(const std::shared_ptr<const 
       else
       {
         // Interpret as km/h according to documentation
-        int val = std::stoi(tsign_val);
+                int val = std::stoi(tsign_val);
         if(val==30) return route_planning_msgs::msg::RegulatoryElement::SPEED_30;
         else if(val==50) return route_planning_msgs::msg::RegulatoryElement::SPEED_50;
         else if(val==70) return route_planning_msgs::msg::RegulatoryElement::SPEED_70;
@@ -371,4 +384,20 @@ uint8_t GlobalPlanner::trafficSignCode2Type(const std::string tsign_code)
         RCLCPP_WARN_STREAM(get_logger(), "Unknown sign code for Traffic-Sign: " << tsign_code);
         return route_planning_msgs::msg::RegulatoryElement::STATE_UNKNOWN;
     }
+}
+
+/**
+ * @brief Accumulates the distance along a 2D line path, storing it as the z-coordinate of the points
+ * 
+ * @param path 2D path to accumulate distance along, z-coordinate will be overwritten with distance
+ * @param initial_distance initial distance to start accumulating from
+ */
+void GlobalPlanner::accumulateDistanceAlong2DPath(std::vector<geometry_msgs::msg::Point>& path, const double initial_distance) {
+  if (path.empty()) return;
+  double accumulated_distance = initial_distance;
+  path[0].z = initial_distance;
+  for (size_t i = 1; i < path.size(); i++) {
+    accumulated_distance += this->distance(path[i-1], path[i]);
+    path[i].z = accumulated_distance;
+  }
 }
