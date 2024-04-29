@@ -3,7 +3,7 @@
 GlobalPlanner::GlobalPlanner() : Node("global_planner")
 {
   startup_timer_ = create_wall_timer(0.1s, std::bind(&GlobalPlanner::initializeGlobalPlanner, this));
-  map_pose_sub_ = create_subscription<perception_msgs::msg::EgoData>("/carla_its_adapter/ego_data", 1, std::bind(&GlobalPlanner::mapPoseCallback, this, std::placeholders::_1));
+  map_pose_sub_ = create_subscription<perception_msgs::msg::EgoData>("~/ego_data", 1, std::bind(&GlobalPlanner::mapPoseCallback, this, std::placeholders::_1));
 
   // create a transform listener
   tf_buffer_ = std::make_unique<tf2_ros::Buffer>(this->get_clock());

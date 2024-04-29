@@ -22,6 +22,9 @@ def generate_launch_description():
 
     use_sim_time_arg = DeclareLaunchArgument('use_sim_time_arg', default_value='False')
 
+    ego_data_topic_arg = DeclareLaunchArgument('ego_data_topic',
+                                               default_value='~/ego_data')
+
     planner_node = Node(
         package="lanelet2_route_planning",
         executable="global_planner_node",
@@ -29,7 +32,8 @@ def generate_launch_description():
         namespace="",
         output="screen",
         emulate_tty=True,
-        parameters=[config]
+        parameters=[config],
+        remappings=[('~/ego_data', LaunchConfiguration('ego_data_topic'))],
     )
 
     global_maneuver_action_client_node = Node(
@@ -51,5 +55,6 @@ def generate_launch_description():
         params_arg,
         node_name_arg,
         use_sim_time_arg,
+        ego_data_topic_arg,
         node_group
     ])
