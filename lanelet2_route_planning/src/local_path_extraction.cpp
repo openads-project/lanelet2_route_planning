@@ -109,10 +109,6 @@
                     // To-Do: Extract restricting areas
                     // ...
 
-                    // Now we've got our local-section of the driveable space
-                    temp_ds.header.stamp = stamp_time;
-                    temp_ds.header.frame_id = ll2if_->map_frame_id_; // currently it's map --> will be changed through transform function
-
                     // Check if the found samples are valid
                     if (lbehind_sample_drivspace_left_ < driveable_space_global.boundaries.left.size() && lahead_sample_drivspace_left_ <= driveable_space_global.boundaries.left.size() && lahead_sample_drivspace_left_ > lbehind_sample_drivspace_left_) {
                         temp_ds.boundaries.left = {driveable_space_global.boundaries.left.begin() + lbehind_sample_drivspace_left_, driveable_space_global.boundaries.left.begin() + lahead_sample_drivspace_left_};
@@ -230,10 +226,9 @@
             geometry_msgs::msg::TransformStamped tf;
             try {
                 tf = tf_buffer_->lookupTransform(local_vehicle_frame_id_, ll2if_->map_frame_id_, tf2::TimePointZero);
+                route_local_tmp.driveable_space = temp_ds;
                 tf2::doTransform(route_local_tmp, route_local, tf);
-                tf2::doTransform(temp_ds, driveable_space_local, tf);
-                local_route_pub_->publish(route_local);
-                local_driveable_space_pub_->publish(driveable_space_local);
+                route_pub_->publish(route_local);
             } catch (const tf2::TransformException &ex) {
                 RCLCPP_ERROR_STREAM(this->get_logger(), "Could not transform " << ll2if_->map_frame_id_ << " to " << local_vehicle_frame_id_ << ": " << ex.what());
                 return;

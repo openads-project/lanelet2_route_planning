@@ -53,8 +53,8 @@ rclcpp_action::GoalResponse GlobalPlanner::actionHandleGoal(
   planRoute(start_point, target_point, start_ll_, target_ll_);
 
   maneuver_feedback_ = std::make_shared<route_planning_msgs::action::GlobalManeuver::Feedback>();
-  maneuver_feedback_->distance_remaining = global_route_.remaining_route.back().z;
-  maneuver_feedback_->time_remaining = rclcpp::Duration::from_seconds(maneuver_feedback_->distance_remaining / (global_route_.current_speed_limit / 3.6)); // TODO: improve estimate by accumulating with speed limits over path
+  maneuver_feedback_->distance_remaining = route_.remaining_route.back().z;
+  maneuver_feedback_->time_remaining = rclcpp::Duration::from_seconds(maneuver_feedback_->distance_remaining / (route_.current_speed_limit / 3.6)); // TODO: improve estimate by accumulating with speed limits over path
 
   maneuver_result_ = std::make_shared<route_planning_msgs::action::GlobalManeuver::Result>();
 
@@ -89,7 +89,7 @@ void GlobalPlanner::actionExecute(
 {
   RCLCPP_INFO(get_logger(), "Executing action goal");
   // Reset / Initialize
-  initializeLocalPathExtraction(global_route_);
+  initializeLocalPathExtraction(route_);
 
   const auto goal = goal_handle->get_goal();
   const geometry_msgs::msg::PointStamped& destination = goal->destination;
@@ -127,12 +127,12 @@ void GlobalPlanner::actionExecute(
 
       // check if destination is reached -> goal succeeded
       double velocity = perception_msgs::object_access::getVelLon(ego_data_);
-      if (geometry::distance(lanelet::BasicPoint2d(global_route_.destination.x, global_route_.destination.y), lanelet::BasicPoint2d(ego_pose_.pose.position.x, ego_pose_.pose.position.y)) < target_reached_thr_ && (std::fabs(velocity) < vel_threshold_target_ || !require_standstill_))
+      if (geometry::distance(lanelet::BasicPoint2d(route_.destination.x, route_.destination.y), lanelet::BasicPoint2d(ego_pose_.pose.position.x, ego_pose_.pose.position.y)) < target_reached_thr_ && (std::fabs(velocity) < vel_threshold_target_ || !require_standstill_))
       {
         RCLCPP_INFO(get_logger(),"Destination reached!");
         publishEmptyRoute();
         maneuver_result_->destination_reached = true;
-        maneuver_result_->distance_traveled = global_route_.remaining_route.back().z;
+        maneuver_result_->distance_traveled = route_.remaining_route.back().z;
         maneuver_result_->time_traveled = this->now() - maneuver_start_time_;
         goal_handle->succeed(maneuver_result_);
         return;
@@ -143,7 +143,7 @@ void GlobalPlanner::actionExecute(
       route_planning_msgs::msg::Route route_local;
       rclcpp::Clock wall_clock(RCL_SYSTEM_TIME);
       rclcpp::Time map_extraction_t0 = wall_clock.now();
-      extractLocalMapInfo(ego_pose_, global_driveable_space_, driveable_space_local, global_route_, route_local);
+      extractLocalMapInfo(ego_pose_, driveable_space_, driveable_space_local, route_, route_local);
       rclcpp::Duration map_extraction_duration = wall_clock.now() - map_extraction_t0;
       RCLCPP_INFO(this->get_logger(), "Local path extraction took %.3f ms", map_extraction_duration.nanoseconds() / 1e6);
 

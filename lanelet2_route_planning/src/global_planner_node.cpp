@@ -184,8 +184,7 @@ void GlobalPlanner::initializeGlobalPlanner()
     RCLCPP_INFO(get_logger(), "Created 'execute_global_maneuver' action-server!");
 
     // local path extraction
-    local_route_pub_ = create_publisher<route_planning_msgs::msg::Route>("~/route",1);
-    local_driveable_space_pub_ = create_publisher<route_planning_msgs::msg::DriveableSpace>("~/driveable_space",1);
+    route_pub_ = create_publisher<route_planning_msgs::msg::Route>("~/route",1);
 
     startup_timer_->cancel();
   }
@@ -306,37 +305,37 @@ bool GlobalPlanner::planRoute(const lanelet::BasicPoint2d& start_point, const la
   target_pos = lanelet::geometry::interpolatedPointAtDistance(target_ll_offset.centerline2d(), len_target_ll - remaining);
 
   // Get route
-  route_ = routingGraph_->getRoute(start_ll_offset, target_ll_offset, 0); // 0 = routingCostId distance
+  llroute_ = routingGraph_->getRoute(start_ll_offset, target_ll_offset, 0); // 0 = routingCostId distance
   RCLCPP_INFO_STREAM(get_logger(), "Time core route planning: " << (now() - start_time).seconds() << "s");
   // Is route-planning possible?
-  if (!!route_)
+  if (!!llroute_)
   {
     RCLCPP_INFO_STREAM(get_logger(), "Calculated new route! Start Lanelet: " << start_ll_.id() << " | Target Lanelet: " << target_ll_.id());
 
     // Extract shortest path and its boundaries
-    lanelet::routing::LaneletPath shortestPath = route_->shortestPath(); // shortestPath = sorted Lanelets
+    lanelet::routing::LaneletPath shortestPath = llroute_->shortestPath(); // shortestPath = sorted Lanelets
 
     std::pair<lanelet::BasicLineString2d, lanelet::BasicLineString2d> lane_boundaries;
     lanelet::BasicLineString2d shortest_path_centerline = Lanelet2Utilities::llPath2llLineDistanceBased(ConstLanelets(shortestPath.begin(), shortestPath.end()), start_pos, 10., 3., std::numeric_limits<double>::max(), ds_sample_, target_pos, lane_boundaries, *routingGraphBicycle_);
     //Start filling global route
-    global_route_.header.frame_id = ll2if_->map_frame_id_;
-    global_route_.header.stamp = now();
-    global_route_.destination.x = target_point_on_centerline.x();
-    global_route_.destination.y = target_point_on_centerline.y();
-    global_route_.destination.z = target_point_on_centerline.z();
-    global_route_.traveled_route = {};
-    global_route_.remaining_route = processLineString(shortest_path_centerline);
-    this->accumulateDistanceAlong2DPath(global_route_.remaining_route);
+    route_.header.frame_id = ll2if_->map_frame_id_;
+    route_.header.stamp = now();
+    route_.destination.x = target_point_on_centerline.x();
+    route_.destination.y = target_point_on_centerline.y();
+    route_.destination.z = target_point_on_centerline.z();
+    route_.traveled_route = {};
+    route_.remaining_route = processLineString(shortest_path_centerline);
+    this->accumulateDistanceAlong2DPath(route_.remaining_route);
 
     // Process boundaries
     start_time = now();
-    global_driveable_space_ = sampleDriveableSpace(shortest_path_centerline);
+    driveable_space_ = sampleDriveableSpace(shortest_path_centerline);
     RCLCPP_INFO_STREAM(get_logger(), "Duration for calculation of driveable-space: " << (now() - start_time).seconds() << "s");
 
     // Process route boundaries
-    global_route_.boundaries.left.clear();
-    global_route_.boundaries.right.clear();
-    sampleRouteBoundary(route_.get(), shortestPath, global_route_.boundaries.left, global_route_.boundaries.right);
+    route_.boundaries.left.clear();
+    route_.boundaries.right.clear();
+    sampleRouteBoundary(llroute_.get(), shortestPath, route_.boundaries.left, route_.boundaries.right);
 
     // Get regulatory elements along route
 
@@ -354,15 +353,10 @@ bool GlobalPlanner::planRoute(const lanelet::BasicPoint2d& start_point, const la
 }
 
 void GlobalPlanner::publishEmptyRoute() {
-  route_planning_msgs::msg::DriveableSpace empty_driveable_space;
-  empty_driveable_space.header.frame_id = local_vehicle_frame_id_;
-  empty_driveable_space.header.stamp = now();
-  local_driveable_space_pub_->publish(empty_driveable_space);
-
   route_planning_msgs::msg::Route empty_route;
   empty_route.header.frame_id = local_vehicle_frame_id_;
   empty_route.header.stamp = now();
-  local_route_pub_->publish(empty_route);
+  route_pub_->publish(empty_route);
 }
 
 int main(int argc, char ** argv)

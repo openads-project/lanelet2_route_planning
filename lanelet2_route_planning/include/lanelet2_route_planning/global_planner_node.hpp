@@ -70,8 +70,8 @@ class GlobalPlanner : public rclcpp::Node
         // Route Planning
         lanelet::ConstLanelet start_ll_;    // most probable current Lanelet
         lanelet::ConstLanelet target_ll_;
-        route_planning_msgs::msg::DriveableSpace global_driveable_space_;
-        route_planning_msgs::msg::Route global_route_;
+        route_planning_msgs::msg::DriveableSpace driveable_space_;
+        route_planning_msgs::msg::Route route_;
 
         double ds_sample_ = 0.5;
         double smooth_factor_ = 2.0;
@@ -86,7 +86,7 @@ class GlobalPlanner : public rclcpp::Node
         double offset_ahead_distance_ = 0.0;
 
 
-        Optional<lanelet::routing::Route> route_;
+        Optional<lanelet::routing::Route> llroute_;
 
         // Maneuver Execution
         rclcpp::Time maneuver_start_time_;
@@ -104,8 +104,7 @@ class GlobalPlanner : public rclcpp::Node
         double look_ahead_time_ = 10.0;
         double look_ahead_distance_min_ = 50.0;
         double look_behind_distance_ = 20.0;
-        rclcpp::Publisher<route_planning_msgs::msg::Route>::SharedPtr local_route_pub_;
-        rclcpp::Publisher<route_planning_msgs::msg::DriveableSpace>::SharedPtr local_driveable_space_pub_;
+        rclcpp::Publisher<route_planning_msgs::msg::Route>::SharedPtr route_pub_;
 
         // Timer
         rclcpp::TimerBase::SharedPtr startup_timer_;

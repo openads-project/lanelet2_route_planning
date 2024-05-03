@@ -15,8 +15,6 @@ std::vector<geometry_msgs::msg::Point> GlobalPlanner::processLineString(lanelet:
 route_planning_msgs::msg::DriveableSpace GlobalPlanner::sampleDriveableSpace(const lanelet::BasicLineString2d &centerline)
 {
   route_planning_msgs::msg::DriveableSpace driveable_space;
-  driveable_space.header.frame_id = ll2if_->map_frame_id_;
-  driveable_space.header.stamp = now();
   driveable_space.boundaries.left = sampleLinestring(centerline, lateral_driv_space_width_/2.0, false);
   driveable_space.boundaries.right = sampleLinestring(centerline, lateral_driv_space_width_/2.0, true);
   return driveable_space;
