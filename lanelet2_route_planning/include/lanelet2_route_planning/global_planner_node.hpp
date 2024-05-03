@@ -47,8 +47,6 @@ class GlobalPlanner : public rclcpp::Node
 {
     public:
         GlobalPlanner();
-        void initializeMapInterface();
-
 
     private:
         //tf2
@@ -56,7 +54,7 @@ class GlobalPlanner : public rclcpp::Node
         std::unique_ptr<tf2_ros::Buffer> tf_buffer_;
 
         // Variables
-        LL2MapInterface *ll2if_;
+        std::unique_ptr<LL2MapInterface> ll2if_;
         std::string map_server_name_ = "ll2_map_server";
         perception_msgs::msg::EgoData ego_data_;
         geometry_msgs::msg::PoseWithCovariance ego_pose_;

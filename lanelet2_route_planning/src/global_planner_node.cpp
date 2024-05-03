@@ -1,8 +1,6 @@
 #include "lanelet2_route_planning/global_planner_node.hpp"
 
-GlobalPlanner::GlobalPlanner() : Node("global_planner")
-{
-  startup_timer_ = create_wall_timer(0.1s, std::bind(&GlobalPlanner::initializeGlobalPlanner, this));
+GlobalPlanner::GlobalPlanner() : Node("global_planner") {
   map_pose_sub_ = create_subscription<perception_msgs::msg::EgoData>("~/ego_data", 1, std::bind(&GlobalPlanner::egoDataCallback, this, std::placeholders::_1));
 
   // create a transform listener
@@ -11,11 +9,12 @@ GlobalPlanner::GlobalPlanner() : Node("global_planner")
 
   // load the parameters
   loadParameters();
+
+  ll2if_ = std::make_unique<LL2MapInterface>(*this, map_server_name_);
+  startup_timer_ = create_wall_timer(0.1s, std::bind(&GlobalPlanner::initializeGlobalPlanner, this));
 }
 
-
 void GlobalPlanner::loadParameters() {
-
   // General and Sanity Checks
   this->declare_parameter("ego_data_timeout", rclcpp::ParameterType::PARAMETER_DOUBLE);
   try {
@@ -158,13 +157,6 @@ void GlobalPlanner::loadParameters() {
   } catch (rclcpp::exceptions::ParameterUninitializedException&) {
     RCLCPP_WARN_STREAM(this->get_logger(), "Parameter \'look_behind_distance\' is not set, using default value: "+std::to_string(look_behind_distance_));
   }
-}
-
-
-void GlobalPlanner::initializeMapInterface()
-{
-  // Important: shared_from_this() can not be called from within the constructor
-  ll2if_ = new LL2MapInterface(*shared_from_this(), map_server_name_);
 }
 
 void GlobalPlanner::initializeGlobalPlanner()
@@ -369,7 +361,6 @@ int main(int argc, char ** argv)
 {
   rclcpp::init(argc, argv);
   auto planner = std::make_shared<GlobalPlanner>();
-  planner->initializeMapInterface();
   rclcpp::spin(planner);
   rclcpp::shutdown();
   return 0;
