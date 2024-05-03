@@ -26,7 +26,6 @@ find_package(tf2_geometry_msgs REQUIRED)
 find_package(tf2_ros REQUIRED)
 
 add_executable(global_planner_node
-  src/callbacks.cpp
   src/dummy_bicycle_rules.cpp
   src/global_planner_node.cpp
   src/local_path_extraction.cpp

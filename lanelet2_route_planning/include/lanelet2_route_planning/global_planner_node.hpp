@@ -121,6 +121,7 @@ class GlobalPlanner : public rclcpp::Node
         // global_planner_node.cpp
         void initializeGlobalPlanner();
         void loadParameters();
+        void egoDataCallback(perception_msgs::msg::EgoData::SharedPtr msg);
         bool egoPositionSanityCheck();
         bool targetPositionSanityCheck(double target_x, double target_y);
         bool planRoute(const lanelet::BasicPoint2d& start_point, const lanelet::BasicPoint2d& target_point, lanelet::ConstLanelet start_ll, lanelet::ConstLanelet target_ll);
@@ -153,9 +154,7 @@ class GlobalPlanner : public rclcpp::Node
         void actionExecute(
             const std::shared_ptr<rclcpp_action::ServerGoalHandle<route_planning_msgs::action::GlobalManeuver>> goal_handle);
 
-        // callbacks.cpp
-        void mapPoseCallback(perception_msgs::msg::EgoData::SharedPtr msg);
-
+       
         // utils.cpp
         void accumulateDistanceAlong2DPath(std::vector<geometry_msgs::msg::Point>& path, const double initial_distance = 0.0);
         std::vector<geometry_msgs::msg::Point> processLineString(lanelet::BasicLineString2d& line_string);
