@@ -53,24 +53,20 @@ class GlobalPlanner : public rclcpp::Node
         std::shared_ptr<tf2_ros::TransformListener> tf_listener_;
         std::unique_ptr<tf2_ros::Buffer> tf_buffer_;
 
-        // Variables
+        // Inputs
         std::unique_ptr<LL2MapInterface> ll2if_;
         std::string map_server_name_ = "ll2_map_server";
         perception_msgs::msg::EgoData ego_data_;
-        geometry_msgs::msg::PoseWithCovariance ego_pose_;
-        lanelet::LaneletMapConstPtr llmap_;
+        
+        // Lanelet2 Variables
         traffic_rules::TrafficRulesPtr trafficRules_ = lanelet::traffic_rules::TrafficRulesFactory::create(lanelet::Locations::Germany, std::string(lanelet::Participants::Vehicle) + ":ika");
-        routing::RoutingGraphUPtr routingGraph_;
         // Dummy traffic rules and routing graph for bicycles used to incorporate drivable bicycle lanes in our lane boundaries
         traffic_rules::TrafficRulesPtr trafficRulesBicycle_ = traffic_rules::TrafficRulesFactory::create(std::string(Locations::Germany) + ":dummy", Participants::Bicycle);
-        routing::RoutingGraphUPtr routingGraphBicycle_;
 
-        // Route Planning
-        lanelet::ConstLanelet start_ll_;    // most probable current Lanelet
-        lanelet::ConstLanelet target_ll_;
-        route_planning_msgs::msg::DriveableSpace driveable_space_;
+        // Outputs
         route_planning_msgs::msg::Route route_;
 
+        // Parameters
         double ds_sample_ = 0.5;
         double smooth_factor_ = 2.0;
         double lateral_driv_space_width_ = 100.0;
@@ -83,13 +79,10 @@ class GlobalPlanner : public rclcpp::Node
         double offset_behind_distance_ = 0.0;
         double offset_ahead_distance_ = 0.0;
 
-
-        Optional<lanelet::routing::Route> llroute_;
-
         // Maneuver Execution
         rclcpp::Time maneuver_start_time_;
 
-        // Local Path Extraction
+        // Map Extraction
         std::string local_vehicle_frame_id_="base_link";
         double path_extraction_rate_=10.0;
         unsigned int target_sample_cl_;
@@ -120,9 +113,10 @@ class GlobalPlanner : public rclcpp::Node
         void initializeGlobalPlanner();
         void loadParameters();
         void egoDataCallback(perception_msgs::msg::EgoData::SharedPtr msg);
-        bool egoPositionSanityCheck();
-        bool targetPositionSanityCheck(double target_x, double target_y);
-        bool planRoute(const lanelet::BasicPoint2d& start_point, const lanelet::BasicPoint2d& target_point, lanelet::ConstLanelet start_ll, lanelet::ConstLanelet target_ll);
+        bool deriveEgoLanelet(const perception_msgs::msg::EgoData ego_data, lanelet::ConstLanelet& ego_lanelet);
+        bool deriveDestinationLanelet(const geometry_msgs::msg::PointStamped destination, lanelet::ConstLanelet& destination_lanelet);
+        bool planLaneletRoute(const perception_msgs::msg::EgoData ego_data, const geometry_msgs::msg::PointStamped destination, lanelet::routing::Route& lanelet_route, lanelet::BasicPoint3d& lanelet_destination_point);
+        route_planning_msgs::msg::Route processRoute(const lanelet::routing::Route ll_route, const lanelet::BasicPoint3d lanelet_destination_point);
         void publishEmptyRoute();
 
         // local_path_extraction.cpp

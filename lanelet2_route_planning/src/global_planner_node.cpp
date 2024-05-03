@@ -1,8 +1,6 @@
 #include "lanelet2_route_planning/global_planner_node.hpp"
 
 GlobalPlanner::GlobalPlanner() : Node("global_planner") {
-  map_pose_sub_ = create_subscription<perception_msgs::msg::EgoData>("~/ego_data", 1, std::bind(&GlobalPlanner::egoDataCallback, this, std::placeholders::_1));
-
   // create a transform listener
   tf_buffer_ = std::make_unique<tf2_ros::Buffer>(this->get_clock());
   tf_listener_ = std::make_shared<tf2_ros::TransformListener>(*tf_buffer_);
@@ -168,6 +166,8 @@ void GlobalPlanner::initializeGlobalPlanner()
   }
   else
   {
+    // create subscription for ego-data
+    map_pose_sub_ = create_subscription<perception_msgs::msg::EgoData>("~/ego_data", 1, std::bind(&GlobalPlanner::egoDataCallback, this, std::placeholders::_1));
     // create an action server for handling action goal requests
     maneuver_action_server_ = rclcpp_action::create_server<route_planning_msgs::action::GlobalManeuver>(this, "ll2_route_planning/execute_global_maneuver",
     std::bind(&GlobalPlanner::actionHandleGoal, this, std::placeholders::_1, std::placeholders::_2),
@@ -182,172 +182,166 @@ void GlobalPlanner::initializeGlobalPlanner()
   }
 }
 
-void GlobalPlanner::egoDataCallback(perception_msgs::msg::EgoData::SharedPtr msg)
-{
+void GlobalPlanner::egoDataCallback(perception_msgs::msg::EgoData::SharedPtr msg) {
   ego_data_ = *msg.get();
-  ego_pose_ = perception_msgs::object_access::getPoseWithCovariance(ego_data_);
 }
 
-bool GlobalPlanner::egoPositionSanityCheck()
-{
-  if((now() - ego_data_.header.stamp).seconds()>ego_data_timeout_) // Change later to 0.2
-  {
-    RCLCPP_ERROR_STREAM(get_logger(), "Latest ego-pose message is depracted (age: " << (now() - ego_data_.header.stamp).seconds() << " s)!");
+bool GlobalPlanner::deriveEgoLanelet(const perception_msgs::msg::EgoData ego_data, lanelet::ConstLanelet& start_lanelet) {
+  if((now() - ego_data.header.stamp).seconds()>ego_data_timeout_) {
+    RCLCPP_ERROR_STREAM(get_logger(), "Latest ego-pose message is depracted (age: " << (now() - ego_data.header.stamp).seconds() << " s)!");
     return false;
   }
-  else
-  {
-    lanelet::LaneletMapConstPtr llmap = ll2if_->getMapPtr();
-
-    if(ego_data_.header.frame_id != ll2if_->map_frame_id_)
-    {
-      RCLCPP_ERROR_STREAM(get_logger(), "Ego-pose message (Frame: " << ego_data_.header.frame_id << ") is not given with respect to the frame of the lanelet2 map (Frame: " << ll2if_->map_frame_id_ << ")!");
+  else {
+    if(ego_data.header.frame_id != ll2if_->map_frame_id_) {
+      RCLCPP_ERROR_STREAM(get_logger(), "Ego-pose message (Frame: " << ego_data.header.frame_id << ") is not given with respect to the frame of the lanelet2 map (Frame: " << ll2if_->map_frame_id_ << ")!");
       return false;
     }
 
+    lanelet::LaneletMapConstPtr llmap = ll2if_->getMapPtr();
     // Determine nearest lanelet
-    std::vector<std::pair<double, lanelet::ConstLanelet>> nearestLanelets = lanelet::geometry::findNearest(llmap->laneletLayer, lanelet::BasicPoint2d(ego_pose_.pose.position.x, ego_pose_.pose.position.y), 5);
-    if(nearestLanelets.size() < 1)
-    {
+    std::vector<std::pair<double, lanelet::ConstLanelet>> nearestLanelets = lanelet::geometry::findNearest(llmap->laneletLayer, lanelet::BasicPoint2d(perception_msgs::object_access::getX(ego_data), perception_msgs::object_access::getY(ego_data)), 5);
+    if(nearestLanelets.size() < 1) {
       RCLCPP_ERROR(get_logger(), "No Lanelet at current ego-pose!");
       return false;
     }
-
-    return true;
+    else {
+      // Determine start lanelet
+      Lanelet2Utilities::laneletSorting(lanelet::BasicPoint2d(perception_msgs::object_access::getX(ego_data), perception_msgs::object_access::getY(ego_data)), nearestLanelets, perception_msgs::object_access::getYaw(ego_data), trafficRules_, {});
+      start_lanelet = nearestLanelets.at(0).second; // most probable current Lanelet
+      return true;
+    }
   }
 }
 
-bool GlobalPlanner::targetPositionSanityCheck(double target_x, double target_y)
-{
+bool GlobalPlanner::deriveDestinationLanelet(const geometry_msgs::msg::PointStamped destination, lanelet::ConstLanelet& destination_lanelet) {
   lanelet::LaneletMapConstPtr llmap = ll2if_->getMapPtr();
-  std::vector<std::pair<double, lanelet::ConstLanelet>> nearestLaneletsTarget = lanelet::geometry::findNearest(llmap->laneletLayer, lanelet::BasicPoint2d(target_x, target_y), 5);
+  std::vector<std::pair<double, lanelet::ConstLanelet>> nearestLaneletsTarget = lanelet::geometry::findNearest(llmap->laneletLayer, lanelet::BasicPoint2d(destination.point.x, destination.point.y), 5);
   if(nearestLaneletsTarget.size()<1)
   {
     RCLCPP_ERROR(get_logger(), "No Lanelet at given target-position!");
     return false;
   }
-  Lanelet2Utilities::laneletSorting(lanelet::BasicPoint2d(target_x, target_y), nearestLaneletsTarget, {}, trafficRules_, {});
+  Lanelet2Utilities::laneletSorting(lanelet::BasicPoint2d(destination.point.x, destination.point.y), nearestLaneletsTarget, {}, trafficRules_, {});
   bool b_found_target_ll = false;
-  for (const auto &ll_target : nearestLaneletsTarget)
-  {
-    if (ll_target.first < 10. && trafficRules_->canPass(ll_target.second))
-    {
-
-      // Determine start lanelet
-      // Get actual Heading
-      tf2::Quaternion quat;
-      tf2::fromMsg(ego_pose_.pose.orientation, quat);
-      float yaw = tf2::impl::getYaw(quat);
-      std::vector<std::pair<double, lanelet::ConstLanelet>> nearestLanelets = lanelet::geometry::findNearest(llmap_->laneletLayer, lanelet::BasicPoint2d(ego_pose_.pose.position.x, ego_pose_.pose.position.y), 5);
-      Lanelet2Utilities::laneletSorting(lanelet::BasicPoint2d(ego_pose_.pose.position.x, ego_pose_.pose.position.y), nearestLanelets, yaw, trafficRules_, {});
-      start_ll_ = nearestLanelets.at(0).second; // most probable current Lanelet
-
-      Optional<lanelet::routing::Route> temp_route = routingGraph_->getRoute(start_ll_, ll_target.second, 0); // 0 = routingCostId distance
-      // Is route possible?
-      if (!!temp_route)
-      {
-        target_ll_ = ll_target.second;
+  for (const auto &ll_target : nearestLaneletsTarget) {
+    if (ll_target.first < 10. && trafficRules_->canPass(ll_target.second)) {
+        destination_lanelet = ll_target.second;
         b_found_target_ll = true;
-        break;
-      }
+        return b_found_target_ll;
     }
   }
   if(!b_found_target_ll)
   {
     RCLCPP_ERROR(get_logger(), "Unable to plan a route to the given target position!");
+    return b_found_target_ll;
   }
-  return b_found_target_ll;
 }
 
-bool GlobalPlanner::planRoute(const lanelet::BasicPoint2d& start_point, const lanelet::BasicPoint2d& target_point, lanelet::ConstLanelet start_ll, lanelet::ConstLanelet target_ll)
-{
-  builtin_interfaces::msg::Time start_time = now();
-  // Start and end positions
-  lanelet::BasicPoint3d target_point_on_centerline(target_point.x(), target_point.y(), 0.0);
-  target_point_on_centerline = lanelet::geometry::project(target_ll_.centerline(), target_point_on_centerline);
-  lanelet::BasicPoint2d start_pos = start_point;
-  lanelet::BasicPoint2d target_pos(target_point_on_centerline.x(), target_point_on_centerline.y());
+bool GlobalPlanner::planLaneletRoute(const perception_msgs::msg::EgoData ego_data, const geometry_msgs::msg::PointStamped destination, lanelet::routing::Route& lanelet_route, lanelet::BasicPoint3d& lanelet_destination_point) {
+  lanelet::LaneletMapConstPtr llmap = ll2if_->getMapPtr();
+  routing::RoutingGraphUPtr routingGraph = routing::RoutingGraph::build(*llmap, *trafficRules_);
+  routing::RoutingGraphUPtr routingGraphBicycle = routing::RoutingGraph::build(*llmap, *trafficRulesBicycle_);
+  std::vector<std::string> err = routingGraph->checkValidity();
+  if(err.size()>0) {
+    RCLCPP_ERROR(get_logger(), "Routing-Graph of given lanelet-map is invalid!");
+    for(size_t i = 0; i<err.size(); ++i) {
+      RCLCPP_ERROR_STREAM(get_logger(), err[i]);
+    }
+    return false;
+  }
+
+  // Check for global position of ego-vehicle
+  lanelet::ConstLanelet start_lanelet;
+  if(!deriveEgoLanelet(ego_data, start_lanelet)) return false;
+  lanelet::ConstLanelet destination_lanelet;
+  if(!deriveDestinationLanelet(destination, destination_lanelet)) return false;
+
+  // Start position on centerline of start lanelet
+  lanelet::BasicPoint3d start_point_on_centerline(perception_msgs::object_access::getX(ego_data), perception_msgs::object_access::getY(ego_data), 0.0);
+  start_point_on_centerline = lanelet::geometry::project(start_lanelet.centerline(), start_point_on_centerline);
+  lanelet::BasicPoint2d start_pos(start_point_on_centerline.x(), start_point_on_centerline.y());
+
+  // End position on centerline of destination lanelet
+  lanelet::BasicPoint3d target_point_on_centerline(destination.point.x, destination.point.y, 0.0);
+  lanelet_destination_point = lanelet::geometry::project(destination_lanelet.centerline(), target_point_on_centerline);
+  lanelet::BasicPoint2d target_pos(lanelet_destination_point.x(), lanelet_destination_point.y());
 
   // Add small offset to start
-  lanelet::ConstLanelet start_ll_offset = start_ll_;
-  lanelet::ConstLanelet target_ll_offset = target_ll_;
+  lanelet::ConstLanelet start_ll_offset = start_lanelet;
   double remaining = lanelet::geometry::toArcCoordinates(start_ll_offset.centerline2d(), start_pos).length - offset_behind_distance_;
   while (remaining < 0.)
   {
-    lanelet::ConstLanelets prevs = routingGraph_->previous(start_ll_offset);
+    lanelet::ConstLanelets prevs = routingGraph->previous(start_ll_offset);
     if(!prevs.size())
     {
       RCLCPP_WARN(get_logger(), "Current matched lanelet has no predecessors!");
       break;
     }
     start_ll_offset = prevs.at(0);
-    remaining += lanelet::geometry::length(start_ll_offset.centerline2d()); // remaining is negative
+    remaining += lanelet::geometry::length(start_ll_offset.centerline2d());
   }
   start_pos = lanelet::geometry::interpolatedPointAtDistance(start_ll_offset.centerline2d(), remaining);
 
   // Add small offset to end (so drivable space does not end directly at target)
-  double len_target_ll = lanelet::geometry::length(target_ll_offset.centerline2d());
-  remaining = len_target_ll - (lanelet::geometry::toArcCoordinates(target_ll_offset.centerline2d(), target_pos).length + offset_ahead_distance_);
+  lanelet::ConstLanelet destination_ll_offset = destination_lanelet;
+  double len_target_ll = lanelet::geometry::length(destination_ll_offset.centerline2d());
+  remaining = len_target_ll - (lanelet::geometry::toArcCoordinates(destination_ll_offset.centerline2d(), target_pos).length + offset_ahead_distance_);
   while (remaining < 0.)
   {
-    lanelet::ConstLanelets following_lls = routingGraph_->following(target_ll_offset, false);
+    lanelet::ConstLanelets following_lls = routingGraph->following(destination_ll_offset, false);
     if(!following_lls.size())
     {
       RCLCPP_WARN(get_logger(), "Current target lanelet has no followers!");
       break;
     }
-    target_ll_offset = following_lls.at(0);
-    len_target_ll = lanelet::geometry::length(target_ll_offset.centerline2d());
+    destination_ll_offset = following_lls.at(0);
+    len_target_ll = lanelet::geometry::length(destination_ll_offset.centerline2d());
     remaining += len_target_ll;
   }
-  target_pos = lanelet::geometry::interpolatedPointAtDistance(target_ll_offset.centerline2d(), len_target_ll - remaining);
+  target_pos = lanelet::geometry::interpolatedPointAtDistance(destination_ll_offset.centerline2d(), len_target_ll - remaining);
 
   // Get route
-  llroute_ = routingGraph_->getRoute(start_ll_offset, target_ll_offset, 0); // 0 = routingCostId distance
-  RCLCPP_INFO_STREAM(get_logger(), "Time core route planning: " << (now() - start_time).seconds() << "s");
-  // Is route-planning possible?
-  if (!!llroute_)
-  {
-    RCLCPP_INFO_STREAM(get_logger(), "Calculated new route! Start Lanelet: " << start_ll_.id() << " | Target Lanelet: " << target_ll_.id());
-
-    // Extract shortest path and its boundaries
-    lanelet::routing::LaneletPath shortestPath = llroute_->shortestPath(); // shortestPath = sorted Lanelets
-
-    std::pair<lanelet::BasicLineString2d, lanelet::BasicLineString2d> lane_boundaries;
-    lanelet::BasicLineString2d shortest_path_centerline = Lanelet2Utilities::llPath2llLineDistanceBased(ConstLanelets(shortestPath.begin(), shortestPath.end()), start_pos, 10., 3., std::numeric_limits<double>::max(), ds_sample_, target_pos, lane_boundaries, *routingGraphBicycle_);
-    //Start filling global route
-    route_.header.frame_id = ll2if_->map_frame_id_;
-    route_.header.stamp = now();
-    route_.destination.x = target_point_on_centerline.x();
-    route_.destination.y = target_point_on_centerline.y();
-    route_.destination.z = target_point_on_centerline.z();
-    route_.traveled_route = {};
-    route_.remaining_route = processLineString(shortest_path_centerline);
-    this->accumulateDistanceAlong2DPath(route_.remaining_route);
-
-    // Process boundaries
-    start_time = now();
-    driveable_space_ = sampleDriveableSpace(shortest_path_centerline);
-    RCLCPP_INFO_STREAM(get_logger(), "Duration for calculation of driveable-space: " << (now() - start_time).seconds() << "s");
-
-    // Process route boundaries
-    route_.boundaries.left.clear();
-    route_.boundaries.right.clear();
-    sampleRouteBoundary(llroute_.get(), shortestPath, route_.boundaries.left, route_.boundaries.right);
-
-    // Get regulatory elements along route
-
-    // Process shortest path boundaries
-
-    // Get regulatory elements along shortest path
-
+  Optional<lanelet::routing::Route> llroute = routingGraph->getRoute(start_ll_offset, destination_ll_offset, 0); // 0 = routingCostId distance
+  if(llroute) {
+    lanelet_route = std::move(*llroute);
     return true;
   }
-  else
-  {
-    RCLCPP_ERROR_STREAM(get_logger(), "No routing possibility from Lanelet " << start_ll_.id() << " to Lanelet " << target_ll_.id());
+  else {
+    RCLCPP_ERROR_STREAM(get_logger(), "Unable to plan a route from start-lanelet " << start_ll_offset.id() << " to destination-lanelet " << destination_ll_offset.id() << "!");
     return false;
   }
+}
+
+route_planning_msgs::msg::Route GlobalPlanner::processRoute(const lanelet::routing::Route ll_route, const lanelet::BasicPoint3d lanelet_destination_point) {
+  rclcpp::Time start_time = now();
+  // Extract shortest path and its boundaries
+  lanelet::routing::LaneletPath shortestPath = ll_route.shortestPath(); // shortestPath = sorted Lanelets
+
+  std::pair<lanelet::BasicLineString2d, lanelet::BasicLineString2d> lane_boundaries;
+  lanelet::LaneletMapConstPtr llmap = ll2if_->getMapPtr();
+  routing::RoutingGraphUPtr routingGraphBicycle = routing::RoutingGraph::build(*llmap, *trafficRulesBicycle_);
+  lanelet::BasicLineString2d shortest_path_centerline = Lanelet2Utilities::llPath2llLineDistanceBased(ConstLanelets(shortestPath.begin(), shortestPath.end()), start_pos, 10., 3., std::numeric_limits<double>::max(), ds_sample_, target_pos, lane_boundaries, *routingGraphBicycle);
+  
+  //Start filling route
+  route_planning_msgs::msg::Route route;
+  route.header.frame_id = ll2if_->map_frame_id_;
+  route.header.stamp = now();
+  route.destination.x = lanelet_destination_point.x();
+  route.destination.y = lanelet_destination_point.y();
+  route.destination.z = lanelet_destination_point.z();
+  route.traveled_route = {};
+  route.remaining_route = processLineString(shortest_path_centerline);
+  this->accumulateDistanceAlong2DPath(route.remaining_route);
+
+  // Process boundaries
+  route.driveable_space = sampleDriveableSpace(shortest_path_centerline);
+
+  // Process route boundaries
+  route.boundaries.left.clear();
+  route.boundaries.right.clear();
+  sampleRouteBoundary(ll_route, shortestPath, route.boundaries.left, route.boundaries.right);
+  RCLCPP_INFO_STREAM(get_logger(), "Duration for calculation of driveable-space: " << (now() - start_time).seconds() << "s");
+  return route;
 }
 
 void GlobalPlanner::publishEmptyRoute() {

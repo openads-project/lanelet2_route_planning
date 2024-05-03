@@ -20,37 +20,10 @@ rclcpp_action::GoalResponse GlobalPlanner::actionHandleGoal(
   }
   RCLCPP_INFO(this->get_logger(), "Transformed global maneuver request to destination (%.3f, %.3f, %.3f) in frame '%s'", destination_map.point.x, destination_map.point.y, destination_map.point.z, destination_map.header.frame_id.c_str());
 
-  llmap_ = ll2if_->getMapPtr();
-  routingGraph_ = routing::RoutingGraph::build(*llmap_, *trafficRules_);
-  routingGraphBicycle_ = routing::RoutingGraph::build(*llmap_, *trafficRulesBicycle_);
-  std::vector<std::string> err = routingGraph_->checkValidity();
-  if(err.size()>0)
-  {
-    RCLCPP_ERROR(get_logger(), "Routing-Graph of given lanelet-map is invalid!");
-    for(size_t i = 0; i<err.size(); i++)
-    {
-      RCLCPP_ERROR_STREAM(get_logger(), err[i]);
-    }
-    return rclcpp_action::GoalResponse::REJECT;
-  }
-
-  // Check for global position of ego-vehicle
-  if(!egoPositionSanityCheck() || !targetPositionSanityCheck(destination_map.point.x, destination_map.point.y))
-  {
-    RCLCPP_ERROR(get_logger(), "Unable to plan a global maneuver!");
-    return rclcpp_action::GoalResponse::REJECT;
-  }
-
-  if (geometry::distance(start_ll_.polygon2d(), lanelet::BasicPoint2d(ego_pose_.pose.position.x, ego_pose_.pose.position.y)) > 0.5)
-  {
-    RCLCPP_ERROR(get_logger(), "Current ego-pose is not on the start lanelet anymore!");
-    return rclcpp_action::GoalResponse::REJECT;
-  }
-
-  // plan route
-  lanelet::BasicPoint2d start_point(ego_pose_.pose.position.x, ego_pose_.pose.position.y);
-  lanelet::BasicPoint2d target_point(destination_map.point.x, destination_map.point.y);
-  planRoute(start_point, target_point, start_ll_, target_ll_);
+  lanelet::routing::Route ll_route;
+  lanelet::BasicPoint3d ll_destination_point;
+  if(!planLaneletRoute(ego_data_, destination, ll_route, ll_destination_point)) return rclcpp_action::GoalResponse::REJECT;
+  route_ = processRoute(ll_route, ll_destination_point);
 
   maneuver_feedback_ = std::make_shared<route_planning_msgs::action::GlobalManeuver::Feedback>();
   maneuver_feedback_->distance_remaining = route_.remaining_route.back().z;
@@ -121,13 +94,12 @@ void GlobalPlanner::actionExecute(
     }
 
     // Check for destination reached
-    // To-Do: add subscriber for actual vehicle velocity and check for standstill if require_standstill parameter is set!
-    if(egoPositionSanityCheck())
-    {
+    lanelet::ConstLanelet cur_ego_lanelet;
+    if(deriveEgoLanelet(ego_data_, cur_ego_lanelet)) {
 
       // check if destination is reached -> goal succeeded
       double velocity = perception_msgs::object_access::getVelLon(ego_data_);
-      if (geometry::distance(lanelet::BasicPoint2d(route_.destination.x, route_.destination.y), lanelet::BasicPoint2d(ego_pose_.pose.position.x, ego_pose_.pose.position.y)) < target_reached_thr_ && (std::fabs(velocity) < vel_threshold_target_ || !require_standstill_))
+      if (geometry::distance(lanelet::BasicPoint2d(route_.destination.x, route_.destination.y), lanelet::BasicPoint2d(perception_msgs::object_access::getX(ego_data_), perception_msgs::object_access::getY(ego_data_))) < target_reached_thr_ && (std::fabs(velocity) < vel_threshold_target_ || !require_standstill_))
       {
         RCLCPP_INFO(get_logger(),"Destination reached!");
         publishEmptyRoute();
@@ -143,7 +115,7 @@ void GlobalPlanner::actionExecute(
       route_planning_msgs::msg::Route route_local;
       rclcpp::Clock wall_clock(RCL_SYSTEM_TIME);
       rclcpp::Time map_extraction_t0 = wall_clock.now();
-      extractLocalMapInfo(ego_pose_, driveable_space_, driveable_space_local, route_, route_local);
+      extractLocalMapInfo(perception_msgs::object_access::getPoseWithCovariance(ego_data_), route_.driveable_space, driveable_space_local, route_, route_local);
       rclcpp::Duration map_extraction_duration = wall_clock.now() - map_extraction_t0;
       RCLCPP_INFO(this->get_logger(), "Local path extraction took %.3f ms", map_extraction_duration.nanoseconds() / 1e6);
 

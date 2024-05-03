@@ -47,7 +47,8 @@ std::vector<geometry_msgs::msg::Point> GlobalPlanner::sampleLinestring(const lan
 
     // Get all intersecting points
     std::vector<std::tuple<double, lanelet::BasicPoint2d, long>> all_interpoints; // signed distance, point, id of line
-    std::vector<std::pair<double, lanelet::ConstLineString3d>> near_lines = lanelet::geometry::findWithin2d(llmap_->lineStringLayer, test_line, 5.0);
+    lanelet::LaneletMapConstPtr llmap = ll2if_->getMapPtr();
+    std::vector<std::pair<double, lanelet::ConstLineString3d>> near_lines = lanelet::geometry::findWithin2d(llmap->lineStringLayer, test_line, 5.0);
     for (const auto &line_to_test : near_lines)
     {
       lanelet::BasicPoints2d interpoints;
@@ -70,7 +71,7 @@ std::vector<geometry_msgs::msg::Point> GlobalPlanner::sampleLinestring(const lan
     for (uint i = 0; i < all_interpoints.size(); i++)
     {
       // Intersection with non-drivable line?
-      const lanelet::ConstLineString3d &line = llmap_->lineStringLayer.get(std::get<2>(all_interpoints.at(i)));
+      const lanelet::ConstLineString3d &line = llmap->lineStringLayer.get(std::get<2>(all_interpoints.at(i)));
       if (checkLineDrivability(line) == false)
       {
         best_point = std::get<1>(all_interpoints.at(i));
@@ -107,11 +108,13 @@ void GlobalPlanner::sampleRouteBoundary(const lanelet::routing::Route &route,
 
     bool left_is_present=true;
     bool right_is_present=true;
+    lanelet::LaneletMapConstPtr llmap = ll2if_->getMapPtr();
+    routing::RoutingGraphUPtr routingGraph = routing::RoutingGraph::build(*llmap, *trafficRules_);
 
     //prove of routable lane on lefthandside
     while(left_is_present)
     {
-      Optional<lanelet::ConstLanelet> left{routingGraph_->left(outer_left_ll)}; // Get routable left lanelet if it exists
+      Optional<lanelet::ConstLanelet> left{routingGraph->left(outer_left_ll)}; // Get routable left lanelet if it exists
       left_is_present=left.has_value();
       if(left_is_present)
       {
@@ -122,7 +125,7 @@ void GlobalPlanner::sampleRouteBoundary(const lanelet::routing::Route &route,
     //prove of routable lane on righthandside
     while(right_is_present)
     {
-      Optional<lanelet::ConstLanelet> right{routingGraph_->right(outer_right_ll)}; // Get routable right lanelet if it exists
+      Optional<lanelet::ConstLanelet> right{routingGraph->right(outer_right_ll)}; // Get routable right lanelet if it exists
       right_is_present=right.has_value();
       if(right_is_present)
       {

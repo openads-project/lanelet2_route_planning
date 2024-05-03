@@ -32,7 +32,8 @@
             tf2::fromMsg(cur_pose.pose.orientation, quat);
             float yaw = tf2::impl::getYaw(quat);
             // Get nearest Lanelets
-            std::vector<std::pair<double, lanelet::ConstLanelet>> nearestLanelets = lanelet::geometry::findNearest(llmap_->laneletLayer, lanelet::BasicPoint2d(cur_pose.pose.position.x, cur_pose.pose.position.y), 5);
+            lanelet::LaneletMapConstPtr llmap = ll2if_->getMapPtr();
+            std::vector<std::pair<double, lanelet::ConstLanelet>> nearestLanelets = lanelet::geometry::findNearest(llmap->laneletLayer, lanelet::BasicPoint2d(cur_pose.pose.position.x, cur_pose.pose.position.y), 5);
             // Sort laneletes
             Lanelet2Utilities::laneletSorting(lanelet::BasicPoint2d(cur_pose.pose.position.x, cur_pose.pose.position.y), nearestLanelets, yaw, trafficRules_, {});
             lanelet::ConstLanelet current_ego_ll = nearestLanelets.at(0).second; // most probable current Lanelet
@@ -153,7 +154,7 @@
                     lanelet::BoundingBox2d aoi_box = lanelet::geometry::boundingBox2d(aoi_area);
 
                     // Find all Lanelets within AoI
-                    std::vector<lanelet::ConstLanelet> aoi_lanelets = llmap_->laneletLayer.search(aoi_box);
+                    std::vector<lanelet::ConstLanelet> aoi_lanelets = llmap->laneletLayer.search(aoi_box);
                     for(size_t i = 0; i<aoi_lanelets.size(); i++)
                     {
                         // Generate a Lane-Object from each Lanelet
@@ -166,7 +167,7 @@
                     }
 
                     // Find all Regulatory Elements within AoI
-                    std::vector<std::shared_ptr<const lanelet::RegulatoryElement>> aoi_regelems = llmap_->regulatoryElementLayer.search(aoi_box);
+                    std::vector<std::shared_ptr<const lanelet::RegulatoryElement>> aoi_regelems = llmap->regulatoryElementLayer.search(aoi_box);
                     for(size_t i = 0; i<aoi_regelems.size(); i++)
                     {
                         // Generate Regulatory Elements
