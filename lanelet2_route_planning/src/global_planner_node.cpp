@@ -314,17 +314,25 @@ bool GlobalPlanner::planLaneletRoute(const perception_msgs::msg::EgoData ego_dat
 }
 
 route_planning_msgs::msg::Route GlobalPlanner::processRoute(const perception_msgs::msg::EgoData ego_data, const lanelet::routing::Route ll_route, const lanelet::BasicPoint3d lanelet_destination_point) {
-  rclcpp::Time start_time = now();
   // Extract shortest path and its boundaries
   lanelet::routing::LaneletPath shortestPath = ll_route.shortestPath(); // shortestPath = sorted Lanelets
 
-  std::pair<lanelet::BasicLineString2d, lanelet::BasicLineString2d> lane_boundaries;
-  lanelet::LaneletMapConstPtr llmap = ll2if_->getMapPtr();
-  routing::RoutingGraphUPtr routingGraphBicycle = routing::RoutingGraph::build(*llmap, *trafficRulesBicycle_);
   lanelet::BasicPoint2d start_pos(perception_msgs::object_access::getX(ego_data), perception_msgs::object_access::getY(ego_data));
   lanelet::BasicPoint2d target_pos(lanelet_destination_point.x(), lanelet_destination_point.y());
-  lanelet::BasicLineString2d shortest_path_centerline = Lanelet2Utilities::llPath2llLineDistanceBased(ConstLanelets(shortestPath.begin(), shortestPath.end()), start_pos, 10., 3., std::numeric_limits<double>::max(), ds_sample_, target_pos, lane_boundaries, *routingGraphBicycle);
-  
+  // The function below is responsible to extract a 2D-Polyline describing the shortest-path from the current ego-position to the destination
+  // The function handles lane-changes to adjacent lane-changes along the shortest-path.
+  // Lane changes are modelled through sinus-curves sampled over a given distance definied by a lane-change velocity and time.
+  // Inputs are:
+  //   - the shortes-path of the route --> shortestPath
+  //   - the current ego-position --> start_pos (if the ego vehicle has an offset to the centerline, the offset is slowly reduced through a sinus-curve)
+  //   - the the length of a potential lane change maneuver is derived through multiplication of an velocity and a duration of the maneuver, in this case, 10 m/s for 3s lane change duration
+  //   - the maximum accumulated length of the derived centerline is set to infinity
+  //   - ds_sample_ indicates the step-width between two subsequent path-points
+  //   - the target_pos is the end position on the shortes path i.e. the last point of the resulting path
+  // Output:
+  //   - the sampled shortest-path given as lanelet::BasicLineString2d
+  lanelet::BasicLineString2d shortest_path_centerline = Lanelet2Utilities::llPath2llLineDistanceBased(ConstLanelets(shortestPath.begin(), shortestPath.end()), start_pos, 10.0, 3.0, std::numeric_limits<double>::max(), ds_sample_, target_pos, {}, {});
+
   //Start filling route
   route_planning_msgs::msg::Route route;
   route.header.frame_id = ll2if_->map_frame_id_;
@@ -343,7 +351,6 @@ route_planning_msgs::msg::Route GlobalPlanner::processRoute(const perception_msg
   route.boundaries.left.clear();
   route.boundaries.right.clear();
   sampleRouteBoundary(ll_route, shortestPath, route.boundaries.left, route.boundaries.right);
-  RCLCPP_INFO_STREAM(get_logger(), "Duration for calculation of driveable-space: " << (now() - start_time).seconds() << "s");
   return route;
 }
 
