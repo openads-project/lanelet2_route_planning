@@ -21,9 +21,10 @@ rclcpp_action::GoalResponse GlobalPlanner::actionHandleGoal(
   RCLCPP_INFO(this->get_logger(), "Transformed global maneuver request to destination (%.3f, %.3f, %.3f) in frame '%s'", destination_map.point.x, destination_map.point.y, destination_map.point.z, destination_map.header.frame_id.c_str());
 
   lanelet::routing::Route ll_route;
-  lanelet::BasicPoint3d ll_destination_point;
-  if(!planLaneletRoute(ego_data_, destination, ll_route, ll_destination_point)) return rclcpp_action::GoalResponse::REJECT;
-  route_ = processRoute(ego_data_, std::move(ll_route), ll_destination_point);
+  lanelet::BasicPoint2d start_offset_point, destination_offset_point;
+  lanelet::BasicPoint3d destination_on_centerline;
+  if(!planLaneletRoute(ego_data_, destination, ll_route, start_offset_point, destination_on_centerline, destination_offset_point)) return rclcpp_action::GoalResponse::REJECT;
+  route_ = processRoute(ego_data_, std::move(ll_route), start_offset_point, destination_on_centerline, destination_offset_point);
 
   maneuver_feedback_ = std::make_shared<route_planning_msgs::action::GlobalManeuver::Feedback>();
   maneuver_feedback_->distance_remaining = route_.remaining_route.back().z;

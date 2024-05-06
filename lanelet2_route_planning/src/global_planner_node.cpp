@@ -238,7 +238,7 @@ bool GlobalPlanner::deriveDestinationLanelet(const geometry_msgs::msg::PointStam
   }
 }
 
-bool GlobalPlanner::planLaneletRoute(const perception_msgs::msg::EgoData ego_data, const geometry_msgs::msg::PointStamped destination, lanelet::routing::Route& lanelet_route, lanelet::BasicPoint3d& lanelet_destination_point) {
+bool GlobalPlanner::planLaneletRoute(const perception_msgs::msg::EgoData ego_data, const geometry_msgs::msg::PointStamped destination, lanelet::routing::Route& lanelet_route, lanelet::BasicPoint2d& start_offset_point, lanelet::BasicPoint3d& destination_on_centerline,  lanelet::BasicPoint2d& destination_offset_point) {
   lanelet::LaneletMapConstPtr llmap = ll2if_->getMapPtr();
   routing::RoutingGraphUPtr routingGraph = routing::RoutingGraph::build(*llmap, *trafficRules_);
   routing::RoutingGraphUPtr routingGraphBicycle = routing::RoutingGraph::build(*llmap, *trafficRulesBicycle_);
@@ -264,8 +264,8 @@ bool GlobalPlanner::planLaneletRoute(const perception_msgs::msg::EgoData ego_dat
 
   // End position on centerline of destination lanelet
   lanelet::BasicPoint3d target_point_on_centerline(destination.point.x, destination.point.y, 0.0);
-  lanelet_destination_point = lanelet::geometry::project(destination_lanelet.centerline(), target_point_on_centerline);
-  lanelet::BasicPoint2d target_pos(lanelet_destination_point.x(), lanelet_destination_point.y());
+  destination_on_centerline = lanelet::geometry::project(destination_lanelet.centerline(), target_point_on_centerline);
+  lanelet::BasicPoint2d dest_pos(destination_on_centerline.x(), destination_on_centerline.y());
 
   // Add small offset to start
   lanelet::ConstLanelet start_ll_offset = start_lanelet;
@@ -281,12 +281,12 @@ bool GlobalPlanner::planLaneletRoute(const perception_msgs::msg::EgoData ego_dat
     start_ll_offset = prevs.at(0);
     remaining += lanelet::geometry::length(start_ll_offset.centerline2d());
   }
-  start_pos = lanelet::geometry::interpolatedPointAtDistance(start_ll_offset.centerline2d(), remaining);
+  start_offset_point = lanelet::geometry::interpolatedPointAtDistance(start_ll_offset.centerline2d(), remaining);
 
   // Add small offset to end (so drivable space does not end directly at target)
   lanelet::ConstLanelet destination_ll_offset = destination_lanelet;
   double len_target_ll = lanelet::geometry::length(destination_ll_offset.centerline2d());
-  remaining = len_target_ll - (lanelet::geometry::toArcCoordinates(destination_ll_offset.centerline2d(), target_pos).length + offset_ahead_distance_);
+  remaining = len_target_ll - (lanelet::geometry::toArcCoordinates(destination_ll_offset.centerline2d(), dest_pos).length + offset_ahead_distance_);
   while (remaining < 0.)
   {
     lanelet::ConstLanelets following_lls = routingGraph->following(destination_ll_offset, false);
@@ -299,7 +299,7 @@ bool GlobalPlanner::planLaneletRoute(const perception_msgs::msg::EgoData ego_dat
     len_target_ll = lanelet::geometry::length(destination_ll_offset.centerline2d());
     remaining += len_target_ll;
   }
-  target_pos = lanelet::geometry::interpolatedPointAtDistance(destination_ll_offset.centerline2d(), len_target_ll - remaining);
+  destination_offset_point = lanelet::geometry::interpolatedPointAtDistance(destination_ll_offset.centerline2d(), len_target_ll - remaining);
 
   // Get route
   Optional<lanelet::routing::Route> llroute = routingGraph->getRoute(start_ll_offset, destination_ll_offset, 0); // 0 = routingCostId distance
@@ -313,12 +313,12 @@ bool GlobalPlanner::planLaneletRoute(const perception_msgs::msg::EgoData ego_dat
   }
 }
 
-route_planning_msgs::msg::Route GlobalPlanner::processRoute(const perception_msgs::msg::EgoData ego_data, const lanelet::routing::Route ll_route, const lanelet::BasicPoint3d lanelet_destination_point) {
+route_planning_msgs::msg::Route GlobalPlanner::processRoute(const perception_msgs::msg::EgoData ego_data, const lanelet::routing::Route ll_route, const lanelet::BasicPoint2d& start_offset_point, const lanelet::BasicPoint3d& destination_on_centerline, const lanelet::BasicPoint2d& destination_offset_point) {
   // Extract shortest path and its boundaries
   lanelet::routing::LaneletPath shortestPath = ll_route.shortestPath(); // shortestPath = sorted Lanelets
 
   lanelet::BasicPoint2d start_pos(perception_msgs::object_access::getX(ego_data), perception_msgs::object_access::getY(ego_data));
-  lanelet::BasicPoint2d target_pos(lanelet_destination_point.x(), lanelet_destination_point.y());
+  lanelet::BasicPoint2d dest_pos(destination_on_centerline.x(), destination_on_centerline.y());
   // The function below is responsible to extract a 2D-Polyline describing the shortest-path from the current ego-position to the destination
   // The function handles lane-changes to adjacent lane-changes along the shortest-path.
   // Lane changes are modelled through sinus-curves sampled over a given distance definied by a lane-change velocity and time.
@@ -328,24 +328,26 @@ route_planning_msgs::msg::Route GlobalPlanner::processRoute(const perception_msg
   //   - the the length of a potential lane change maneuver is derived through multiplication of an velocity and a duration of the maneuver, in this case, 10 m/s for 3s lane change duration
   //   - the maximum accumulated length of the derived centerline is set to infinity
   //   - ds_sample_ indicates the step-width between two subsequent path-points
-  //   - the target_pos is the end position on the shortes path i.e. the last point of the resulting path
+  //   - the dest_pos is the end position on the shortes path i.e. the last point of the resulting path
   // Output:
   //   - the sampled shortest-path given as lanelet::BasicLineString2d
-  lanelet::BasicLineString2d shortest_path_centerline = Lanelet2Utilities::llPath2llLineDistanceBased(ConstLanelets(shortestPath.begin(), shortestPath.end()), start_pos, 10.0, 3.0, std::numeric_limits<double>::max(), ds_sample_, target_pos, {}, {});
+  lanelet::BasicLineString2d shortest_path_centerline = Lanelet2Utilities::llPath2llLineDistanceBased(ConstLanelets(shortestPath.begin(), shortestPath.end()), start_pos, 10.0, 3.0, std::numeric_limits<double>::max(), ds_sample_, dest_pos, {}, {});
+  // we call the function twice to derive a path with offsets at start and destination for extraction of boundaries etc.
+  lanelet::BasicLineString2d offset_shortest_path_centerline = Lanelet2Utilities::llPath2llLineDistanceBased(ConstLanelets(shortestPath.begin(), shortestPath.end()), start_offset_point, 10.0, 3.0, std::numeric_limits<double>::max(), ds_sample_, destination_offset_point, {}, {});
 
   //Start filling route
   route_planning_msgs::msg::Route route;
   route.header.frame_id = ll2if_->map_frame_id_;
   route.header.stamp = now();
-  route.destination.x = lanelet_destination_point.x();
-  route.destination.y = lanelet_destination_point.y();
-  route.destination.z = lanelet_destination_point.z();
+  route.destination.x = destination_on_centerline.x();
+  route.destination.y = destination_on_centerline.y();
+  route.destination.z = destination_on_centerline.z();
   route.traveled_route = {};
   route.remaining_route = processLineString(shortest_path_centerline);
   this->accumulateDistanceAlong2DPath(route.remaining_route);
 
   // Process boundaries
-  route.driveable_space = sampleDriveableSpace(shortest_path_centerline);
+  route.driveable_space = sampleDriveableSpace(offset_shortest_path_centerline);
 
   // Process route boundaries
   route.boundaries.left.clear();
