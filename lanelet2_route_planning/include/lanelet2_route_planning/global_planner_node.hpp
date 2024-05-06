@@ -154,7 +154,7 @@ class GlobalPlanner : public rclcpp::Node
         std::vector<geometry_msgs::msg::Point> sampleLinestring(
                                           const lanelet::BasicLineString2d &centerline,
                                           const double test_dis,
-                                          bool b_right);
+                                          const bool b_right);
         void sampleRouteBoundary(   const lanelet::routing::Route &route,
                                     const lanelet::routing::LaneletPath &shortest_path,
                                     std::vector<geometry_msgs::msg::Point> &bound_left,

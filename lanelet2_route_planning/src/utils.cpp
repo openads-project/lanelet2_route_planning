@@ -22,7 +22,7 @@ route_planning_msgs::msg::DriveableSpace GlobalPlanner::sampleDriveableSpace(con
 
 std::vector<geometry_msgs::msg::Point> GlobalPlanner::sampleLinestring(const lanelet::BasicLineString2d &centerline,
                                                                       const double test_dis,
-                                                                      bool b_right)
+                                                                      const bool b_right)
 {
   double test_dis_left_right = test_dis;
   double factor_left_right = 1.0;
@@ -66,7 +66,7 @@ std::vector<geometry_msgs::msg::Point> GlobalPlanner::sampleLinestring(const lan
                 return std::get<0>(t1) < std::get<0>(t2);
               });
 
-    // Visualize these intersecting points and check for drivability
+    // check intersecting points for drivability
     lanelet::BasicPoint2d best_point = test_p;
     for (uint i = 0; i < all_interpoints.size(); i++)
     {
@@ -111,7 +111,7 @@ void GlobalPlanner::sampleRouteBoundary(const lanelet::routing::Route &route,
     lanelet::LaneletMapConstPtr llmap = ll2if_->getMapPtr();
     routing::RoutingGraphUPtr routingGraph = routing::RoutingGraph::build(*llmap, *trafficRules_);
 
-    //prove of routable lane on lefthandside
+    // check for routable lane on left-hand side
     while(left_is_present)
     {
       Optional<lanelet::ConstLanelet> left{routingGraph->left(outer_left_ll)}; // Get routable left lanelet if it exists
@@ -122,7 +122,7 @@ void GlobalPlanner::sampleRouteBoundary(const lanelet::routing::Route &route,
       }
     }
 
-    //prove of routable lane on righthandside
+    // check for routable lane on right-hand side
     while(right_is_present)
     {
       Optional<lanelet::ConstLanelet> right{routingGraph->right(outer_right_ll)}; // Get routable right lanelet if it exists
@@ -141,7 +141,7 @@ void GlobalPlanner::sampleRouteBoundary(const lanelet::routing::Route &route,
     std::vector<geometry_msgs::msg::Point> bound_left_ls = Lanelet2Utilities::convertLaneletLine2Linestring(outer_left_bound_ll.basicLineString());
     std::vector<geometry_msgs::msg::Point> bound_right_ls = Lanelet2Utilities::convertLaneletLine2Linestring(outer_right_bound_ll.basicLineString());
 
-    //add boundaries to boundarielinestring
+    //add boundaries to boundary linestring
     bound_left.insert(bound_left.end(), bound_left_ls.begin(), bound_left_ls.end());
     bound_right.insert(bound_right.end(), bound_right_ls.begin(), bound_right_ls.end());
   }
