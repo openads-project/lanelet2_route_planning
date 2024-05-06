@@ -206,7 +206,8 @@ bool GlobalPlanner::deriveEgoLanelet(const perception_msgs::msg::EgoData ego_dat
     }
     else {
       // Determine start lanelet
-      Lanelet2Utilities::laneletSorting(lanelet::BasicPoint2d(perception_msgs::object_access::getX(ego_data), perception_msgs::object_access::getY(ego_data)), nearestLanelets, perception_msgs::object_access::getYaw(ego_data), trafficRules_, {});
+      float yaw = (float)perception_msgs::object_access::getYaw(ego_data);
+      Lanelet2Utilities::laneletSorting(lanelet::BasicPoint2d(perception_msgs::object_access::getX(ego_data), perception_msgs::object_access::getY(ego_data)), nearestLanelets, yaw, trafficRules_, {});
       start_lanelet = nearestLanelets.at(0).second; // most probable current Lanelet
       return true;
     }
@@ -312,7 +313,7 @@ bool GlobalPlanner::planLaneletRoute(const perception_msgs::msg::EgoData ego_dat
   }
 }
 
-route_planning_msgs::msg::Route GlobalPlanner::processRoute(const lanelet::routing::Route ll_route, const lanelet::BasicPoint3d lanelet_destination_point) {
+route_planning_msgs::msg::Route GlobalPlanner::processRoute(const perception_msgs::msg::EgoData ego_data, const lanelet::routing::Route ll_route, const lanelet::BasicPoint3d lanelet_destination_point) {
   rclcpp::Time start_time = now();
   // Extract shortest path and its boundaries
   lanelet::routing::LaneletPath shortestPath = ll_route.shortestPath(); // shortestPath = sorted Lanelets
@@ -320,6 +321,8 @@ route_planning_msgs::msg::Route GlobalPlanner::processRoute(const lanelet::routi
   std::pair<lanelet::BasicLineString2d, lanelet::BasicLineString2d> lane_boundaries;
   lanelet::LaneletMapConstPtr llmap = ll2if_->getMapPtr();
   routing::RoutingGraphUPtr routingGraphBicycle = routing::RoutingGraph::build(*llmap, *trafficRulesBicycle_);
+  lanelet::BasicPoint2d start_pos(perception_msgs::object_access::getX(ego_data), perception_msgs::object_access::getY(ego_data));
+  lanelet::BasicPoint2d target_pos(lanelet_destination_point.x(), lanelet_destination_point.y());
   lanelet::BasicLineString2d shortest_path_centerline = Lanelet2Utilities::llPath2llLineDistanceBased(ConstLanelets(shortestPath.begin(), shortestPath.end()), start_pos, 10., 3., std::numeric_limits<double>::max(), ds_sample_, target_pos, lane_boundaries, *routingGraphBicycle);
   
   //Start filling route

@@ -116,7 +116,7 @@ class GlobalPlanner : public rclcpp::Node
         bool deriveEgoLanelet(const perception_msgs::msg::EgoData ego_data, lanelet::ConstLanelet& ego_lanelet);
         bool deriveDestinationLanelet(const geometry_msgs::msg::PointStamped destination, lanelet::ConstLanelet& destination_lanelet);
         bool planLaneletRoute(const perception_msgs::msg::EgoData ego_data, const geometry_msgs::msg::PointStamped destination, lanelet::routing::Route& lanelet_route, lanelet::BasicPoint3d& lanelet_destination_point);
-        route_planning_msgs::msg::Route processRoute(const lanelet::routing::Route ll_route, const lanelet::BasicPoint3d lanelet_destination_point);
+        route_planning_msgs::msg::Route processRoute(const perception_msgs::msg::EgoData ego_data, const lanelet::routing::Route ll_route, const lanelet::BasicPoint3d lanelet_destination_point);
         void publishEmptyRoute();
 
         // local_path_extraction.cpp

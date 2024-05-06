@@ -23,7 +23,7 @@ rclcpp_action::GoalResponse GlobalPlanner::actionHandleGoal(
   lanelet::routing::Route ll_route;
   lanelet::BasicPoint3d ll_destination_point;
   if(!planLaneletRoute(ego_data_, destination, ll_route, ll_destination_point)) return rclcpp_action::GoalResponse::REJECT;
-  route_ = processRoute(ll_route, ll_destination_point);
+  route_ = processRoute(ego_data_, std::move(ll_route), ll_destination_point);
 
   maneuver_feedback_ = std::make_shared<route_planning_msgs::action::GlobalManeuver::Feedback>();
   maneuver_feedback_->distance_remaining = route_.remaining_route.back().z;
