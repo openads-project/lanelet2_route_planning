@@ -122,7 +122,7 @@
                     lanelet::LineString3d top(lanelet::utils::getId(), {lanelet::Point3d{lanelet::utils::getId(), max_x, min_y, 0}, lanelet::Point3d{utils::getId(), max_x, max_y, 0}});
                     lanelet::LineString3d right(lanelet::utils::getId(), {lanelet::Point3d{lanelet::utils::getId(), max_x, max_y, 0}, lanelet::Point3d{utils::getId(), min_x, max_y, 0}});
                     lanelet::LineString3d bottom(lanelet::utils::getId(), {lanelet::Point3d{lanelet::utils::getId(), min_x, max_y, 0}, lanelet::Point3d{utils::getId(), min_x, min_y, 0}});
-                    lanelet::LineString3d left(lanelet::utils::getId(), {lanelet::Point3d{lanelet::utils::getId(), min_x, min_y, 0}, lanelet::Point3d{utils::getId(), max_y, min_y, 0}});
+                    lanelet::LineString3d left(lanelet::utils::getId(), {lanelet::Point3d{lanelet::utils::getId(), min_x, min_y, 0}, lanelet::Point3d{utils::getId(), max_x, min_y, 0}});
                     lanelet::Area aoi_area(lanelet::utils::getId(), {top, right, bottom, left});
                     lanelet::BoundingBox2d aoi_box = lanelet::geometry::boundingBox2d(aoi_area);
 
