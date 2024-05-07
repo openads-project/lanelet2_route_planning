@@ -19,4 +19,4 @@ global_planner:
     local_path_extraction_rate: 10.0 # Rate to extract and publish the local path / route / driveable space [Hz]
     look_ahead_time: 10.0 # Look ahead time for extracting the local path [s]
     look_ahead_distance_min: 100.0 # Minimum Look-Ahead distance for the local path extraction [m]
-    look_behind_distance: 0.0 # Look-Behind distance for the local path extraction [m]; limited by offset_behind_distance
+    look_behind_distance: 15.0 # Look-Behind distance for the local path extraction [m]; limited by offset_behind_distance
