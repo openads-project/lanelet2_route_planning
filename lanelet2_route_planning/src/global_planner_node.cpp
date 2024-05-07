@@ -324,18 +324,17 @@ route_planning_msgs::msg::Route GlobalPlanner::processRoute(const perception_msg
   // Lane changes are modelled through sinus-curves sampled over a given distance definied by a lane-change velocity and time.
   // Inputs are:
   //   - the shortes-path of the route --> shortestPath
-  //   - the current ego-position --> start_pos (if the ego vehicle has an offset to the centerline, the offset is slowly reduced through a sinus-curve)
+  //   - the current ego-position --> start_pos - offset_behind_distance_
   //   - the the length of a potential lane change maneuver is derived through multiplication of an velocity and a duration of the maneuver, in this case, 10 m/s for 3s lane change duration
   //   - the maximum accumulated length of the derived centerline is set to infinity
   //   - ds_sample_ indicates the step-width between two subsequent path-points
-  //   - the dest_pos is the end position on the shortes path i.e. the last point of the resulting path
+  //   - the dest_pos is the end position on the shortes path i.e. the last point of the resulting path, we extract the centerline with an additional offset offset_ahead_distance_
   // Output:
   //   - the sampled shortest-path given as lanelet::BasicLineString2d
-  lanelet::BasicLineString2d shortest_path_centerline = Lanelet2Utilities::llPath2llLineDistanceBased(ConstLanelets(shortestPath.begin(), shortestPath.end()), start_pos, 10.0, 3.0, std::numeric_limits<double>::max(), ds_sample_, dest_pos, {}, {});
-  // we call the function twice to derive a path with offsets at start and destination for extraction of boundaries etc.
   lanelet::BasicLineString2d offset_shortest_path_centerline = Lanelet2Utilities::llPath2llLineDistanceBased(ConstLanelets(shortestPath.begin(), shortestPath.end()), start_offset_point, 10.0, 3.0, std::numeric_limits<double>::max(), ds_sample_, destination_offset_point, {}, {});
 
-  //Start filling route
+  // Start filling route
+  // this route contains the centerline including offset at start and destination!
   route_planning_msgs::msg::Route route;
   route.header.frame_id = ll2if_->map_frame_id_;
   route.header.stamp = now();
@@ -343,15 +342,18 @@ route_planning_msgs::msg::Route GlobalPlanner::processRoute(const perception_msg
   route.destination.y = destination_on_centerline.y();
   route.destination.z = destination_on_centerline.z();
   route.traveled_route = {};
-  route.remaining_route = processLineString(shortest_path_centerline);
-  this->accumulateDistanceAlong2DPath(route.remaining_route);
-
+  route.remaining_route = processLineString(offset_shortest_path_centerline);
+  // identify the sample of the offset_shortest_path_centerline that equals the initial position of the ego-vehicle
+  initial_ego_pos_sample_cl_ = 0;
+  initial_ego_pos_sample_cl_ = findNearestSample(perception_msgs::object_access::getPosition(ego_data), route.remaining_route, initial_ego_pos_sample_cl_);
+  // identify the sample of the offset_shortest_path_centerline that equals the target position
+  target_pos_sample_cl_ = findNearestSampleReverse(route.destination, route.remaining_route);
+  // we calculate the accumulated distance only on the part of the route excluding the additional offsets
+  this->accumulateDistanceAlong2DPath(route.remaining_route, initial_ego_pos_sample_cl_, target_pos_sample_cl_);
   // Process boundaries
   route.driveable_space = sampleDriveableSpace(offset_shortest_path_centerline);
 
   // Process route boundaries
-  route.boundaries.left.clear();
-  route.boundaries.right.clear();
   sampleRouteBoundary(ll_route, shortestPath, route.boundaries.left, route.boundaries.right);
   return route;
 }

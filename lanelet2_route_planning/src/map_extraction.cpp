@@ -6,11 +6,9 @@
             rclcpp::Time stamp_time = now();
 
             // Find sample of shortest path centerline corresponding to the current ego-position (limited by end of route)
-            unsigned int ego_pos_sample_cl = 0;
+            unsigned int ego_pos_sample_cl = initial_ego_pos_sample_cl_;
             ego_pos_sample_cl = findNearestSample(perception_msgs::object_access::getPosition(ego_data), route_global.remaining_route, ego_pos_sample_cl);
-            // Find sample of shortest path centerline corresponding to the current ego-position (limited by end of route)
-            unsigned int target_sample_cl = findNearestSampleReverse(route_global.destination, route_global.remaining_route);
-            if (ego_pos_sample_cl >= target_sample_cl) ego_pos_sample_cl = target_sample_cl;
+            if (ego_pos_sample_cl >= target_pos_sample_cl_) ego_pos_sample_cl = target_pos_sample_cl_;
 
             // create temporary local route to fill in this function
             // local route = full route with local boundaries, lanes, regulatory elements, ...
@@ -18,15 +16,13 @@
             route_local_tmp.header.stamp = stamp_time;
             route_local_tmp.destination = route_global.destination;
             route_local_tmp.header.frame_id = ll2if_->map_frame_id_; // currently it's map --> will be changed through transform function
-            route_local_tmp.traveled_route = {route_global.remaining_route.begin(), route_global.remaining_route.begin() + ego_pos_sample_cl};
-            route_local_tmp.remaining_route = {route_global.remaining_route.begin() + ego_pos_sample_cl, route_global.remaining_route.end()};
+            route_local_tmp.traveled_route = {route_global.remaining_route.begin() + initial_ego_pos_sample_cl_, route_global.remaining_route.begin() + ego_pos_sample_cl};
+            route_local_tmp.remaining_route = {route_global.remaining_route.begin() + ego_pos_sample_cl, route_global.remaining_route.begin() + target_pos_sample_cl_};
 
             // only extract local information if there is a remaining route
             if (route_local_tmp.remaining_route.size() > 1) {
-
-                remaining_shortest_path_ = {route_global.remaining_route.begin() + ego_pos_sample_cl, route_global.remaining_route.begin() + target_sample_cl};
                 std::vector<double> sp_accumulated_length_vec;
-                double sp_length = accumulatedLength(remaining_shortest_path_, sp_accumulated_length_vec);
+                double sp_length = accumulatedLength({route_global.remaining_route.begin() + initial_ego_pos_sample_cl_ + ego_pos_sample_cl, route_global.remaining_route.end()}, sp_accumulated_length_vec);
                 // Get the start and end sample of the local shortest path with respect to look-ahead/behind distance
                 double velocity = perception_msgs::object_access::getVelLon(ego_data_)/3.6;
                 double look_ahead_distance = std::max(look_ahead_distance_min_, look_ahead_time_*velocity);

@@ -391,14 +391,19 @@ uint8_t GlobalPlanner::trafficSignCode2Type(const std::string tsign_code)
  * @brief Accumulates the distance along a 2D line path, storing it as the z-coordinate of the points
  * 
  * @param path 2D path to accumulate distance along, z-coordinate will be overwritten with distance
- * @param initial_distance initial distance to start accumulating from
+ * @param start_sample the sample within the path where travelled distance actually starts (allowing for offsets)
+ * @param dest_sample the sample within the path where travelled distance actually ends (allowing for offsets)
  */
-void GlobalPlanner::accumulateDistanceAlong2DPath(std::vector<geometry_msgs::msg::Point>& path, const double initial_distance) {
+void GlobalPlanner::accumulateDistanceAlong2DPath(std::vector<geometry_msgs::msg::Point>& path, const unsigned int start_sample, const unsigned int dest_sample) {
   if (path.empty()) return;
-  double accumulated_distance = initial_distance;
-  path[0].z = initial_distance;
-  for (size_t i = 1; i < path.size(); i++) {
-    accumulated_distance += this->distance(path[i-1], path[i]);
-    path[i].z = accumulated_distance;
+  double accumulated_distance = 0.0;
+  path[0].z = 0.0;
+  for (size_t i = 1; i < path.size(); ++i) {
+    if(i<=start_sample) path[i].z = 0.0;
+    if(i>dest_sample) path[i].z = path[i-1].z;
+    if(start_sample < i && i <= dest_sample) {
+      accumulated_distance += this->distance(path[i-1], path[i]);
+      path[i].z = accumulated_distance;
+    }
   }
 }

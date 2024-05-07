@@ -85,7 +85,8 @@ class GlobalPlanner : public rclcpp::Node
         // Map Extraction
         std::string local_vehicle_frame_id_="base_link";
         double path_extraction_rate_=10.0;
-        std::vector<geometry_msgs::msg::Point> remaining_shortest_path_;
+        unsigned int initial_ego_pos_sample_cl_ = 0;
+        unsigned int target_pos_sample_cl_ = 0;
         double look_ahead_time_ = 10.0;
         double look_ahead_distance_min_ = 50.0;
         double look_behind_distance_ = 20.0;
@@ -139,7 +140,7 @@ class GlobalPlanner : public rclcpp::Node
 
        
         // utils.cpp
-        void accumulateDistanceAlong2DPath(std::vector<geometry_msgs::msg::Point>& path, const double initial_distance = 0.0);
+        void accumulateDistanceAlong2DPath(std::vector<geometry_msgs::msg::Point>& path, const unsigned int start_sample, const unsigned int dest_sample);
         std::vector<geometry_msgs::msg::Point> processLineString(lanelet::BasicLineString2d& line_string);
         route_planning_msgs::msg::DriveableSpace sampleDriveableSpace(const lanelet::BasicLineString2d &centerline);
         std::vector<geometry_msgs::msg::Point> sampleLinestring(
