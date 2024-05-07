@@ -8,7 +8,7 @@ global_planner:
     # Route Planning
     route_sample_distance: 0.5 # Sample distance of the generated route [m]
     route_smoothing_factor: 2.0 # Parameter to influence the smoothing of the route
-    lateral_driveable_space_width: 100.0 # Maximum width of the generated driveable space [m]
+    lateral_driveable_space_width: 15.0 # Maximum width of the generated driveable space [m]
     target_reached_thr: 1.0 # Distance to the target-position to reach the destination [m]
     require_standstill: False # Bool indicating if it's necessary for the vehicle to stand still at the target-position
     vel_threshold_target: 1.0 # Velocity threshold to define if the target is reached if require_standstill is True [m/s]
