@@ -259,40 +259,37 @@ route_planning_msgs::msg::LaneSeparator GlobalPlanner::deriveLaneSeparator(const
 {
   route_planning_msgs::msg::LaneSeparator lane_sep;
   lanelet::Attribute type_str;
-  if (!linestring.hasAttribute("type"))
-  {
-    RCLCPP_INFO(get_logger(), "The linestring does not have the attribute 'type'!");
+  if (!linestring.hasAttribute("type")) {
+    RCLCPP_WARN_STREAM(get_logger(), "Linestring with id=" << linestring.id() << " does not have the required attribute 'type'!");
     // We're not considering linestrings without type --> line is empty
     lane_sep.type = route_planning_msgs::msg::LaneSeparator::TYPE_UNKNOWN;
     return lane_sep;
   }
-  else
-  {
+  else {
     type_str = linestring.attribute("type");
   }
-  if(type_str == "road_boarder" || type_str == "barrier")
-  {
+  if(type_str == "road_boarder" || type_str == "barrier") {
     lane_sep.type = route_planning_msgs::msg::LaneSeparator::TYPE_CROSSING_RESTRICTED;
     lane_sep.line = Lanelet2Utilities::convertLaneletLine2Linestring(linestring.basicLineString());
     return lane_sep;
   }
-  if(type_str == "virtual")
-  {
+  if(type_str == "virtual") {
     // We're not considering linestrings with type virtual --> line is empty
     lane_sep.type = route_planning_msgs::msg::LaneSeparator::TYPE_UNKNOWN;
     return lane_sep;
   }
-  if(type_str == "line_thin" || type_str == "line_thick")
-  {
+  if(type_str == "line_thin" || type_str == "line_thick") {
     lane_sep.line = Lanelet2Utilities::convertLaneletLine2Linestring(linestring.basicLineString());
     lane_sep.type = route_planning_msgs::msg::LaneSeparator::TYPE_UNKNOWN;
-    if (linestring.hasAttribute("subtype"))
-    {
+    if (linestring.hasAttribute("subtype")) {
       lanelet::Attribute subtype_str = linestring.attribute("subtype");
       if(subtype_str == "solid" || subtype_str == "solid_solid") lane_sep.type = route_planning_msgs::msg::LaneSeparator::TYPE_CROSSING_RESTRICTED;
       if(subtype_str == "dashed") lane_sep.type = route_planning_msgs::msg::LaneSeparator::TYPE_CROSSING_ALLOWED;
       if(subtype_str == "dashed_solid") lane_sep.type = route_planning_msgs::msg::LaneSeparator::TYPE_CROSSING_ALLOWED_FROM_LEFT;
       if(subtype_str == "solid_dashed") lane_sep.type = route_planning_msgs::msg::LaneSeparator::TYPE_CROSSING_ALLOWED_FROM_RIGHT;
+    }
+    else {
+      RCLCPP_WARN_STREAM(get_logger(), "Linestring with type 'line_thin' or 'line_thick' with id=" << linestring.id() << " does not have the required attribute 'subtype'!");
     }
     return lane_sep;
   }
