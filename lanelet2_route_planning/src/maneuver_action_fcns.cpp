@@ -62,8 +62,6 @@ void GlobalPlanner::actionExecute(
   const std::shared_ptr<rclcpp_action::ServerGoalHandle<route_planning_msgs::action::GlobalManeuver>> goal_handle)
 {
   RCLCPP_INFO(get_logger(), "Executing action goal");
-  // Reset / Initialize
-  initializeMapExtraction(route_);
 
   const auto goal = goal_handle->get_goal();
   const geometry_msgs::msg::PointStamped& destination = goal->destination;
@@ -114,43 +112,45 @@ void GlobalPlanner::actionExecute(
       // Extract local section of driveable space and route
       route_planning_msgs::msg::DriveableSpace driveable_space_local;
       route_planning_msgs::msg::Route route_local;
-      rclcpp::Clock wall_clock(RCL_SYSTEM_TIME);
-      rclcpp::Time map_extraction_t0 = wall_clock.now();
-      extractLocalMapInfo(perception_msgs::object_access::getPoseWithCovariance(ego_data_), route_.driveable_space, driveable_space_local, route_, route_local);
-      rclcpp::Duration map_extraction_duration = wall_clock.now() - map_extraction_t0;
-      RCLCPP_INFO(this->get_logger(), "Local path extraction took %.3f ms", map_extraction_duration.nanoseconds() / 1e6);
+      if(extractLocalMapInfo(ego_data_, route_, route_local)) {
+        // check if route has been completed without reaching destination -> abort goal
+        if (route_local.remaining_route.size() <= 1)
+        {
+          RCLCPP_ERROR(this->get_logger(), "Route completed without reaching destination");
+          publishEmptyRoute();
+          maneuver_result_->destination_reached = false;
+          maneuver_result_->distance_traveled = route_local.traveled_route.back().z;
+          maneuver_result_->time_traveled = this->now() - maneuver_start_time_;
+          goal_handle->abort(maneuver_result_);
+          return;
+        }
 
-      // check if route has been completed without reaching destination -> abort goal
-      if (route_local.remaining_route.size() <= 1)
-      {
-        RCLCPP_ERROR(this->get_logger(), "Route completed without reaching destination");
+        // update feedback
+        double distance_traveled_to_last_path_point = 0.0;
+        double distance_last_path_point_to_ego = 0.0;
+        if (!route_local.traveled_route.empty()) {
+          distance_traveled_to_last_path_point = route_local.traveled_route.back().z;
+          distance_last_path_point_to_ego = std::sqrt(std::pow(route_local.traveled_route.back().x, 2) + std::pow(route_local.traveled_route.back().y, 2));
+        }
+        maneuver_feedback_->distance_traveled = distance_traveled_to_last_path_point + distance_last_path_point_to_ego;
+        maneuver_feedback_->time_traveled = this->now() - maneuver_start_time_;
+        maneuver_feedback_->distance_remaining = 0.0;
+        maneuver_feedback_->time_remaining = rclcpp::Duration::from_seconds(0.0);
+        if (!route_local.remaining_route.empty()) {
+          maneuver_feedback_->distance_remaining = route_local.remaining_route.back().z - maneuver_feedback_->distance_traveled; // TODO: will be wrong if offset_ahead_distance > 0
+          maneuver_feedback_->time_remaining = rclcpp::Duration::from_seconds(maneuver_feedback_->distance_remaining / (route_local.current_speed_limit / 3.6)); // TODO: improve estimate by accumulating with speed limits over path
+        }
+
+        // publish the current sequence as action feedback
+        goal_handle->publish_feedback(maneuver_feedback_);
+        RCLCPP_INFO(get_logger(), "Publishing action feedback");
+      }
+      else {
         publishEmptyRoute();
         maneuver_result_->destination_reached = false;
-        maneuver_result_->distance_traveled = route_local.traveled_route.back().z;
-        maneuver_result_->time_traveled = this->now() - maneuver_start_time_;
         goal_handle->abort(maneuver_result_);
         return;
       }
-
-      // update feedback
-      double distance_traveled_to_last_path_point = 0.0;
-      double distance_last_path_point_to_ego = 0.0;
-      if (!route_local.traveled_route.empty()) {
-        distance_traveled_to_last_path_point = route_local.traveled_route.back().z;
-        distance_last_path_point_to_ego = std::sqrt(std::pow(route_local.traveled_route.back().x, 2) + std::pow(route_local.traveled_route.back().y, 2));
-      }
-      maneuver_feedback_->distance_traveled = distance_traveled_to_last_path_point + distance_last_path_point_to_ego;
-      maneuver_feedback_->time_traveled = this->now() - maneuver_start_time_;
-      maneuver_feedback_->distance_remaining = 0.0;
-      maneuver_feedback_->time_remaining = rclcpp::Duration::from_seconds(0.0);
-      if (!route_local.remaining_route.empty()) {
-        maneuver_feedback_->distance_remaining = route_local.remaining_route.back().z - maneuver_feedback_->distance_traveled; // TODO: will be wrong if offset_ahead_distance > 0
-        maneuver_feedback_->time_remaining = rclcpp::Duration::from_seconds(maneuver_feedback_->distance_remaining / (route_local.current_speed_limit / 3.6)); // TODO: improve estimate by accumulating with speed limits over path
-      }
-
-      // publish the current sequence as action feedback
-      goal_handle->publish_feedback(maneuver_feedback_);
-      RCLCPP_INFO(get_logger(), "Publishing action feedback");
     }
     // sleep
     loop_rate.sleep();

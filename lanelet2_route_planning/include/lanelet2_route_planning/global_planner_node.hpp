@@ -85,12 +85,6 @@ class GlobalPlanner : public rclcpp::Node
         // Map Extraction
         std::string local_vehicle_frame_id_="base_link";
         double path_extraction_rate_=10.0;
-        unsigned int target_sample_cl_;
-        unsigned int ego_pos_sample_cl_;
-        unsigned int lbehind_sample_rbound_left_, lbehind_sample_rbound_right_;
-        unsigned int lahead_sample_rbound_left_, lahead_sample_rbound_right_;
-        unsigned int lbehind_sample_drivspace_left_, lbehind_sample_drivspace_right_;
-        unsigned int lahead_sample_drivspace_left_, lahead_sample_drivspace_right_;
         std::vector<geometry_msgs::msg::Point> remaining_shortest_path_;
         double look_ahead_time_ = 10.0;
         double look_ahead_distance_min_ = 50.0;
@@ -120,10 +114,7 @@ class GlobalPlanner : public rclcpp::Node
         void publishEmptyRoute();
 
         // map_extraction.cpp
-        void initializeMapExtraction(const route_planning_msgs::msg::Route& route_global);
-        void extractLocalMapInfo(const geometry_msgs::msg::PoseWithCovariance& cur_pose,
-                                const route_planning_msgs::msg::DriveableSpace& driveable_space_global,
-                                route_planning_msgs::msg::DriveableSpace& driveable_space_local,
+        bool extractLocalMapInfo(const perception_msgs::msg::EgoData& ego_data,
                                 const route_planning_msgs::msg::Route& route_global,
                                 route_planning_msgs::msg::Route& route_local);
         double accumulatedLength(const std::vector<geometry_msgs::msg::Point>& point_list, std::vector<double>& accumulated_length);

@@ -1,46 +1,16 @@
 #include "lanelet2_route_planning/global_planner_node.hpp"
 
-        void GlobalPlanner::initializeMapExtraction(const route_planning_msgs::msg::Route& route_global)
-        {
-            // Reset sample values
-            ego_pos_sample_cl_ = 0;
-            lbehind_sample_rbound_left_ = 0;
-            lbehind_sample_rbound_right_ = 0;
-            lahead_sample_rbound_left_ = 0;
-            lahead_sample_rbound_right_ = 0;
-            lbehind_sample_drivspace_left_ = 0;
-            lbehind_sample_drivspace_right_ = 0;
-            lahead_sample_drivspace_left_ = 0;
-            lahead_sample_drivspace_right_ = 0;
-
-            // Get the shortest-path-centerline sample of the target position
-            target_sample_cl_ = findNearestSampleReverse(route_global.destination, route_global.remaining_route);
-
-        }
-
-        void GlobalPlanner::extractLocalMapInfo(const geometry_msgs::msg::PoseWithCovariance& cur_pose,
-                                const route_planning_msgs::msg::DriveableSpace& driveable_space_global,
-                                route_planning_msgs::msg::DriveableSpace& driveable_space_local,
+        bool GlobalPlanner::extractLocalMapInfo(const perception_msgs::msg::EgoData& ego_data,
                                 const route_planning_msgs::msg::Route& route_global,
-                                route_planning_msgs::msg::Route& route_local)
-        {
+                                route_planning_msgs::msg::Route& route_local) {
             rclcpp::Time stamp_time = now();
 
-            // Determine current lanelet
-            // Get actual Heading
-            tf2::Quaternion quat;
-            tf2::fromMsg(cur_pose.pose.orientation, quat);
-            float yaw = tf2::impl::getYaw(quat);
-            // Get nearest Lanelets
-            lanelet::LaneletMapConstPtr llmap = ll2if_->getMapPtr();
-            std::vector<std::pair<double, lanelet::ConstLanelet>> nearestLanelets = lanelet::geometry::findNearest(llmap->laneletLayer, lanelet::BasicPoint2d(cur_pose.pose.position.x, cur_pose.pose.position.y), 5);
-            // Sort laneletes
-            Lanelet2Utilities::laneletSorting(lanelet::BasicPoint2d(cur_pose.pose.position.x, cur_pose.pose.position.y), nearestLanelets, yaw, trafficRules_, {});
-            lanelet::ConstLanelet current_ego_ll = nearestLanelets.at(0).second; // most probable current Lanelet
-
-            // Find sample of shortest path centerline correspondint to the current ego-position (limited by end of route)
-            ego_pos_sample_cl_ = findNearestSample(cur_pose.pose.position, route_global.remaining_route, ego_pos_sample_cl_);
-            if (ego_pos_sample_cl_ >= target_sample_cl_) ego_pos_sample_cl_ = target_sample_cl_;
+            // Find sample of shortest path centerline corresponding to the current ego-position (limited by end of route)
+            unsigned int ego_pos_sample_cl = 0;
+            ego_pos_sample_cl = findNearestSample(perception_msgs::object_access::getPosition(ego_data), route_global.remaining_route, ego_pos_sample_cl);
+            // Find sample of shortest path centerline corresponding to the current ego-position (limited by end of route)
+            unsigned int target_sample_cl = findNearestSampleReverse(route_global.destination, route_global.remaining_route);
+            if (ego_pos_sample_cl >= target_sample_cl) ego_pos_sample_cl = target_sample_cl;
 
             // create temporary local route to fill in this function
             // local route = full route with local boundaries, lanes, regulatory elements, ...
@@ -48,14 +18,13 @@
             route_local_tmp.header.stamp = stamp_time;
             route_local_tmp.destination = route_global.destination;
             route_local_tmp.header.frame_id = ll2if_->map_frame_id_; // currently it's map --> will be changed through transform function
-            route_local_tmp.traveled_route = {route_global.remaining_route.begin(), route_global.remaining_route.begin() + ego_pos_sample_cl_};
-            route_local_tmp.remaining_route = {route_global.remaining_route.begin() + ego_pos_sample_cl_, route_global.remaining_route.end()};
-            route_planning_msgs::msg::DriveableSpace temp_ds;
+            route_local_tmp.traveled_route = {route_global.remaining_route.begin(), route_global.remaining_route.begin() + ego_pos_sample_cl};
+            route_local_tmp.remaining_route = {route_global.remaining_route.begin() + ego_pos_sample_cl, route_global.remaining_route.end()};
 
             // only extract local information if there is a remaining route
             if (route_local_tmp.remaining_route.size() > 1) {
 
-                remaining_shortest_path_ = {route_global.remaining_route.begin() + ego_pos_sample_cl_, route_global.remaining_route.begin() + target_sample_cl_};
+                remaining_shortest_path_ = {route_global.remaining_route.begin() + ego_pos_sample_cl, route_global.remaining_route.begin() + target_sample_cl};
                 std::vector<double> sp_accumulated_length_vec;
                 double sp_length = accumulatedLength(remaining_shortest_path_, sp_accumulated_length_vec);
                 // Get the start and end sample of the local shortest path with respect to look-ahead/behind distance
@@ -65,7 +34,7 @@
                 unsigned int look_ahead_sample;
                 for(size_t i=0; i<sp_accumulated_length_vec.size(); i++)
                 {
-                    look_ahead_sample=ego_pos_sample_cl_+i;
+                    look_ahead_sample=ego_pos_sample_cl+i;
                     if(sp_accumulated_length_vec[i]>=look_ahead_distance)
                     {
                         break;
@@ -75,7 +44,7 @@
                 // Find the look-behind sample
                 unsigned int look_behind_sample = 0;
                 double accum_length = 0.0;
-                for(size_t i=ego_pos_sample_cl_; i>0; i--)
+                for(size_t i=ego_pos_sample_cl; i>0; i--)
                 {
                     accum_length+=distance(route_global.remaining_route[i],route_global.remaining_route[i-1]);
                     look_behind_sample=i;
@@ -91,36 +60,44 @@
 
                 // another safety check
                 if (!local_route_local_path.empty()) {
+                    unsigned int lbehind_sample_rbound_left = 0;
+                    unsigned int lbehind_sample_rbound_right = 0;
+                    unsigned int lahead_sample_rbound_left = 0;
+                    unsigned int lahead_sample_rbound_right = 0;
+                    unsigned int lbehind_sample_drivspace_left = 0;
+                    unsigned int lbehind_sample_drivspace_right = 0;
+                    unsigned int lahead_sample_drivspace_left = 0;
+                    unsigned int lahead_sample_drivspace_right = 0;
 
                     // Find nearest Boundary-Sample for left and right boundary at look-ahead and look-behind point
-                    lbehind_sample_rbound_left_ = findNearestSample(local_route_local_path.front(), route_global.boundaries.left, lbehind_sample_rbound_left_);
-                    lbehind_sample_rbound_right_ = findNearestSample(local_route_local_path.front(), route_global.boundaries.right, lbehind_sample_rbound_right_);
-                    lahead_sample_rbound_left_ = findNearestSample(local_route_local_path.back(), route_global.boundaries.left, lahead_sample_rbound_left_);
-                    lahead_sample_rbound_right_ = findNearestSample(local_route_local_path.back(), route_global.boundaries.right, lahead_sample_rbound_right_);
-                    route_local_tmp.boundaries.left = {route_global.boundaries.left.begin() + lbehind_sample_rbound_left_, route_global.boundaries.left.begin() + lahead_sample_rbound_left_};
-                    route_local_tmp.boundaries.right = {route_global.boundaries.right.begin() + lbehind_sample_rbound_right_, route_global.boundaries.right.begin() + lahead_sample_rbound_right_};
+                    lbehind_sample_rbound_left = findNearestSample(local_route_local_path.front(), route_global.boundaries.left, lbehind_sample_rbound_left);
+                    lbehind_sample_rbound_right = findNearestSample(local_route_local_path.front(), route_global.boundaries.right, lbehind_sample_rbound_right);
+                    lahead_sample_rbound_left = findNearestSample(local_route_local_path.back(), route_global.boundaries.left, lahead_sample_rbound_left);
+                    lahead_sample_rbound_right = findNearestSample(local_route_local_path.back(), route_global.boundaries.right, lahead_sample_rbound_right);
+                    route_local_tmp.boundaries.left = {route_global.boundaries.left.begin() + lbehind_sample_rbound_left, route_global.boundaries.left.begin() + lahead_sample_rbound_left};
+                    route_local_tmp.boundaries.right = {route_global.boundaries.right.begin() + lbehind_sample_rbound_right, route_global.boundaries.right.begin() + lahead_sample_rbound_right};
 
                     // Now extract the local driveable space
                     // Find nearest Boundary-Sample for left and right boundary at look-ahead and look-behind point
-                    lbehind_sample_drivspace_left_ = findNearestSample(local_route_local_path.front(), driveable_space_global.boundaries.left, lbehind_sample_drivspace_left_);
-                    lbehind_sample_drivspace_right_ = findNearestSample(local_route_local_path.front(), driveable_space_global.boundaries.right, lbehind_sample_drivspace_right_);
-                    lahead_sample_drivspace_left_ = findNearestSample(local_route_local_path.back(), driveable_space_global.boundaries.left, lahead_sample_drivspace_left_);
-                    lahead_sample_drivspace_right_ = findNearestSample(local_route_local_path.back(), driveable_space_global.boundaries.right, lahead_sample_drivspace_right_);
+                    lbehind_sample_drivspace_left = findNearestSample(local_route_local_path.front(), route_global.driveable_space.boundaries.left, lbehind_sample_drivspace_left);
+                    lbehind_sample_drivspace_right = findNearestSample(local_route_local_path.front(), route_global.driveable_space.boundaries.right, lbehind_sample_drivspace_right);
+                    lahead_sample_drivspace_left = findNearestSample(local_route_local_path.back(), route_global.driveable_space.boundaries.left, lahead_sample_drivspace_left);
+                    lahead_sample_drivspace_right = findNearestSample(local_route_local_path.back(), route_global.driveable_space.boundaries.right, lahead_sample_drivspace_right);
 
                     // To-Do: Extract restricting areas
                     // ...
 
                     // Check if the found samples are valid
-                    if (lbehind_sample_drivspace_left_ < driveable_space_global.boundaries.left.size() && lahead_sample_drivspace_left_ <= driveable_space_global.boundaries.left.size() && lahead_sample_drivspace_left_ > lbehind_sample_drivspace_left_) {
-                        temp_ds.boundaries.left = {driveable_space_global.boundaries.left.begin() + lbehind_sample_drivspace_left_, driveable_space_global.boundaries.left.begin() + lahead_sample_drivspace_left_};
+                    if (lbehind_sample_drivspace_left < route_global.driveable_space.boundaries.left.size() && lahead_sample_drivspace_left <= route_global.driveable_space.boundaries.left.size() && lahead_sample_drivspace_left > lbehind_sample_drivspace_left) {
+                        route_local_tmp.driveable_space.boundaries.left = {route_global.driveable_space.boundaries.left.begin() + lbehind_sample_drivspace_left, route_global.driveable_space.boundaries.left.begin() + lahead_sample_drivspace_left};
                     } else {
-                        temp_ds.boundaries.left = driveable_space_global.boundaries.left;
+                        route_local_tmp.driveable_space.boundaries.left = route_global.driveable_space.boundaries.left;
                     }
 
-                    if (lbehind_sample_drivspace_right_ < driveable_space_global.boundaries.right.size() && lahead_sample_drivspace_right_ <= driveable_space_global.boundaries.right.size() && lahead_sample_drivspace_right_ > lbehind_sample_drivspace_right_) {
-                        temp_ds.boundaries.right = {driveable_space_global.boundaries.right.begin() + lbehind_sample_drivspace_right_, driveable_space_global.boundaries.right.begin() + lahead_sample_drivspace_right_};
+                    if (lbehind_sample_drivspace_right < route_global.driveable_space.boundaries.right.size() && lahead_sample_drivspace_right <= route_global.driveable_space.boundaries.right.size() && lahead_sample_drivspace_right > lbehind_sample_drivspace_right) {
+                        route_local_tmp.driveable_space.boundaries.right = {route_global.driveable_space.boundaries.right.begin() + lbehind_sample_drivspace_right, route_global.driveable_space.boundaries.right.begin() + lahead_sample_drivspace_right};
                     } else {
-                        temp_ds.boundaries.right = driveable_space_global.boundaries.right;
+                        route_local_tmp.driveable_space.boundaries.right = route_global.driveable_space.boundaries.right;
                     }
                     // To-Do: Rest of Route-Object
                     // ...
@@ -129,20 +106,20 @@
                     double min_x=INFINITY, min_y=INFINITY, max_x=-INFINITY, max_y=-INFINITY; // Parameters describing the rectangle of the area of interest
 
                     // Iterate over left boundary of driveable space
-                    for(size_t i=0; i<temp_ds.boundaries.left.size(); i++)
+                    for(size_t i=0; i<route_local_tmp.driveable_space.boundaries.left.size(); i++)
                     {
-                        if(temp_ds.boundaries.left[i].x>max_x) max_x = temp_ds.boundaries.left[i].x;
-                        if(temp_ds.boundaries.left[i].y>max_y) max_y = temp_ds.boundaries.left[i].y;
-                        if(temp_ds.boundaries.left[i].x<min_x) min_x = temp_ds.boundaries.left[i].x;
-                        if(temp_ds.boundaries.left[i].y<min_y) min_y = temp_ds.boundaries.left[i].y;
+                        if(route_local_tmp.driveable_space.boundaries.left[i].x>max_x) max_x = route_local_tmp.driveable_space.boundaries.left[i].x;
+                        if(route_local_tmp.driveable_space.boundaries.left[i].y>max_y) max_y = route_local_tmp.driveable_space.boundaries.left[i].y;
+                        if(route_local_tmp.driveable_space.boundaries.left[i].x<min_x) min_x = route_local_tmp.driveable_space.boundaries.left[i].x;
+                        if(route_local_tmp.driveable_space.boundaries.left[i].y<min_y) min_y = route_local_tmp.driveable_space.boundaries.left[i].y;
                     }
                     // Iterate over right boundary of driveable space
-                    for(size_t i=0; i<temp_ds.boundaries.left.size(); i++)
+                    for(size_t i=0; i<route_local_tmp.driveable_space.boundaries.left.size(); i++)
                     {
-                        if(temp_ds.boundaries.left[i].x>max_x) max_x = temp_ds.boundaries.left[i].x;
-                        if(temp_ds.boundaries.left[i].y>max_y) max_y = temp_ds.boundaries.left[i].y;
-                        if(temp_ds.boundaries.left[i].x<min_x) min_x = temp_ds.boundaries.left[i].x;
-                        if(temp_ds.boundaries.left[i].y<min_y) min_y = temp_ds.boundaries.left[i].y;
+                        if(route_local_tmp.driveable_space.boundaries.left[i].x>max_x) max_x = route_local_tmp.driveable_space.boundaries.left[i].x;
+                        if(route_local_tmp.driveable_space.boundaries.left[i].y>max_y) max_y = route_local_tmp.driveable_space.boundaries.left[i].y;
+                        if(route_local_tmp.driveable_space.boundaries.left[i].x<min_x) min_x = route_local_tmp.driveable_space.boundaries.left[i].x;
+                        if(route_local_tmp.driveable_space.boundaries.left[i].y<min_y) min_y = route_local_tmp.driveable_space.boundaries.left[i].y;
                     }
 
                     // Create a bounding-box (via an area) that envelops the entire local driveable space
@@ -154,6 +131,7 @@
                     lanelet::BoundingBox2d aoi_box = lanelet::geometry::boundingBox2d(aoi_area);
 
                     // Find all Lanelets within AoI
+                    lanelet::LaneletMapConstPtr llmap = ll2if_->getMapPtr();
                     std::vector<lanelet::ConstLanelet> aoi_lanelets = llmap->laneletLayer.search(aoi_box);
                     for(size_t i = 0; i<aoi_lanelets.size(); i++)
                     {
@@ -219,20 +197,26 @@
                     }
                 }
             }
+            else {
+                RCLCPP_ERROR_STREAM(this->get_logger(), "Remaining route is empty. Unable to extract local map information!");
+                return false;
+            }
 
             // Get the current speed limit
+            lanelet::ConstLanelet current_ego_ll;
+            if(!deriveEgoLanelet(ego_data, current_ego_ll)) return false;
             route_local_tmp.current_speed_limit = std::round(lanelet::units::KmHQuantity(trafficRules_->speedLimit(current_ego_ll).speedLimit).value());
 
             // Now transform the route- and driveable-space-object
             geometry_msgs::msg::TransformStamped tf;
             try {
                 tf = tf_buffer_->lookupTransform(local_vehicle_frame_id_, ll2if_->map_frame_id_, tf2::TimePointZero);
-                route_local_tmp.driveable_space = temp_ds;
                 tf2::doTransform(route_local_tmp, route_local, tf);
                 route_pub_->publish(route_local);
+                return true;
             } catch (const tf2::TransformException &ex) {
                 RCLCPP_ERROR_STREAM(this->get_logger(), "Could not transform " << ll2if_->map_frame_id_ << " to " << local_vehicle_frame_id_ << ": " << ex.what());
-                return;
+                return false;
             }
         }
 
