@@ -63,7 +63,7 @@ void GlobalPlanner::actionExecute(
 {
   RCLCPP_INFO(get_logger(), "Executing action goal");
   // Reset / Initialize
-  initializeLocalPathExtraction(route_);
+  initializeMapExtraction(route_);
 
   const auto goal = goal_handle->get_goal();
   const geometry_msgs::msg::PointStamped& destination = goal->destination;

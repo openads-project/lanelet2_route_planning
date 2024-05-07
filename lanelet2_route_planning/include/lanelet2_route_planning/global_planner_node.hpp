@@ -119,8 +119,8 @@ class GlobalPlanner : public rclcpp::Node
         route_planning_msgs::msg::Route processRoute(const perception_msgs::msg::EgoData ego_data, const lanelet::routing::Route ll_route, const lanelet::BasicPoint2d& start_offset_point, const lanelet::BasicPoint3d& destination_on_centerline, const lanelet::BasicPoint2d& destination_offset_point);
         void publishEmptyRoute();
 
-        // local_path_extraction.cpp
-        void initializeLocalPathExtraction(const route_planning_msgs::msg::Route& route_global);
+        // map_extraction.cpp
+        void initializeMapExtraction(const route_planning_msgs::msg::Route& route_global);
         void extractLocalMapInfo(const geometry_msgs::msg::PoseWithCovariance& cur_pose,
                                 const route_planning_msgs::msg::DriveableSpace& driveable_space_global,
                                 route_planning_msgs::msg::DriveableSpace& driveable_space_local,

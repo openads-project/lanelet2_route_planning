@@ -1,6 +1,6 @@
 #include "lanelet2_route_planning/global_planner_node.hpp"
 
-        void GlobalPlanner::initializeLocalPathExtraction(const route_planning_msgs::msg::Route& route_global)
+        void GlobalPlanner::initializeMapExtraction(const route_planning_msgs::msg::Route& route_global)
         {
             // Reset sample values
             ego_pos_sample_cl_ = 0;

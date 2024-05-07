@@ -20,7 +20,7 @@ def generate_launch_description():
     node_name_arg = DeclareLaunchArgument('node_name',
                                           default_value=node_name_default)
 
-    use_sim_time_arg = DeclareLaunchArgument('use_sim_time_arg', default_value='False')
+    use_sim_time_arg = DeclareLaunchArgument('use_sim_time', default_value='False')
 
     ego_data_topic_arg = DeclareLaunchArgument('ego_data_topic',
                                                default_value='~/ego_data')
@@ -46,9 +46,9 @@ def generate_launch_description():
 
     node_group = GroupAction(actions=[
         SetParameter(name='use_sim_time',
-                     value=LaunchConfiguration('use_sim_time_arg'),
+                     value=LaunchConfiguration('use_sim_time'),
                      condition=LaunchConfigurationNotEquals(
-                         'use_sim_time_arg', "None")), planner_node, global_maneuver_action_client_node
+                         'use_sim_time', "None")), planner_node, global_maneuver_action_client_node
     ])
 
     return LaunchDescription([
