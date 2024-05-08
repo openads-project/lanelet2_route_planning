@@ -22,11 +22,11 @@
             route_local_tmp.traveled_route = {route_global.remaining_route.begin() + initial_ego_pos_sample_cl_, route_global.remaining_route.begin() + ego_pos_sample_cl};
             route_local_tmp.remaining_route = {route_global.remaining_route.begin() + ego_pos_sample_cl, route_global.remaining_route.begin() + target_pos_sample_cl_};
             // Remove offsets in travelled distance for traveled- and remaining_route
-            for(size_t i=0; i<route_local_tmp.traveled_route.size(); i++) {
+            for(size_t i=0; i<route_local_tmp.traveled_route.size(); ++i) {
                 route_local_tmp.traveled_route[i].z -= route_global.remaining_route[initial_ego_pos_sample_cl_].z;
 
             }
-            for(size_t i=0; i<route_local_tmp.remaining_route.size(); i++) {
+            for(size_t i=0; i<route_local_tmp.remaining_route.size(); ++i) {
                 route_local_tmp.remaining_route[i].z -= route_global.remaining_route[initial_ego_pos_sample_cl_].z;
 
             }
@@ -36,12 +36,12 @@
                 double velocity = perception_msgs::object_access::getVelLon(ego_data_)/3.6;
                 double look_ahead_distance = std::max(look_ahead_distance_min_, look_ahead_time_*velocity);
                 // Find the look-ahead sample
-                unsigned int look_ahead_sample;
+                unsigned int look_ahead_sample = route_global.remaining_route.size()-1;
                 for(size_t i=ego_pos_sample_cl; i<route_global.remaining_route.size(); ++i)
                 {
-                    look_ahead_sample=i;
                     if(route_global.remaining_route[i].z-route_global.remaining_route[ego_pos_sample_cl].z>=look_ahead_distance)
                     {
+                        look_ahead_sample=i;
                         break;
                     }
                 }
@@ -50,19 +50,21 @@
                 unsigned int look_behind_sample = 0;
                 for(size_t i=ego_pos_sample_cl; i>=0; --i)
                 {
-                    look_behind_sample=i;
-                    if(route_global.remaining_route[ego_pos_sample_cl].z-route_global.remaining_route[i].z>=look_behind_distance_)
+                    if(route_global.remaining_route[ego_pos_sample_cl].z-route_global.remaining_route[i].z>=look_behind_distance_ || i==0)
                     {
+                        look_behind_sample=i;
                         break;
                     }
                 }
 
                 // Now we can extract the local-section of the route
-                std::vector<geometry_msgs::msg::Point> local_route_local_path;
-                local_route_local_path = {route_global.remaining_route.begin() + look_behind_sample, route_global.remaining_route.begin() + look_ahead_sample};
-
+                std::vector<geometry_msgs::msg::Point> extraction_path;
+                // Check if the found samples are valid
+                if(look_behind_sample < route_global.remaining_route.size() && look_ahead_sample <= route_global.remaining_route.size() && look_ahead_sample > look_behind_sample) {
+                    extraction_path = {route_global.remaining_route.begin() + look_behind_sample, route_global.remaining_route.begin() + look_ahead_sample};
+                }
                 // another safety check
-                if (!local_route_local_path.empty()) {
+                if (!extraction_path.empty()) {
                     unsigned int lbehind_sample_rbound_left = 0;
                     unsigned int lbehind_sample_rbound_right = 0;
                     unsigned int lahead_sample_rbound_left = 0;
@@ -73,19 +75,29 @@
                     unsigned int lahead_sample_drivspace_right = 0;
 
                     // Find nearest Boundary-Sample for left and right boundary at look-ahead and look-behind point
-                    lbehind_sample_rbound_left = findNearestSample(local_route_local_path.front(), route_global.boundaries.left, lbehind_sample_rbound_left);
-                    lbehind_sample_rbound_right = findNearestSample(local_route_local_path.front(), route_global.boundaries.right, lbehind_sample_rbound_right);
-                    lahead_sample_rbound_left = findNearestSample(local_route_local_path.back(), route_global.boundaries.left, lahead_sample_rbound_left);
-                    lahead_sample_rbound_right = findNearestSample(local_route_local_path.back(), route_global.boundaries.right, lahead_sample_rbound_right);
-                    route_local_tmp.boundaries.left = {route_global.boundaries.left.begin() + lbehind_sample_rbound_left, route_global.boundaries.left.begin() + lahead_sample_rbound_left};
-                    route_local_tmp.boundaries.right = {route_global.boundaries.right.begin() + lbehind_sample_rbound_right, route_global.boundaries.right.begin() + lahead_sample_rbound_right};
+                    lbehind_sample_rbound_left = findNearestSample(extraction_path.front(), route_global.boundaries.left, lbehind_sample_rbound_left);
+                    lbehind_sample_rbound_right = findNearestSample(extraction_path.front(), route_global.boundaries.right, lbehind_sample_rbound_right);
+                    lahead_sample_rbound_left = findNearestSample(extraction_path.back(), route_global.boundaries.left, lahead_sample_rbound_left);
+                    lahead_sample_rbound_right = findNearestSample(extraction_path.back(), route_global.boundaries.right, lahead_sample_rbound_right);
+                    
+                    // Check if the found samples are valid
+                    if (lbehind_sample_rbound_left < route_global.boundaries.left.size() && lahead_sample_rbound_left <= route_global.boundaries.left.size() && lahead_sample_rbound_left > lbehind_sample_rbound_left) {
+                        route_local_tmp.boundaries.left = {route_global.boundaries.left.begin() + lbehind_sample_rbound_left, route_global.boundaries.left.begin() + lahead_sample_rbound_left};
+                    } else {
+                        route_local_tmp.boundaries.left = route_global.boundaries.left;
+                    }
+                    if (lbehind_sample_rbound_right < route_global.boundaries.right.size() && lahead_sample_rbound_right <= route_global.boundaries.right.size() && lahead_sample_rbound_right > lbehind_sample_rbound_right) {
+                        route_local_tmp.boundaries.right = {route_global.boundaries.right.begin() + lbehind_sample_rbound_right, route_global.boundaries.right.begin() + lahead_sample_rbound_right};
+                    } else {
+                        route_local_tmp.boundaries.right = route_global.boundaries.right;
+                    }
 
                     // Now extract the local driveable space
                     // Find nearest Boundary-Sample for left and right boundary at look-ahead and look-behind point
-                    lbehind_sample_drivspace_left = findNearestSample(local_route_local_path.front(), route_global.driveable_space.boundaries.left, lbehind_sample_drivspace_left);
-                    lbehind_sample_drivspace_right = findNearestSample(local_route_local_path.front(), route_global.driveable_space.boundaries.right, lbehind_sample_drivspace_right);
-                    lahead_sample_drivspace_left = findNearestSample(local_route_local_path.back(), route_global.driveable_space.boundaries.left, lahead_sample_drivspace_left);
-                    lahead_sample_drivspace_right = findNearestSample(local_route_local_path.back(), route_global.driveable_space.boundaries.right, lahead_sample_drivspace_right);
+                    lbehind_sample_drivspace_left = findNearestSample(extraction_path.front(), route_global.driveable_space.boundaries.left, lbehind_sample_drivspace_left);
+                    lbehind_sample_drivspace_right = findNearestSample(extraction_path.front(), route_global.driveable_space.boundaries.right, lbehind_sample_drivspace_right);
+                    lahead_sample_drivspace_left = findNearestSample(extraction_path.back(), route_global.driveable_space.boundaries.left, lahead_sample_drivspace_left);
+                    lahead_sample_drivspace_right = findNearestSample(extraction_path.back(), route_global.driveable_space.boundaries.right, lahead_sample_drivspace_right);
 
                     // To-Do: Extract restricting areas
                     // ...
@@ -96,7 +108,6 @@
                     } else {
                         route_local_tmp.driveable_space.boundaries.left = route_global.driveable_space.boundaries.left;
                     }
-
                     if (lbehind_sample_drivspace_right < route_global.driveable_space.boundaries.right.size() && lahead_sample_drivspace_right <= route_global.driveable_space.boundaries.right.size() && lahead_sample_drivspace_right > lbehind_sample_drivspace_right) {
                         route_local_tmp.driveable_space.boundaries.right = {route_global.driveable_space.boundaries.right.begin() + lbehind_sample_drivspace_right, route_global.driveable_space.boundaries.right.begin() + lahead_sample_drivspace_right};
                     } else {
@@ -190,6 +201,9 @@
                         // Add to route
                         route_local_tmp.regulatory_elements.push_back(regelem);
                     }
+                } else {
+                    RCLCPP_ERROR_STREAM(get_logger(), "Unable to extract path segment for extracting map information.!");
+                    return false;
                 }
             }
             else {
@@ -230,16 +244,12 @@
         {
             double min_distance = std::numeric_limits<double>::max();
             unsigned int nearest_index = start_index;
-            for (unsigned int i = start_index; i<point_list.size(); i++) {
-                double dist = distance(ref_point, point_list[i]);
+            for (size_t i = start_index; i<point_list.size(); ++i) {
+                double dist = distance(ref_point, point_list[i], true);
                 if (dist < min_distance) {
                     min_distance = dist;
                     nearest_index = i; // Update the last index to the current index
                 }
-                // Comment else-if to stop searach for now, since finding the nearest sample seems to be buggy
-                // else if (dist > min_distance) {
-                //     break; // Stop searching if the distance starts increasing again
-                // }
             }
             return nearest_index;
         }
@@ -247,16 +257,14 @@
         unsigned int GlobalPlanner::findNearestSampleReverse(const geometry_msgs::msg::Point& ref_point, const std::vector<geometry_msgs::msg::Point>& point_list)
         {
             double min_distance = std::numeric_limits<double>::max();
-            unsigned int start_index = point_list.size()-1;
-            unsigned int nearest_index = start_index;
-            for (unsigned int i = start_index; i>=0; i--) {
-                double dist = distance(ref_point, point_list[i]);
+            unsigned int nearest_index = point_list.size()-1;
+            for (size_t i = point_list.size()-1; i>=0; --i) {
+                double dist = distance(ref_point, point_list[i], true);
                 if (dist < min_distance) {
                     min_distance = dist;
                     nearest_index = i; // Update the last index to the current index
-                } else if (dist > min_distance) {
-                    break; // Stop searching if the distance starts increasing again
                 }
+                if(i==0) break;
             }
             return nearest_index;
         }
