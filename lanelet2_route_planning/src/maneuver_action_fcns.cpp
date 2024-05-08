@@ -42,6 +42,10 @@ rclcpp_action::CancelResponse GlobalPlanner::actionHandleCancel(
   const std::shared_ptr<rclcpp_action::ServerGoalHandle<route_planning_msgs::action::GlobalManeuver>> goal_handle)
 {
   (void)goal_handle;
+  
+  // clear the global route
+  route_planning_msgs::msg::Route empty_route;
+  route_ = empty_route;
 
   // this callback is invoked when a running action is requested to cancel
   RCLCPP_INFO(get_logger(), "Received request to cancel action goal");
