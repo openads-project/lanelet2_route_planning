@@ -19,16 +19,19 @@
             route_local_tmp.header.stamp = stamp_time;
             route_local_tmp.destination = route_global.destination;
             route_local_tmp.header.frame_id = ll2if_->map_frame_id_; // currently it's map --> will be changed through transform function
-            route_local_tmp.traveled_route = {route_global.remaining_route.begin() + initial_ego_pos_sample_cl_, route_global.remaining_route.begin() + ego_pos_sample_cl};
-            route_local_tmp.remaining_route = {route_global.remaining_route.begin() + ego_pos_sample_cl, route_global.remaining_route.begin() + target_pos_sample_cl_};
+            // Check if the found samples are valid
+            if(initial_ego_pos_sample_cl_ < route_global.remaining_route.size() && ego_pos_sample_cl <= route_global.remaining_route.size() && ego_pos_sample_cl>=initial_ego_pos_sample_cl_) {
+                route_local_tmp.traveled_route = {route_global.remaining_route.begin() + initial_ego_pos_sample_cl_, route_global.remaining_route.begin() + ego_pos_sample_cl};
+            }
+            if(ego_pos_sample_cl < route_global.remaining_route.size() && target_pos_sample_cl_ <= route_global.remaining_route.size() && target_pos_sample_cl_>=ego_pos_sample_cl) {
+                route_local_tmp.remaining_route = {route_global.remaining_route.begin() + ego_pos_sample_cl, route_global.remaining_route.begin() + target_pos_sample_cl_};
+            }
             // Remove offsets in travelled distance for traveled- and remaining_route
             for(size_t i=0; i<route_local_tmp.traveled_route.size(); ++i) {
                 route_local_tmp.traveled_route[i].z -= route_global.remaining_route[initial_ego_pos_sample_cl_].z;
-
             }
             for(size_t i=0; i<route_local_tmp.remaining_route.size(); ++i) {
                 route_local_tmp.remaining_route[i].z -= route_global.remaining_route[initial_ego_pos_sample_cl_].z;
-
             }
             // only extract local information if there is a remaining route
             if (route_local_tmp.remaining_route.size() > 1) {
@@ -69,10 +72,6 @@
                     unsigned int lbehind_sample_rbound_right = 0;
                     unsigned int lahead_sample_rbound_left = 0;
                     unsigned int lahead_sample_rbound_right = 0;
-                    unsigned int lbehind_sample_drivspace_left = 0;
-                    unsigned int lbehind_sample_drivspace_right = 0;
-                    unsigned int lahead_sample_drivspace_left = 0;
-                    unsigned int lahead_sample_drivspace_right = 0;
 
                     // Find nearest Boundary-Sample for left and right boundary at look-ahead and look-behind point
                     lbehind_sample_rbound_left = findNearestSample(extraction_path.front(), route_global.boundaries.left, lbehind_sample_rbound_left);
@@ -80,17 +79,28 @@
                     lahead_sample_rbound_left = findNearestSample(extraction_path.back(), route_global.boundaries.left, lahead_sample_rbound_left);
                     lahead_sample_rbound_right = findNearestSample(extraction_path.back(), route_global.boundaries.right, lahead_sample_rbound_right);
                     
+                    if(lbehind_sample_rbound_left == route_global.boundaries.left.size()-1) lbehind_sample_rbound_left = 0;
+                    if(lbehind_sample_rbound_right == route_global.boundaries.right.size()-1) lbehind_sample_rbound_right = 0;
+                    if(lahead_sample_rbound_left == 0) lahead_sample_rbound_left = route_global.boundaries.left.size()-1;
+                    if(lahead_sample_rbound_right == 0) lahead_sample_rbound_right = route_global.boundaries.right.size()-1;
                     // Check if the found samples are valid
                     if (lbehind_sample_rbound_left < route_global.boundaries.left.size() && lahead_sample_rbound_left <= route_global.boundaries.left.size() && lahead_sample_rbound_left > lbehind_sample_rbound_left) {
                         route_local_tmp.boundaries.left = {route_global.boundaries.left.begin() + lbehind_sample_rbound_left, route_global.boundaries.left.begin() + lahead_sample_rbound_left};
                     } else {
+                        RCLCPP_WARN_STREAM(get_logger(), "Unable to extract local route boundary. Using global route boundary instead!");
                         route_local_tmp.boundaries.left = route_global.boundaries.left;
                     }
                     if (lbehind_sample_rbound_right < route_global.boundaries.right.size() && lahead_sample_rbound_right <= route_global.boundaries.right.size() && lahead_sample_rbound_right > lbehind_sample_rbound_right) {
                         route_local_tmp.boundaries.right = {route_global.boundaries.right.begin() + lbehind_sample_rbound_right, route_global.boundaries.right.begin() + lahead_sample_rbound_right};
                     } else {
+                        RCLCPP_WARN_STREAM(get_logger(), "Unable to extract local route boundary. Using global route boundary instead!");
                         route_local_tmp.boundaries.right = route_global.boundaries.right;
                     }
+                    
+                    unsigned int lbehind_sample_drivspace_left = 0;
+                    unsigned int lbehind_sample_drivspace_right = 0;
+                    unsigned int lahead_sample_drivspace_left = 0;
+                    unsigned int lahead_sample_drivspace_right = 0;
 
                     // Now extract the local driveable space
                     // Find nearest Boundary-Sample for left and right boundary at look-ahead and look-behind point
@@ -99,20 +109,28 @@
                     lahead_sample_drivspace_left = findNearestSample(extraction_path.back(), route_global.driveable_space.boundaries.left, lahead_sample_drivspace_left);
                     lahead_sample_drivspace_right = findNearestSample(extraction_path.back(), route_global.driveable_space.boundaries.right, lahead_sample_drivspace_right);
 
-                    // To-Do: Extract restricting areas
-                    // ...
+                    if(lbehind_sample_drivspace_left == route_global.driveable_space.boundaries.left.size()-1) lbehind_sample_drivspace_left = 0;
+                    if(lbehind_sample_drivspace_right == route_global.driveable_space.boundaries.right.size()-1) lbehind_sample_drivspace_right = 0;
+                    if(lahead_sample_drivspace_left == 0) lahead_sample_drivspace_left = route_global.driveable_space.boundaries.left.size()-1;
+                    if(lahead_sample_drivspace_right == 0) lahead_sample_drivspace_right = route_global.driveable_space.boundaries.right.size()-1;
 
                     // Check if the found samples are valid
                     if (lbehind_sample_drivspace_left < route_global.driveable_space.boundaries.left.size() && lahead_sample_drivspace_left <= route_global.driveable_space.boundaries.left.size() && lahead_sample_drivspace_left > lbehind_sample_drivspace_left) {
                         route_local_tmp.driveable_space.boundaries.left = {route_global.driveable_space.boundaries.left.begin() + lbehind_sample_drivspace_left, route_global.driveable_space.boundaries.left.begin() + lahead_sample_drivspace_left};
                     } else {
+                        RCLCPP_WARN_STREAM(get_logger(), "Unable to extract local driveable space boundary. Using global driveable space boundary instead!");
                         route_local_tmp.driveable_space.boundaries.left = route_global.driveable_space.boundaries.left;
                     }
                     if (lbehind_sample_drivspace_right < route_global.driveable_space.boundaries.right.size() && lahead_sample_drivspace_right <= route_global.driveable_space.boundaries.right.size() && lahead_sample_drivspace_right > lbehind_sample_drivspace_right) {
                         route_local_tmp.driveable_space.boundaries.right = {route_global.driveable_space.boundaries.right.begin() + lbehind_sample_drivspace_right, route_global.driveable_space.boundaries.right.begin() + lahead_sample_drivspace_right};
                     } else {
+                        RCLCPP_WARN_STREAM(get_logger(), "Unable to extract local driveable space boundary. Using global driveable space boundary instead!");
                         route_local_tmp.driveable_space.boundaries.right = route_global.driveable_space.boundaries.right;
                     }
+
+                    // To-Do: Extract restricting areas
+                    // ...
+
                     // Rest of Route-Object
                     // First we need to identify the area of interest to extract all Regulatory Elements and Lanes within this area
                     // The area of interest (AoI) is derived as an rectangle that envelops the entire local driveable space
@@ -202,7 +220,7 @@
                         route_local_tmp.regulatory_elements.push_back(regelem);
                     }
                 } else {
-                    RCLCPP_ERROR_STREAM(get_logger(), "Unable to extract path segment for extracting map information.!");
+                    RCLCPP_ERROR_STREAM(get_logger(), "Unable to extract path segment for extracting map information!");
                     return false;
                 }
             }

@@ -282,6 +282,10 @@ bool GlobalPlanner::planLaneletRoute(const perception_msgs::msg::EgoData ego_dat
       RCLCPP_WARN(get_logger(), "Current matched lanelet has no predecessors!");
       break;
     }
+    if(prevs.at(0).id() == destination_lanelet.id()) {
+      RCLCPP_WARN(get_logger(), "Look behind distance projects onto the destination lanelet!");
+      break;
+    }
     start_ll_offset = prevs.at(0);
     remaining += lanelet::geometry::length(start_ll_offset.centerline2d());
   }
@@ -297,6 +301,10 @@ bool GlobalPlanner::planLaneletRoute(const perception_msgs::msg::EgoData ego_dat
     if(!following_lls.size())
     {
       RCLCPP_WARN(get_logger(), "Current target lanelet has no followers!");
+      break;
+    }
+    if(following_lls.at(0).id() == start_lanelet.id()) {
+      RCLCPP_WARN(get_logger(), "Look ahead distance projects onto the start lanelet!");
       break;
     }
     destination_ll_offset = following_lls.at(0);
