@@ -240,6 +240,9 @@ bool GlobalPlanner::deriveDestinationLanelet(const geometry_msgs::msg::PointStam
 }
 
 bool GlobalPlanner::planLaneletRoute(const perception_msgs::msg::EgoData ego_data, const geometry_msgs::msg::PointStamped destination, lanelet::routing::Route& lanelet_route, lanelet::BasicPoint2d& start_offset_point, lanelet::BasicPoint3d& destination_on_centerline,  lanelet::BasicPoint2d& destination_offset_point) {
+  rclcpp::Clock wall_clock(RCL_SYSTEM_TIME);
+  rclcpp::Time t0 = wall_clock.now();
+  
   lanelet::LaneletMapConstPtr llmap = ll2if_->getMapPtr();
   routing::RoutingGraphUPtr routingGraph = routing::RoutingGraph::build(*llmap, *trafficRules_);
   routing::RoutingGraphUPtr routingGraphBicycle = routing::RoutingGraph::build(*llmap, *trafficRulesBicycle_);
@@ -306,6 +309,8 @@ bool GlobalPlanner::planLaneletRoute(const perception_msgs::msg::EgoData ego_dat
   Optional<lanelet::routing::Route> llroute = routingGraph->getRoute(start_ll_offset, destination_ll_offset, 0); // 0 = routingCostId distance
   if(llroute) {
     lanelet_route = std::move(*llroute);
+    rclcpp::Duration duration = wall_clock.now() - t0;
+    RCLCPP_INFO(this->get_logger(), "Planning of lanelet route took %.3f ms", duration.nanoseconds() / 1e6);
     return true;
   }
   else {
@@ -315,11 +320,11 @@ bool GlobalPlanner::planLaneletRoute(const perception_msgs::msg::EgoData ego_dat
 }
 
 route_planning_msgs::msg::Route GlobalPlanner::processRoute(const perception_msgs::msg::EgoData ego_data, const lanelet::routing::Route ll_route, const lanelet::BasicPoint2d& start_offset_point, const lanelet::BasicPoint3d& destination_on_centerline, const lanelet::BasicPoint2d& destination_offset_point) {
+  rclcpp::Clock wall_clock(RCL_SYSTEM_TIME);
+  rclcpp::Time t0 = wall_clock.now();
   // Extract shortest path and its boundaries
   lanelet::routing::LaneletPath shortestPath = ll_route.shortestPath(); // shortestPath = sorted Lanelets
 
-  lanelet::BasicPoint2d start_pos(perception_msgs::object_access::getX(ego_data), perception_msgs::object_access::getY(ego_data));
-  lanelet::BasicPoint2d dest_pos(destination_on_centerline.x(), destination_on_centerline.y());
   // The function below is responsible to extract a 2D-Polyline describing the shortest-path from the current ego-position to the destination
   // The function handles lane-changes to adjacent lane-changes along the shortest-path.
   // Lane changes are modelled through sinus-curves sampled over a given distance definied by a lane-change velocity and time.
@@ -356,6 +361,8 @@ route_planning_msgs::msg::Route GlobalPlanner::processRoute(const perception_msg
 
   // Process route boundaries
   sampleRouteBoundary(ll_route, shortestPath, route.boundaries.left, route.boundaries.right);
+  rclcpp::Duration duration = wall_clock.now() - t0;
+  RCLCPP_INFO(this->get_logger(), "Processing of lanelet route took %.3f ms", duration.nanoseconds() / 1e6);
   return route;
 }
 

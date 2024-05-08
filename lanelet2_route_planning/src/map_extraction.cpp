@@ -3,6 +3,9 @@
         bool GlobalPlanner::extractLocalMapInfo(const perception_msgs::msg::EgoData& ego_data,
                                 const route_planning_msgs::msg::Route& route_global,
                                 route_planning_msgs::msg::Route& route_local) {
+            rclcpp::Clock wall_clock(RCL_SYSTEM_TIME);
+            rclcpp::Time map_extraction_t0 = wall_clock.now();
+
             rclcpp::Time stamp_time = now();
 
             // Find sample of shortest path centerline corresponding to the current ego-position (limited by end of route)
@@ -205,6 +208,8 @@
                 tf = tf_buffer_->lookupTransform(local_vehicle_frame_id_, ll2if_->map_frame_id_, tf2::TimePointZero);
                 tf2::doTransform(route_local_tmp, route_local, tf);
                 route_pub_->publish(route_local);
+                rclcpp::Duration map_extraction_duration = wall_clock.now() - map_extraction_t0;
+                RCLCPP_INFO(this->get_logger(), "Extraction of map information took %.3f ms", map_extraction_duration.nanoseconds() / 1e6);
                 return true;
             } catch (const tf2::TransformException &ex) {
                 RCLCPP_ERROR_STREAM(this->get_logger(), "Could not transform " << ll2if_->map_frame_id_ << " to " << local_vehicle_frame_id_ << ": " << ex.what());
