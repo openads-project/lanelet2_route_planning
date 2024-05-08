@@ -96,7 +96,6 @@ void GlobalPlanner::actionExecute(
     // Check for destination reached
     lanelet::ConstLanelet cur_ego_lanelet;
     if(deriveEgoLanelet(ego_data_, cur_ego_lanelet)) {
-      RCLCPP_INFO(get_logger(), "Derived the Ego-Lanelet.");
       // check if destination is reached -> goal succeeded
       double velocity = perception_msgs::object_access::getVelLon(ego_data_);
       if (geometry::distance(lanelet::BasicPoint2d(route_.destination.x, route_.destination.y), lanelet::BasicPoint2d(perception_msgs::object_access::getX(ego_data_), perception_msgs::object_access::getY(ego_data_))) < target_reached_thr_ && (std::fabs(velocity) < vel_threshold_target_ || !require_standstill_))
@@ -113,9 +112,7 @@ void GlobalPlanner::actionExecute(
       // Extract local section of driveable space and route
       route_planning_msgs::msg::DriveableSpace driveable_space_local;
       route_planning_msgs::msg::Route route_local;
-      RCLCPP_INFO(get_logger(), "Starting Extraction of Local-Map-Info.");
       if(extractLocalMapInfo(ego_data_, route_, route_local)) {
-        RCLCPP_INFO(get_logger(), "Extracted Local-Map-Info.");
         // check if route has been completed without reaching destination -> abort goal
         if (route_local.remaining_route.size() <= 1)
         {
