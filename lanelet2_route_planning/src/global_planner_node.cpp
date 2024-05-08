@@ -205,9 +205,10 @@ bool GlobalPlanner::deriveEgoLanelet(const perception_msgs::msg::EgoData ego_dat
       return false;
     }
     else {
-      // Determine start lanelet
-      float yaw = (float)perception_msgs::object_access::getYaw(ego_data);
-      Lanelet2Utilities::laneletSorting(lanelet::BasicPoint2d(perception_msgs::object_access::getX(ego_data), perception_msgs::object_access::getY(ego_data)), nearestLanelets, yaw, trafficRules_, {});
+      // Determine ego lanelet
+      // We're currently not using the yaw for determining the ego-lanelet, since we're also not considering the heading when matching a point to a point-list later on
+      //float yaw = (float)perception_msgs::object_access::getYaw(ego_data);
+      Lanelet2Utilities::laneletSorting(lanelet::BasicPoint2d(perception_msgs::object_access::getX(ego_data), perception_msgs::object_access::getY(ego_data)), nearestLanelets, {}, trafficRules_, {});
       start_lanelet = nearestLanelets.at(0).second; // most probable current Lanelet
       return true;
     }
