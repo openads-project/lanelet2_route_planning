@@ -18,20 +18,26 @@
             route_local_tmp.header.frame_id = ll2if_->map_frame_id_; // currently it's map --> will be changed through transform function
             route_local_tmp.traveled_route = {route_global.remaining_route.begin() + initial_ego_pos_sample_cl_, route_global.remaining_route.begin() + ego_pos_sample_cl};
             route_local_tmp.remaining_route = {route_global.remaining_route.begin() + ego_pos_sample_cl, route_global.remaining_route.begin() + target_pos_sample_cl_};
+            // Remove offsets in travelled distance for traveled- and remaining_route
+            for(size_t i=0; i<route_local_tmp.traveled_route.size(); i++) {
+                route_local_tmp.traveled_route[i].z -= route_global.remaining_route[initial_ego_pos_sample_cl_].z;
 
+            }
+            for(size_t i=0; i<route_local_tmp.remaining_route.size(); i++) {
+                route_local_tmp.remaining_route[i].z -= route_global.remaining_route[initial_ego_pos_sample_cl_].z;
+
+            }
             // only extract local information if there is a remaining route
             if (route_local_tmp.remaining_route.size() > 1) {
-                std::vector<double> sp_accumulated_length_vec;
-                double sp_length = accumulatedLength({route_global.remaining_route.begin() + initial_ego_pos_sample_cl_ + ego_pos_sample_cl, route_global.remaining_route.end()}, sp_accumulated_length_vec);
                 // Get the start and end sample of the local shortest path with respect to look-ahead/behind distance
                 double velocity = perception_msgs::object_access::getVelLon(ego_data_)/3.6;
                 double look_ahead_distance = std::max(look_ahead_distance_min_, look_ahead_time_*velocity);
                 // Find the look-ahead sample
                 unsigned int look_ahead_sample;
-                for(size_t i=0; i<sp_accumulated_length_vec.size(); i++)
+                for(size_t i=ego_pos_sample_cl; i<route_global.remaining_route.size(); ++i)
                 {
-                    look_ahead_sample=ego_pos_sample_cl+i;
-                    if(sp_accumulated_length_vec[i]>=look_ahead_distance)
+                    look_ahead_sample=i;
+                    if(route_global.remaining_route[i].z-route_global.remaining_route[ego_pos_sample_cl].z>=look_ahead_distance)
                     {
                         break;
                     }
@@ -39,12 +45,10 @@
 
                 // Find the look-behind sample
                 unsigned int look_behind_sample = 0;
-                double accum_length = 0.0;
-                for(size_t i=ego_pos_sample_cl; i>0; i--)
+                for(size_t i=ego_pos_sample_cl; i>=0; --i)
                 {
-                    accum_length+=distance(route_global.remaining_route[i],route_global.remaining_route[i-1]);
                     look_behind_sample=i;
-                    if(accum_length>=look_behind_distance_)
+                    if(route_global.remaining_route[ego_pos_sample_cl].z-route_global.remaining_route[i].z>=look_behind_distance_)
                     {
                         break;
                     }
@@ -206,18 +210,6 @@
                 RCLCPP_ERROR_STREAM(this->get_logger(), "Could not transform " << ll2if_->map_frame_id_ << " to " << local_vehicle_frame_id_ << ": " << ex.what());
                 return false;
             }
-        }
-
-        double GlobalPlanner::accumulatedLength(const std::vector<geometry_msgs::msg::Point>& point_list, std::vector<double>& accumulated_length)
-        {
-            double length=0.0;
-            accumulated_length.push_back(length);
-            for(size_t i=0; i<point_list.size()-1; i++)
-            {
-                length+=distance(point_list[i],point_list[i+1]);
-                accumulated_length.push_back(length);
-            }
-            return length;
         }
 
         double GlobalPlanner::distance(const geometry_msgs::msg::Point& p1, const geometry_msgs::msg::Point& p2, const bool ignore_z)

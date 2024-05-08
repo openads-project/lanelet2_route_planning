@@ -27,7 +27,8 @@ rclcpp_action::GoalResponse GlobalPlanner::actionHandleGoal(
   route_ = processRoute(ego_data_, std::move(ll_route), start_offset_point, destination_on_centerline, destination_offset_point);
 
   maneuver_feedback_ = std::make_shared<route_planning_msgs::action::GlobalManeuver::Feedback>();
-  maneuver_feedback_->distance_remaining = route_.remaining_route.back().z;
+  // derive remaining distance while accounting for the offsets within the path length
+  maneuver_feedback_->distance_remaining = route_.remaining_route[target_pos_sample_cl_].z - route_.remaining_route[initial_ego_pos_sample_cl_].z;
   maneuver_feedback_->time_remaining = rclcpp::Duration::from_seconds(maneuver_feedback_->distance_remaining / (route_.current_speed_limit / 3.6)); // TODO: improve estimate by accumulating with speed limits over path
 
   maneuver_result_ = std::make_shared<route_planning_msgs::action::GlobalManeuver::Result>();
@@ -95,7 +96,7 @@ void GlobalPlanner::actionExecute(
     // Check for destination reached
     lanelet::ConstLanelet cur_ego_lanelet;
     if(deriveEgoLanelet(ego_data_, cur_ego_lanelet)) {
-
+      RCLCPP_INFO(get_logger(), "Derived the Ego-Lanelet.");
       // check if destination is reached -> goal succeeded
       double velocity = perception_msgs::object_access::getVelLon(ego_data_);
       if (geometry::distance(lanelet::BasicPoint2d(route_.destination.x, route_.destination.y), lanelet::BasicPoint2d(perception_msgs::object_access::getX(ego_data_), perception_msgs::object_access::getY(ego_data_))) < target_reached_thr_ && (std::fabs(velocity) < vel_threshold_target_ || !require_standstill_))
@@ -112,7 +113,9 @@ void GlobalPlanner::actionExecute(
       // Extract local section of driveable space and route
       route_planning_msgs::msg::DriveableSpace driveable_space_local;
       route_planning_msgs::msg::Route route_local;
+      RCLCPP_INFO(get_logger(), "Starting Extraction of Local-Map-Info.");
       if(extractLocalMapInfo(ego_data_, route_, route_local)) {
+        RCLCPP_INFO(get_logger(), "Extracted Local-Map-Info.");
         // check if route has been completed without reaching destination -> abort goal
         if (route_local.remaining_route.size() <= 1)
         {
@@ -126,6 +129,7 @@ void GlobalPlanner::actionExecute(
         }
 
         // update feedback
+        RCLCPP_INFO(get_logger(), "Updating Feedback.");
         double distance_traveled_to_last_path_point = 0.0;
         double distance_last_path_point_to_ego = 0.0;
         if (!route_local.traveled_route.empty()) {

@@ -343,13 +343,13 @@ route_planning_msgs::msg::Route GlobalPlanner::processRoute(const perception_msg
   route.destination.z = destination_on_centerline.z();
   route.traveled_route = {};
   route.remaining_route = processLineString(offset_shortest_path_centerline);
+  // we calculate the accumulated distance of the whole path including the additional offsets (we will account for these offsets later)
+  this->accumulateDistanceAlong2DPath(route.remaining_route);
   // identify the sample of the offset_shortest_path_centerline that equals the initial position of the ego-vehicle
   initial_ego_pos_sample_cl_ = 0;
   initial_ego_pos_sample_cl_ = findNearestSample(perception_msgs::object_access::getPosition(ego_data), route.remaining_route, initial_ego_pos_sample_cl_);
   // identify the sample of the offset_shortest_path_centerline that equals the target position
   target_pos_sample_cl_ = findNearestSampleReverse(route.destination, route.remaining_route);
-  // we calculate the accumulated distance only on the part of the route excluding the additional offsets
-  this->accumulateDistanceAlong2DPath(route.remaining_route, initial_ego_pos_sample_cl_, target_pos_sample_cl_);
   // Process boundaries
   route.driveable_space = sampleDriveableSpace(offset_shortest_path_centerline);
 
