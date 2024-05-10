@@ -145,12 +145,12 @@
                         if(route_local_tmp.driveable_space.boundaries.left[i].y<min_y) min_y = route_local_tmp.driveable_space.boundaries.left[i].y;
                     }
                     // Iterate over right boundary of driveable space
-                    for(size_t i=0; i<route_local_tmp.driveable_space.boundaries.left.size(); i++)
+                    for(size_t i=0; i<route_local_tmp.driveable_space.boundaries.right.size(); i++)
                     {
-                        if(route_local_tmp.driveable_space.boundaries.left[i].x>max_x) max_x = route_local_tmp.driveable_space.boundaries.left[i].x;
-                        if(route_local_tmp.driveable_space.boundaries.left[i].y>max_y) max_y = route_local_tmp.driveable_space.boundaries.left[i].y;
-                        if(route_local_tmp.driveable_space.boundaries.left[i].x<min_x) min_x = route_local_tmp.driveable_space.boundaries.left[i].x;
-                        if(route_local_tmp.driveable_space.boundaries.left[i].y<min_y) min_y = route_local_tmp.driveable_space.boundaries.left[i].y;
+                        if(route_local_tmp.driveable_space.boundaries.right[i].x>max_x) max_x = route_local_tmp.driveable_space.boundaries.right[i].x;
+                        if(route_local_tmp.driveable_space.boundaries.right[i].y>max_y) max_y = route_local_tmp.driveable_space.boundaries.right[i].y;
+                        if(route_local_tmp.driveable_space.boundaries.right[i].x<min_x) min_x = route_local_tmp.driveable_space.boundaries.right[i].x;
+                        if(route_local_tmp.driveable_space.boundaries.right[i].y<min_y) min_y = route_local_tmp.driveable_space.boundaries.right[i].y;
                     }
 
                     // Create a bounding-box (via an area) that encloses the entire local driveable space
