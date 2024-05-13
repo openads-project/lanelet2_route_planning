@@ -6,28 +6,28 @@
 
 namespace global_maneuver_action_client {
 
-class GlobalManeuverActionClient : public rclcpp::Node
-{
-    using GlobalManeuver = route_planning_msgs::action::GlobalManeuver;
-    using GoalHandleGlobalManeuver = rclcpp_action::ClientGoalHandle<GlobalManeuver>;
+class GlobalManeuverActionClient : public rclcpp::Node {
+  using GlobalManeuver = route_planning_msgs::action::GlobalManeuver;
+  using GoalHandleGlobalManeuver = rclcpp_action::ClientGoalHandle<GlobalManeuver>;
 
-    public:
-        GlobalManeuverActionClient();
+ public:
+  GlobalManeuverActionClient();
 
-    private:
-        void sendGoal(geometry_msgs::msg::PoseStamped::SharedPtr msg);
+ private:
+  void sendGoal(geometry_msgs::msg::PoseStamped::SharedPtr msg);
 
-        // action callbacks
-        void goalResponseCallback(const GoalHandleGlobalManeuver::SharedPtr& goal_handle);
-        void feedbackCallback(GoalHandleGlobalManeuver::SharedPtr goal_handle, const std::shared_ptr<const GlobalManeuver::Feedback> feedback);
-        void resultCallback(const GoalHandleGlobalManeuver::WrappedResult& result);
+  // action callbacks
+  void goalResponseCallback(const GoalHandleGlobalManeuver::SharedPtr& goal_handle);
+  void feedbackCallback(GoalHandleGlobalManeuver::SharedPtr goal_handle,
+                        const std::shared_ptr<const GlobalManeuver::Feedback> feedback);
+  void resultCallback(const GoalHandleGlobalManeuver::WrappedResult& result);
 
-    private:
-        rclcpp::Subscription<geometry_msgs::msg::PoseStamped>::SharedPtr subscriber_;
+ private:
+  rclcpp::Subscription<geometry_msgs::msg::PoseStamped>::SharedPtr subscriber_;
 
-        // action client
-        rclcpp_action::Client<GlobalManeuver>::SharedPtr action_client_;
-        std::shared_future<GoalHandleGlobalManeuver::SharedPtr> goal_handle_future_;
+  // action client
+  rclcpp_action::Client<GlobalManeuver>::SharedPtr action_client_;
+  std::shared_future<GoalHandleGlobalManeuver::SharedPtr> goal_handle_future_;
 };
 
-}
+}  // namespace global_maneuver_action_client

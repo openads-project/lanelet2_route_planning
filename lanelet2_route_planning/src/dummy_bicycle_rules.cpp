@@ -4,10 +4,11 @@
 namespace lanelet {
 namespace traffic_rules {
 
-RegisterTrafficRules<DummyBicycle> dbRules(std::string(Locations::Germany) + ":dummy", Participants::Bicycle); // Lanelet does not allow to subclass bicycle easily; so subclass the country instead
+RegisterTrafficRules<DummyBicycle> dbRules(
+    std::string(Locations::Germany) + ":dummy",
+    Participants::Bicycle);  // Lanelet does not allow to subclass bicycle easily; so subclass the country instead
 
-LaneChangeType DummyBicycle::laneChangeType(const ConstLineString3d& boundary,
-                                            bool virtualIsPassable = false) const {
+LaneChangeType DummyBicycle::laneChangeType(const ConstLineString3d& boundary, bool virtualIsPassable = false) const {
   return GermanBicycle::laneChangeType(boundary, true);
 }
 
