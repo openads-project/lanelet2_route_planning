@@ -55,7 +55,6 @@ class GlobalPlanner : public rclcpp::Node
 
         // Inputs
         std::unique_ptr<LL2MapInterface> ll2if_;
-        std::string map_server_name_ = "ll2_map_server";
         perception_msgs::msg::EgoData ego_data_;
         
         // Lanelet2 Variables
@@ -67,6 +66,8 @@ class GlobalPlanner : public rclcpp::Node
         route_planning_msgs::msg::Route route_;
 
         // Parameters
+        std::string map_server_name_ = "ll2_map_server";
+        
         double ds_sample_ = 0.5;
         double smooth_factor_ = 2.0;
         double lateral_driv_space_width_ = 100.0;

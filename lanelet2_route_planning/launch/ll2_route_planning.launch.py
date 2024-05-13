@@ -16,7 +16,7 @@ def generate_launch_description():
         LaunchConfiguration('params')
     ])
 
-    node_name_default = 'global_planner'
+    node_name_default = 'route_planning'
     node_name_arg = DeclareLaunchArgument('node_name',
                                           default_value=node_name_default)
 
@@ -25,7 +25,7 @@ def generate_launch_description():
     ego_data_topic_arg = DeclareLaunchArgument('ego_data_topic',
                                                default_value='~/ego_data')
 
-    planner_node = Node(
+    route_planning_node = Node(
         package="lanelet2_route_planning",
         executable="global_planner_node",
         name=LaunchConfiguration('node_name'),
@@ -36,10 +36,10 @@ def generate_launch_description():
         remappings=[('~/ego_data', LaunchConfiguration('ego_data_topic'))],
     )
 
-    global_maneuver_action_client_node = Node(
+    route_planning_action_client = Node(
         package="global_maneuver_action_client",
         executable="global_maneuver_action_client_node",
-        name="global_maneuver_action_client",
+        name="route_planning_action_client",
         namespace="",
         output="screen",
     )
@@ -48,7 +48,7 @@ def generate_launch_description():
         SetParameter(name='use_sim_time',
                      value=LaunchConfiguration('use_sim_time'),
                      condition=LaunchConfigurationNotEquals(
-                         'use_sim_time', "None")), planner_node, global_maneuver_action_client_node
+                         'use_sim_time', "None")), route_planning_node, route_planning_action_client
     ])
 
     return LaunchDescription([
