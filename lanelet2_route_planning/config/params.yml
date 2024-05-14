@@ -1,4 +1,4 @@
-global_planner:
+route_planning:
   ros__parameters:
 
     # General Parameters
