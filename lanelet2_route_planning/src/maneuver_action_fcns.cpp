@@ -114,7 +114,7 @@ void GlobalPlanner::actionExecute(
         RCLCPP_INFO(get_logger(), "Destination reached!");
         publishEmptyRoute();
         maneuver_result_->destination_reached = true;
-        maneuver_result_->distance_traveled = route_.remaining_route.back().z;
+        maneuver_result_->distance_traveled = route_.traveled_route.back().z;
         maneuver_result_->time_traveled = this->now() - maneuver_start_time_;
         goal_handle->succeed(maneuver_result_);
         return;
