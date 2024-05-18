@@ -36,8 +36,8 @@ It has the following functionalities:
 | Topic | Type | Description |
 | --- | --- | --- |
 | `~/global/driveable_space` | `route_planning_msgs/msg/DriveableSpace` | Publish a `route_planning_msgs::msg::DriveableSpace` in the frame of the Lanelet2 map everytime a new global route is planned |
-| `~/driveable_space` | `route_planning_msgs/msg/DriveableSpace` | Publish a `route_planning_msgs::msg::DriveableSpace` in the local vehicle frame (`base_link`) and environment with a frequency defined by the parameter `local_path_extraction_rate` |
-| `~/route` | `route_planning_msgs/msg/Route` | Publish a `route_planning_msgs::msg::Route` in the local vehicle frame (`base_link`) and environment with a frequency defined by the parameter `local_path_extraction_rate` |
+| `~/driveable_space` | `route_planning_msgs/msg/DriveableSpace` | Publish a `route_planning_msgs::msg::DriveableSpace` in the local vehicle frame and environment with a frequency defined by the parameter `local_path_extraction_rate` |
+| `~/route` | `route_planning_msgs/msg/Route` | Publish a `route_planning_msgs::msg::Route` in the local vehicle frame and environment with a frequency defined by the parameter `local_path_extraction_rate` |
 
 #### Actions
 
@@ -49,6 +49,7 @@ It has the following functionalities:
 
 | Parameter | Type | Description |
 | --- | --- | --- |
+| `vehicle_frame_id` | `string` | Frame ID of the vehicle (for local map extraction) |
 | `ego_data_timeout` | `double` | Time-delta for which a EgoData message is classified as to old [s] |
 | `map_server_name` | `string` | Name of the Lanelet2 Map Server Node |
 | `route_sample_distance` | `double` | Sample distance of the generated route [m] |
