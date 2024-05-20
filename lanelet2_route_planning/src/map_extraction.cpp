@@ -293,7 +293,7 @@ bool GlobalPlanner::extractLocalMapInfo(const perception_msgs::msg::EgoData& ego
   // Now transform the route-object
   geometry_msgs::msg::TransformStamped tf;
   try {
-    tf = tf_buffer_->lookupTransform(local_vehicle_frame_id_, ll2if_->map_frame_id_, tf2::TimePointZero);
+    tf = tf_buffer_->lookupTransform(vehicle_frame_id_, ll2if_->map_frame_id_, tf2::TimePointZero);
     tf2::doTransform(route_local_tmp, route_local, tf);
     route_pub_->publish(route_local);
     rclcpp::Duration map_extraction_duration = wall_clock.now() - map_extraction_t0;
@@ -302,7 +302,7 @@ bool GlobalPlanner::extractLocalMapInfo(const perception_msgs::msg::EgoData& ego
     return true;
   } catch (const tf2::TransformException& ex) {
     RCLCPP_ERROR_STREAM(this->get_logger(), "Could not transform " << ll2if_->map_frame_id_ << " to "
-                                                                   << local_vehicle_frame_id_ << ": " << ex.what());
+                                                                   << vehicle_frame_id_ << ": " << ex.what());
     return false;
   }
 }

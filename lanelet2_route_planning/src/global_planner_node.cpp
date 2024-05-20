@@ -14,6 +14,19 @@ GlobalPlanner::GlobalPlanner() : Node("global_planner") {
 
 void GlobalPlanner::loadParameters() {
   // General and Sanity Checks
+  this->declare_parameter("vehicle_frame_id", rclcpp::ParameterType::PARAMETER_STRING);
+  try {
+    vehicle_frame_id_ = this->get_parameter("vehicle_frame_id").as_string();
+    RCLCPP_INFO_STREAM(this->get_logger(), "Parameter \'vehicle_frame_id\' set to: " + vehicle_frame_id_);
+  } catch (rclcpp::exceptions::InvalidParameterTypeException&) {
+    RCLCPP_WARN_STREAM(this->get_logger(),
+                       "Parameter \'vehicle_frame_id\' is not set correctly, using default value: " +
+                           vehicle_frame_id_);
+  } catch (rclcpp::exceptions::ParameterUninitializedException&) {
+    RCLCPP_WARN_STREAM(this->get_logger(),
+                       "Parameter \'vehicle_frame_id\' is not set, using default value: " + vehicle_frame_id_);
+  }
+
   this->declare_parameter("ego_data_timeout", rclcpp::ParameterType::PARAMETER_DOUBLE);
   try {
     ego_data_timeout_ = this->get_parameter("ego_data_timeout").as_double();
@@ -449,7 +462,7 @@ route_planning_msgs::msg::Route GlobalPlanner::processRoute(const perception_msg
 
 void GlobalPlanner::publishEmptyRoute() {
   route_planning_msgs::msg::Route empty_route;
-  empty_route.header.frame_id = local_vehicle_frame_id_;
+  empty_route.header.frame_id = vehicle_frame_id_;
   empty_route.header.stamp = now();
   route_pub_->publish(empty_route);
 }

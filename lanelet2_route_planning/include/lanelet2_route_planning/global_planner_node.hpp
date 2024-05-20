@@ -63,6 +63,7 @@ class GlobalPlanner : public rclcpp::Node {
   route_planning_msgs::msg::Route route_;
 
   // Parameters
+  std::string vehicle_frame_id_ = "base_link";
   std::string map_server_name_ = "ll2_map_server";
 
   double ds_sample_ = 0.5;
@@ -81,7 +82,6 @@ class GlobalPlanner : public rclcpp::Node {
   rclcpp::Time maneuver_start_time_;
 
   // Map Extraction
-  std::string local_vehicle_frame_id_ = "base_link";
   double path_extraction_rate_ = 10.0;
   unsigned int initial_ego_pos_sample_cl_ = 0;
   unsigned int target_pos_sample_cl_ = 0;
