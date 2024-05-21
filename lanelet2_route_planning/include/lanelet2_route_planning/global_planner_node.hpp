@@ -165,4 +165,8 @@ class GlobalPlanner : public rclcpp::Node {
   uint8_t deriveValueForSpeedLimitType(const std::shared_ptr<const lanelet::RegulatoryElement> regelem,
                                        const std::vector<lanelet::ConstLineString3d> refering_elems);
   uint8_t trafficSignCode2Type(const std::string tsign_code);
+  bool calcIntersection(const geometry_msgs::msg::Point p1, const geometry_msgs::msg::Point p2,
+                        const geometry_msgs::msg::Point p3, const geometry_msgs::msg::Point p4,
+                        double& lambda);
+  void setEffectLineS(route_planning_msgs::msg::Route& route); 
 };
