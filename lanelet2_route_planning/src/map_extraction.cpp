@@ -218,9 +218,9 @@ bool GlobalPlanner::extractLocalMapInfo(const perception_msgs::msg::EgoData& ego
         // Generate a Lane-Object from each Lanelet
         route_planning_msgs::msg::Lane lane;
         Lanelet::ConstLanelet cur_ll = aoi_lanelets[i];
-        lane.centerline = Lanelet2Utilities::convertLaneletLine2Linestring(cur_ll.centerline().basicLineString());
-        lane.left = deriveLaneSeparator(cur_ll.leftBound());
-        lane.right = deriveLaneSeparator(cur_ll.rightBound());
+        lane.centerline = Lanelet2Utilities::convertLaneletLine2Linestring(cur_ll.centerline2d().basicLineString());
+        lane.left = deriveLaneSeparator(cur_ll.leftBound2d());
+        lane.right = deriveLaneSeparator(cur_ll.rightBound2d());
         route_local_tmp.lanes.push_back(lane);
       }
 
@@ -236,12 +236,17 @@ bool GlobalPlanner::extractLocalMapInfo(const perception_msgs::msg::EgoData& ego
         // Get the ref-line Linestring
         std::vector<lanelet::ConstLineString3d> ref_lines =
             aoi_regelems[i]->getParameters<lanelet::ConstLineString3d>(RoleName::RefLine);
+        double ref_lines_height = 0.0;      
         if (ref_lines.size()) {
           std::vector<geometry_msgs::msg::Point> ref_points =
               Lanelet2Utilities::convertLaneletLine2Linestring(ref_lines[0].basicLineString());
           if (ref_points.size() > 1) {
             regelem.effect_line[0] = ref_points.front();
             regelem.effect_line[1] = ref_points.back();
+            // set z coordinate indicating s of ref-path intersection to -1 per default
+            ref_lines_height = regelem.effect_line[0].z;
+            regelem.effect_line[0].z = -1.0;
+            regelem.effect_line[1].z = -1.0;
           }
         }
         // Get all refering elements
@@ -250,6 +255,7 @@ bool GlobalPlanner::extractLocalMapInfo(const perception_msgs::msg::EgoData& ego
         for (size_t j = 0; j < refering_elems.size(); ++j) {
           std::vector<geometry_msgs::msg::Point> ref_points =
               Lanelet2Utilities::convertLaneletLine2Linestring(refering_elems[j].basicLineString());
+          ref_points[0].z -= ref_lines_height;
           regelem.signal_positions.push_back(ref_points[0]);
         }
         // Set the Type
@@ -275,6 +281,8 @@ bool GlobalPlanner::extractLocalMapInfo(const perception_msgs::msg::EgoData& ego
         // Add to route
         route_local_tmp.regulatory_elements.push_back(regelem);
       }
+      // Find s-coordinate of regelems with effect lines that intersect with the shortest path
+      setEffectLineS(route_local_tmp);
     } else {
       RCLCPP_ERROR_STREAM(get_logger(), "Unable to extract path segment for extracting map information!");
       return false;

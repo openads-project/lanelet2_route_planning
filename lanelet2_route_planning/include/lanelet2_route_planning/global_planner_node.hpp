@@ -161,8 +161,12 @@ class GlobalPlanner : public rclcpp::Node {
                           std::deque<std::pair<lanelet::BasicLineString2d, size_t>>& last_test_lines,
                           lanelet::BasicLineString2d& bound);
   bool checkLineDrivability(const lanelet::ConstLineString3d& lineToCheck);
-  route_planning_msgs::msg::LaneSeparator deriveLaneSeparator(const lanelet::ConstLineString3d& linestring);
+  route_planning_msgs::msg::LaneSeparator deriveLaneSeparator(const lanelet::ConstLineString2d& linestring);
   uint8_t deriveValueForSpeedLimitType(const std::shared_ptr<const lanelet::RegulatoryElement> regelem,
                                        const std::vector<lanelet::ConstLineString3d> refering_elems);
   uint8_t trafficSignCode2Type(const std::string tsign_code);
+  bool calcIntersection(const geometry_msgs::msg::Point p1, const geometry_msgs::msg::Point p2,
+                        const geometry_msgs::msg::Point p3, const geometry_msgs::msg::Point p4,
+                        double& lambda);
+  void setEffectLineS(route_planning_msgs::msg::Route& route); 
 };

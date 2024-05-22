@@ -221,7 +221,7 @@ bool GlobalPlanner::checkLineDrivability(const lanelet::ConstLineString3d &lineT
 }
 
 route_planning_msgs::msg::LaneSeparator GlobalPlanner::deriveLaneSeparator(
-    const lanelet::ConstLineString3d &linestring) {
+    const lanelet::ConstLineString2d &linestring) {
   route_planning_msgs::msg::LaneSeparator lane_sep;
   lanelet::Attribute type_str;
   if (!linestring.hasAttribute("type")) {
@@ -349,6 +349,57 @@ uint8_t GlobalPlanner::trafficSignCode2Type(const std::string tsign_code) {
   else {
     RCLCPP_WARN_STREAM(get_logger(), "Unknown sign code for Traffic-Sign: " << tsign_code);
     return route_planning_msgs::msg::RegulatoryElement::STATE_UNKNOWN;
+  }
+}
+
+bool GlobalPlanner::calcIntersection(const geometry_msgs::msg::Point p1, const geometry_msgs::msg::Point p2,
+                                         const geometry_msgs::msg::Point p3, const geometry_msgs::msg::Point p4,
+                                         double& lambda) {
+  // problem description:
+  // Line 1: (x,y)=(x1,y1)+t1​⋅(x2−x1,y2−y1)
+  // Line 2: (x,y)=(x3,y3)+t2​⋅(x4−x3,y4−y3)
+  // solve for t1 and t2, where lines are equal --> (x1+t1​(x2−x1),y1+t1​(y2−y1))=(x3+t2​(x4−x3),y3+t2​(y4−y3)) 
+  // two linear equations: x1+t1​(x2−x1)=x3+t2​(x4−x3) and y1+t1​(y2−y1)=y3+t2​(y4−y3)
+  
+  // direction vectors of the lines
+  double d1x = p2.x - p1.x;
+  double d1y = p2.y - p1.y;
+  double d2x = p4.x - p3.x;
+  double d2y = p4.y - p3.y;
+
+  // determinant
+  double det = d1x * d2y - d1y * d2x;
+  if (det == 0) return false; // lines are parallel or collinear
+
+  // Calculate parameters t1 and t2
+  double t1 = ((p3.x - p1.x) * d2y - (p3.y - p1.y) * d2x) / det;
+  double t2 = ((p3.x - p1.x) * d1y - (p3.y - p1.y) * d1x) / det;
+
+  if (t1 >= 0 && t1 <= 1 && t2 >= 0 && t2 <= 1) {
+      // There is an intersection within the segments
+      double x = p1.x + t1 * d1x;
+      double y = p1.y + t1 * d1y;
+      lambda = t1;
+      return true;
+  }
+
+  return false;
+}
+
+void GlobalPlanner::setEffectLineS(route_planning_msgs::msg::Route& route) {
+  for (size_t i = 0; i < route.remaining_route.size() - 1; ++i) {
+    geometry_msgs::msg::Point p1 = route.remaining_route[i];
+    geometry_msgs::msg::Point p2 = route.remaining_route[i + 1];
+    for (size_t j = 0; j < route.regulatory_elements.size(); ++j) {
+      geometry_msgs::msg::Point p3 = route.regulatory_elements[j].effect_line[0];
+      geometry_msgs::msg::Point p4 = route.regulatory_elements[j].effect_line[1];
+      double lambda;
+      if (calcIntersection(p1, p2, p3, p4, lambda)) {
+        double intersection_s = p1.z + lambda * (p2.z - p1.z);
+        route.regulatory_elements[j].effect_line[0].z = intersection_s;
+        route.regulatory_elements[j].effect_line[1].z = intersection_s;
+      }
+    }
   }
 }
 
