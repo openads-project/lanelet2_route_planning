@@ -380,7 +380,6 @@ bool GlobalPlanner::calcIntersection(const geometry_msgs::msg::Point p1, const g
       double x = p1.x + t1 * d1x;
       double y = p1.y + t1 * d1y;
       lambda = t1;
-      RCLCPP_INFO(this->get_logger(), "Intersection at x: %f, y: %f", x, y);
       return true;
   }
 
