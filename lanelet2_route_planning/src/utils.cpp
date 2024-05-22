@@ -221,7 +221,7 @@ bool GlobalPlanner::checkLineDrivability(const lanelet::ConstLineString3d &lineT
 }
 
 route_planning_msgs::msg::LaneSeparator GlobalPlanner::deriveLaneSeparator(
-    const lanelet::ConstLineString3d &linestring) {
+    const lanelet::ConstLineString2d &linestring) {
   route_planning_msgs::msg::LaneSeparator lane_sep;
   lanelet::Attribute type_str;
   if (!linestring.hasAttribute("type")) {
