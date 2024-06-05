@@ -28,12 +28,18 @@ rclcpp_action::GoalResponse GlobalPlanner::actionHandleGoal(
   lanelet::BasicPoint3d destination_on_centerline;
   if (!planLaneletRoute(ego_data_, destination, ll_route, start_offset_point, destination_on_centerline,
                         destination_offset_point)) {
+    RCLCPP_ERROR(this->get_logger(), "Failed to plan route, rejecting action goal");
     return rclcpp_action::GoalResponse::REJECT;
   }
   route_planning_msgs::msg::Route new_route;
   int new_initial_ego_pos_sample_cl, new_target_pos_sample_cl;
   processRoute(ego_data_, std::move(ll_route), start_offset_point, destination_on_centerline, destination_offset_point,
-               new_route, new_initial_ego_pos_sample_cl, new_target_pos_sample_cl);
+              new_route, new_initial_ego_pos_sample_cl, new_target_pos_sample_cl);
+
+  if (!this->egoIsOnRoute(ego_data_, ll_route)) {
+    RCLCPP_ERROR(this->get_logger(), "Ego is not on planned route, rejecting action goal");
+    return rclcpp_action::GoalResponse::REJECT;
+  }
 
   // abort current action if running
   if (maneuver_goal_handle_ && maneuver_goal_handle_->is_active()) {

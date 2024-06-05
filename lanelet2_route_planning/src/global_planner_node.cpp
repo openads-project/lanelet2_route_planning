@@ -326,6 +326,14 @@ bool GlobalPlanner::deriveDestinationLanelet(const geometry_msgs::msg::PointStam
   }
 }
 
+bool GlobalPlanner::egoIsOnRoute(const perception_msgs::msg::EgoData& ego_data,
+                                 const lanelet::routing::Route& route) {
+
+  lanelet::ConstLanelet ego_lanelet;
+  if (!deriveEgoLanelet(ego_data, ego_lanelet)) return false;
+  return route.contains(ego_lanelet);
+}
+
 bool GlobalPlanner::planLaneletRoute(const perception_msgs::msg::EgoData ego_data,
                                      const geometry_msgs::msg::PointStamped destination,
                                      lanelet::routing::Route& lanelet_route, lanelet::BasicPoint2d& start_offset_point,
