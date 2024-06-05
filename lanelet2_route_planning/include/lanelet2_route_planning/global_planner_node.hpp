@@ -78,6 +78,8 @@ class GlobalPlanner : public rclcpp::Node {
   double offset_behind_distance_ = 0.0;
   double offset_ahead_distance_ = 0.0;
 
+  double cancel_distance_ahead_ = 20.0;
+
   // Maneuver Execution
   rclcpp::Time maneuver_start_time_;
 

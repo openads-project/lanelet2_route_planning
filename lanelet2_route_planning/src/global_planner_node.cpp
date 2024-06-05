@@ -166,6 +166,20 @@ void GlobalPlanner::loadParameters() {
                                                std::to_string(offset_ahead_distance_));
   }
 
+  this->declare_parameter("cancel_distance_ahead", rclcpp::ParameterType::PARAMETER_DOUBLE);
+  try {
+    cancel_distance_ahead_ = this->get_parameter("cancel_distance_ahead").as_double();
+    RCLCPP_INFO_STREAM(this->get_logger(),
+                       "Parameter \'cancel_distance_ahead\' set to: " + std::to_string(cancel_distance_ahead_));
+  } catch (rclcpp::exceptions::InvalidParameterTypeException&) {
+    RCLCPP_WARN_STREAM(this->get_logger(),
+                       "Parameter \'cancel_distance_ahead\' is not set correctly, using default value: " +
+                           std::to_string(cancel_distance_ahead_));
+  } catch (rclcpp::exceptions::ParameterUninitializedException&) {
+    RCLCPP_WARN_STREAM(this->get_logger(), "Parameter \'cancel_distance_ahead\' is not set, using default value: " +
+                                               std::to_string(cancel_distance_ahead_));
+  }
+
   // Local Path Extraction
   this->declare_parameter("local_path_extraction_rate", rclcpp::ParameterType::PARAMETER_DOUBLE);
   try {

@@ -54,7 +54,7 @@ rclcpp_action::CancelResponse GlobalPlanner::actionHandleCancel(
   (void)goal_handle;
 
   // this callback is invoked when a running action is requested to cancel
-  RCLCPP_INFO(get_logger(), "Received request to cancel action");
+  RCLCPP_WARN(get_logger(), "Received request to cancel action");
 
   return rclcpp_action::CancelResponse::ACCEPT;
 }
@@ -100,20 +100,30 @@ void GlobalPlanner::actionExecute(
   }
 
   rclcpp::Rate loop_rate(path_extraction_rate_);
+
+  bool is_cancelling = false;
   while (!maneuver_result_->destination_reached) {
-    // cancel, if requested
+    // if requested, cancel route by setting destination to point closely ahead of ego along route
     if (goal_handle->is_canceling()) {
-      goal_handle->canceled(maneuver_result_);
-      RCLCPP_WARN(get_logger(), "Action canceled");
-      return;
+      if (!is_cancelling) {
+        RCLCPP_WARN(this->get_logger(), "Canceling by re-planning route to destination %.2fm ahead",
+                    cancel_distance_ahead_);
+        // find route sample 'cancel_distance_ahead_' ahead of ego to set as new destination
+        int ego_pos_sample_cl = findNearestSample(perception_msgs::object_access::getPosition(ego_data_),
+                                                  route_.remaining_route, initial_ego_pos_sample_cl_);
+        auto& ego_pos = route_.remaining_route[ego_pos_sample_cl];
+        for (size_t i = ego_pos_sample_cl; i < route_.remaining_route.size(); i++) {
+          double distance_ahead = route_.remaining_route[i].z - ego_pos.z;
+          if (distance_ahead > cancel_distance_ahead_) {
+            target_pos_sample_cl_ = i;
+            route_.destination = route_.remaining_route[target_pos_sample_cl_];
+            break;
+          }
+        }
+        is_cancelling = true;
+      }
     }
 
-    // map update pending
-    if (ll2if_->update_pending_) {
-      //To-Do --> Safe Cancel Action?
-    }
-
-    // Check for destination reached
     lanelet::ConstLanelet cur_ego_lanelet;
     if (deriveEgoLanelet(ego_data_, cur_ego_lanelet)) {
       // check if destination is reached -> goal succeeded
@@ -133,7 +143,6 @@ void GlobalPlanner::actionExecute(
       }
 
       // Extract local section of driveable space and route
-      route_planning_msgs::msg::DriveableSpace driveable_space_local;
       route_planning_msgs::msg::Route route_local;
       if (extractLocalMapInfo(ego_data_, route_, route_local)) {
         // check if route has been completed without reaching destination -> abort goal
@@ -161,8 +170,7 @@ void GlobalPlanner::actionExecute(
         maneuver_feedback_->time_remaining = rclcpp::Duration::from_seconds(0.0);
         if (!route_local.remaining_route.empty()) {
           maneuver_feedback_->distance_remaining =
-              route_local.remaining_route.back().z -
-              maneuver_feedback_->distance_traveled;  // TODO: will be wrong if offset_ahead_distance > 0
+              route_local.remaining_route.back().z - maneuver_feedback_->distance_traveled;
           maneuver_feedback_->time_remaining = rclcpp::Duration::from_seconds(
               maneuver_feedback_->distance_remaining /
               (route_local.current_speed_limit /
@@ -179,6 +187,7 @@ void GlobalPlanner::actionExecute(
         return;
       }
     }
+
     // sleep
     loop_rate.sleep();
     continue;

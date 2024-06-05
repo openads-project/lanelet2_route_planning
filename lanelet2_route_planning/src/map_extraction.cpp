@@ -11,7 +11,7 @@ bool GlobalPlanner::extractLocalMapInfo(const perception_msgs::msg::EgoData& ego
   // Find sample of shortest path centerline corresponding to the current ego-position (limited by end of route)
   unsigned int ego_pos_sample_cl = initial_ego_pos_sample_cl_;
   ego_pos_sample_cl = findNearestSample(perception_msgs::object_access::getPosition(ego_data),
-                                        route_global.remaining_route, ego_pos_sample_cl);
+                                        route_global.remaining_route, initial_ego_pos_sample_cl_);
   if (ego_pos_sample_cl >= target_pos_sample_cl_) ego_pos_sample_cl = target_pos_sample_cl_;
 
   // create temporary local route to fill in this function
