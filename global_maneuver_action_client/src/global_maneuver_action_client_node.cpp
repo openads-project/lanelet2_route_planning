@@ -13,16 +13,9 @@ void GlobalManeuverActionClient::sendGoal(geometry_msgs::msg::PoseStamped::Share
               msg->pose.position.x, msg->pose.position.y, msg->pose.position.z, msg->header.frame_id.c_str());
 
   // check for action server
-  if (!this->action_client_->wait_for_action_server()) {
+  if (!action_client_->wait_for_action_server()) {
     RCLCPP_ERROR(this->get_logger(), "Action server not available, returning");
     return;
-  }
-
-  // check for running actions
-  if (goal_handle_future_.valid()) {
-    auto goal_handle = goal_handle_future_.get();
-    RCLCPP_WARN(this->get_logger(), "Existing global maneuver detected, cancelling before sending new goal");
-    auto cancel_future = action_client_->async_cancel_goals_before(this->now());
   }
 
   // build goal
@@ -34,12 +27,13 @@ void GlobalManeuverActionClient::sendGoal(geometry_msgs::msg::PoseStamped::Share
   // send goal
   RCLCPP_INFO(this->get_logger(), "Sending goal");
   auto send_goal_options = rclcpp_action::Client<GlobalManeuver>::SendGoalOptions();
-  //  send_goal_options.goal_response_callback = std::bind(&GlobalManeuverActionClient::goalResponseCallback, this, std::placeholders::_1);
+  send_goal_options.goal_response_callback =
+      std::bind(&GlobalManeuverActionClient::goalResponseCallback, this, std::placeholders::_1);
   send_goal_options.feedback_callback =
       std::bind(&GlobalManeuverActionClient::feedbackCallback, this, std::placeholders::_1, std::placeholders::_2);
   send_goal_options.result_callback =
       std::bind(&GlobalManeuverActionClient::resultCallback, this, std::placeholders::_1);
-  goal_handle_future_ = this->action_client_->async_send_goal(goal, send_goal_options);
+  goal_handle_future_ = action_client_->async_send_goal(goal, send_goal_options);
 }
 
 void GlobalManeuverActionClient::goalResponseCallback(const GoalHandleGlobalManeuver::SharedPtr& goal_handle) {

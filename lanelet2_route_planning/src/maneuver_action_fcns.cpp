@@ -22,27 +22,30 @@ rclcpp_action::GoalResponse GlobalPlanner::actionHandleGoal(
               destination_map.point.x, destination_map.point.y, destination_map.point.z,
               destination_map.header.frame_id.c_str());
 
+  RCLCPP_INFO(this->get_logger(), "Planning route to destination");
   lanelet::routing::Route ll_route;
   lanelet::BasicPoint2d start_offset_point, destination_offset_point;
   lanelet::BasicPoint3d destination_on_centerline;
   if (!planLaneletRoute(ego_data_, destination, ll_route, start_offset_point, destination_on_centerline,
-                        destination_offset_point))
+                        destination_offset_point)) {
     return rclcpp_action::GoalResponse::REJECT;
-  route_ = processRoute(ego_data_, std::move(ll_route), start_offset_point, destination_on_centerline,
-                        destination_offset_point);
+  }
+  route_planning_msgs::msg::Route new_route;
+  int new_initial_ego_pos_sample_cl, new_target_pos_sample_cl;
+  processRoute(ego_data_, std::move(ll_route), start_offset_point, destination_on_centerline, destination_offset_point,
+               new_route, new_initial_ego_pos_sample_cl, new_target_pos_sample_cl);
 
-  maneuver_feedback_ = std::make_shared<route_planning_msgs::action::GlobalManeuver::Feedback>();
-  // derive remaining distance while accounting for the offsets within the path length
-  maneuver_feedback_->distance_remaining =
-      route_.remaining_route[target_pos_sample_cl_].z - route_.remaining_route[initial_ego_pos_sample_cl_].z;
-  maneuver_feedback_->time_remaining = rclcpp::Duration::from_seconds(
-      maneuver_feedback_->distance_remaining /
-      (route_.current_speed_limit / 3.6));  // TODO: improve estimate by accumulating with speed limits over path
-
-  maneuver_result_ = std::make_shared<route_planning_msgs::action::GlobalManeuver::Result>();
+  // abort current action if running
+  if (maneuver_goal_handle_ && maneuver_goal_handle_->is_active()) {
+    RCLCPP_WARN(this->get_logger(), "Existing action detected, aborting before accepting new goal");
+    maneuver_result_->destination_reached = false;
+    maneuver_goal_handle_->abort(maneuver_result_);
+  }
 
   // accept action goal request
-  maneuver_start_time_ = now();
+  route_ = new_route;
+  initial_ego_pos_sample_cl_ = new_initial_ego_pos_sample_cl;
+  target_pos_sample_cl_ = new_target_pos_sample_cl;
   return rclcpp_action::GoalResponse::ACCEPT_AND_EXECUTE;
 }
 
@@ -50,27 +53,36 @@ rclcpp_action::CancelResponse GlobalPlanner::actionHandleCancel(
     const std::shared_ptr<rclcpp_action::ServerGoalHandle<route_planning_msgs::action::GlobalManeuver>> goal_handle) {
   (void)goal_handle;
 
-  // clear the global route
-  route_planning_msgs::msg::Route empty_route;
-  route_ = empty_route;
-
   // this callback is invoked when a running action is requested to cancel
-  RCLCPP_INFO(get_logger(), "Received request to cancel action goal");
+  RCLCPP_INFO(get_logger(), "Received request to cancel action");
 
-  // accept action cancel request
   return rclcpp_action::CancelResponse::ACCEPT;
 }
 
 void GlobalPlanner::actionHandleAccepted(
     const std::shared_ptr<rclcpp_action::ServerGoalHandle<route_planning_msgs::action::GlobalManeuver>> goal_handle) {
   // this callback is invoked when an action goal request is accepted
+
+  maneuver_goal_handle_ = goal_handle;
+
+  // initialize feedback and result
+  maneuver_start_time_ = now();
+  maneuver_feedback_ = std::make_shared<route_planning_msgs::action::GlobalManeuver::Feedback>();
+  maneuver_result_ = std::make_shared<route_planning_msgs::action::GlobalManeuver::Result>();
+  // derive remaining distance while accounting for the offsets within the path length
+  maneuver_feedback_->distance_remaining =
+      route_.remaining_route[target_pos_sample_cl_].z - route_.remaining_route[initial_ego_pos_sample_cl_].z;
+  maneuver_feedback_->time_remaining = rclcpp::Duration::from_seconds(
+      maneuver_feedback_->distance_remaining /
+      (route_.current_speed_limit / 3.6));  // TODO: improve estimate by accumulating with speed limits over path
+
   // execute the action in a separate thread to avoid blocking
   std::thread{std::bind(&GlobalPlanner::actionExecute, this, std::placeholders::_1), goal_handle}.detach();
 }
 
 void GlobalPlanner::actionExecute(
     const std::shared_ptr<rclcpp_action::ServerGoalHandle<route_planning_msgs::action::GlobalManeuver>> goal_handle) {
-  RCLCPP_INFO(get_logger(), "Executing action goal");
+  RCLCPP_INFO(get_logger(), "Starting action execution");
 
   const auto goal = goal_handle->get_goal();
   const geometry_msgs::msg::PointStamped& destination = goal->destination;
@@ -92,7 +104,7 @@ void GlobalPlanner::actionExecute(
     // cancel, if requested
     if (goal_handle->is_canceling()) {
       goal_handle->canceled(maneuver_result_);
-      RCLCPP_WARN(get_logger(), "Action goal canceled");
+      RCLCPP_WARN(get_logger(), "Action canceled");
       return;
     }
 
@@ -114,7 +126,7 @@ void GlobalPlanner::actionExecute(
         RCLCPP_INFO(get_logger(), "Destination reached!");
         publishEmptyRoute();
         maneuver_result_->destination_reached = true;
-        maneuver_result_->distance_traveled = route_.remaining_route.back().z; // global route!
+        maneuver_result_->distance_traveled = route_.remaining_route.back().z;
         maneuver_result_->time_traveled = this->now() - maneuver_start_time_;
         goal_handle->succeed(maneuver_result_);
         return;
@@ -127,7 +139,7 @@ void GlobalPlanner::actionExecute(
         // check if route has been completed without reaching destination -> abort goal
         if (route_local.remaining_route.size() <= 1) {
           RCLCPP_ERROR(this->get_logger(), "Route completed without reaching destination");
-          publishEmptyRoute();
+          this->publishEmptyRoute();
           maneuver_result_->destination_reached = false;
           maneuver_result_->distance_traveled = route_local.traveled_route.back().z;
           maneuver_result_->time_traveled = this->now() - maneuver_start_time_;
@@ -136,7 +148,6 @@ void GlobalPlanner::actionExecute(
         }
 
         // update feedback
-        RCLCPP_INFO(get_logger(), "Updating Feedback.");
         double distance_traveled_to_last_path_point = 0.0;
         double distance_last_path_point_to_ego = 0.0;
         if (!route_local.traveled_route.empty()) {
