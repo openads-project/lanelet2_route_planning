@@ -108,7 +108,7 @@ void GlobalPlanner::actionExecute(
   rclcpp::Rate loop_rate(path_extraction_rate_);
 
   bool is_cancelling = false;
-  while (!maneuver_result_->destination_reached) {
+  while (goal_handle->is_executing() && !maneuver_result_->destination_reached) {
     // if requested, cancel route by setting destination to point closely ahead of ego along route
     if (goal_handle->is_canceling()) {
       if (!is_cancelling) {
