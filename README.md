@@ -60,6 +60,7 @@ It has the following functionalities:
 | `vel_threshold_target` | `double` | Velocity threshold to define if the target is reached if `require_standstill` is true [m/s] |
 | `offset_behind_distance` | `double` | distance behind current position where the route should start [m] |
 | `offset_ahead_distance` | `double` | distance ahead of target position where the route should end [m] |
+| `cancel_distance_ahead` | `double` | distance ahead of ego along route re-defining the destination if route is canceled [m] |
 | `local_path_extraction_rate` | `double` | Rate to extract and publish the local path / route / driveable space [Hz] |
 | `look_ahead_time` | `double` | Look ahead time for extracting the local path [s]; limited by offset_ahead_distance |
 | `look_ahead_distance_min` | `double` | Minimum Look-Ahead distance for the local path extraction [m]; limited by offset_ahead_distance |

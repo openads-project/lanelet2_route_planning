@@ -19,9 +19,9 @@ void GlobalPlanner::loadParameters() {
     vehicle_frame_id_ = this->get_parameter("vehicle_frame_id").as_string();
     RCLCPP_INFO_STREAM(this->get_logger(), "Parameter \'vehicle_frame_id\' set to: " + vehicle_frame_id_);
   } catch (rclcpp::exceptions::InvalidParameterTypeException&) {
-    RCLCPP_WARN_STREAM(this->get_logger(),
-                       "Parameter \'vehicle_frame_id\' is not set correctly, using default value: " +
-                           vehicle_frame_id_);
+    RCLCPP_WARN_STREAM(
+        this->get_logger(),
+        "Parameter \'vehicle_frame_id\' is not set correctly, using default value: " + vehicle_frame_id_);
   } catch (rclcpp::exceptions::ParameterUninitializedException&) {
     RCLCPP_WARN_STREAM(this->get_logger(),
                        "Parameter \'vehicle_frame_id\' is not set, using default value: " + vehicle_frame_id_);
@@ -166,6 +166,20 @@ void GlobalPlanner::loadParameters() {
                                                std::to_string(offset_ahead_distance_));
   }
 
+  this->declare_parameter("cancel_distance_ahead", rclcpp::ParameterType::PARAMETER_DOUBLE);
+  try {
+    cancel_distance_ahead_ = this->get_parameter("cancel_distance_ahead").as_double();
+    RCLCPP_INFO_STREAM(this->get_logger(),
+                       "Parameter \'cancel_distance_ahead\' set to: " + std::to_string(cancel_distance_ahead_));
+  } catch (rclcpp::exceptions::InvalidParameterTypeException&) {
+    RCLCPP_WARN_STREAM(this->get_logger(),
+                       "Parameter \'cancel_distance_ahead\' is not set correctly, using default value: " +
+                           std::to_string(cancel_distance_ahead_));
+  } catch (rclcpp::exceptions::ParameterUninitializedException&) {
+    RCLCPP_WARN_STREAM(this->get_logger(), "Parameter \'cancel_distance_ahead\' is not set, using default value: " +
+                                               std::to_string(cancel_distance_ahead_));
+  }
+
   // Local Path Extraction
   this->declare_parameter("local_path_extraction_rate", rclcpp::ParameterType::PARAMETER_DOUBLE);
   try {
@@ -232,12 +246,13 @@ void GlobalPlanner::initializeGlobalPlanner() {
     map_pose_sub_ = create_subscription<perception_msgs::msg::EgoData>(
         "~/ego_data", 1, std::bind(&GlobalPlanner::egoDataCallback, this, std::placeholders::_1));
     // create an action server for handling action goal requests
+    action_callback_group_ = this->create_callback_group(rclcpp::CallbackGroupType::MutuallyExclusive);
     maneuver_action_server_ = rclcpp_action::create_server<route_planning_msgs::action::GlobalManeuver>(
         this, "ll2_route_planning/execute_global_maneuver",
         std::bind(&GlobalPlanner::actionHandleGoal, this, std::placeholders::_1, std::placeholders::_2),
         std::bind(&GlobalPlanner::actionHandleCancel, this, std::placeholders::_1),
-        std::bind(&GlobalPlanner::actionHandleAccepted, this, std::placeholders::_1));
-    RCLCPP_INFO(get_logger(), "Created 'execute_global_maneuver' action-server!");
+        std::bind(&GlobalPlanner::actionHandleAccepted, this, std::placeholders::_1),
+        rcl_action_server_get_default_options(), action_callback_group_);
 
     // local path extraction
     route_pub_ = create_publisher<route_planning_msgs::msg::Route>("~/route", 1);
@@ -251,7 +266,7 @@ void GlobalPlanner::egoDataCallback(perception_msgs::msg::EgoData::SharedPtr msg
 bool GlobalPlanner::deriveEgoLanelet(const perception_msgs::msg::EgoData ego_data,
                                      lanelet::ConstLanelet& start_lanelet) {
   if ((now() - ego_data.header.stamp).seconds() > ego_data_timeout_) {
-    RCLCPP_ERROR_STREAM(get_logger(), "Latest ego-pose message is depracted (age: "
+    RCLCPP_ERROR_STREAM(get_logger(), "Latest ego-pose message is too old (age: "
                                           << (now() - ego_data.header.stamp).seconds() << " s)!");
     return false;
   } else {
@@ -309,6 +324,14 @@ bool GlobalPlanner::deriveDestinationLanelet(const geometry_msgs::msg::PointStam
     RCLCPP_ERROR(get_logger(), "Unable to plan a route to the given target position!");
     return b_found_target_ll;
   }
+}
+
+bool GlobalPlanner::egoIsOnRoute(const perception_msgs::msg::EgoData& ego_data,
+                                 const lanelet::routing::Route& route) {
+
+  lanelet::ConstLanelet ego_lanelet;
+  if (!deriveEgoLanelet(ego_data, ego_lanelet)) return false;
+  return route.contains(ego_lanelet);
 }
 
 bool GlobalPlanner::planLaneletRoute(const perception_msgs::msg::EgoData ego_data,
@@ -406,11 +429,12 @@ bool GlobalPlanner::planLaneletRoute(const perception_msgs::msg::EgoData ego_dat
   }
 }
 
-route_planning_msgs::msg::Route GlobalPlanner::processRoute(const perception_msgs::msg::EgoData ego_data,
-                                                            const lanelet::routing::Route ll_route,
-                                                            const lanelet::BasicPoint2d& start_offset_point,
-                                                            const lanelet::BasicPoint3d& destination_on_centerline,
-                                                            const lanelet::BasicPoint2d& destination_offset_point) {
+void GlobalPlanner::processRoute(const perception_msgs::msg::EgoData& ego_data, const lanelet::routing::Route& ll_route,
+                                 const lanelet::BasicPoint2d& start_offset_point,
+                                 const lanelet::BasicPoint3d& destination_on_centerline,
+                                 const lanelet::BasicPoint2d& destination_offset_point,
+                                 route_planning_msgs::msg::Route& route_out, int& initial_ego_pos_sample_cl_out,
+                                 int& target_pos_sample_cl_out) {
   rclcpp::Clock wall_clock(RCL_SYSTEM_TIME);
   rclcpp::Time t0 = wall_clock.now();
   // Extract shortest path and its boundaries
@@ -445,19 +469,21 @@ route_planning_msgs::msg::Route GlobalPlanner::processRoute(const perception_msg
   // we calculate the accumulated distance of the whole path including the additional offsets (we will account for these offsets later)
   this->accumulateDistanceAlong2DPath(route.remaining_route);
   // identify the sample of the offset_shortest_path_centerline that equals the initial position of the ego-vehicle
-  initial_ego_pos_sample_cl_ = 0;
-  initial_ego_pos_sample_cl_ = findNearestSample(perception_msgs::object_access::getPosition(ego_data),
-                                                 route.remaining_route, initial_ego_pos_sample_cl_);
+  initial_ego_pos_sample_cl_out = 0;
+  initial_ego_pos_sample_cl_out = findNearestSample(perception_msgs::object_access::getPosition(ego_data),
+                                                    route.remaining_route, initial_ego_pos_sample_cl_out);
   // identify the sample of the offset_shortest_path_centerline that equals the target position
-  target_pos_sample_cl_ = findNearestSampleReverse(route.destination, route.remaining_route);
+  target_pos_sample_cl_out = findNearestSampleReverse(route.destination, route.remaining_route);
   // Process boundaries
   route.driveable_space = sampleDriveableSpace(offset_shortest_path_centerline);
 
   // Process route boundaries
   sampleRouteBoundary(ll_route, shortestPath, route.boundaries.left, route.boundaries.right);
+
+  route_out = route;
+
   rclcpp::Duration duration = wall_clock.now() - t0;
   RCLCPP_INFO(this->get_logger(), "Processing of lanelet route took %.3f ms", duration.nanoseconds() / 1e6);
-  return route;
 }
 
 void GlobalPlanner::publishEmptyRoute() {
@@ -469,8 +495,10 @@ void GlobalPlanner::publishEmptyRoute() {
 
 int main(int argc, char** argv) {
   rclcpp::init(argc, argv);
-  auto planner = std::make_shared<GlobalPlanner>();
-  rclcpp::spin(planner);
+  auto node = std::make_shared<GlobalPlanner>();
+  rclcpp::executors::MultiThreadedExecutor executor;
+  executor.add_node(node);
+  executor.spin();
   rclcpp::shutdown();
   return 0;
 }

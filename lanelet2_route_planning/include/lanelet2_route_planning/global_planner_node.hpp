@@ -78,6 +78,8 @@ class GlobalPlanner : public rclcpp::Node {
   double offset_behind_distance_ = 0.0;
   double offset_ahead_distance_ = 0.0;
 
+  double cancel_distance_ahead_ = 30.0;
+
   // Maneuver Execution
   rclcpp::Time maneuver_start_time_;
 
@@ -100,6 +102,8 @@ class GlobalPlanner : public rclcpp::Node {
   rclcpp_action::Server<route_planning_msgs::action::GlobalManeuver>::SharedPtr maneuver_action_server_;
   route_planning_msgs::action::GlobalManeuver::Feedback::SharedPtr maneuver_feedback_;
   route_planning_msgs::action::GlobalManeuver::Result::SharedPtr maneuver_result_;
+  std::shared_ptr<rclcpp_action::ServerGoalHandle<route_planning_msgs::action::GlobalManeuver>> maneuver_goal_handle_;
+  rclcpp::CallbackGroup::SharedPtr action_callback_group_;
 
   // Function Definitions
   // global_planner_node.cpp
@@ -109,15 +113,16 @@ class GlobalPlanner : public rclcpp::Node {
   bool deriveEgoLanelet(const perception_msgs::msg::EgoData ego_data, lanelet::ConstLanelet& ego_lanelet);
   bool deriveDestinationLanelet(const geometry_msgs::msg::PointStamped destination,
                                 lanelet::ConstLanelet& destination_lanelet);
+  bool egoIsOnRoute(const perception_msgs::msg::EgoData& ego_data, const lanelet::routing::Route& route);
   bool planLaneletRoute(const perception_msgs::msg::EgoData ego_data,
                         const geometry_msgs::msg::PointStamped destination, lanelet::routing::Route& lanelet_route,
                         lanelet::BasicPoint2d& start_offset_point, lanelet::BasicPoint3d& destination_on_centerline,
                         lanelet::BasicPoint2d& destination_offset_point);
-  route_planning_msgs::msg::Route processRoute(const perception_msgs::msg::EgoData ego_data,
-                                               const lanelet::routing::Route ll_route,
-                                               const lanelet::BasicPoint2d& start_offset_point,
-                                               const lanelet::BasicPoint3d& destination_on_centerline,
-                                               const lanelet::BasicPoint2d& destination_offset_point);
+  void processRoute(const perception_msgs::msg::EgoData& ego_data, const lanelet::routing::Route& ll_route,
+                    const lanelet::BasicPoint2d& start_offset_point,
+                    const lanelet::BasicPoint3d& destination_on_centerline,
+                    const lanelet::BasicPoint2d& destination_offset_point, route_planning_msgs::msg::Route& route_out,
+                    int& initial_ego_pos_sample_cl_out, int& target_pos_sample_cl_out);
   void publishEmptyRoute();
 
   // map_extraction.cpp
@@ -166,7 +171,6 @@ class GlobalPlanner : public rclcpp::Node {
                                        const std::vector<lanelet::ConstLineString3d> refering_elems);
   uint8_t trafficSignCode2Type(const std::string tsign_code);
   bool calcIntersection(const geometry_msgs::msg::Point p1, const geometry_msgs::msg::Point p2,
-                        const geometry_msgs::msg::Point p3, const geometry_msgs::msg::Point p4,
-                        double& lambda);
-  void setEffectLineS(route_planning_msgs::msg::Route& route); 
+                        const geometry_msgs::msg::Point p3, const geometry_msgs::msg::Point p4, double& lambda);
+  void setEffectLineS(route_planning_msgs::msg::Route& route);
 };

@@ -11,7 +11,7 @@ bool GlobalPlanner::extractLocalMapInfo(const perception_msgs::msg::EgoData& ego
   // Find sample of shortest path centerline corresponding to the current ego-position (limited by end of route)
   unsigned int ego_pos_sample_cl = initial_ego_pos_sample_cl_;
   ego_pos_sample_cl = findNearestSample(perception_msgs::object_access::getPosition(ego_data),
-                                        route_global.remaining_route, ego_pos_sample_cl);
+                                        route_global.remaining_route, initial_ego_pos_sample_cl_);
   if (ego_pos_sample_cl >= target_pos_sample_cl_) ego_pos_sample_cl = target_pos_sample_cl_;
 
   // create temporary local route to fill in this function
@@ -236,7 +236,7 @@ bool GlobalPlanner::extractLocalMapInfo(const perception_msgs::msg::EgoData& ego
         // Get the ref-line Linestring
         std::vector<lanelet::ConstLineString3d> ref_lines =
             aoi_regelems[i]->getParameters<lanelet::ConstLineString3d>(RoleName::RefLine);
-        double ref_lines_height = 0.0;      
+        double ref_lines_height = 0.0;
         if (ref_lines.size()) {
           std::vector<geometry_msgs::msg::Point> ref_points =
               Lanelet2Utilities::convertLaneletLine2Linestring(ref_lines[0].basicLineString());
@@ -305,8 +305,8 @@ bool GlobalPlanner::extractLocalMapInfo(const perception_msgs::msg::EgoData& ego
     tf2::doTransform(route_local_tmp, route_local, tf);
     route_pub_->publish(route_local);
     rclcpp::Duration map_extraction_duration = wall_clock.now() - map_extraction_t0;
-    RCLCPP_INFO(this->get_logger(), "Extraction of map information took %.3f ms",
-                map_extraction_duration.nanoseconds() / 1e6);
+    RCLCPP_DEBUG(this->get_logger(), "Extraction of map information took %.3f ms",
+                 map_extraction_duration.nanoseconds() / 1e6);
     return true;
   } catch (const tf2::TransformException& ex) {
     RCLCPP_ERROR_STREAM(this->get_logger(), "Could not transform " << ll2if_->map_frame_id_ << " to "
