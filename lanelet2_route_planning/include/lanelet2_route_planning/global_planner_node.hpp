@@ -118,7 +118,7 @@ class GlobalPlanner : public rclcpp::Node {
                         const geometry_msgs::msg::PointStamped destination, lanelet::routing::Route& lanelet_route,
                         lanelet::BasicPoint2d& start_offset_point, lanelet::BasicPoint3d& destination_on_centerline,
                         lanelet::BasicPoint2d& destination_offset_point);
-  void processRoute(const perception_msgs::msg::EgoData ego_data, const lanelet::routing::Route ll_route,
+  void processRoute(const perception_msgs::msg::EgoData& ego_data, const lanelet::routing::Route& ll_route,
                     const lanelet::BasicPoint2d& start_offset_point,
                     const lanelet::BasicPoint3d& destination_on_centerline,
                     const lanelet::BasicPoint2d& destination_offset_point, route_planning_msgs::msg::Route& route_out,

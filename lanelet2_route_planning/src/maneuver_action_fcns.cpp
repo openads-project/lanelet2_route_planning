@@ -33,7 +33,7 @@ rclcpp_action::GoalResponse GlobalPlanner::actionHandleGoal(
   }
   route_planning_msgs::msg::Route new_route;
   int new_initial_ego_pos_sample_cl, new_target_pos_sample_cl;
-  processRoute(ego_data_, std::move(ll_route), start_offset_point, destination_on_centerline, destination_offset_point,
+  processRoute(ego_data_, ll_route, start_offset_point, destination_on_centerline, destination_offset_point,
               new_route, new_initial_ego_pos_sample_cl, new_target_pos_sample_cl);
 
   if (!this->egoIsOnRoute(ego_data_, ll_route)) {

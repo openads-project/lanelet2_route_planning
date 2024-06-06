@@ -429,7 +429,7 @@ bool GlobalPlanner::planLaneletRoute(const perception_msgs::msg::EgoData ego_dat
   }
 }
 
-void GlobalPlanner::processRoute(const perception_msgs::msg::EgoData ego_data, const lanelet::routing::Route ll_route,
+void GlobalPlanner::processRoute(const perception_msgs::msg::EgoData& ego_data, const lanelet::routing::Route& ll_route,
                                  const lanelet::BasicPoint2d& start_offset_point,
                                  const lanelet::BasicPoint3d& destination_on_centerline,
                                  const lanelet::BasicPoint2d& destination_offset_point,
