@@ -196,6 +196,8 @@ void GlobalManeuverActionClient::generateRandomGoal() {
             msg->header.frame_id = ll2if_->map_frame_id_;
             msg->header.stamp = rclcpp::Clock().now();
             sendGoal(msg);
+            RCLCPP_INFO(get_logger(), "Generated random goal at (%.3f, %.3f, %.3f) in frame '%s'", msg->pose.position.x,
+                        msg->pose.position.y, msg->pose.position.z, msg->header.frame_id.c_str());
           } else {
             RCLCPP_DEBUG(get_logger(), "Random lanelet has no centerline points");
             return;
