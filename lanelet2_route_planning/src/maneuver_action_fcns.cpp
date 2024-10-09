@@ -5,7 +5,7 @@ rclcpp_action::GoalResponse GlobalPlanner::actionHandleGoal(
     std::shared_ptr<const route_planning_msgs::action::GlobalManeuver::Goal> goal) {
   (void)uuid;
 
-  // if there was an update of the lanelet2 map pending, we can reset the flag since we're replanning with the latest map
+  // if there is an update of the lanelet2-map pending, we can reset the flag since we're replanning with the latest map
   ll2if_->update_pending_ = false;
 
   const geometry_msgs::msg::PointStamped& destination = goal->destination;
