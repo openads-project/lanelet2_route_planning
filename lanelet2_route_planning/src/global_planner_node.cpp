@@ -242,6 +242,8 @@ void GlobalPlanner::initializeGlobalPlanner() {
     RCLCPP_INFO(get_logger(), "Waiting for Lanelet2-Map-Interface to load map!");
     return;
   } else {
+    // initially there is no update of lanelet2 map pending
+    ll2if_->update_pending_ = false;
     // create subscription for ego-data
     map_pose_sub_ = create_subscription<perception_msgs::msg::EgoData>(
         "~/ego_data", 1, std::bind(&GlobalPlanner::egoDataCallback, this, std::placeholders::_1));
