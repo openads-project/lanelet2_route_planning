@@ -12,9 +12,8 @@ namespace global_maneuver_action_client {
 
 GlobalManeuverActionClient::GlobalManeuverActionClient() : Node("global_maneuver_action_client") {
   /// declare and load node parameters
-  this->declareAndLoadParameter("random_planning", random_planning_, "Bool indicating whether to plan random routes",
-                                true, false);
-  this->declareAndLoadParameter("map_server_name", map_server_name_, "Name of the lanelet2 map server", true, false);
+  this->declareAndLoadParameter("random_planning", random_planning_, "Bool indicating whether to plan random routes");
+  this->declareAndLoadParameter("map_server_name", map_server_name_, "Name of the lanelet2 map server");
 
   // subscriber and setup action client and
   this->setup();
