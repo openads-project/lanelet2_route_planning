@@ -26,4 +26,4 @@ route_planning:
 route_planning_action_client:
   ros__parameters:
     map_server_name: "ll2_map_server" # Name of the Lanelet2 Map Server Node
-    random_planning: True # Bool indicating if random planning is enabled
+    random_planning: False # Bool indicating if random planning is enabled
