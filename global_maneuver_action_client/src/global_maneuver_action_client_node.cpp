@@ -106,7 +106,7 @@ void GlobalManeuverActionClient::setup() {
       kGoalPoseTopic, 1, std::bind(&GlobalManeuverActionClient::goalPoseCallback, this, std::placeholders::_1));
 
   // random-planning timer
-  timer_ = create_wall_timer(5s, std::bind(&GlobalManeuverActionClient::generateRandomGoal, this));
+  timer_ = create_wall_timer(1s, std::bind(&GlobalManeuverActionClient::sendRandomGoal, this));
 
   // action client
   action_client_ = rclcpp_action::create_client<GlobalManeuver>(this, "ll2_route_planning/execute_global_maneuver");
@@ -154,59 +154,55 @@ void GlobalManeuverActionClient::sendGoal(geometry_msgs::msg::PoseStamped::Share
 void GlobalManeuverActionClient::goalResponseCallback(const GoalHandleGlobalManeuver::SharedPtr& goal_handle) {
   if (!goal_handle) {
     RCLCPP_ERROR(this->get_logger(), "Goal rejected by server");
+    timer_->reset();
   } else {
     RCLCPP_INFO(this->get_logger(), "Goal accepted by server");
-    action_running_ = true;
   }
 }
 
-void GlobalManeuverActionClient::generateRandomGoal() {
+void GlobalManeuverActionClient::sendRandomGoal() {
   if (random_planning_) {
-    // check if action is running
-    if (action_running_) {
-      RCLCPP_DEBUG(this->get_logger(), "Not generating a random goal while action is running");
+    if (!ll2if_->map_loaded_) {
+      RCLCPP_WARN(get_logger(), "Lanelet2 map not loaded, cannot generate random goal");
       return;
     } else {
-      if (!ll2if_->map_loaded_) {
-        RCLCPP_WARN(get_logger(), "Lanelet2 map not loaded, cannot generate random goal");
-        return;
-      } else {
-        auto msg = std::make_shared<geometry_msgs::msg::PoseStamped>();
-        lanelet::LaneletMapConstPtr llmap = ll2if_->getMapPtr();
-        if (!llmap->laneletLayer.empty()) {
-          // get random iterator of laneletLayer
-          auto random_lanelet = *std::next(llmap->laneletLayer.begin(), std::rand() % llmap->laneletLayer.size());
-          // get centerline of random lanelet
-          auto centerline = random_lanelet.centerline();
-          if (centerline.size() > 0) {
-            // get last point of lanelet centerline
-            auto last_point = centerline.back();
-            msg->pose.position.x = last_point.x();
-            msg->pose.position.y = last_point.y();
-            msg->pose.position.z = last_point.z();
-            if (centerline.size() > 1) {
-              // get heading from last and previous centerline point
-              auto heading = atan2(last_point.y() - centerline[centerline.size() - 2].y(),
-                                   last_point.x() - centerline[centerline.size() - 2].x());
-              // add heading to pose
-              tf2::Quaternion q;
-              q.setRPY(0, 0, heading);
-              msg->pose.orientation = tf2::toMsg(q);
-            }
-            msg->header.frame_id = ll2if_->map_frame_id_;
-            msg->header.stamp = rclcpp::Clock().now();
-            sendGoal(msg);
-            RCLCPP_INFO(get_logger(), "Generated random goal at (%.3f, %.3f, %.3f) in frame '%s'", msg->pose.position.x,
-                        msg->pose.position.y, msg->pose.position.z, msg->header.frame_id.c_str());
-          } else {
-            RCLCPP_DEBUG(get_logger(), "Random lanelet has no centerline points");
-            return;
+      auto msg = std::make_shared<geometry_msgs::msg::PoseStamped>();
+      lanelet::LaneletMapConstPtr llmap = ll2if_->getMapPtr();
+      if (!llmap->laneletLayer.empty()) {
+        // get random iterator of laneletLayer
+        auto random_lanelet = *std::next(llmap->laneletLayer.begin(), std::rand() % llmap->laneletLayer.size());
+        // get centerline of random lanelet
+        auto centerline = random_lanelet.centerline();
+        if (centerline.size() > 0) {
+          // get last point of lanelet centerline
+          auto last_point = centerline.back();
+          msg->pose.position.x = last_point.x();
+          msg->pose.position.y = last_point.y();
+          msg->pose.position.z = last_point.z();
+          if (centerline.size() > 1) {
+            // get heading from last and previous centerline point
+            auto heading = atan2(last_point.y() - centerline[centerline.size() - 2].y(),
+                                  last_point.x() - centerline[centerline.size() - 2].x());
+            // add heading to pose
+            tf2::Quaternion q;
+            q.setRPY(0, 0, heading);
+            msg->pose.orientation = tf2::toMsg(q);
           }
+          msg->header.frame_id = ll2if_->map_frame_id_;
+          msg->header.stamp = rclcpp::Clock().now();
+          sendGoal(msg);
+          timer_->cancel();
+          RCLCPP_INFO(get_logger(), "Generated random goal at (%.3f, %.3f, %.3f) in frame '%s'", msg->pose.position.x,
+                      msg->pose.position.y, msg->pose.position.z, msg->header.frame_id.c_str());
         } else {
-          RCLCPP_DEBUG(get_logger(), "No lanelets in map");
+          RCLCPP_DEBUG(get_logger(), "Random lanelet has no centerline points");
           return;
         }
+      } else {
+        RCLCPP_DEBUG(get_logger(), "No lanelets in map");
+        return;
       }
+    
     }
   }
 }
@@ -242,7 +238,7 @@ void GlobalManeuverActionClient::resultCallback(const GoalHandleGlobalManeuver::
   } else {
     RCLCPP_ERROR(this->get_logger(), "Goal finished with unknown result code");
   }
-  action_running_ = false;
+  timer_->reset();
 }
 
 }  // namespace global_maneuver_action_client

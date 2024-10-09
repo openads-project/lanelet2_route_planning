@@ -23,5 +23,7 @@ route_planning:
     look_ahead_distance_min: 100.0 # Minimum Look-Ahead distance for the local path extraction [m]
     look_behind_distance: 15.0 # Look-Behind distance for the local path extraction [m]; limited by offset_behind_distance
 
-    # Random Planning
-    random_planning: False # Bool indicating if random planning is enabled
+route_planning_action_client:
+  ros__parameters:
+    map_server_name: "ll2_map_server" # Name of the Lanelet2 Map Server Node
+    random_planning: True # Bool indicating if random planning is enabled

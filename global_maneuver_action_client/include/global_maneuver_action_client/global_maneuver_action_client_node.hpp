@@ -26,7 +26,7 @@ class GlobalManeuverActionClient : public rclcpp::Node {
   void setup();
 
   void goalPoseCallback(geometry_msgs::msg::PoseStamped::SharedPtr msg);
-  void generateRandomGoal();
+  void sendRandomGoal();
   void sendGoal(geometry_msgs::msg::PoseStamped::SharedPtr msg);
 
   // action callbacks
