@@ -156,10 +156,8 @@ void GlobalPlanner::actionExecute(
           RCLCPP_ERROR(this->get_logger(), "Lanelet map update pending, canceling action");
           this->publishEmptyRoute();
           maneuver_result_->destination_reached = false;
-          maneuver_result_->distance_traveled = route_local.traveled_route.back().z;
-          maneuver_result_->time_traveled = this->now() - maneuver_start_time_;
-          goal_handle->abort(maneuver_result_);
           ll2if_->update_pending_ = false;
+          goal_handle->abort(maneuver_result_);
           return;
         }
 
