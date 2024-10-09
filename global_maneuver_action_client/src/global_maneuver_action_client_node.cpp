@@ -156,13 +156,14 @@ void GlobalManeuverActionClient::goalResponseCallback(const GoalHandleGlobalMane
     RCLCPP_ERROR(this->get_logger(), "Goal rejected by server");
   } else {
     RCLCPP_INFO(this->get_logger(), "Goal accepted by server");
+    action_running_ = true;
   }
 }
 
 void GlobalManeuverActionClient::generateRandomGoal() {
   if (random_planning_) {
     // check if action is running
-    if (goal_handle_future_.valid() && goal_handle_future_.wait_for(1s) == std::future_status::timeout) {
+    if (action_running_) {
       RCLCPP_DEBUG(this->get_logger(), "Not generating a random goal while action is running");
       return;
     } else {
@@ -241,6 +242,7 @@ void GlobalManeuverActionClient::resultCallback(const GoalHandleGlobalManeuver::
   } else {
     RCLCPP_ERROR(this->get_logger(), "Goal finished with unknown result code");
   }
+  action_running_ = false;
 }
 
 }  // namespace global_maneuver_action_client

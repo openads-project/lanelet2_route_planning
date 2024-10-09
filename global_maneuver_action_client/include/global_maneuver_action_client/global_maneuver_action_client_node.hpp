@@ -52,6 +52,9 @@ class GlobalManeuverActionClient : public rclcpp::Node {
   bool random_planning_ = false;
   std::string map_server_name_ = "ll2_map_server";
 
+  // other member variables
+  bool action_running_ = false;
+
   // subscriber
   rclcpp::Subscription<geometry_msgs::msg::PoseStamped>::SharedPtr subscriber_;
 
