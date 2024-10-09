@@ -151,6 +151,18 @@ void GlobalPlanner::actionExecute(
       // Extract local section of driveable space and route
       route_planning_msgs::msg::Route route_local;
       if (extractLocalMapInfo(ego_data_, route_, route_local)) {
+        // check if lanelet map needs to be reloaded, cancel action
+        if (ll2if_->update_pending_) {
+          RCLCPP_ERROR(this->get_logger(), "Lanelet map update pending, canceling action");
+          this->publishEmptyRoute();
+          maneuver_result_->destination_reached = false;
+          maneuver_result_->distance_traveled = route_local.traveled_route.back().z;
+          maneuver_result_->time_traveled = this->now() - maneuver_start_time_;
+          goal_handle->abort(maneuver_result_);
+          ll2if_->update_pending_ = false;
+          return;
+        }
+
         // check if route has been completed without reaching destination -> abort goal
         if (route_local.remaining_route.size() <= 1) {
           RCLCPP_ERROR(this->get_logger(), "Route completed without reaching destination");
