@@ -32,8 +32,11 @@ class GlobalManeuverActionClient : public rclcpp::Node {
   void setup();
 
   void goalPoseCallback(geometry_msgs::msg::PoseStamped::SharedPtr msg);
+  void sendCyclicGoal();
   void sendRandomGoal();
+  void sendWaypointGoal();
   void sendGoal(geometry_msgs::msg::PoseStamped::SharedPtr msg);
+  std::vector<std::pair<double, double>> parseCoordinateStrings(std::vector<std::string> coordinate_strings);
 
   // action callbacks
   void goalResponseCallback(const GoalHandleGlobalManeuver::SharedPtr& goal_handle);
@@ -57,9 +60,11 @@ class GlobalManeuverActionClient : public rclcpp::Node {
   // parameter defaults
   uint8_t destination_mode_ = DestinationMode::SUBSCRIPTION;
   std::string map_server_name_ = "ll2_map_server";
+  std::vector<std::string> coordinate_strings_;
 
   // other member variables
-  bool action_running_ = false;
+  std::vector<std::pair<double, double>> coordinates_;
+  unsigned int coordinate_index_ = 0;
 
   // subscriber
   rclcpp::Subscription<geometry_msgs::msg::PoseStamped>::SharedPtr subscriber_;

@@ -11,9 +11,14 @@
 namespace global_maneuver_action_client {
 
 GlobalManeuverActionClient::GlobalManeuverActionClient() : Node("global_maneuver_action_client") {
-  /// declare and load node parameters
+  // declare and load node parameters
   this->declareAndLoadParameter("destination_mode", destination_mode_, "Integer indicating the choosen destination mode - 0: goal-pose subscription 1: shuttle-mode (list of gnss points) 2: random-planning");
   this->declareAndLoadParameter("map_server_name", map_server_name_, "Name of the lanelet2 map server");
+  this->declareAndLoadParameter("coordinates", coordinate_strings_, "List of coordinates for shuttle-mode", false);
+
+  coordinates_ = parseCoordinateStrings(coordinate_strings_);
+  // set coordinate index to 0
+  coordinate_index_ = 0;
 
   // subscriber and setup action client and
   this->setup();
@@ -91,6 +96,12 @@ rcl_interfaces::msg::SetParametersResult GlobalManeuverActionClient::parametersC
         std::get<1>(auto_reconfigurable_param)(param);
       }
     }
+    if (param.get_name() == "coordinates") {
+      coordinate_strings_ = param.as_string_array();
+      coordinates_ = parseCoordinateStrings(coordinate_strings_);
+      // set coordinate index to 0
+      coordinate_index_ = 0;
+    }
   }
 
   // mark parameter change successful
@@ -100,13 +111,29 @@ rcl_interfaces::msg::SetParametersResult GlobalManeuverActionClient::parametersC
   return result;
 }
 
+std::vector<std::pair<double, double>> GlobalManeuverActionClient::parseCoordinateStrings(std::vector<std::string> coordinate_strings) {
+  std::vector<std::pair<double, double>> coordinates;
+  // parse coordinate-strings into vector of tuples
+  for (const auto &coordinate_string : coordinate_strings) {
+    std::vector<std::string> coordinate_parts;
+    boost::split(coordinate_parts, coordinate_string, boost::is_any_of(","));
+    if (coordinate_parts.size() == 3) {
+      coordinates.push_back(std::make_pair(std::stod(coordinate_parts[0]), std::stod(coordinate_parts[2])));
+    } else {
+      RCLCPP_WARN(this->get_logger(), "Invalid coordinate string '%s'", coordinate_string.c_str());
+      continue;
+    }
+  }
+  return coordinates;
+}
+
 void GlobalManeuverActionClient::setup() {
   // goal-pose subscriber
   subscriber_ = create_subscription<geometry_msgs::msg::PoseStamped>(
       kGoalPoseTopic, 1, std::bind(&GlobalManeuverActionClient::goalPoseCallback, this, std::placeholders::_1));
 
   // random-planning timer
-  timer_ = create_wall_timer(1s, std::bind(&GlobalManeuverActionClient::sendRandomGoal, this));
+  timer_ = create_wall_timer(1s, std::bind(&GlobalManeuverActionClient::sendCyclicGoal, this));
 
   // action client
   action_client_ = rclcpp_action::create_client<GlobalManeuver>(this, "ll2_route_planning/execute_global_maneuver");
@@ -160,49 +187,90 @@ void GlobalManeuverActionClient::goalResponseCallback(const GoalHandleGlobalMane
   }
 }
 
+void GlobalManeuverActionClient::sendCyclicGoal() {
+  if(destination_mode_ == DestinationMode::RANDOM) sendRandomGoal();
+  else if(destination_mode_ == DestinationMode::SHUTTLE) sendWaypointGoal();
+  else RCLCPP_WARN(this->get_logger(), "Unknown destination mode, ignore sending of cyclic goal");
+}
+
 void GlobalManeuverActionClient::sendRandomGoal() {
-  if (destination_mode_ == DestinationMode::RANDOM) {
-    if (!ll2if_->map_loaded_) {
-      RCLCPP_WARN(get_logger(), "Lanelet2 map not loaded, cannot generate random goal");
+  if (!ll2if_->map_loaded_) {
+    RCLCPP_WARN(get_logger(), "Lanelet2 map not loaded, cannot generate random goal");
+    return;
+  } else {
+    auto msg = std::make_shared<geometry_msgs::msg::PoseStamped>();
+    lanelet::LaneletMapConstPtr llmap = ll2if_->getMapPtr();
+    if (!llmap->laneletLayer.empty()) {
+      // get random iterator of laneletLayer
+      auto random_lanelet = *std::next(llmap->laneletLayer.begin(), std::rand() % llmap->laneletLayer.size());
+      // get centerline of random lanelet
+      auto centerline = random_lanelet.centerline();
+      if (centerline.size() > 0) {
+        // get last point of lanelet centerline
+        auto last_point = centerline.back();
+        msg->pose.position.x = last_point.x();
+        msg->pose.position.y = last_point.y();
+        msg->pose.position.z = last_point.z();
+        if (centerline.size() > 1) {
+          // get heading from last and previous centerline point
+          auto heading = atan2(last_point.y() - centerline[centerline.size() - 2].y(),
+                                last_point.x() - centerline[centerline.size() - 2].x());
+          // add heading to pose
+          tf2::Quaternion q;
+          q.setRPY(0, 0, heading);
+          msg->pose.orientation = tf2::toMsg(q);
+        }
+        msg->header.frame_id = ll2if_->map_frame_id_;
+        msg->header.stamp = rclcpp::Clock().now();
+        sendGoal(msg);
+        timer_->cancel();
+        RCLCPP_INFO(get_logger(), "Generated random goal at (%.3f, %.3f, %.3f) in frame '%s'", msg->pose.position.x,
+                    msg->pose.position.y, msg->pose.position.z, msg->header.frame_id.c_str());
+      } else {
+        RCLCPP_DEBUG(get_logger(), "Random lanelet has no centerline points");
+        return;
+      }
+    } else {
+      RCLCPP_DEBUG(get_logger(), "No lanelets in map");
+      return;
+    }
+  }
+}
+
+void GlobalManeuverActionClient::sendWaypointGoal() {
+  if (!ll2if_->map_loaded_) {
+    RCLCPP_WARN(get_logger(), "Lanelet2 map not loaded, cannot generate a waypoint goal since projector is not available");
+    return;
+  } else {
+    if(coordinates_.empty()) {
+      RCLCPP_WARN(get_logger(), "No coordinates given for waypoint goal");
       return;
     } else {
       auto msg = std::make_shared<geometry_msgs::msg::PoseStamped>();
-      lanelet::LaneletMapConstPtr llmap = ll2if_->getMapPtr();
-      if (!llmap->laneletLayer.empty()) {
-        // get random iterator of laneletLayer
-        auto random_lanelet = *std::next(llmap->laneletLayer.begin(), std::rand() % llmap->laneletLayer.size());
-        // get centerline of random lanelet
-        auto centerline = random_lanelet.centerline();
-        if (centerline.size() > 0) {
-          // get last point of lanelet centerline
-          auto last_point = centerline.back();
-          msg->pose.position.x = last_point.x();
-          msg->pose.position.y = last_point.y();
-          msg->pose.position.z = last_point.z();
-          if (centerline.size() > 1) {
-            // get heading from last and previous centerline point
-            auto heading = atan2(last_point.y() - centerline[centerline.size() - 2].y(),
-                                  last_point.x() - centerline[centerline.size() - 2].x());
-            // add heading to pose
-            tf2::Quaternion q;
-            q.setRPY(0, 0, heading);
-            msg->pose.orientation = tf2::toMsg(q);
-          }
-          msg->header.frame_id = ll2if_->map_frame_id_;
-          msg->header.stamp = rclcpp::Clock().now();
-          sendGoal(msg);
-          timer_->cancel();
-          RCLCPP_INFO(get_logger(), "Generated random goal at (%.3f, %.3f, %.3f) in frame '%s'", msg->pose.position.x,
-                      msg->pose.position.y, msg->pose.position.z, msg->header.frame_id.c_str());
-        } else {
-          RCLCPP_DEBUG(get_logger(), "Random lanelet has no centerline points");
-          return;
+      std::shared_ptr<lanelet::Projector> proj = ll2if_->getProjectorPtr();
+      if(proj) {
+        lanelet::GPSPoint coord;
+        coord.lat = coordinates_[coordinate_index_].first;
+        coord.lon = coordinates_[coordinate_index_].second;
+        lanelet::BasicPoint3d coord_map = proj->forward(coord);
+        msg->pose.position.x = coord_map.x();
+        msg->pose.position.y = coord_map.y();
+        msg->pose.position.z = 0.0;
+        msg->header.frame_id = ll2if_->map_frame_id_;
+        msg->header.stamp = rclcpp::Clock().now();
+        sendGoal(msg);
+        timer_->cancel();
+        RCLCPP_DEBUG(get_logger(), "Generated waypoint goal at (%.3f, %.3f, %.3f) in frame '%s'", msg->pose.position.x,
+                    msg->pose.position.y, msg->pose.position.z, msg->header.frame_id.c_str());
+        coordinate_index_++;
+        if(coordinate_index_ >= coordinates_.size()) {
+          RCLCPP_DEBUG(get_logger(), "Reached last waypoint, reset to first waypoint");
+          coordinate_index_ = 0;
         }
       } else {
-        RCLCPP_DEBUG(get_logger(), "No lanelets in map");
+        RCLCPP_WARN(get_logger(), "Projector not available, cannot generate waypoint goal");
         return;
       }
-    
     }
   }
 }
