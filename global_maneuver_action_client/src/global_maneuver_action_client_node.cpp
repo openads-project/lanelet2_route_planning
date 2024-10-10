@@ -12,7 +12,7 @@ namespace global_maneuver_action_client {
 
 GlobalManeuverActionClient::GlobalManeuverActionClient() : Node("global_maneuver_action_client") {
   /// declare and load node parameters
-  this->declareAndLoadParameter("random_planning", random_planning_, "Bool indicating whether to plan random routes");
+  this->declareAndLoadParameter("destination_mode", destination_mode_, "Integer indicating the choosen destination mode - 0: goal-pose subscription 1: shuttle-mode (list of gnss points) 2: random-planning");
   this->declareAndLoadParameter("map_server_name", map_server_name_, "Name of the lanelet2 map server");
 
   // subscriber and setup action client and
@@ -116,10 +116,10 @@ void GlobalManeuverActionClient::setup() {
 }
 
 void GlobalManeuverActionClient::goalPoseCallback(geometry_msgs::msg::PoseStamped::SharedPtr msg) {
-  if (!random_planning_)
+  if (destination_mode_ != DestinationMode::SUBSCRIPTION)
     sendGoal(msg);
   else
-    RCLCPP_WARN(this->get_logger(), "Ignoring goal pose subscribed on topic '%s', random planning is enabled",
+    RCLCPP_WARN(this->get_logger(), "Ignoring goal pose subscribed on topic '%s', destination mode is not set to SUBSCRIPTION",
                 kGoalPoseTopic.c_str());
 }
 
@@ -161,7 +161,7 @@ void GlobalManeuverActionClient::goalResponseCallback(const GoalHandleGlobalMane
 }
 
 void GlobalManeuverActionClient::sendRandomGoal() {
-  if (random_planning_) {
+  if (destination_mode_ == DestinationMode::RANDOM) {
     if (!ll2if_->map_loaded_) {
       RCLCPP_WARN(get_logger(), "Lanelet2 map not loaded, cannot generate random goal");
       return;

@@ -20,6 +20,9 @@ class GlobalManeuverActionClient : public rclcpp::Node {
   GlobalManeuverActionClient();
 
  private:
+  
+  enum class DestinationMode { SUBSCRIPTION = 0, SHUTTLE = 1, RANDOM = 2 };
+  
   // input topics
   const std::string kGoalPoseTopic = "~/goal_pose";
 
@@ -49,7 +52,7 @@ class GlobalManeuverActionClient : public rclcpp::Node {
   OnSetParametersCallbackHandle::SharedPtr parameters_callback_;
 
   // parameter defaults
-  bool random_planning_ = false;
+  uint8_t destination_mode_ = static_cast<uint8_t> DestinationMode::SUBSCRIPTION;
   std::string map_server_name_ = "ll2_map_server";
 
   // other member variables
