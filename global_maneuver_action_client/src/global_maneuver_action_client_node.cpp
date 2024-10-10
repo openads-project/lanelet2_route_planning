@@ -116,9 +116,11 @@ std::vector<std::pair<double, double>> GlobalManeuverActionClient::parseCoordina
   // parse coordinate-strings into vector of tuples
   for (const auto &coordinate_string : coordinate_strings) {
     std::vector<std::string> coordinate_parts;
-    boost::split(coordinate_parts, coordinate_string, boost::is_any_of(", "));
+    boost::split(coordinate_parts, coordinate_string, boost::is_any_of(","));
+    RCLCPP_DEBUG(this->get_logger(), "Coordinate string '%s' has %d parts", coordinate_string.c_str(), coordinate_parts.size());
     if (coordinate_parts.size() == 2) {
       coordinates.push_back(std::make_pair(std::stod(coordinate_parts[0]), std::stod(coordinate_parts[1])));
+      RCLCPP_DEBUG(this->get_logger(), "Parsed coordinate string '%s' to (%.6f, %.6f)", coordinate_string.c_str(), std::stod(coordinate_parts[0]), std::stod(coordinate_parts[1]));
     } else {
       RCLCPP_WARN(this->get_logger(), "Invalid coordinate string '%s'", coordinate_string.c_str());
       continue;
