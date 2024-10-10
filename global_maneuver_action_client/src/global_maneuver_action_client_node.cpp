@@ -143,7 +143,7 @@ void GlobalManeuverActionClient::setup() {
 }
 
 void GlobalManeuverActionClient::goalPoseCallback(geometry_msgs::msg::PoseStamped::SharedPtr msg) {
-  if (destination_mode_ != DestinationMode::SUBSCRIPTION)
+  if (destination_mode_ == DestinationMode::SUBSCRIPTION)
     sendGoal(msg);
   else
     RCLCPP_WARN(this->get_logger(), "Ignoring goal pose subscribed on topic '%s', destination mode is not set to SUBSCRIPTION",
