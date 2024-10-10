@@ -190,7 +190,7 @@ void GlobalManeuverActionClient::goalResponseCallback(const GoalHandleGlobalMane
 void GlobalManeuverActionClient::sendCyclicGoal() {
   if(destination_mode_ == DestinationMode::RANDOM) sendRandomGoal();
   else if(destination_mode_ == DestinationMode::SHUTTLE) sendWaypointGoal();
-  else RCLCPP_WARN(this->get_logger(), "Unknown destination mode, ignore sending of cyclic goal");
+  else RCLCPP_DEBUG(this->get_logger(), "Unknown destination mode, ignore sending of cyclic goal");
 }
 
 void GlobalManeuverActionClient::sendRandomGoal() {
