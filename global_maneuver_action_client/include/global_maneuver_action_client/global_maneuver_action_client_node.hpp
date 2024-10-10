@@ -12,6 +12,12 @@ template <typename C> struct is_vector : std::false_type {};
 template <typename T,typename A> struct is_vector< std::vector<T,A> > : std::true_type {};    
 template <typename C> inline constexpr bool is_vector_v = is_vector<C>::value;
 
+namespace DestinationMode {
+  static constexpr uint8_t SUBSCRIPTION = 0;
+  static constexpr uint8_t SHUTTLE = 1;
+  static constexpr uint8_t RANDOM = 2;
+};
+
 class GlobalManeuverActionClient : public rclcpp::Node {
   using GlobalManeuver = route_planning_msgs::action::GlobalManeuver;
   using GoalHandleGlobalManeuver = rclcpp_action::ClientGoalHandle<GlobalManeuver>;
@@ -20,9 +26,6 @@ class GlobalManeuverActionClient : public rclcpp::Node {
   GlobalManeuverActionClient();
 
  private:
-  
-  enum class DestinationMode { SUBSCRIPTION = 0, SHUTTLE = 1, RANDOM = 2 };
-  
   // input topics
   const std::string kGoalPoseTopic = "~/goal_pose";
 
@@ -52,7 +55,7 @@ class GlobalManeuverActionClient : public rclcpp::Node {
   OnSetParametersCallbackHandle::SharedPtr parameters_callback_;
 
   // parameter defaults
-  uint8_t destination_mode_ = static_cast<uint8_t> DestinationMode::SUBSCRIPTION;
+  uint8_t destination_mode_ = DestinationMode::SUBSCRIPTION;
   std::string map_server_name_ = "ll2_map_server";
 
   // other member variables
