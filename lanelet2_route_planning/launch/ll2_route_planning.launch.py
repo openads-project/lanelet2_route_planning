@@ -24,6 +24,9 @@ def generate_launch_description():
 
     ego_data_topic_arg = DeclareLaunchArgument('ego_data_topic',
                                                default_value='~/ego_data')
+    
+    goal_pose_topic_arg = DeclareLaunchArgument('goal_pose_topic',
+                                               default_value='/goal_pose')
 
     route_planning_node = Node(
         package="lanelet2_route_planning",
@@ -42,6 +45,8 @@ def generate_launch_description():
         name="route_planning_action_client",
         namespace="",
         output="screen",
+        parameters=[config],
+        remappings=[('~/goal_pose', LaunchConfiguration('goal_pose_topic'))],
     )
 
     node_group = GroupAction(actions=[
@@ -56,5 +61,6 @@ def generate_launch_description():
         node_name_arg,
         use_sim_time_arg,
         ego_data_topic_arg,
+        goal_pose_topic_arg,
         node_group
     ])

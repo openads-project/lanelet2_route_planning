@@ -11,18 +11,24 @@ find_package(ament_cmake REQUIRED)
 # further dependencies manually.
 # find_package(<dependency> REQUIRED)
 find_package(geometry_msgs REQUIRED)
+find_package(lanelet2_map_interface REQUIRED)
 find_package(route_planning_msgs REQUIRED)
 find_package(rclcpp REQUIRED)
 find_package(rclcpp_action REQUIRED)
+find_package(tf2 REQUIRED)
+find_package(tf2_geometry_msgs REQUIRED)
 
 add_executable(global_maneuver_action_client_node
   src/global_maneuver_action_client_node.cpp)
 
 ament_target_dependencies(global_maneuver_action_client_node
   geometry_msgs
+  lanelet2_map_interface
   route_planning_msgs
   rclcpp
   rclcpp_action
+  tf2
+  tf2_geometry_msgs
 )
 
 target_include_directories(global_maneuver_action_client_node PUBLIC

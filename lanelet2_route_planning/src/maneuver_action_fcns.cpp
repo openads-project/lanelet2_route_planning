@@ -5,6 +5,9 @@ rclcpp_action::GoalResponse GlobalPlanner::actionHandleGoal(
     std::shared_ptr<const route_planning_msgs::action::GlobalManeuver::Goal> goal) {
   (void)uuid;
 
+  // if there is an update of the lanelet2-map pending, we can reset the flag since we're replanning with the latest map
+  ll2if_->update_pending_ = false;
+
   const geometry_msgs::msg::PointStamped& destination = goal->destination;
   RCLCPP_INFO(this->get_logger(), "Received global maneuver request to destination (%.3f, %.3f, %.3f) in frame '%s'",
               destination.point.x, destination.point.y, destination.point.z, destination.header.frame_id.c_str());
@@ -151,6 +154,16 @@ void GlobalPlanner::actionExecute(
       // Extract local section of driveable space and route
       route_planning_msgs::msg::Route route_local;
       if (extractLocalMapInfo(ego_data_, route_, route_local)) {
+        // check if lanelet map needs to be reloaded, cancel action
+        if (ll2if_->update_pending_) {
+          RCLCPP_ERROR(this->get_logger(), "Lanelet map update pending, canceling action");
+          this->publishEmptyRoute();
+          maneuver_result_->destination_reached = false;
+          ll2if_->update_pending_ = false;
+          goal_handle->abort(maneuver_result_);
+          return;
+        }
+
         // check if route has been completed without reaching destination -> abort goal
         if (route_local.remaining_route.size() <= 1) {
           RCLCPP_ERROR(this->get_logger(), "Route completed without reaching destination");
