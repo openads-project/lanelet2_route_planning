@@ -136,7 +136,7 @@ void GlobalManeuverActionClient::setup() {
       kGoalPoseTopic, 1, std::bind(&GlobalManeuverActionClient::goalPoseCallback, this, std::placeholders::_1));
 
   // random-planning timer
-  timer_ = create_wall_timer(1s, std::bind(&GlobalManeuverActionClient::sendCyclicGoal, this));
+  timer_ = create_wall_timer(1s, std::bind(&GlobalManeuverActionClient::cyclicGoalTimerCallback, this));
 
   // action client
   action_client_ = rclcpp_action::create_client<GlobalManeuver>(this, "ll2_route_planning/execute_global_maneuver");
@@ -190,7 +190,7 @@ void GlobalManeuverActionClient::goalResponseCallback(const GoalHandleGlobalMane
   }
 }
 
-void GlobalManeuverActionClient::sendCyclicGoal() {
+void GlobalManeuverActionClient::cyclicGoalTimerCallback() {
   if(destination_mode_ == DestinationMode::RANDOM) sendRandomGoal();
   else if(destination_mode_ == DestinationMode::SHUTTLE) sendWaypointGoal();
   else RCLCPP_DEBUG(this->get_logger(), "Unknown destination mode, ignore sending of cyclic goal");

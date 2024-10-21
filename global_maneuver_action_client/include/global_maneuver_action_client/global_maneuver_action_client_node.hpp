@@ -32,7 +32,7 @@ class GlobalManeuverActionClient : public rclcpp::Node {
   void setup();
 
   void goalPoseCallback(geometry_msgs::msg::PoseStamped::SharedPtr msg);
-  void sendCyclicGoal();
+  void cyclicGoalTimerCallback();
   void sendRandomGoal();
   void sendWaypointGoal();
   void sendGoal(geometry_msgs::msg::PoseStamped::SharedPtr msg);
