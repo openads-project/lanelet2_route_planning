@@ -16,10 +16,6 @@ GlobalManeuverActionClient::GlobalManeuverActionClient() : Node("global_maneuver
   this->declareAndLoadParameter("map_server_name", map_server_name_, "Name of the lanelet2 map server");
   this->declareAndLoadParameter("coordinates", coordinate_strings_, "List of coordinates for shuttle-mode", false);
 
-  coordinates_ = parseCoordinateStrings(coordinate_strings_);
-  // set coordinate index to 0
-  coordinate_index_ = 0;
-
   // subscriber and setup action client and
   this->setup();
 }
@@ -130,6 +126,11 @@ std::vector<std::pair<double, double>> GlobalManeuverActionClient::parseCoordina
 }
 
 void GlobalManeuverActionClient::setup() {
+  
+  coordinates_ = parseCoordinateStrings(coordinate_strings_);
+  // set coordinate index to 0
+  coordinate_index_ = 0;
+  
   // goal-pose subscriber
   subscriber_ = create_subscription<geometry_msgs::msg::PoseStamped>(
       kGoalPoseTopic, 1, std::bind(&GlobalManeuverActionClient::goalPoseCallback, this, std::placeholders::_1));
