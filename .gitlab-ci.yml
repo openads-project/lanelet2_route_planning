@@ -2,9 +2,10 @@ include:
   - remote: 'https://raw.githubusercontent.com/ika-rwth-aachen/docker-ros/main/.gitlab-ci/docker-ros.yml'
 
 variables:
-  BASE_IMAGE: rwthika/ros2:humble
+  BASE_IMAGE: rwthika/ros2:jazzy
+  RMW_IMPLEMENTATION: rmw_zenoh_cpp
   COMMAND: ros2 launch lanelet2_route_planning ll2_route_planning.launch.py
   TARGET: dev,run
-  PLATFORM: amd64
+  PLATFORM: amd64,arm64
   ENABLE_INDUSTRIAL_CI: 'true'
   NOT_TEST_BUILD: 'true'
