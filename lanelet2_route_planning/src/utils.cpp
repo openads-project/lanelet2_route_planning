@@ -1,5 +1,8 @@
 #include "lanelet2_route_planning/global_planner_node.hpp"
 
+#include <boost/algorithm/string.hpp>
+
+
 // Convert to linestring, smooth and visualize
 std::vector<geometry_msgs::msg::Point> GlobalPlanner::processLineString(lanelet::BasicLineString2d &line_string) {
   // to Linestring
