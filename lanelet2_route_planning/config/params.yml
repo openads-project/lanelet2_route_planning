@@ -26,4 +26,9 @@ route_planning:
 route_planning_action_client:
   ros__parameters:
     map_server_name: "ll2_map_server" # Name of the Lanelet2 Map Server Node
-    random_planning: False # Bool indicating if random planning is enabled
+    destination_mode: 0 # Integer indicating the choosen destination mode - 0: goal-pose subscription 1: shuttle-mode (list of gnss points) 2: random-planning
+    coordinates: # List of GNSS coordinates for the shuttle-mode, each coordinate pair is defined as single string-variable: "latitude, longitude"
+      - "50.90781133276521, 6.22670725167184"
+      - "50.90758335914813, 6.227254058507379"
+      - "50.90880647660322, 6.228526390458494"
+      - "50.90896628558292, 6.227838968573133" 
