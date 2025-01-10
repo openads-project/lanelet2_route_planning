@@ -145,7 +145,7 @@ void GlobalPlanner::actionExecute(
         RCLCPP_INFO(get_logger(), "Destination reached!");
         publishEmptyRoute();
         maneuver_result_->destination_reached = true;
-        maneuver_result_->distance_traveled = route_.remaining_route.back().z;
+        maneuver_result_->distance_traveled = maneuver_feedback_->distance_traveled;
         maneuver_result_->time_traveled = this->now() - maneuver_start_time_;
         goal_handle->succeed(maneuver_result_);
         return;
@@ -198,7 +198,7 @@ void GlobalPlanner::actionExecute(
 
         // publish the current sequence as action feedback
         goal_handle->publish_feedback(maneuver_feedback_);
-        RCLCPP_INFO(get_logger(), "Publishing action feedback");
+        RCLCPP_DEBUG(get_logger(), "Publishing action feedback");
       } else {
         publishEmptyRoute();
         maneuver_result_->destination_reached = false;
