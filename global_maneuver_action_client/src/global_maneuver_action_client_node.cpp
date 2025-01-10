@@ -18,6 +18,7 @@ GlobalManeuverActionClient::GlobalManeuverActionClient() : Node("global_maneuver
   this->declareAndLoadParameter("destination_mode", destination_mode_, "Integer indicating the choosen destination mode - 0: goal-pose subscription 1: shuttle-mode (list of gnss points) 2: random-planning");
   this->declareAndLoadParameter("map_server_name", map_server_name_, "Name of the lanelet2 map server");
   this->declareAndLoadParameter("coordinates", coordinate_strings_, "List of coordinates for shuttle-mode", false);
+  this->declareAndLoadParameter("cancel_route", cancel_route_, "Cancel running route planning action (can be set dynamically)", false);
 
   // subscriber and setup action client and
   this->setup();
@@ -100,6 +101,18 @@ rcl_interfaces::msg::SetParametersResult GlobalManeuverActionClient::parametersC
       coordinates_ = parseCoordinateStrings(coordinate_strings_);
       // set coordinate index to 0
       coordinate_index_ = 0;
+    } else if (param.get_name() == "cancel_route") {
+      cancel_route_ = param.as_bool();
+      if (cancel_route_) {
+        if (action_client_->wait_for_action_server()) {
+          RCLCPP_INFO(this->get_logger(), "Canceling running route planning action");
+          action_client_->async_cancel_all_goals();
+        } else {
+          RCLCPP_WARN(this->get_logger(), "Action server not available, cannot cancel route planning action");
+        }
+      } else {
+        RCLCPP_INFO(this->get_logger(), "Cancel route flag reset");
+      }
     }
   }
 
@@ -116,7 +129,7 @@ std::vector<std::pair<double, double>> GlobalManeuverActionClient::parseCoordina
   for (const auto &coordinate_string : coordinate_strings) {
     std::vector<std::string> coordinate_parts;
     boost::split(coordinate_parts, coordinate_string, boost::is_any_of(","));
-    RCLCPP_DEBUG(this->get_logger(), "Coordinate string '%s' has %d parts", coordinate_string.c_str(), coordinate_parts.size());
+    RCLCPP_DEBUG(this->get_logger(), "Coordinate string '%s' has %ld parts", coordinate_string.c_str(), coordinate_parts.size());
     if (coordinate_parts.size() == 2) {
       coordinates.push_back(std::make_pair(std::stod(coordinate_parts[0]), std::stod(coordinate_parts[1])));
       RCLCPP_DEBUG(this->get_logger(), "Parsed coordinate string '%s' to (%.6f, %.6f)", coordinate_string.c_str(), std::stod(coordinate_parts[0]), std::stod(coordinate_parts[1]));
@@ -133,6 +146,10 @@ void GlobalManeuverActionClient::setup() {
   coordinates_ = parseCoordinateStrings(coordinate_strings_);
   // set coordinate index to 0
   coordinate_index_ = 0;
+
+  // create a callback for dynamic parameter configuration
+  parameters_callback_ = this->add_on_set_parameters_callback(
+      std::bind(&GlobalManeuverActionClient::parametersCallback, this, std::placeholders::_1));
   
   // goal-pose subscriber
   subscriber_ = create_subscription<geometry_msgs::msg::PoseStamped>(
