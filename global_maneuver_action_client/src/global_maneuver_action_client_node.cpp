@@ -312,9 +312,9 @@ void GlobalManeuverActionClient::feedbackCallback(GoalHandleGlobalManeuver::Shar
 }
 
 void GlobalManeuverActionClient::resultCallback(const GoalHandleGlobalManeuver::WrappedResult& result) {
+  double distance_traveled = result.result->distance_traveled;
+  builtin_interfaces::msg::Duration time_traveled = result.result->time_traveled;
   if (result.code == rclcpp_action::ResultCode::SUCCEEDED) {
-    double distance_traveled = result.result->distance_traveled;
-    builtin_interfaces::msg::Duration time_traveled = result.result->time_traveled;
     if (result.result->destination_reached) {
       RCLCPP_INFO(this->get_logger(), "Goal succeeded: destination reached after %.2fm and %ds", distance_traveled,
                   time_traveled.sec);
@@ -323,9 +323,9 @@ void GlobalManeuverActionClient::resultCallback(const GoalHandleGlobalManeuver::
                   distance_traveled, time_traveled.sec);
     }
   } else if (result.code == rclcpp_action::ResultCode::CANCELED) {
-    RCLCPP_WARN(this->get_logger(), "Goal was canceled");
+    RCLCPP_WARN(this->get_logger(), "Goal was canceled. Traveled distance: %.2fm and %ds.", distance_traveled, time_traveled.sec);
   } else if (result.code == rclcpp_action::ResultCode::ABORTED) {
-    RCLCPP_ERROR(this->get_logger(), "Goal was aborted");
+    RCLCPP_ERROR(this->get_logger(), "Goal was aborted. Traveled distance: %.2fm and %ds.", distance_traveled, time_traveled.sec);
   } else {
     RCLCPP_ERROR(this->get_logger(), "Goal finished with unknown result code");
   }
