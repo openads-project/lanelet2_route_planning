@@ -158,24 +158,18 @@ void GlobalPlanner::actionExecute(
 
       // Extract local section of driveable space and route
       route_planning_msgs::msg::Route route_local;
-      if (extractLocalMapInfo(ego_data_, route_, route_local)) {
+      try{ 
+        extractLocalMapInfo(ego_data_, route_, route_local);
         // check if lanelet map needs to be reloaded, cancel action
         if (ll2if_->update_pending_) {
           RCLCPP_ERROR(this->get_logger(), "Lanelet map update pending, canceling action");
-          this->publishEmptyRoute();
-          maneuver_result_->destination_reached = false;
           ll2if_->update_pending_ = false;
           goal_handle->abort(maneuver_result_);
           return;
         }
-
         // check if route has been completed without reaching destination -> abort goal
         if (route_local.remaining_route.size() <= 1) {
           RCLCPP_ERROR(this->get_logger(), "Route completed without reaching destination");
-          this->publishEmptyRoute();
-          maneuver_result_->destination_reached = false;
-          maneuver_result_->distance_traveled = route_local.traveled_route.back().z;
-          maneuver_result_->time_traveled = this->now() - maneuver_start_time_;
           goal_handle->abort(maneuver_result_);
           return;
         }
@@ -204,11 +198,15 @@ void GlobalPlanner::actionExecute(
         // publish the current sequence as action feedback
         goal_handle->publish_feedback(maneuver_feedback_);
         RCLCPP_DEBUG(get_logger(), "Publishing action feedback");
-      } else {
-        // TODO: handle falses from extractLocalMapInfo specifically (for most cases, do not abort and do not send empty route)
-        publishEmptyRoute();
-        maneuver_result_->destination_reached = false;
-        goal_handle->abort(maneuver_result_);
+      } catch (const tf2::TransformException& ex) {
+        RCLCPP_ERROR_STREAM(this->get_logger(), "Could not transform " << ll2if_->map_frame_id_ << " to "
+                                                                      << vehicle_frame_id_ << ": " << ex.what());
+        return;
+      } catch (const InvalidPathException& ex) {
+        RCLCPP_ERROR_STREAM(get_logger(), ex.what());
+        return;
+      } catch (const EgoNotOnMapException& ex) {
+        RCLCPP_ERROR_STREAM(get_logger(), ex.what());
         return;
       }
     }

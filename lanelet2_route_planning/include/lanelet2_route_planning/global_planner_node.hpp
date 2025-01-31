@@ -136,7 +136,7 @@ class GlobalPlanner : public rclcpp::Node {
   void publishEmptyRoute();
 
   // map_extraction.cpp
-  bool extractLocalMapInfo(const perception_msgs::msg::EgoData& ego_data,
+  void extractLocalMapInfo(const perception_msgs::msg::EgoData& ego_data,
                            const route_planning_msgs::msg::Route& route_global,
                            route_planning_msgs::msg::Route& route_local);
   double distance(const geometry_msgs::msg::Point& p1, const geometry_msgs::msg::Point& p2, const bool ignore_z = true);
