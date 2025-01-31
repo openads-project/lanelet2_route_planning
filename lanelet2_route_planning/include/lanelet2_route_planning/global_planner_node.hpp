@@ -39,6 +39,16 @@
 
 using namespace std::chrono_literals;
 
+class InvalidPathException : public std::runtime_error {
+ public:
+    explicit InvalidPathException(const std::string& message) : std::runtime_error(message) {}
+};
+
+class EgoNotOnMapException : public std::runtime_error {
+ public:
+    explicit EgoNotOnMapException(const std::string& message) : std::runtime_error(message) {}
+};
+
 class GlobalPlanner : public rclcpp::Node {
  public:
   GlobalPlanner();
