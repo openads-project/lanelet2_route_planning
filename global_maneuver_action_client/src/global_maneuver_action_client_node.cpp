@@ -24,59 +24,88 @@ GlobalManeuverActionClient::GlobalManeuverActionClient() : Node("global_maneuver
   this->setup();
 }
 
+/**
+ * @brief Declares and loads a ROS parameter
+ *
+ * @param name name
+ * @param param parameter variable to load into
+ * @param description description
+ * @param add_to_auto_reconfigurable_params enable reconfiguration of parameter
+ * @param is_required whether failure to load parameter will stop node
+ * @param read_only set parameter to read-only
+ * @param from_value parameter range minimum
+ * @param to_value parameter range maximum
+ * @param step_value parameter range step
+ * @param additional_constraints additional constraints description
+ */
 template <typename T>
-void GlobalManeuverActionClient::declareAndLoadParameter(
-    const std::string& name, T& member_param, const std::string& description,
-    const bool add_to_auto_reconfigurable_params, const bool is_required, const bool read_only,
-    const std::optional<T>& from_value, const std::optional<T>& to_value, const std::optional<T>& step_value,
-    const std::string& additional_constraints) {
+void GlobalManeuverActionClient::declareAndLoadParameter(const std::string& name,
+                                                         T& param,
+                                                         const std::string& description,
+                                                         const bool add_to_auto_reconfigurable_params,
+                                                         const bool is_required,
+                                                         const bool read_only,
+                                                         const std::optional<double>& from_value,
+                                                         const std::optional<double>& to_value,
+                                                         const std::optional<double>& step_value,
+                                                         const std::string& additional_constraints) {
   rcl_interfaces::msg::ParameterDescriptor param_desc;
   param_desc.description = description;
   param_desc.additional_constraints = additional_constraints;
   param_desc.read_only = read_only;
 
-  auto param_type = rclcpp::ParameterValue(member_param).get_type();
+  auto type = rclcpp::ParameterValue(param).get_type();
 
   if (from_value.has_value() && to_value.has_value()) {
-    if constexpr (std::is_integral_v<T>) {
+    if constexpr(std::is_integral_v<T>) {
       rcl_interfaces::msg::IntegerRange range;
-      T step = step_value.has_value() ? step_value.value() : 0;
-      range.set__from_value(from_value.value()).set__to_value(to_value.value()).set__step(step);
+      T step = static_cast<T>(step_value.has_value() ? step_value.value() : 1);
+      range.set__from_value(static_cast<T>(from_value.value())).set__to_value(static_cast<T>(to_value.value())).set__step(step);
       param_desc.integer_range = {range};
-    } else if constexpr (std::is_floating_point_v<T>) {
+    } else if constexpr(std::is_floating_point_v<T>) {
       rcl_interfaces::msg::FloatingPointRange range;
-      T step = step_value.has_value() ? step_value.value() : 0.0;
-      range.set__from_value(from_value.value()).set__to_value(to_value.value()).set__step(step);
+      T step = static_cast<T>(step_value.has_value() ? step_value.value() : 1.0);
+      range.set__from_value(static_cast<T>(from_value.value())).set__to_value(static_cast<T>(to_value.value())).set__step(step);
       param_desc.floating_point_range = {range};
     } else {
-      RCLCPP_WARN(this->get_logger(), "Parameter type does not support range.");
+      RCLCPP_WARN(this->get_logger(), "Parameter type of parameter '%s' does not support specifying a range", name.c_str());
     }
   }
 
-  this->declare_parameter(name, param_type, param_desc);
+  this->declare_parameter(name, type, param_desc);
 
   try {
-    member_param = this->get_parameter(name).get_value<T>();
+    param = this->get_parameter(name).get_value<T>();
+    std::stringstream ss;
+    ss << "Loaded parameter '" << name << "': ";
+    if constexpr(is_vector_v<T>) {
+      ss << "[";
+      for (const auto& element : param) ss << element << (&element != &param.back() ? ", " : "]");
+    } else {
+      ss << param;
+    }
+    RCLCPP_INFO_STREAM(this->get_logger(), ss.str());
   } catch (rclcpp::exceptions::ParameterUninitializedException&) {
     if (is_required) {
-      RCLCPP_FATAL_STREAM(this->get_logger(), "Parameter '" << name << "' not set but required. Exiting.");
+      RCLCPP_FATAL_STREAM(this->get_logger(), "Missing required parameter '" << name << "', exiting");
       exit(EXIT_FAILURE);
     } else {
       std::stringstream ss;
-      ss << "Parameter '" << name << "' not set. Using default value: ";
-      if constexpr (is_vector_v<T>) {
+      ss << "Missing parameter '" << name << "', using default value: ";
+      if constexpr(is_vector_v<T>) {
         ss << "[";
-        for (const auto& element : member_param) ss << element << (&element != &member_param.back() ? ", " : "]");
+        for (const auto& element : param) ss << element << (&element != &param.back() ? ", " : "]");
       } else {
-        ss << member_param;
+        ss << param;
       }
       RCLCPP_WARN_STREAM(this->get_logger(), ss.str());
+      this->set_parameters({rclcpp::Parameter(name, rclcpp::ParameterValue(param))});
     }
   }
 
   if (add_to_auto_reconfigurable_params) {
-    std::function<void(const rclcpp::Parameter&)> setter = [&member_param](const rclcpp::Parameter& param) {
-      member_param = param.get_value<T>();
+    std::function<void(const rclcpp::Parameter&)> setter = [&param](const rclcpp::Parameter& p) {
+      param = p.get_value<T>();
     };
     auto_reconfigurable_params_.push_back(std::make_tuple(name, setter));
   }
@@ -88,12 +117,13 @@ void GlobalManeuverActionClient::declareAndLoadParameter(
  * @param parameters parameters
  * @return parameter change result
  */
-rcl_interfaces::msg::SetParametersResult GlobalManeuverActionClient::parametersCallback(
-    const std::vector<rclcpp::Parameter>& parameters) {
+rcl_interfaces::msg::SetParametersResult GlobalManeuverActionClient::parametersCallback(const std::vector<rclcpp::Parameter>& parameters) {
   for (const auto& param : parameters) {
     for (auto& auto_reconfigurable_param : auto_reconfigurable_params_) {
       if (param.get_name() == std::get<0>(auto_reconfigurable_param)) {
         std::get<1>(auto_reconfigurable_param)(param);
+        RCLCPP_INFO(this->get_logger(), "Reconfigured parameter '%s'", param.get_name().c_str());
+        break;
       }
     }
     if (param.get_name() == "coordinates") {
@@ -116,7 +146,6 @@ rcl_interfaces::msg::SetParametersResult GlobalManeuverActionClient::parametersC
     }
   }
 
-  // mark parameter change successful
   rcl_interfaces::msg::SetParametersResult result;
   result.successful = true;
 
@@ -142,7 +171,7 @@ std::vector<std::pair<double, double>> GlobalManeuverActionClient::parseCoordina
 }
 
 void GlobalManeuverActionClient::setup() {
-  
+
   coordinates_ = parseCoordinateStrings(coordinate_strings_);
   // set coordinate index to 0
   coordinate_index_ = 0;
@@ -150,7 +179,7 @@ void GlobalManeuverActionClient::setup() {
   // create a callback for dynamic parameter configuration
   parameters_callback_ = this->add_on_set_parameters_callback(
       std::bind(&GlobalManeuverActionClient::parametersCallback, this, std::placeholders::_1));
-  
+
   // goal-pose subscriber
   subscriber_ = create_subscription<geometry_msgs::msg::PoseStamped>(
       kGoalPoseTopic, 1, std::bind(&GlobalManeuverActionClient::goalPoseCallback, this, std::placeholders::_1));

@@ -15,17 +15,10 @@ def generate_launch_description():
         LaunchConfiguration('params')
     ])
 
-    node_name_default = 'route_planning'
-    node_name_arg = DeclareLaunchArgument('node_name',
-                                          default_value=node_name_default)
-
+    node_name_arg = DeclareLaunchArgument('node_name', default_value='route_planning')
     use_sim_time_arg = DeclareLaunchArgument('use_sim_time', default_value='False')
-
-    ego_data_topic_arg = DeclareLaunchArgument('ego_data_topic',
-                                               default_value='~/ego_data')
-    
-    goal_pose_topic_arg = DeclareLaunchArgument('goal_pose_topic',
-                                               default_value='/goal_pose')
+    ego_data_topic_arg = DeclareLaunchArgument('ego_data_topic', default_value='~/ego_data')
+    goal_pose_topic_arg = DeclareLaunchArgument('goal_pose_topic', default_value='/goal_pose')
 
     route_planning_node = Node(
         package="lanelet2_route_planning",
