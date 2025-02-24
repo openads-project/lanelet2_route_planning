@@ -8,7 +8,7 @@
 #include <rclcpp_action/rclcpp_action.hpp>
 #include <std_msgs/msg/int32.hpp>
 
-#include <new_lanelet2_route_planning_interfaces/action/GlobalManeuver.hpp>
+#include <new_lanelet2_route_planning_interfaces/action/global_maneuver.hpp>
 
 
 namespace new_lanelet2_route_planning {
