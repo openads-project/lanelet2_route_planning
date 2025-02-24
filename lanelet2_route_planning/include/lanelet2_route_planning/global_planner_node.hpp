@@ -39,6 +39,10 @@
 
 using namespace std::chrono_literals;
 
+template <typename C> struct is_vector : std::false_type {};
+template <typename T,typename A> struct is_vector< std::vector<T,A> > : std::true_type {};
+template <typename C> inline constexpr bool is_vector_v = is_vector<C>::value;
+
 class InvalidPathException : public std::runtime_error {
  public:
     explicit InvalidPathException(const std::string& message) : std::runtime_error(message) {}
@@ -73,6 +77,9 @@ class GlobalPlanner : public rclcpp::Node {
   route_planning_msgs::msg::Route route_;
 
   // Parameters
+  std::vector<std::tuple<std::string, std::function<void(const rclcpp::Parameter &)>>> auto_reconfigurable_params_;
+  OnSetParametersCallbackHandle::SharedPtr parameters_callback_;
+
   std::string vehicle_frame_id_ = "base_link";
   std::string map_server_name_ = "ll2_map_server";
 
@@ -117,8 +124,19 @@ class GlobalPlanner : public rclcpp::Node {
 
   // Function Definitions
   // global_planner_node.cpp
+  template <typename T>
+  void declareAndLoadParameter(const std::string &name,
+                               T &param,
+                               const std::string &description,
+                               const bool add_to_auto_reconfigurable_params = true,
+                               const bool is_required = false,
+                               const bool read_only = false,
+                               const std::optional<double> &from_value = std::nullopt,
+                               const std::optional<double> &to_value = std::nullopt,
+                               const std::optional<double> &step_value = std::nullopt,
+                               const std::string &additional_constraints = "");
+  rcl_interfaces::msg::SetParametersResult parametersCallback(const std::vector<rclcpp::Parameter>& parameters);
   void initializeGlobalPlanner();
-  void loadParameters();
   void egoDataCallback(perception_msgs::msg::EgoData::SharedPtr msg);
   bool deriveEgoLanelet(const perception_msgs::msg::EgoData ego_data, lanelet::ConstLanelet& ego_lanelet);
   bool deriveDestinationLanelet(const geometry_msgs::msg::PointStamped destination,

@@ -1,240 +1,142 @@
 #include "lanelet2_route_planning/global_planner_node.hpp"
 
+/**
+ * @brief Declares and loads a ROS parameter
+ *
+ * @param name name
+ * @param param parameter variable to load into
+ * @param description description
+ * @param add_to_auto_reconfigurable_params enable reconfiguration of parameter
+ * @param is_required whether failure to load parameter will stop node
+ * @param read_only set parameter to read-only
+ * @param from_value parameter range minimum
+ * @param to_value parameter range maximum
+ * @param step_value parameter range step
+ * @param additional_constraints additional constraints description
+ */
+template <typename T>
+void GlobalPlanner::declareAndLoadParameter(const std::string& name,
+                                            T& param,
+                                            const std::string& description,
+                                            const bool add_to_auto_reconfigurable_params,
+                                            const bool is_required,
+                                            const bool read_only,
+                                            const std::optional<double>& from_value,
+                                            const std::optional<double>& to_value,
+                                            const std::optional<double>& step_value,
+                                            const std::string& additional_constraints) {
+
+  rcl_interfaces::msg::ParameterDescriptor param_desc;
+  param_desc.description = description;
+  param_desc.additional_constraints = additional_constraints;
+  param_desc.read_only = read_only;
+
+  auto type = rclcpp::ParameterValue(param).get_type();
+
+  if (from_value.has_value() && to_value.has_value()) {
+    if constexpr(std::is_integral_v<T>) {
+      rcl_interfaces::msg::IntegerRange range;
+      T step = static_cast<T>(step_value.has_value() ? step_value.value() : 1);
+      range.set__from_value(static_cast<T>(from_value.value())).set__to_value(static_cast<T>(to_value.value())).set__step(step);
+      param_desc.integer_range = {range};
+    } else if constexpr(std::is_floating_point_v<T>) {
+      rcl_interfaces::msg::FloatingPointRange range;
+      T step = static_cast<T>(step_value.has_value() ? step_value.value() : 1.0);
+      range.set__from_value(static_cast<T>(from_value.value())).set__to_value(static_cast<T>(to_value.value())).set__step(step);
+      param_desc.floating_point_range = {range};
+    } else {
+      RCLCPP_WARN(this->get_logger(), "Parameter type of parameter '%s' does not support specifying a range", name.c_str());
+    }
+  }
+
+  this->declare_parameter(name, type, param_desc);
+
+  try {
+    param = this->get_parameter(name).get_value<T>();
+    std::stringstream ss;
+    ss << "Loaded parameter '" << name << "': ";
+    if constexpr(is_vector_v<T>) {
+      ss << "[";
+      for (const auto& element : param) ss << element << (&element != &param.back() ? ", " : "]");
+    } else {
+      ss << param;
+    }
+    RCLCPP_INFO_STREAM(this->get_logger(), ss.str());
+  } catch (rclcpp::exceptions::ParameterUninitializedException&) {
+    if (is_required) {
+      RCLCPP_FATAL_STREAM(this->get_logger(), "Missing required parameter '" << name << "', exiting");
+      exit(EXIT_FAILURE);
+    } else {
+      std::stringstream ss;
+      ss << "Missing parameter '" << name << "', using default value: ";
+      if constexpr(is_vector_v<T>) {
+        ss << "[";
+        for (const auto& element : param) ss << element << (&element != &param.back() ? ", " : "]");
+      } else {
+        ss << param;
+      }
+      RCLCPP_WARN_STREAM(this->get_logger(), ss.str());
+      this->set_parameters({rclcpp::Parameter(name, rclcpp::ParameterValue(param))});
+    }
+  }
+
+  if (add_to_auto_reconfigurable_params) {
+    std::function<void(const rclcpp::Parameter&)> setter = [&param](const rclcpp::Parameter& p) {
+      param = p.get_value<T>();
+    };
+    auto_reconfigurable_params_.push_back(std::make_tuple(name, setter));
+  }
+}
+
+/**
+ * @brief Handles reconfiguration when a parameter value is changed
+ *
+ * @param parameters parameters
+ * @return parameter change result
+ */
+rcl_interfaces::msg::SetParametersResult GlobalPlanner::parametersCallback(const std::vector<rclcpp::Parameter>& parameters) {
+
+  for (const auto& param : parameters) {
+    for (auto& auto_reconfigurable_param : auto_reconfigurable_params_) {
+      if (param.get_name() == std::get<0>(auto_reconfigurable_param)) {
+        std::get<1>(auto_reconfigurable_param)(param);
+        RCLCPP_INFO(this->get_logger(), "Reconfigured parameter '%s'", param.get_name().c_str());
+        break;
+      }
+    }
+  }
+
+  rcl_interfaces::msg::SetParametersResult result;
+  result.successful = true;
+
+  return result;
+}
+
 GlobalPlanner::GlobalPlanner() : Node("global_planner") {
   // create a transform listener
   tf_buffer_ = std::make_unique<tf2_ros::Buffer>(this->get_clock());
   tf_listener_ = std::make_shared<tf2_ros::TransformListener>(*tf_buffer_);
 
   // load the parameters
-  loadParameters();
+  this->declareAndLoadParameter("vehicle_frame_id", vehicle_frame_id_, "Frame id of the vehicle (default: base_link)");
+  this->declareAndLoadParameter("ego_data_timeout", ego_data_timeout_, "Timeout for ego data (default: 0.2)");
+  this->declareAndLoadParameter("map_server_name", map_server_name_, "Name of the map server (default: ll2_map_server)");
+  this->declareAndLoadParameter("route_sample_distance", ds_sample_, "Route sample distance (default: 0.5)");
+  this->declareAndLoadParameter("route_smoothing_factor", smooth_factor_, "Route smoothing factor (default: 2.0)");
+  this->declareAndLoadParameter("lateral_driveable_space_width", lateral_driv_space_width_, "Lateral driveable space width (default: 100.0)");
+  this->declareAndLoadParameter("target_reached_thr", target_reached_thr_, "Target reached threshold (default: 1.0)");
+  this->declareAndLoadParameter("require_standstill", require_standstill_, "Require standstill (default: false)");
+  this->declareAndLoadParameter("vel_threshold_target", vel_threshold_target_, "Velocity threshold target (default: 1.0)");
+  this->declareAndLoadParameter("offset_behind_distance", offset_behind_distance_, "Offset behind distance (default: 0.0)");
+  this->declareAndLoadParameter("offset_ahead_distance", offset_ahead_distance_, "Offset ahead distance (default: 0.0)");
+  this->declareAndLoadParameter("cancel_distance_ahead", cancel_distance_ahead_, "Cancel distance ahead (default: 30.0)");
+  this->declareAndLoadParameter("local_path_extraction_rate", path_extraction_rate_, "Local path extraction rate (default: 10.0)");
+  this->declareAndLoadParameter("look_ahead_time", look_ahead_time_, "Look ahead time (default: 10.0)");
+  this->declareAndLoadParameter("look_ahead_distance_min", look_ahead_distance_min_, "Look ahead distance min (default: 50.0)");
+  this->declareAndLoadParameter("look_behind_distance", look_behind_distance_, "Look behind distance (default: 20.0)");
 
   ll2if_ = std::make_unique<LL2MapInterface>(*this, map_server_name_);
   startup_timer_ = create_wall_timer(0.1s, std::bind(&GlobalPlanner::initializeGlobalPlanner, this));
-}
-
-void GlobalPlanner::loadParameters() {
-  // General and Sanity Checks
-  this->declare_parameter("vehicle_frame_id", rclcpp::ParameterType::PARAMETER_STRING);
-  try {
-    vehicle_frame_id_ = this->get_parameter("vehicle_frame_id").as_string();
-    RCLCPP_INFO_STREAM(this->get_logger(), "Parameter \'vehicle_frame_id\' set to: " + vehicle_frame_id_);
-  } catch (rclcpp::exceptions::InvalidParameterTypeException&) {
-    RCLCPP_WARN_STREAM(
-        this->get_logger(),
-        "Parameter \'vehicle_frame_id\' is not set correctly, using default value: " + vehicle_frame_id_);
-  } catch (rclcpp::exceptions::ParameterUninitializedException&) {
-    RCLCPP_WARN_STREAM(this->get_logger(),
-                       "Parameter \'vehicle_frame_id\' is not set, using default value: " + vehicle_frame_id_);
-  }
-
-  this->declare_parameter("ego_data_timeout", rclcpp::ParameterType::PARAMETER_DOUBLE);
-  try {
-    ego_data_timeout_ = this->get_parameter("ego_data_timeout").as_double();
-    RCLCPP_INFO_STREAM(this->get_logger(),
-                       "Parameter \'ego_data_timeout\' set to: " + std::to_string(ego_data_timeout_));
-  } catch (rclcpp::exceptions::InvalidParameterTypeException&) {
-    RCLCPP_WARN_STREAM(this->get_logger(),
-                       "Parameter \'ego_data_timeout\' is not set correctly, using default value: " +
-                           std::to_string(ego_data_timeout_));
-  } catch (rclcpp::exceptions::ParameterUninitializedException&) {
-    RCLCPP_WARN_STREAM(this->get_logger(), "Parameter \'ego_data_timeout\' is not set, using default value: " +
-                                               std::to_string(ego_data_timeout_));
-  }
-
-  this->declare_parameter("map_server_name", rclcpp::ParameterType::PARAMETER_STRING);
-  try {
-    map_server_name_ = this->get_parameter("map_server_name").as_string();
-    RCLCPP_INFO_STREAM(this->get_logger(), "Parameter \'map_server_name\' set to: " + map_server_name_);
-  } catch (rclcpp::exceptions::InvalidParameterTypeException&) {
-    RCLCPP_WARN_STREAM(this->get_logger(),
-                       "Parameter \'map_server_name\' is not set correctly, using default value: " + map_server_name_);
-  } catch (rclcpp::exceptions::ParameterUninitializedException&) {
-    RCLCPP_WARN_STREAM(this->get_logger(),
-                       "Parameter \'map_server_name\' is not set, using default value: " + map_server_name_);
-  }
-
-  // Route Planning
-  this->declare_parameter("route_sample_distance", rclcpp::ParameterType::PARAMETER_DOUBLE);
-  try {
-    ds_sample_ = this->get_parameter("route_sample_distance").as_double();
-    RCLCPP_INFO_STREAM(this->get_logger(), "Parameter \'route_sample_distance\' set to: " + std::to_string(ds_sample_));
-  } catch (rclcpp::exceptions::InvalidParameterTypeException&) {
-    RCLCPP_WARN_STREAM(
-        this->get_logger(),
-        "Parameter \'route_sample_distance\' is not set correctly, using default value: " + std::to_string(ds_sample_));
-  } catch (rclcpp::exceptions::ParameterUninitializedException&) {
-    RCLCPP_WARN_STREAM(this->get_logger(), "Parameter \'route_sample_distance\' is not set, using default value: " +
-                                               std::to_string(ds_sample_));
-  }
-
-  this->declare_parameter("route_smoothing_factor", rclcpp::ParameterType::PARAMETER_DOUBLE);
-  try {
-    smooth_factor_ = this->get_parameter("route_smoothing_factor").as_double();
-    RCLCPP_INFO_STREAM(this->get_logger(),
-                       "Parameter \'route_smoothing_factor\' set to: " + std::to_string(smooth_factor_));
-  } catch (rclcpp::exceptions::InvalidParameterTypeException&) {
-    RCLCPP_WARN_STREAM(this->get_logger(),
-                       "Parameter \'route_smoothing_factor\' is not set correctly, using default value: " +
-                           std::to_string(smooth_factor_));
-  } catch (rclcpp::exceptions::ParameterUninitializedException&) {
-    RCLCPP_WARN_STREAM(this->get_logger(), "Parameter \'route_smoothing_factor\' is not set, using default value: " +
-                                               std::to_string(smooth_factor_));
-  }
-
-  this->declare_parameter("lateral_driveable_space_width", rclcpp::ParameterType::PARAMETER_DOUBLE);
-  try {
-    lateral_driv_space_width_ = this->get_parameter("lateral_driveable_space_width").as_double();
-    RCLCPP_INFO_STREAM(this->get_logger(), "Parameter \'lateral_driveable_space_width\' set to: " +
-                                               std::to_string(lateral_driv_space_width_));
-  } catch (rclcpp::exceptions::InvalidParameterTypeException&) {
-    RCLCPP_WARN_STREAM(this->get_logger(),
-                       "Parameter \'lateral_driveable_space_width\' is not set correctly, using default value: " +
-                           std::to_string(lateral_driv_space_width_));
-  } catch (rclcpp::exceptions::ParameterUninitializedException&) {
-    RCLCPP_WARN_STREAM(this->get_logger(),
-                       "Parameter \'lateral_driveable_space_width\' is not set, using default value: " +
-                           std::to_string(lateral_driv_space_width_));
-  }
-
-  this->declare_parameter("target_reached_thr", rclcpp::ParameterType::PARAMETER_DOUBLE);
-  try {
-    target_reached_thr_ = this->get_parameter("target_reached_thr").as_double();
-    RCLCPP_INFO_STREAM(this->get_logger(),
-                       "Parameter \'target_reached_thr\' set to: " + std::to_string(target_reached_thr_));
-  } catch (rclcpp::exceptions::InvalidParameterTypeException&) {
-    RCLCPP_WARN_STREAM(this->get_logger(),
-                       "Parameter \'target_reached_thr\' is not set correctly, using default value: " +
-                           std::to_string(target_reached_thr_));
-  } catch (rclcpp::exceptions::ParameterUninitializedException&) {
-    RCLCPP_WARN_STREAM(this->get_logger(), "Parameter \'target_reached_thr\' is not set, using default value: " +
-                                               std::to_string(target_reached_thr_));
-  }
-
-  this->declare_parameter("require_standstill", rclcpp::ParameterType::PARAMETER_BOOL);
-  try {
-    require_standstill_ = this->get_parameter("require_standstill").as_bool();
-    RCLCPP_INFO_STREAM(this->get_logger(),
-                       "Parameter \'require_standstill\' set to: " + std::to_string(require_standstill_));
-  } catch (rclcpp::exceptions::InvalidParameterTypeException&) {
-    RCLCPP_WARN_STREAM(this->get_logger(),
-                       "Parameter \'require_standstill\' is not set correctly, using default value: " +
-                           std::to_string(require_standstill_));
-  } catch (rclcpp::exceptions::ParameterUninitializedException&) {
-    RCLCPP_WARN_STREAM(this->get_logger(), "Parameter \'require_standstill\' is not set, using default value: " +
-                                               std::to_string(require_standstill_));
-  }
-
-  this->declare_parameter("vel_threshold_target", rclcpp::ParameterType::PARAMETER_DOUBLE);
-  try {
-    vel_threshold_target_ = this->get_parameter("vel_threshold_target").as_double();
-    RCLCPP_INFO_STREAM(this->get_logger(),
-                       "Parameter \'vel_threshold_target\' set to: " + std::to_string(vel_threshold_target_));
-  } catch (rclcpp::exceptions::InvalidParameterTypeException&) {
-    RCLCPP_WARN_STREAM(this->get_logger(),
-                       "Parameter \'vel_threshold_target\' is not set correctly, using default value: " +
-                           std::to_string(vel_threshold_target_));
-  } catch (rclcpp::exceptions::ParameterUninitializedException&) {
-    RCLCPP_WARN_STREAM(this->get_logger(), "Parameter \'vel_threshold_target\' is not set, using default value: " +
-                                               std::to_string(vel_threshold_target_));
-  }
-
-  this->declare_parameter("offset_behind_distance", rclcpp::ParameterType::PARAMETER_DOUBLE);
-  try {
-    offset_behind_distance_ = this->get_parameter("offset_behind_distance").as_double();
-    RCLCPP_INFO_STREAM(this->get_logger(),
-                       "Parameter \'offset_behind_distance\' set to: " + std::to_string(offset_behind_distance_));
-  } catch (rclcpp::exceptions::InvalidParameterTypeException&) {
-    RCLCPP_WARN_STREAM(this->get_logger(),
-                       "Parameter \'offset_behind_distance\' is not set correctly, using default value: " +
-                           std::to_string(offset_behind_distance_));
-  } catch (rclcpp::exceptions::ParameterUninitializedException&) {
-    RCLCPP_WARN_STREAM(this->get_logger(), "Parameter \'offset_behind_distance\' is not set, using default value: " +
-                                               std::to_string(offset_behind_distance_));
-  }
-
-  this->declare_parameter("offset_ahead_distance", rclcpp::ParameterType::PARAMETER_DOUBLE);
-  try {
-    offset_ahead_distance_ = this->get_parameter("offset_ahead_distance").as_double();
-    RCLCPP_INFO_STREAM(this->get_logger(),
-                       "Parameter \'offset_ahead_distance\' set to: " + std::to_string(offset_ahead_distance_));
-  } catch (rclcpp::exceptions::InvalidParameterTypeException&) {
-    RCLCPP_WARN_STREAM(this->get_logger(),
-                       "Parameter \'offset_ahead_distance\' is not set correctly, using default value: " +
-                           std::to_string(offset_ahead_distance_));
-  } catch (rclcpp::exceptions::ParameterUninitializedException&) {
-    RCLCPP_WARN_STREAM(this->get_logger(), "Parameter \'offset_ahead_distance\' is not set, using default value: " +
-                                               std::to_string(offset_ahead_distance_));
-  }
-
-  this->declare_parameter("cancel_distance_ahead", rclcpp::ParameterType::PARAMETER_DOUBLE);
-  try {
-    cancel_distance_ahead_ = this->get_parameter("cancel_distance_ahead").as_double();
-    RCLCPP_INFO_STREAM(this->get_logger(),
-                       "Parameter \'cancel_distance_ahead\' set to: " + std::to_string(cancel_distance_ahead_));
-  } catch (rclcpp::exceptions::InvalidParameterTypeException&) {
-    RCLCPP_WARN_STREAM(this->get_logger(),
-                       "Parameter \'cancel_distance_ahead\' is not set correctly, using default value: " +
-                           std::to_string(cancel_distance_ahead_));
-  } catch (rclcpp::exceptions::ParameterUninitializedException&) {
-    RCLCPP_WARN_STREAM(this->get_logger(), "Parameter \'cancel_distance_ahead\' is not set, using default value: " +
-                                               std::to_string(cancel_distance_ahead_));
-  }
-
-  // Local Path Extraction
-  this->declare_parameter("local_path_extraction_rate", rclcpp::ParameterType::PARAMETER_DOUBLE);
-  try {
-    path_extraction_rate_ = this->get_parameter("local_path_extraction_rate").as_double();
-    RCLCPP_INFO_STREAM(this->get_logger(),
-                       "Parameter \'local_path_extraction_rate\' set to: " + std::to_string(path_extraction_rate_));
-  } catch (rclcpp::exceptions::InvalidParameterTypeException&) {
-    RCLCPP_WARN_STREAM(this->get_logger(),
-                       "Parameter \'local_path_extraction_rate\' is not set correctly, using default value: " +
-                           std::to_string(path_extraction_rate_));
-  } catch (rclcpp::exceptions::ParameterUninitializedException&) {
-    RCLCPP_WARN_STREAM(this->get_logger(),
-                       "Parameter \'local_path_extraction_rate\' is not set, using default value: " +
-                           std::to_string(path_extraction_rate_));
-  }
-
-  this->declare_parameter("look_ahead_time", rclcpp::ParameterType::PARAMETER_DOUBLE);
-  try {
-    look_ahead_time_ = this->get_parameter("look_ahead_time").as_double();
-    RCLCPP_INFO_STREAM(this->get_logger(), "Parameter \'look_ahead_time\' set to: " + std::to_string(look_ahead_time_));
-  } catch (rclcpp::exceptions::InvalidParameterTypeException&) {
-    RCLCPP_WARN_STREAM(this->get_logger(), "Parameter \'look_ahead_time\' is not set correctly, using default value: " +
-                                               std::to_string(look_ahead_time_));
-  } catch (rclcpp::exceptions::ParameterUninitializedException&) {
-    RCLCPP_WARN_STREAM(this->get_logger(), "Parameter \'look_ahead_time\' is not set, using default value: " +
-                                               std::to_string(look_ahead_time_));
-  }
-
-  this->declare_parameter("look_ahead_distance_min", rclcpp::ParameterType::PARAMETER_DOUBLE);
-  try {
-    look_ahead_distance_min_ = this->get_parameter("look_ahead_distance_min").as_double();
-    RCLCPP_INFO_STREAM(this->get_logger(),
-                       "Parameter \'look_ahead_distance_min\' set to: " + std::to_string(look_ahead_distance_min_));
-  } catch (rclcpp::exceptions::InvalidParameterTypeException&) {
-    RCLCPP_WARN_STREAM(this->get_logger(),
-                       "Parameter \'look_ahead_distance_min\' is not set correctly, using default value: " +
-                           std::to_string(look_ahead_distance_min_));
-  } catch (rclcpp::exceptions::ParameterUninitializedException&) {
-    RCLCPP_WARN_STREAM(this->get_logger(), "Parameter \'look_ahead_distance_min\' is not set, using default value: " +
-                                               std::to_string(look_ahead_distance_min_));
-  }
-
-  this->declare_parameter("look_behind_distance", rclcpp::ParameterType::PARAMETER_DOUBLE);
-  try {
-    look_behind_distance_ = this->get_parameter("look_behind_distance").as_double();
-    RCLCPP_INFO_STREAM(this->get_logger(),
-                       "Parameter \'look_behind_distance\' set to: " + std::to_string(look_behind_distance_));
-  } catch (rclcpp::exceptions::InvalidParameterTypeException&) {
-    RCLCPP_WARN_STREAM(this->get_logger(),
-                       "Parameter \'look_behind_distance\' is not set correctly, using default value: " +
-                           std::to_string(look_behind_distance_));
-  } catch (rclcpp::exceptions::ParameterUninitializedException&) {
-    RCLCPP_WARN_STREAM(this->get_logger(), "Parameter \'look_behind_distance\' is not set, using default value: " +
-                                               std::to_string(look_behind_distance_));
-  }
 }
 
 void GlobalPlanner::initializeGlobalPlanner() {
@@ -244,9 +146,13 @@ void GlobalPlanner::initializeGlobalPlanner() {
   } else {
     // initially there is no update of lanelet2 map pending
     ll2if_->update_pending_ = false;
+
+    // callback for dynamic parameter configuration
+    parameters_callback_ = this->add_on_set_parameters_callback(std::bind(&GlobalPlanner::parametersCallback, this, std::placeholders::_1));
+
     // create subscription for ego-data
-    map_pose_sub_ = create_subscription<perception_msgs::msg::EgoData>(
-        "~/ego_data", 1, std::bind(&GlobalPlanner::egoDataCallback, this, std::placeholders::_1));
+    map_pose_sub_ = create_subscription<perception_msgs::msg::EgoData>("~/ego_data", 1, std::bind(&GlobalPlanner::egoDataCallback, this, std::placeholders::_1));
+
     // create an action server for handling action goal requests
     action_callback_group_ = this->create_callback_group(rclcpp::CallbackGroupType::MutuallyExclusive);
     maneuver_action_server_ = rclcpp_action::create_server<route_planning_msgs::action::GlobalManeuver>(

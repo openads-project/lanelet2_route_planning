@@ -408,7 +408,7 @@ void GlobalPlanner::setEffectLineS(route_planning_msgs::msg::Route& route) {
 
 /**
  * @brief Accumulates the distance along a 2D line path, storing it as the z-coordinate of the points
- * 
+ *
  * @param path 2D path to accumulate distance along, z-coordinate will be overwritten with distance
  * @param initial_distance initial distance to start accumulating from
  */
