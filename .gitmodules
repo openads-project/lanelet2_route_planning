@@ -4,3 +4,6 @@
 [submodule ".devcontainer"]
 	path = .devcontainer
 	url = ../../../dev-environment/devcontainer.git
+[submodule "test/docker-compose-essentials"]
+	path = test/docker-compose-essentials
+	url = https://gitlab.ika.rwth-aachen.de/fb-fi/ops/docker-compose-essentials.git
