@@ -1,6 +1,6 @@
 #include "lanelet2_route_planning/global_planner_node.hpp"
 
-bool GlobalPlanner::extractLocalMapInfo(const perception_msgs::msg::EgoData& ego_data,
+void GlobalPlanner::extractLocalMapInfo(const perception_msgs::msg::EgoData& ego_data,
                                         const route_planning_msgs::msg::Route& route_global,
                                         route_planning_msgs::msg::Route& route_local) {
   rclcpp::Clock wall_clock(RCL_SYSTEM_TIME);
@@ -284,35 +284,40 @@ bool GlobalPlanner::extractLocalMapInfo(const perception_msgs::msg::EgoData& ego
       // Find s-coordinate of regelems with effect lines that intersect with the shortest path
       setEffectLineS(route_local_tmp);
     } else {
-      RCLCPP_ERROR_STREAM(get_logger(), "Unable to extract path segment for extracting map information!");
-      return false;
+      // check the look-ahead and look-behind samples
+      if (look_behind_sample >= route_global.remaining_route.size()) {
+        throw InvalidPathException("Unable to extract remaining route: Look-behind sample is out of bounds!");
+      }
+      if (look_ahead_sample > route_global.remaining_route.size()) {
+        throw InvalidPathException("Unable to extract remaining route: Look-ahead sample is out of bounds!");
+      }
+      if (look_ahead_sample <= look_behind_sample) {
+        throw InvalidPathException("Unable to extract remaining route: Look-ahead sample is smaller or equal than look-behind sample!");
+      }
     }
   } else {
-    RCLCPP_ERROR_STREAM(this->get_logger(), "Remaining route is empty. Unable to extract local map information!");
-    return false;
+    throw InvalidPathException("Remaining route is empty!");
   }
 
   // Get the current speed limit
   lanelet::ConstLanelet current_ego_ll;
-  if (!deriveEgoLanelet(ego_data, current_ego_ll)) return false;
+  if (!deriveEgoLanelet(ego_data, current_ego_ll)) {
+    throw EgoNotOnMapException("Can't find a lanelet for the current ego-position!");
+  }
   route_local_tmp.current_speed_limit =
       std::round(lanelet::units::KmHQuantity(trafficRules_->speedLimit(current_ego_ll).speedLimit).value());
 
   // Now transform the route-object
   geometry_msgs::msg::TransformStamped tf;
-  try {
-    tf = tf_buffer_->lookupTransform(vehicle_frame_id_, ll2if_->map_frame_id_, tf2::TimePointZero);
-    tf2::doTransform(route_local_tmp, route_local, tf);
-    route_pub_->publish(route_local);
-    rclcpp::Duration map_extraction_duration = wall_clock.now() - map_extraction_t0;
-    RCLCPP_DEBUG(this->get_logger(), "Extraction of map information took %.3f ms",
-                 map_extraction_duration.nanoseconds() / 1e6);
-    return true;
-  } catch (const tf2::TransformException& ex) {
-    RCLCPP_ERROR_STREAM(this->get_logger(), "Could not transform " << ll2if_->map_frame_id_ << " to "
-                                                                   << vehicle_frame_id_ << ": " << ex.what());
-    return false;
-  }
+
+  tf = tf_buffer_->lookupTransform(vehicle_frame_id_, ll2if_->map_frame_id_, tf2::TimePointZero);
+  tf2::doTransform(route_local_tmp, route_local, tf);
+  route_pub_->publish(route_local);
+  rclcpp::Duration map_extraction_duration = wall_clock.now() - map_extraction_t0;
+  RCLCPP_DEBUG(this->get_logger(), "Extraction of map information took %.3f ms",
+                map_extraction_duration.nanoseconds() / 1e6);
+  return;
+
 }
 
 double GlobalPlanner::distance(const geometry_msgs::msg::Point& p1, const geometry_msgs::msg::Point& p2,

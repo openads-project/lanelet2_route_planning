@@ -111,7 +111,7 @@ void GlobalPlanner::actionExecute(
   rclcpp::Rate loop_rate(path_extraction_rate_);
 
   bool is_cancelling = false;
-  while (goal_handle->is_executing() && !maneuver_result_->destination_reached) {
+  while ((goal_handle->is_executing() || goal_handle->is_canceling()) && !maneuver_result_->destination_reached) {
     // if requested, cancel route by setting destination to point closely ahead of ego along route
     if (goal_handle->is_canceling()) {
       if (!is_cancelling) {
@@ -123,7 +123,7 @@ void GlobalPlanner::actionExecute(
         auto& ego_pos = route_.remaining_route[ego_pos_sample_cl];
         for (size_t i = ego_pos_sample_cl; i < route_.remaining_route.size(); i++) {
           double distance_ahead = route_.remaining_route[i].z - ego_pos.z;
-          if (distance_ahead > cancel_distance_ahead_) {
+          if (distance_ahead > cancel_distance_ahead_ || distance_ahead > maneuver_feedback_->distance_remaining) {
             target_pos_sample_cl_ = i;
             route_.destination = route_.remaining_route[target_pos_sample_cl_];
             break;
@@ -135,7 +135,7 @@ void GlobalPlanner::actionExecute(
 
     lanelet::ConstLanelet cur_ego_lanelet;
     if (deriveEgoLanelet(ego_data_, cur_ego_lanelet)) {
-      // check if destination is reached -> goal succeeded
+      // check if destination is reached -> goal succeeded (or canceled)
       double velocity = perception_msgs::object_access::getVelLon(ego_data_);
       if (geometry::distance(lanelet::BasicPoint2d(route_.destination.x, route_.destination.y),
                              lanelet::BasicPoint2d(perception_msgs::object_access::getX(ego_data_),
@@ -144,33 +144,32 @@ void GlobalPlanner::actionExecute(
           (std::fabs(velocity) < vel_threshold_target_ || !require_standstill_)) {
         RCLCPP_INFO(get_logger(), "Destination reached!");
         publishEmptyRoute();
-        maneuver_result_->destination_reached = true;
-        maneuver_result_->distance_traveled = route_.remaining_route.back().z;
+        maneuver_result_->distance_traveled = maneuver_feedback_->distance_traveled;
         maneuver_result_->time_traveled = this->now() - maneuver_start_time_;
-        goal_handle->succeed(maneuver_result_);
+        if(goal_handle->is_canceling()) {
+          maneuver_result_->destination_reached = false;
+          goal_handle->canceled(maneuver_result_);
+        } else {
+          maneuver_result_->destination_reached = true;
+          goal_handle->succeed(maneuver_result_);
+        }
         return;
       }
 
       // Extract local section of driveable space and route
       route_planning_msgs::msg::Route route_local;
-      if (extractLocalMapInfo(ego_data_, route_, route_local)) {
+      try{ 
+        extractLocalMapInfo(ego_data_, route_, route_local);
         // check if lanelet map needs to be reloaded, cancel action
         if (ll2if_->update_pending_) {
           RCLCPP_ERROR(this->get_logger(), "Lanelet map update pending, canceling action");
-          this->publishEmptyRoute();
-          maneuver_result_->destination_reached = false;
           ll2if_->update_pending_ = false;
           goal_handle->abort(maneuver_result_);
           return;
         }
-
         // check if route has been completed without reaching destination -> abort goal
         if (route_local.remaining_route.size() <= 1) {
           RCLCPP_ERROR(this->get_logger(), "Route completed without reaching destination");
-          this->publishEmptyRoute();
-          maneuver_result_->destination_reached = false;
-          maneuver_result_->distance_traveled = route_local.traveled_route.back().z;
-          maneuver_result_->time_traveled = this->now() - maneuver_start_time_;
           goal_handle->abort(maneuver_result_);
           return;
         }
@@ -198,11 +197,16 @@ void GlobalPlanner::actionExecute(
 
         // publish the current sequence as action feedback
         goal_handle->publish_feedback(maneuver_feedback_);
-        RCLCPP_INFO(get_logger(), "Publishing action feedback");
-      } else {
-        publishEmptyRoute();
-        maneuver_result_->destination_reached = false;
-        goal_handle->abort(maneuver_result_);
+        RCLCPP_DEBUG(get_logger(), "Publishing action feedback");
+      } catch (const tf2::TransformException& ex) {
+        RCLCPP_ERROR_STREAM(this->get_logger(), "Could not transform " << ll2if_->map_frame_id_ << " to "
+                                                                      << vehicle_frame_id_ << ": " << ex.what());
+        return;
+      } catch (const InvalidPathException& ex) {
+        RCLCPP_ERROR_STREAM(get_logger(), ex.what());
+        return;
+      } catch (const EgoNotOnMapException& ex) {
+        RCLCPP_ERROR_STREAM(get_logger(), ex.what());
         return;
       }
     }

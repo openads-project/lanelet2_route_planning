@@ -2,8 +2,7 @@
 
 from ament_index_python import get_package_share_directory
 from launch import LaunchDescription
-from launch.actions import DeclareLaunchArgument, GroupAction
-from launch.conditions import LaunchConfigurationNotEquals
+from launch.actions import DeclareLaunchArgument
 from launch.substitutions import LaunchConfiguration, PathJoinSubstitution
 from launch_ros.actions import Node, SetParameter
 
@@ -16,17 +15,10 @@ def generate_launch_description():
         LaunchConfiguration('params')
     ])
 
-    node_name_default = 'route_planning'
-    node_name_arg = DeclareLaunchArgument('node_name',
-                                          default_value=node_name_default)
-
+    node_name_arg = DeclareLaunchArgument('node_name', default_value='route_planning')
     use_sim_time_arg = DeclareLaunchArgument('use_sim_time', default_value='False')
-
-    ego_data_topic_arg = DeclareLaunchArgument('ego_data_topic',
-                                               default_value='~/ego_data')
-    
-    goal_pose_topic_arg = DeclareLaunchArgument('goal_pose_topic',
-                                               default_value='/goal_pose')
+    ego_data_topic_arg = DeclareLaunchArgument('ego_data_topic', default_value='~/ego_data')
+    goal_pose_topic_arg = DeclareLaunchArgument('goal_pose_topic', default_value='/goal_pose')
 
     route_planning_node = Node(
         package="lanelet2_route_planning",
@@ -49,18 +41,13 @@ def generate_launch_description():
         remappings=[('~/goal_pose', LaunchConfiguration('goal_pose_topic'))],
     )
 
-    node_group = GroupAction(actions=[
-        SetParameter(name='use_sim_time',
-                     value=LaunchConfiguration('use_sim_time'),
-                     condition=LaunchConfigurationNotEquals(
-                         'use_sim_time', "None")), route_planning_node, route_planning_action_client
-    ])
-
     return LaunchDescription([
         params_arg,
         node_name_arg,
         use_sim_time_arg,
         ego_data_topic_arg,
         goal_pose_topic_arg,
-        node_group
+        SetParameter(name='use_sim_time', value=LaunchConfiguration('use_sim_time')),
+        route_planning_node,
+        route_planning_action_client
     ])
