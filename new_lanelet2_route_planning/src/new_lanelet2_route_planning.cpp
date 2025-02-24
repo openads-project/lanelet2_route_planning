@@ -146,7 +146,7 @@ void NewLanelet2RoutePlanning::setup() {
   RCLCPP_INFO(this->get_logger(), "Publishing to '%s'", publisher_->get_topic_name());
 
   // action server for handling action goal requests
-  action_server_ = rclcpp_action::create_server<new_lanelet2_route_planning_interfaces::action::Fibonacci>(
+  action_server_ = rclcpp_action::create_server<new_lanelet2_route_planning_interfaces::action::GlobalManeuver>(
     this,
     "~/action",
     std::bind(&NewLanelet2RoutePlanning::actionHandleGoal, this, std::placeholders::_1, std::placeholders::_2),
@@ -163,7 +163,7 @@ void NewLanelet2RoutePlanning::setup() {
  * @param goal action goal
  * @return goal response
  */
-rclcpp_action::GoalResponse NewLanelet2RoutePlanning::actionHandleGoal(const rclcpp_action::GoalUUID& uuid, new_lanelet2_route_planning_interfaces::action::Fibonacci::Goal::ConstSharedPtr goal) {
+rclcpp_action::GoalResponse NewLanelet2RoutePlanning::actionHandleGoal(const rclcpp_action::GoalUUID& uuid, new_lanelet2_route_planning_interfaces::action::GlobalManeuver::Goal::ConstSharedPtr goal) {
 
   (void)uuid;
   (void)goal;
@@ -180,7 +180,7 @@ rclcpp_action::GoalResponse NewLanelet2RoutePlanning::actionHandleGoal(const rcl
  * @param goal_handle action goal handle
  * @return cancel response
  */
-rclcpp_action::CancelResponse NewLanelet2RoutePlanning::actionHandleCancel(const std::shared_ptr<rclcpp_action::ServerGoalHandle<new_lanelet2_route_planning_interfaces::action::Fibonacci>> goal_handle) {
+rclcpp_action::CancelResponse NewLanelet2RoutePlanning::actionHandleCancel(const std::shared_ptr<rclcpp_action::ServerGoalHandle<new_lanelet2_route_planning_interfaces::action::GlobalManeuver>> goal_handle) {
 
   (void)goal_handle;
 
@@ -195,7 +195,7 @@ rclcpp_action::CancelResponse NewLanelet2RoutePlanning::actionHandleCancel(const
  *
  * @param goal_handle action goal handle
  */
-void NewLanelet2RoutePlanning::actionHandleAccepted(const std::shared_ptr<rclcpp_action::ServerGoalHandle<new_lanelet2_route_planning_interfaces::action::Fibonacci>> goal_handle) {
+void NewLanelet2RoutePlanning::actionHandleAccepted(const std::shared_ptr<rclcpp_action::ServerGoalHandle<new_lanelet2_route_planning_interfaces::action::GlobalManeuver>> goal_handle) {
 
   // execute action in a separate thread to avoid blocking
   std::thread{std::bind(&NewLanelet2RoutePlanning::actionExecute, this, std::placeholders::_1), goal_handle}.detach();
@@ -207,51 +207,9 @@ void NewLanelet2RoutePlanning::actionHandleAccepted(const std::shared_ptr<rclcpp
  *
  * @param goal_handle action goal handle
  */
-void NewLanelet2RoutePlanning::actionExecute(const std::shared_ptr<rclcpp_action::ServerGoalHandle<new_lanelet2_route_planning_interfaces::action::Fibonacci>> goal_handle) {
+void NewLanelet2RoutePlanning::actionExecute(const std::shared_ptr<rclcpp_action::ServerGoalHandle<new_lanelet2_route_planning_interfaces::action::GlobalManeuver>> goal_handle) {
 
   RCLCPP_INFO(this->get_logger(), "Executing action goal");
-
-  // define a sleeping rate between computing individual Fibonacci numbers
-  rclcpp::Rate loop_rate(1);
-
-  // create handy accessors for the action goal, feedback, and result
-  const auto goal = goal_handle->get_goal();
-  auto feedback = std::make_shared<new_lanelet2_route_planning_interfaces::action::Fibonacci::Feedback>();
-  auto result = std::make_shared<new_lanelet2_route_planning_interfaces::action::Fibonacci::Result>();
-
-  // initialize the Fibonacci sequence
-  auto& partial_sequence = feedback->partial_sequence;
-  partial_sequence.push_back(0);
-  partial_sequence.push_back(1);
-
-  // compute the Fibonacci sequence up to the requested order n
-  for (int i = 1; i < goal->order && rclcpp::ok(); ++i) {
-
-    // cancel, if requested
-    if (goal_handle->is_canceling()) {
-      result->sequence = feedback->partial_sequence;
-      goal_handle->canceled(result);
-      RCLCPP_INFO(this->get_logger(), "Action goal canceled");
-      return;
-    }
-
-    // compute the next Fibonacci number
-    partial_sequence.push_back(partial_sequence[i] + partial_sequence[i - 1]);
-
-    // publish the current sequence as action feedback
-    goal_handle->publish_feedback(feedback);
-    RCLCPP_INFO(this->get_logger(), "Publishing action feedback");
-
-    // sleep before computing the next Fibonacci number
-    loop_rate.sleep();
-  }
-
-  // finish by publishing the action result
-  if (rclcpp::ok()) {
-    result->sequence = partial_sequence;
-    goal_handle->succeed(result);
-    RCLCPP_INFO(this->get_logger(), "Goal succeeded");
-  }
 }
 
 
