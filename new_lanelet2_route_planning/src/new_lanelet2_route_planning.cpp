@@ -3,9 +3,7 @@
 
 #include <new_lanelet2_route_planning/new_lanelet2_route_planning.hpp>
 
-
 namespace new_lanelet2_route_planning {
-
 
 /**
  * @brief Constructor
@@ -13,11 +11,10 @@ namespace new_lanelet2_route_planning {
  * @param options node options
  */
 NewLanelet2RoutePlanning::NewLanelet2RoutePlanning() : Node("new_lanelet2_route_planning") {
-
-  this->declareAndLoadParameter("ll2_map_server_name", ll2_map_server_name_, "Name of lanelet2_map_server node", false, false, true);
+  this->declareAndLoadParameter("ll2_map_server_name", ll2_map_server_name_, "Name of lanelet2_map_server node", false,
+                                false, true);
   this->setup();
 }
-
 
 /**
  * @brief Declares and loads a ROS parameter
@@ -34,17 +31,11 @@ NewLanelet2RoutePlanning::NewLanelet2RoutePlanning() : Node("new_lanelet2_route_
  * @param additional_constraints additional constraints description
  */
 template <typename T>
-void NewLanelet2RoutePlanning::declareAndLoadParameter(const std::string& name,
-                                                         T& param,
-                                                         const std::string& description,
-                                                         const bool add_to_auto_reconfigurable_params,
-                                                         const bool is_required,
-                                                         const bool read_only,
-                                                         const std::optional<double>& from_value,
-                                                         const std::optional<double>& to_value,
-                                                         const std::optional<double>& step_value,
-                                                         const std::string& additional_constraints) {
-
+void NewLanelet2RoutePlanning::declareAndLoadParameter(
+    const std::string& name, T& param, const std::string& description, const bool add_to_auto_reconfigurable_params,
+    const bool is_required, const bool read_only, const std::optional<double>& from_value,
+    const std::optional<double>& to_value, const std::optional<double>& step_value,
+    const std::string& additional_constraints) {
   rcl_interfaces::msg::ParameterDescriptor param_desc;
   param_desc.description = description;
   param_desc.additional_constraints = additional_constraints;
@@ -53,18 +44,23 @@ void NewLanelet2RoutePlanning::declareAndLoadParameter(const std::string& name,
   auto type = rclcpp::ParameterValue(param).get_type();
 
   if (from_value.has_value() && to_value.has_value()) {
-    if constexpr(std::is_integral_v<T>) {
+    if constexpr (std::is_integral_v<T>) {
       rcl_interfaces::msg::IntegerRange range;
       T step = static_cast<T>(step_value.has_value() ? step_value.value() : 1);
-      range.set__from_value(static_cast<T>(from_value.value())).set__to_value(static_cast<T>(to_value.value())).set__step(step);
+      range.set__from_value(static_cast<T>(from_value.value()))
+          .set__to_value(static_cast<T>(to_value.value()))
+          .set__step(step);
       param_desc.integer_range = {range};
-    } else if constexpr(std::is_floating_point_v<T>) {
+    } else if constexpr (std::is_floating_point_v<T>) {
       rcl_interfaces::msg::FloatingPointRange range;
       T step = static_cast<T>(step_value.has_value() ? step_value.value() : 1.0);
-      range.set__from_value(static_cast<T>(from_value.value())).set__to_value(static_cast<T>(to_value.value())).set__step(step);
+      range.set__from_value(static_cast<T>(from_value.value()))
+          .set__to_value(static_cast<T>(to_value.value()))
+          .set__step(step);
       param_desc.floating_point_range = {range};
     } else {
-      RCLCPP_WARN(this->get_logger(), "Parameter type of parameter '%s' does not support specifying a range", name.c_str());
+      RCLCPP_WARN(this->get_logger(), "Parameter type of parameter '%s' does not support specifying a range",
+                  name.c_str());
     }
   }
 
@@ -74,7 +70,7 @@ void NewLanelet2RoutePlanning::declareAndLoadParameter(const std::string& name,
     param = this->get_parameter(name).get_value<T>();
     std::stringstream ss;
     ss << "Loaded parameter '" << name << "': ";
-    if constexpr(is_vector_v<T>) {
+    if constexpr (is_vector_v<T>) {
       ss << "[";
       for (const auto& element : param) ss << element << (&element != &param.back() ? ", " : "]");
     } else {
@@ -88,7 +84,7 @@ void NewLanelet2RoutePlanning::declareAndLoadParameter(const std::string& name,
     } else {
       std::stringstream ss;
       ss << "Missing parameter '" << name << "', using default value: ";
-      if constexpr(is_vector_v<T>) {
+      if constexpr (is_vector_v<T>) {
         ss << "[";
         for (const auto& element : param) ss << element << (&element != &param.back() ? ", " : "]");
       } else {
@@ -107,15 +103,14 @@ void NewLanelet2RoutePlanning::declareAndLoadParameter(const std::string& name,
   }
 }
 
-
 /**
  * @brief Handles reconfiguration when a parameter value is changed
  *
  * @param parameters parameters
  * @return parameter change result
  */
-rcl_interfaces::msg::SetParametersResult NewLanelet2RoutePlanning::parametersCallback(const std::vector<rclcpp::Parameter>& parameters) {
-
+rcl_interfaces::msg::SetParametersResult NewLanelet2RoutePlanning::parametersCallback(
+    const std::vector<rclcpp::Parameter>& parameters) {
   for (const auto& param : parameters) {
     for (auto& auto_reconfigurable_param : auto_reconfigurable_params_) {
       if (param.get_name() == std::get<0>(auto_reconfigurable_param)) {
@@ -132,17 +127,16 @@ rcl_interfaces::msg::SetParametersResult NewLanelet2RoutePlanning::parametersCal
   return result;
 }
 
-
 /**
  * @brief Sets up subscribers, publishers, etc. to configure the node
  */
 void NewLanelet2RoutePlanning::setup() {
-
   // initialize lanelet2 interface
   ll2_interface_ = std::make_unique<LL2MapInterface>(*this, ll2_map_server_name_);
 
   // callback for dynamic parameter configuration
-  parameters_callback_ = this->add_on_set_parameters_callback(std::bind(&NewLanelet2RoutePlanning::parametersCallback, this, std::placeholders::_1));
+  parameters_callback_ = this->add_on_set_parameters_callback(
+      std::bind(&NewLanelet2RoutePlanning::parametersCallback, this, std::placeholders::_1));
 
   // publisher for publishing outgoing messages
   // publisher_ = this->create_publisher<std_msgs::msg::Int32>("~/output", 10);
@@ -150,14 +144,11 @@ void NewLanelet2RoutePlanning::setup() {
 
   // action server for handling action goal requests
   action_server_ = rclcpp_action::create_server<new_lanelet2_route_planning_interfaces::action::GlobalManeuver>(
-    this,
-    "~/action",
-    std::bind(&NewLanelet2RoutePlanning::actionHandleGoal, this, std::placeholders::_1, std::placeholders::_2),
-    std::bind(&NewLanelet2RoutePlanning::actionHandleCancel, this, std::placeholders::_1),
-    std::bind(&NewLanelet2RoutePlanning::actionHandleAccepted, this, std::placeholders::_1)
-  );
+      this, "~/action",
+      std::bind(&NewLanelet2RoutePlanning::actionHandleGoal, this, std::placeholders::_1, std::placeholders::_2),
+      std::bind(&NewLanelet2RoutePlanning::actionHandleCancel, this, std::placeholders::_1),
+      std::bind(&NewLanelet2RoutePlanning::actionHandleAccepted, this, std::placeholders::_1));
 }
-
 
 /**
  * @brief Processes action goal requests
@@ -166,8 +157,9 @@ void NewLanelet2RoutePlanning::setup() {
  * @param goal action goal
  * @return goal response
  */
-rclcpp_action::GoalResponse NewLanelet2RoutePlanning::actionHandleGoal(const rclcpp_action::GoalUUID& uuid, new_lanelet2_route_planning_interfaces::action::GlobalManeuver::Goal::ConstSharedPtr goal) {
-
+rclcpp_action::GoalResponse NewLanelet2RoutePlanning::actionHandleGoal(
+    const rclcpp_action::GoalUUID& uuid,
+    new_lanelet2_route_planning_interfaces::action::GlobalManeuver::Goal::ConstSharedPtr goal) {
   (void)uuid;
   (void)goal;
 
@@ -176,15 +168,16 @@ rclcpp_action::GoalResponse NewLanelet2RoutePlanning::actionHandleGoal(const rcl
   return rclcpp_action::GoalResponse::ACCEPT_AND_EXECUTE;
 }
 
-
 /**
  * @brief Processes action cancel requests
  *
  * @param goal_handle action goal handle
  * @return cancel response
  */
-rclcpp_action::CancelResponse NewLanelet2RoutePlanning::actionHandleCancel(const std::shared_ptr<rclcpp_action::ServerGoalHandle<new_lanelet2_route_planning_interfaces::action::GlobalManeuver>> goal_handle) {
-
+rclcpp_action::CancelResponse NewLanelet2RoutePlanning::actionHandleCancel(
+    const std::shared_ptr<
+        rclcpp_action::ServerGoalHandle<new_lanelet2_route_planning_interfaces::action::GlobalManeuver>>
+        goal_handle) {
   (void)goal_handle;
 
   RCLCPP_INFO(this->get_logger(), "Received request to cancel action goal");
@@ -192,35 +185,34 @@ rclcpp_action::CancelResponse NewLanelet2RoutePlanning::actionHandleCancel(const
   return rclcpp_action::CancelResponse::ACCEPT;
 }
 
-
 /**
  * @brief Processes accepted action goal requests
  *
  * @param goal_handle action goal handle
  */
-void NewLanelet2RoutePlanning::actionHandleAccepted(const std::shared_ptr<rclcpp_action::ServerGoalHandle<new_lanelet2_route_planning_interfaces::action::GlobalManeuver>> goal_handle) {
-
+void NewLanelet2RoutePlanning::actionHandleAccepted(
+    const std::shared_ptr<
+        rclcpp_action::ServerGoalHandle<new_lanelet2_route_planning_interfaces::action::GlobalManeuver>>
+        goal_handle) {
   // execute action in a separate thread to avoid blocking
   std::thread{std::bind(&NewLanelet2RoutePlanning::actionExecute, this, std::placeholders::_1), goal_handle}.detach();
 }
-
 
 /**
  * @brief Executes an action
  *
  * @param goal_handle action goal handle
  */
-void NewLanelet2RoutePlanning::actionExecute(const std::shared_ptr<rclcpp_action::ServerGoalHandle<new_lanelet2_route_planning_interfaces::action::GlobalManeuver>> goal_handle) {
-
+void NewLanelet2RoutePlanning::actionExecute(
+    const std::shared_ptr<
+        rclcpp_action::ServerGoalHandle<new_lanelet2_route_planning_interfaces::action::GlobalManeuver>>
+        goal_handle) {
   RCLCPP_INFO(this->get_logger(), "Executing action goal");
 }
 
+}  // namespace new_lanelet2_route_planning
 
-}
-
-
-int main(int argc, char *argv[]) {
-
+int main(int argc, char* argv[]) {
   rclcpp::init(argc, argv);
   rclcpp::spin(std::make_shared<new_lanelet2_route_planning::NewLanelet2RoutePlanning>());
   rclcpp::shutdown();
