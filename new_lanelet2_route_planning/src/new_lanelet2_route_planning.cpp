@@ -14,7 +14,7 @@ namespace new_lanelet2_route_planning {
  */
 NewLanelet2RoutePlanning::NewLanelet2RoutePlanning() : Node("new_lanelet2_route_planning") {
 
-  this->declareAndLoadParameter("param", param_, "TODO", true, false, false, 0.0, 10.0, 1.0);
+  this->declareAndLoadParameter("ll2_map_server_name", ll2_map_server_name_, "Name of lanelet2_map_server node", false, false, true);
   this->setup();
 }
 
@@ -138,12 +138,15 @@ rcl_interfaces::msg::SetParametersResult NewLanelet2RoutePlanning::parametersCal
  */
 void NewLanelet2RoutePlanning::setup() {
 
+  // initialize lanelet2 interface
+  ll2_interface_ = std::make_unique<LL2MapInterface>(*this, ll2_map_server_name_);
+
   // callback for dynamic parameter configuration
   parameters_callback_ = this->add_on_set_parameters_callback(std::bind(&NewLanelet2RoutePlanning::parametersCallback, this, std::placeholders::_1));
 
   // publisher for publishing outgoing messages
-  publisher_ = this->create_publisher<std_msgs::msg::Int32>("~/output", 10);
-  RCLCPP_INFO(this->get_logger(), "Publishing to '%s'", publisher_->get_topic_name());
+  // publisher_ = this->create_publisher<std_msgs::msg::Int32>("~/output", 10);
+  // RCLCPP_INFO(this->get_logger(), "Publishing to '%s'", publisher_->get_topic_name());
 
   // action server for handling action goal requests
   action_server_ = rclcpp_action::create_server<new_lanelet2_route_planning_interfaces::action::GlobalManeuver>(

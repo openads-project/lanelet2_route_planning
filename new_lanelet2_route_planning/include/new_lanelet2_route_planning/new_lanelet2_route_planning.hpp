@@ -4,9 +4,9 @@
 #include <string>
 #include <vector>
 
-#include <rclcpp/rclcpp.hpp>
+#include <lanelet2_map_interface/lanelet2_map_interface.hpp>
 #include <rclcpp_action/rclcpp_action.hpp>
-#include <std_msgs/msg/int32.hpp>
+#include <rclcpp/rclcpp.hpp>
 
 #include <new_lanelet2_route_planning_interfaces/action/global_maneuver.hpp>
 
@@ -56,11 +56,13 @@ class NewLanelet2RoutePlanning : public rclcpp::Node {
 
   OnSetParametersCallbackHandle::SharedPtr parameters_callback_;
 
-  rclcpp::Publisher<std_msgs::msg::Int32>::SharedPtr publisher_;
+  // rclcpp::Publisher<std_msgs::msg::Int32>::SharedPtr publisher_;
 
   rclcpp_action::Server<new_lanelet2_route_planning_interfaces::action::GlobalManeuver>::SharedPtr action_server_;
 
-  double param_ = 1.0;
+  std::unique_ptr<LL2MapInterface> ll2_interface_;
+
+  std::string ll2_map_server_name_ = "ll2_map_server";
 };
 
 
