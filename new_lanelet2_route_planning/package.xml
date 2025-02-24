@@ -13,7 +13,10 @@
 
   <buildtool_depend>ament_cmake</buildtool_depend>
 
+  <depend>lanelet2_core</depend>
   <depend>lanelet2_map_interface</depend>
+  <depend>lanelet2_routing</depend>
+  <depend>lanelet2_traffic_rules</depend>
   <depend>new_lanelet2_route_planning_interfaces</depend>
   <depend>rclcpp</depend>
   <depend>rclcpp_action</depend>

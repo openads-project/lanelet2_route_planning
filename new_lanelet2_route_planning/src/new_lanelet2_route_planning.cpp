@@ -1,7 +1,12 @@
 #include <functional>
 #include <thread>
 
-#include <new_lanelet2_route_planning/new_lanelet2_route_planning.hpp>
+#include <lanelet2_routing/Route.h>
+#include <lanelet2_routing/RoutingGraph.h>
+#include <lanelet2_traffic_rules/TrafficRules.h>
+#include <lanelet2_traffic_rules/TrafficRulesFactory.h>
+
+#include "new_lanelet2_route_planning/new_lanelet2_route_planning.hpp"
 
 namespace new_lanelet2_route_planning {
 
@@ -13,7 +18,10 @@ namespace new_lanelet2_route_planning {
 NewLanelet2RoutePlanning::NewLanelet2RoutePlanning() : Node("new_lanelet2_route_planning") {
   this->declareAndLoadParameter("ll2_map_server_name", ll2_map_server_name_, "Name of lanelet2_map_server node", false,
                                 false, true);
-  this->setup();
+
+  // setup after node has entered spinning to initialize lanelet2 map server
+  setup_timer_ = create_wall_timer(0.1s, std::bind(&NewLanelet2RoutePlanning::setup, this));
+  test_timer_ = create_wall_timer(1.0s, std::bind(&NewLanelet2RoutePlanning::planRoute, this));  // TODO: remove
 }
 
 /**
@@ -131,6 +139,8 @@ rcl_interfaces::msg::SetParametersResult NewLanelet2RoutePlanning::parametersCal
  * @brief Sets up subscribers, publishers, etc. to configure the node
  */
 void NewLanelet2RoutePlanning::setup() {
+  setup_timer_->cancel();
+
   // initialize lanelet2 interface
   ll2_interface_ = std::make_unique<LL2MapInterface>(*this, ll2_map_server_name_);
 
@@ -208,6 +218,28 @@ void NewLanelet2RoutePlanning::actionExecute(
         rclcpp_action::ServerGoalHandle<new_lanelet2_route_planning_interfaces::action::GlobalManeuver>>
         goal_handle) {
   RCLCPP_INFO(this->get_logger(), "Executing action goal");
+}
+
+void NewLanelet2RoutePlanning::planRoute() {
+  if (!ll2_interface_->map_loaded_) {
+    RCLCPP_ERROR(get_logger(), "Cannot plan route, map not loaded by '%s'", ll2_map_server_name_.c_str());
+    return;
+  }
+
+  ll::LaneletMapConstPtr map = ll2_interface_->getMapPtr();
+  ll::traffic_rules::TrafficRulesPtr traffic_rules = ll::traffic_rules::TrafficRulesFactory::create(
+      ll::Locations::Germany, std::string(lanelet::Participants::Vehicle) + ":ika");  // TODO: what is this postfix?
+
+  // build routing graph
+  ll::routing::RoutingGraphUPtr routing_graph = ll::routing::RoutingGraph::build(*map, *traffic_rules);
+  ll::routing::Route::Errors error = routing_graph->checkValidity();
+  if (error.size() > 0) {
+    RCLCPP_ERROR(get_logger(), "Routing graph is invalid");
+    for (size_t i = 0; i < error.size(); ++i) {
+      RCLCPP_ERROR_STREAM(get_logger(), error[i]);
+    }
+    // return false; // TODO: return?
+  }
 }
 
 }  // namespace new_lanelet2_route_planning

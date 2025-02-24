@@ -4,6 +4,7 @@
 #include <string>
 #include <vector>
 
+#include <lanelet2_core/LaneletMap.h>
 #include <lanelet2_map_interface/lanelet2_map_interface.hpp>
 #include <rclcpp/rclcpp.hpp>
 #include <rclcpp_action/rclcpp_action.hpp>
@@ -18,6 +19,8 @@ template <typename T, typename A>
 struct is_vector<std::vector<T, A>> : std::true_type {};
 template <typename C>
 inline constexpr bool is_vector_v = is_vector<C>::value;
+
+namespace ll = lanelet;
 
 class NewLanelet2RoutePlanning : public rclcpp::Node {
  public:
@@ -54,6 +57,8 @@ class NewLanelet2RoutePlanning : public rclcpp::Node {
                      rclcpp_action::ServerGoalHandle<new_lanelet2_route_planning_interfaces::action::GlobalManeuver>>
                          goal_handle);
 
+  void planRoute();
+
  private:
   std::vector<std::tuple<std::string, std::function<void(const rclcpp::Parameter &)>>> auto_reconfigurable_params_;
 
@@ -62,6 +67,9 @@ class NewLanelet2RoutePlanning : public rclcpp::Node {
   // rclcpp::Publisher<std_msgs::msg::Int32>::SharedPtr publisher_;
 
   rclcpp_action::Server<new_lanelet2_route_planning_interfaces::action::GlobalManeuver>::SharedPtr action_server_;
+
+  rclcpp::TimerBase::SharedPtr setup_timer_;
+  rclcpp::TimerBase::SharedPtr test_timer_;  // TODO: remove
 
   std::unique_ptr<LL2MapInterface> ll2_interface_;
 
