@@ -1,4 +1,0 @@
-new_lanelet2_route_planning_interfaces/LaneSeparator left
-new_lanelet2_route_planning_interfaces/LaneSeparator right
-
-geometry_msgs/Point[] centerline # centerline of the given lane
