@@ -46,9 +46,9 @@ bool buildRoutingGraph(const ll::LaneletMapConstPtr& map, const ll::traffic_rule
 
 bool findLaneletAtPoint(const ll::LaneletMapConstPtr& map, const ll::BasicPoint2d& point, ll::ConstLanelet& lanelet,
                         const std::optional<ll::traffic_rules::TrafficRulesPtr> traffic_rules) {
-  // find 5 nearest lanelets
+  // find nearest lanelets
   std::vector<std::pair<double, ll::ConstLanelet>> nearest_lanelets =
-      ll::geometry::findNearest(map->laneletLayer, point, 5);
+      ll::geometry::findNearest(map->laneletLayer, point, k_nearest_lanelets);
 
   // find best matching lanelet
   if (traffic_rules) {
@@ -109,6 +109,36 @@ ll::BasicPoint2d projectPointToCenterline(const geometry_msgs::msg::Point& point
 ll::BasicPoint2d projectPointToCenterline(const perception_msgs::msg::EgoData& ego_data,
                                           const ll::ConstLanelet& lanelet) {
   return projectPointToCenterline(rosToLaneletPoint(ego_data), lanelet);
+}
+
+ll::ConstLanelet followLanelet(const ll::routing::RoutingGraphUPtr& routing_graph, const ll::ConstLanelet& lanelet,
+                               const ll::BasicPoint2d& position, const double distance) {
+  ll::ConstLanelet new_lanelet = lanelet;
+  double remaining_length;
+  if (distance > 0) {
+    remaining_length = ll::geometry::length(lanelet.centerline2d()) -
+                       ll::geometry::toArcCoordinates(lanelet.centerline2d(), position).length;
+  } else {
+    remaining_length = ll::geometry::toArcCoordinates(lanelet.centerline2d(), position).length;
+  }
+  double remaining_distance = std::abs(distance);
+  while (remaining_distance > remaining_length) {
+    lanelet::ConstLanelets next_lanelets;
+    if (distance > 0) {
+      next_lanelets = routing_graph->following(lanelet, false);
+    } else {
+      next_lanelets = routing_graph->previous(lanelet);
+    }
+    if (next_lanelets.empty()) {
+      RCLCPP_WARN(rclcpp::get_logger("new_lanelet2_route_planning"), "No following lanelets found");
+      break;
+    }
+    new_lanelet = next_lanelets.front();
+    remaining_distance -= remaining_length;
+    remaining_length = ll::geometry::length(new_lanelet.centerline2d());
+  }
+
+  return new_lanelet;
 }
 
 }  // namespace new_lanelet2_route_planning

@@ -82,6 +82,10 @@ class NewLanelet2RoutePlanning : public rclcpp::Node {
   std::unique_ptr<LL2MapInterface> ll2_interface_;
 
   std::string ll2_map_server_name_ = "ll2_map_server";
+
+  double route_undershoot_distance_ = 0.0;
+
+  double route_overshoot_distance_ = 0.0;
 };
 
 }  // namespace new_lanelet2_route_planning

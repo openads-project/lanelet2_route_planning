@@ -37,4 +37,7 @@ ll::BasicPoint2d projectPointToCenterline(const geometry_msgs::msg::Point& posit
 ll::BasicPoint2d projectPointToCenterline(const perception_msgs::msg::EgoData& ego_data,
                                           const ll::ConstLanelet& lanelet);
 
+ll::ConstLanelet followLanelet(const ll::routing::RoutingGraphUPtr& routing_graph, const ll::ConstLanelet& lanelet,
+                               const ll::BasicPoint2d& position, const double distance);
+
 }  // namespace new_lanelet2_route_planning

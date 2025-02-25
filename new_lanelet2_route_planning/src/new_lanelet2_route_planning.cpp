@@ -20,6 +20,10 @@ namespace new_lanelet2_route_planning {
 NewLanelet2RoutePlanning::NewLanelet2RoutePlanning() : Node("new_lanelet2_route_planning") {
   this->declareAndLoadParameter("ll2_map_server_name", ll2_map_server_name_, "Name of lanelet2_map_server node", false,
                                 false, true);
+  this->declareAndLoadParameter("route_undershoot_distance", route_undershoot_distance_,
+                                "Undershoot route by this distance before ego position", true, false, false);
+  this->declareAndLoadParameter("route_overshoot_distance", route_overshoot_distance_,
+                                "Overshoot route by this distance behind destination", true, false, false);
 
   this->setup();
 }
@@ -288,17 +292,23 @@ bool NewLanelet2RoutePlanning::planRoute(const geometry_msgs::msg::Point& destin
   }
   ll::BasicPoint2d destination_ll_position = projectPointToCenterline(destination, destination_ll);
 
-  // TODO: add offsets to start and end
-
-  // plan route
+  // build routing graph
   ll::routing::RoutingGraphUPtr routing_graph;
   success = buildRoutingGraph(map, traffic_rules, routing_graph);
   if (!success) {
     RCLCPP_ERROR(get_logger(), "Failed to build routing graph");
     return false;
   }
+
+  // undershoot/overshoot route endpoints
+  ll::ConstLanelet undershot_ego_ll = followLanelet(routing_graph, ego_ll, ego_ll_position, route_undershoot_distance_);
+  ll::ConstLanelet overshot_destination_ll =
+      followLanelet(routing_graph, destination_ll, destination_ll_position, route_overshoot_distance_);
+  // TODO: check that start/end are not the same lanelet (?) (see L314 in global_planner_node.cpp)
+
+  // plan route
   const int routing_cost_id = 0;  // RoutingCostDistance
-  auto planned_route = routing_graph->getRoute(ego_ll, destination_ll, routing_cost_id);
+  auto planned_route = routing_graph->getRoute(undershot_ego_ll, overshot_destination_ll, routing_cost_id);
   if (planned_route) {
     route = std::move(*planned_route);
     return true;
