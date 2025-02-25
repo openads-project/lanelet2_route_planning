@@ -62,7 +62,7 @@ class NewLanelet2RoutePlanning : public rclcpp::Node {
                      rclcpp_action::ServerGoalHandle<new_lanelet2_route_planning_interfaces::action::GlobalManeuver>>
                          goal_handle);
 
-  void planRoute(ll::routing::Route &route);
+  bool planRoute(const geometry_msgs::msg::Point &destination, ll::routing::Route &route);
 
  private:
   std::vector<std::tuple<std::string, std::function<void(const rclcpp::Parameter &)>>> auto_reconfigurable_params_;

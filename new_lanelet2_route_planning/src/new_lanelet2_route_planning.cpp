@@ -197,10 +197,15 @@ rclcpp_action::GoalResponse NewLanelet2RoutePlanning::actionHandleGoal(
   RCLCPP_INFO(this->get_logger(), "Planning route to destination ...");
   auto t0 = std::chrono::steady_clock::now();
   ll::routing::Route route;
-  this->planRoute(route);
+  bool success = this->planRoute(destination_map.point, route);
   auto t1 = std::chrono::steady_clock::now();
   auto dt = std::chrono::duration_cast<std::chrono::duration<double>>(t1 - t0).count();
-  RCLCPP_INFO(this->get_logger(), "Successfully planned route to destination (%.3fs)", dt);
+  if (!success) {
+    RCLCPP_ERROR(this->get_logger(), "Failed to plan route to destination, rejecting request");
+    return rclcpp_action::GoalResponse::REJECT;
+  } else {
+    RCLCPP_INFO(this->get_logger(), "Successfully planned route to destination (%.3fs)", dt);
+  }
 
   // TODO: check egoIsOnRoute? is there any way ego lanelet could not be on the route?
 
@@ -252,38 +257,55 @@ void NewLanelet2RoutePlanning::actionExecute(
   RCLCPP_INFO(this->get_logger(), "Executing action goal");
 }
 
-void NewLanelet2RoutePlanning::planRoute(ll::routing::Route& route) {
+bool NewLanelet2RoutePlanning::planRoute(const geometry_msgs::msg::Point& destination, ll::routing::Route& route) {
+  bool success;
   if (!ll2_interface_->map_loaded_) {
     RCLCPP_ERROR(get_logger(), "Cannot plan route, map not loaded by '%s'", ll2_map_server_name_.c_str());
-    return;  // TODO
+    return false;
   }
 
   // get map and traffic rules
   ll::LaneletMapConstPtr map = ll2_interface_->getMapPtr();
   ll::traffic_rules::TrafficRulesPtr traffic_rules = ll::traffic_rules::TrafficRulesFactory::create(
-      ll::Locations::Germany, std::string(lanelet::Participants::Vehicle) + ":ika");  // TODO: what is this postfix?
+      ll::Locations::Germany,
+      std::string(lanelet::Participants::Vehicle) + ":ika");  // TODO: what is this postfix? move to constant?
 
   // project ego position to lanelet
-  ll::ConstLanelet ego_ll =
-      findLaneletAtEgoPosition(map, ll2_interface_->map_frame_id_, latest_ego_data_, traffic_rules);
+  ll::ConstLanelet ego_ll;
+  success = findLaneletAtEgoPosition(map, ll2_interface_->map_frame_id_, latest_ego_data_, ego_ll, traffic_rules);
+  if (!success) {
+    RCLCPP_ERROR(get_logger(), "Failed to find lanelet at ego position");
+    return false;
+  }
   ll::BasicPoint2d ego_ll_position = projectPointToCenterline(latest_ego_data_, ego_ll);
 
   // project destination to lanelet
-  const geometry_msgs::msg::PointStamped destination;  // TODO: move elsewhere
-  ll::ConstLanelet destination_ll = findLaneletAtPoint(map, destination.point, traffic_rules);
-  ll::BasicPoint2d destination_ll_position = projectPointToCenterline(destination.point, destination_ll);
+  ll::ConstLanelet destination_ll;
+  success = findLaneletAtPoint(map, destination, destination_ll, traffic_rules);
+  if (!success) {
+    RCLCPP_ERROR(get_logger(), "Failed to find lanelet at destination");
+    return false;
+  }
+  ll::BasicPoint2d destination_ll_position = projectPointToCenterline(destination, destination_ll);
 
   // TODO: add offsets to start and end
 
   // plan route
-  ll::routing::RoutingGraphUPtr routing_graph = ll::routing::RoutingGraph::build(*map, *traffic_rules);
-  auto planned_route = routing_graph->getRoute(ego_ll, destination_ll);
+  ll::routing::RoutingGraphUPtr routing_graph;
+  success = buildRoutingGraph(map, traffic_rules, routing_graph);
+  if (!success) {
+    RCLCPP_ERROR(get_logger(), "Failed to build routing graph");
+    return false;
+  }
+  const int routing_cost_id = 0;  // RoutingCostDistance
+  auto planned_route = routing_graph->getRoute(ego_ll, destination_ll, routing_cost_id);
   if (planned_route) {
     route = std::move(*planned_route);
+    return true;
   } else {
     RCLCPP_ERROR(get_logger(), "Failed to plan route from lanelet %ld to lanelet %ld", ego_ll.id(),
                  destination_ll.id());
-    // TODO: return?
+    return false;
   }
 }
 

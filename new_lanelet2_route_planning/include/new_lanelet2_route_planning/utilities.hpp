@@ -16,20 +16,19 @@ ll::BasicPoint2d rosToLaneletPoint(const perception_msgs::msg::EgoData& ego_data
 
 geometry_msgs::msg::Point laneletToRosPoint(const ll::BasicPoint2d& point);
 
-ll::routing::RoutingGraphUPtr buildRoutingGraph(const ll::LaneletMapConstPtr& map,
-                                                const ll::traffic_rules::TrafficRulesPtr& traffic_rules);
+bool buildRoutingGraph(const ll::LaneletMapConstPtr& map, const ll::traffic_rules::TrafficRulesPtr& traffic_rules,
+                       ll::routing::RoutingGraphUPtr& routing_graph);
 
-ll::ConstLanelet findLaneletAtPoint(
-    const ll::LaneletMapConstPtr& map, const ll::BasicPoint2d& point,
-    const std::optional<ll::traffic_rules::TrafficRulesPtr> traffic_rules = std::nullopt);
+bool findLaneletAtPoint(const ll::LaneletMapConstPtr& map, const ll::BasicPoint2d& point, ll::ConstLanelet& lanelet,
+                        const std::optional<ll::traffic_rules::TrafficRulesPtr> traffic_rules = std::nullopt);
 
-ll::ConstLanelet findLaneletAtPoint(
-    const ll::LaneletMapConstPtr& map, const geometry_msgs::msg::Point& point,
-    const std::optional<ll::traffic_rules::TrafficRulesPtr> traffic_rules = std::nullopt);
+bool findLaneletAtPoint(const ll::LaneletMapConstPtr& map, const geometry_msgs::msg::Point& point,
+                        ll::ConstLanelet& lanelet,
+                        const std::optional<ll::traffic_rules::TrafficRulesPtr> traffic_rules = std::nullopt);
 
-ll::ConstLanelet findLaneletAtEgoPosition(
-    const ll::LaneletMapConstPtr& map, const std::string& map_frame_id, const perception_msgs::msg::EgoData& ego_data,
-    const std::optional<ll::traffic_rules::TrafficRulesPtr> traffic_rules = std::nullopt);
+bool findLaneletAtEgoPosition(const ll::LaneletMapConstPtr& map, const std::string& map_frame_id,
+                              const perception_msgs::msg::EgoData& ego_data, ll::ConstLanelet& lanelet,
+                              const std::optional<ll::traffic_rules::TrafficRulesPtr> traffic_rules = std::nullopt);
 
 ll::BasicPoint2d projectPointToCenterline(const ll::BasicPoint2d& position, const ll::ConstLanelet& lanelet);
 
