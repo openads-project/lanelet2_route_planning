@@ -1,12 +1,13 @@
 #include <functional>
 #include <thread>
 
-#include <lanelet2_routing/Route.h>
 #include <lanelet2_routing/RoutingGraph.h>
-#include <lanelet2_traffic_rules/TrafficRules.h>
 #include <lanelet2_traffic_rules/TrafficRulesFactory.h>
+#include <geometry_msgs/msg/point_stamped.hpp>
+#include <perception_msgs/msg/ego_data.hpp>
 
 #include "new_lanelet2_route_planning/new_lanelet2_route_planning.hpp"
+#include "new_lanelet2_route_planning/utilities.hpp"
 
 namespace new_lanelet2_route_planning {
 
@@ -19,8 +20,7 @@ NewLanelet2RoutePlanning::NewLanelet2RoutePlanning() : Node("new_lanelet2_route_
   this->declareAndLoadParameter("ll2_map_server_name", ll2_map_server_name_, "Name of lanelet2_map_server node", false,
                                 false, true);
 
-  // setup after node has entered spinning to initialize lanelet2 map server
-  setup_timer_ = create_wall_timer(0.1s, std::bind(&NewLanelet2RoutePlanning::setup, this));
+  this->setup();
   test_timer_ = create_wall_timer(1.0s, std::bind(&NewLanelet2RoutePlanning::planRoute, this));  // TODO: remove
 }
 
@@ -139,8 +139,6 @@ rcl_interfaces::msg::SetParametersResult NewLanelet2RoutePlanning::parametersCal
  * @brief Sets up subscribers, publishers, etc. to configure the node
  */
 void NewLanelet2RoutePlanning::setup() {
-  setup_timer_->cancel();
-
   // initialize lanelet2 interface
   ll2_interface_ = std::make_unique<LL2MapInterface>(*this, ll2_map_server_name_);
 
@@ -226,20 +224,21 @@ void NewLanelet2RoutePlanning::planRoute() {
     return;
   }
 
+  // get map and traffic rules
   ll::LaneletMapConstPtr map = ll2_interface_->getMapPtr();
   ll::traffic_rules::TrafficRulesPtr traffic_rules = ll::traffic_rules::TrafficRulesFactory::create(
       ll::Locations::Germany, std::string(lanelet::Participants::Vehicle) + ":ika");  // TODO: what is this postfix?
 
   // build routing graph
   ll::routing::RoutingGraphUPtr routing_graph = ll::routing::RoutingGraph::build(*map, *traffic_rules);
-  ll::routing::Route::Errors error = routing_graph->checkValidity();
-  if (error.size() > 0) {
-    RCLCPP_ERROR(get_logger(), "Routing graph is invalid");
-    for (size_t i = 0; i < error.size(); ++i) {
-      RCLCPP_ERROR_STREAM(get_logger(), error[i]);
-    }
-    // return false; // TODO: return?
-  }
+
+  // find ego lanelet
+  const perception_msgs::msg::EgoData ego_data;  // TODO: move elsewhere
+  ll::ConstLanelet ego_lanelet = findLaneletAtEgoPosition(map, ll2_interface_->map_frame_id_, ego_data, traffic_rules);
+
+  // find destination lanelet
+  const geometry_msgs::msg::PointStamped destination;  // TODO: move elsewhere
+  ll::ConstLanelet destination_lanelet = findLaneletAtPoint(map, destination.point, traffic_rules);
 }
 
 }  // namespace new_lanelet2_route_planning

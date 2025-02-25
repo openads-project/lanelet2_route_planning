@@ -68,7 +68,6 @@ class NewLanelet2RoutePlanning : public rclcpp::Node {
 
   rclcpp_action::Server<new_lanelet2_route_planning_interfaces::action::GlobalManeuver>::SharedPtr action_server_;
 
-  rclcpp::TimerBase::SharedPtr setup_timer_;
   rclcpp::TimerBase::SharedPtr test_timer_;  // TODO: remove
 
   std::unique_ptr<LL2MapInterface> ll2_interface_;
