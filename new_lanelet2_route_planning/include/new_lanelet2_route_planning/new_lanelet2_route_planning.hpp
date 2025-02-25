@@ -5,6 +5,9 @@
 #include <vector>
 
 #include <lanelet2_core/LaneletMap.h>
+#include <lanelet2_routing/Route.h>
+#include <tf2_ros/buffer.h>
+#include <tf2_ros/transform_listener.h>
 #include <lanelet2_map_interface/lanelet2_map_interface.hpp>
 #include <rclcpp/rclcpp.hpp>
 #include <rclcpp_action/rclcpp_action.hpp>
@@ -39,6 +42,8 @@ class NewLanelet2RoutePlanning : public rclcpp::Node {
 
   void setup();
 
+  void egoDataCallback(const perception_msgs::msg::EgoData::SharedPtr msg);
+
   rclcpp_action::GoalResponse actionHandleGoal(
       const rclcpp_action::GoalUUID &uuid,
       std::shared_ptr<const new_lanelet2_route_planning_interfaces::action::GlobalManeuver::Goal> goal);
@@ -57,18 +62,22 @@ class NewLanelet2RoutePlanning : public rclcpp::Node {
                      rclcpp_action::ServerGoalHandle<new_lanelet2_route_planning_interfaces::action::GlobalManeuver>>
                          goal_handle);
 
-  void planRoute();
+  void planRoute(ll::routing::Route &route);
 
  private:
   std::vector<std::tuple<std::string, std::function<void(const rclcpp::Parameter &)>>> auto_reconfigurable_params_;
 
   OnSetParametersCallbackHandle::SharedPtr parameters_callback_;
 
-  // rclcpp::Publisher<std_msgs::msg::Int32>::SharedPtr publisher_;
+  rclcpp::Subscription<perception_msgs::msg::EgoData>::SharedPtr subscriber_ego_data_;
 
   rclcpp_action::Server<new_lanelet2_route_planning_interfaces::action::GlobalManeuver>::SharedPtr action_server_;
 
-  rclcpp::TimerBase::SharedPtr test_timer_;  // TODO: remove
+  std::unique_ptr<tf2_ros::Buffer> tf_buffer_;
+
+  std::shared_ptr<tf2_ros::TransformListener> tf_listener_;
+
+  perception_msgs::msg::EgoData latest_ego_data_;
 
   std::unique_ptr<LL2MapInterface> ll2_interface_;
 

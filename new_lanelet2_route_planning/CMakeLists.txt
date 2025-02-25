@@ -16,6 +16,9 @@ find_package(perception_msgs REQUIRED)
 find_package(perception_msgs_utils REQUIRED)
 find_package(rclcpp REQUIRED)
 find_package(rclcpp_action REQUIRED)
+find_package(tf2 REQUIRED)
+find_package(tf2_geometry_msgs REQUIRED)
+find_package(tf2_ros REQUIRED)
 
 set(TARGET_NAME new_lanelet2_route_planning)
 
@@ -41,6 +44,9 @@ ament_target_dependencies(${TARGET_NAME}
   perception_msgs_utils
   rclcpp
   rclcpp_action
+  tf2
+  tf2_geometry_msgs
+  tf2_ros
 )
 
 install(TARGETS ${TARGET_NAME}

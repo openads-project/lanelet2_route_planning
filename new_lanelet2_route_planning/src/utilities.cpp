@@ -60,7 +60,7 @@ ll::ConstLanelet findLaneletAtPoint(const ll::LaneletMapConstPtr& map, const ll:
     return nearest_lanelets[0].second;
   }
   RCLCPP_ERROR(rclcpp::get_logger("new_lanelet2_route_planning"),
-               "No passable lanelet in within %fm of given point (%f, %f)", max_distance, point.x(), point.y());
+               "No passable lanelet in within %.3fm of given point (%.3f, %.3f)", max_distance, point.x(), point.y());
   return {};  // TODO: return bool instead? or std::optional?
 }
 
@@ -77,7 +77,7 @@ ll::ConstLanelet findLaneletAtEgoPosition(const ll::LaneletMapConstPtr& map, con
   rclcpp::Time now = rclcpp::Clock(RCL_ROS_TIME).now();
   if ((now - ego_data.header.stamp).seconds() > timeout) {
     RCLCPP_WARN(rclcpp::get_logger("new_lanelet2_route_planning"),
-                "Ego data is outdated by more than %fs while finding lanelet", timeout);
+                "Ego data is outdated by more than %.3fs while finding lanelet", timeout);
   }
 
   // check ego data frame

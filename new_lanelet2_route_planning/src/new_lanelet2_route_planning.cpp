@@ -1,11 +1,11 @@
 #include <functional>
 #include <thread>
 
-#include <lanelet2_routing/Route.h>
 #include <lanelet2_routing/RoutingGraph.h>
 #include <lanelet2_traffic_rules/TrafficRulesFactory.h>
 #include <geometry_msgs/msg/point_stamped.hpp>
 #include <perception_msgs/msg/ego_data.hpp>
+#include <tf2_geometry_msgs/tf2_geometry_msgs.hpp>
 
 #include "new_lanelet2_route_planning/new_lanelet2_route_planning.hpp"
 #include "new_lanelet2_route_planning/utilities.hpp"
@@ -22,7 +22,6 @@ NewLanelet2RoutePlanning::NewLanelet2RoutePlanning() : Node("new_lanelet2_route_
                                 false, true);
 
   this->setup();
-  test_timer_ = create_wall_timer(1.0s, std::bind(&NewLanelet2RoutePlanning::planRoute, this));  // TODO: remove
 }
 
 /**
@@ -147,9 +146,13 @@ void NewLanelet2RoutePlanning::setup() {
   parameters_callback_ = this->add_on_set_parameters_callback(
       std::bind(&NewLanelet2RoutePlanning::parametersCallback, this, std::placeholders::_1));
 
-  // publisher for publishing outgoing messages
-  // publisher_ = this->create_publisher<std_msgs::msg::Int32>("~/output", 10);
-  // RCLCPP_INFO(this->get_logger(), "Publishing to '%s'", publisher_->get_topic_name());
+  // tf transform listener
+  tf_buffer_ = std::make_unique<tf2_ros::Buffer>(this->get_clock());
+  tf_listener_ = std::make_shared<tf2_ros::TransformListener>(*tf_buffer_);
+
+  // subscribers
+  subscriber_ego_data_ = this->create_subscription<perception_msgs::msg::EgoData>(
+      "~/ego_data", 1, std::bind(&NewLanelet2RoutePlanning::egoDataCallback, this, std::placeholders::_1));
 
   // action server for handling action goal requests
   action_server_ = rclcpp_action::create_server<new_lanelet2_route_planning_interfaces::action::GlobalManeuver>(
@@ -157,6 +160,10 @@ void NewLanelet2RoutePlanning::setup() {
       std::bind(&NewLanelet2RoutePlanning::actionHandleGoal, this, std::placeholders::_1, std::placeholders::_2),
       std::bind(&NewLanelet2RoutePlanning::actionHandleCancel, this, std::placeholders::_1),
       std::bind(&NewLanelet2RoutePlanning::actionHandleAccepted, this, std::placeholders::_1));
+}
+
+void NewLanelet2RoutePlanning::egoDataCallback(const perception_msgs::msg::EgoData::SharedPtr msg) {
+  latest_ego_data_ = *msg;
 }
 
 /**
@@ -172,8 +179,34 @@ rclcpp_action::GoalResponse NewLanelet2RoutePlanning::actionHandleGoal(
   (void)uuid;
   (void)goal;
 
-  RCLCPP_INFO(this->get_logger(), "Received action goal request");
+  const geometry_msgs::msg::PointStamped& destination = goal->destination;
+  RCLCPP_INFO(this->get_logger(), "Received request to plan route to destination (%.3f, %.3f, %.3f) in frame '%s'",
+              destination.point.x, destination.point.y, destination.point.z, destination.header.frame_id.c_str());
 
+  // transform destination to map frame
+  geometry_msgs::msg::PointStamped destination_map;
+  try {
+    destination_map = tf_buffer_->transform(destination, ll2_interface_->map_frame_id_);
+  } catch (tf2::TransformException& ex) {
+    RCLCPP_ERROR(this->get_logger(), "Could not transform destination from frame '%s' to frame '%s': %s",
+                 destination.header.frame_id.c_str(), ll2_interface_->map_frame_id_.c_str(), ex.what());
+    return rclcpp_action::GoalResponse::REJECT;
+  }
+
+  // plan route
+  RCLCPP_INFO(this->get_logger(), "Planning route to destination ...");
+  auto t0 = std::chrono::steady_clock::now();
+  ll::routing::Route route;
+  this->planRoute(route);
+  auto t1 = std::chrono::steady_clock::now();
+  auto dt = std::chrono::duration_cast<std::chrono::duration<double>>(t1 - t0).count();
+  RCLCPP_INFO(this->get_logger(), "Successfully planned route to destination (%.3fs)", dt);
+
+  // TODO: check egoIsOnRoute? is there any way ego lanelet could not be on the route?
+
+  // TODO: abort current action if running
+
+  // accept action goal request
   return rclcpp_action::GoalResponse::ACCEPT_AND_EXECUTE;
 }
 
@@ -219,10 +252,10 @@ void NewLanelet2RoutePlanning::actionExecute(
   RCLCPP_INFO(this->get_logger(), "Executing action goal");
 }
 
-void NewLanelet2RoutePlanning::planRoute() {
+void NewLanelet2RoutePlanning::planRoute(ll::routing::Route& route) {
   if (!ll2_interface_->map_loaded_) {
     RCLCPP_ERROR(get_logger(), "Cannot plan route, map not loaded by '%s'", ll2_map_server_name_.c_str());
-    return;
+    return;  // TODO
   }
 
   // get map and traffic rules
@@ -231,9 +264,9 @@ void NewLanelet2RoutePlanning::planRoute() {
       ll::Locations::Germany, std::string(lanelet::Participants::Vehicle) + ":ika");  // TODO: what is this postfix?
 
   // project ego position to lanelet
-  const perception_msgs::msg::EgoData ego_data;  // TODO: move elsewhere
-  ll::ConstLanelet ego_ll = findLaneletAtEgoPosition(map, ll2_interface_->map_frame_id_, ego_data, traffic_rules);
-  ll::BasicPoint2d ego_ll_position = projectPointToCenterline(ego_data, ego_ll);
+  ll::ConstLanelet ego_ll =
+      findLaneletAtEgoPosition(map, ll2_interface_->map_frame_id_, latest_ego_data_, traffic_rules);
+  ll::BasicPoint2d ego_ll_position = projectPointToCenterline(latest_ego_data_, ego_ll);
 
   // project destination to lanelet
   const geometry_msgs::msg::PointStamped destination;  // TODO: move elsewhere
@@ -244,12 +277,13 @@ void NewLanelet2RoutePlanning::planRoute() {
 
   // plan route
   ll::routing::RoutingGraphUPtr routing_graph = ll::routing::RoutingGraph::build(*map, *traffic_rules);
-  auto route = routing_graph->getRoute(ego_ll, destination_ll);
-  if (route) {
-    // TODO: what to do with the route?
+  auto planned_route = routing_graph->getRoute(ego_ll, destination_ll);
+  if (planned_route) {
+    route = std::move(*planned_route);
   } else {
     RCLCPP_ERROR(get_logger(), "Failed to plan route from lanelet %ld to lanelet %ld", ego_ll.id(),
                  destination_ll.id());
+    // TODO: return?
   }
 }
 
