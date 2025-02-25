@@ -31,4 +31,11 @@ ll::ConstLanelet findLaneletAtEgoPosition(
     const ll::LaneletMapConstPtr& map, const std::string& map_frame_id, const perception_msgs::msg::EgoData& ego_data,
     const std::optional<ll::traffic_rules::TrafficRulesPtr> traffic_rules = std::nullopt);
 
+ll::BasicPoint2d projectPointToCenterline(const ll::BasicPoint2d& position, const ll::ConstLanelet& lanelet);
+
+ll::BasicPoint2d projectPointToCenterline(const geometry_msgs::msg::Point& position, const ll::ConstLanelet& lanelet);
+
+ll::BasicPoint2d projectPointToCenterline(const perception_msgs::msg::EgoData& ego_data,
+                                          const ll::ConstLanelet& lanelet);
+
 }  // namespace new_lanelet2_route_planning

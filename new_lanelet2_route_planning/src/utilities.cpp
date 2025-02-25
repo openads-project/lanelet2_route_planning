@@ -91,4 +91,19 @@ ll::ConstLanelet findLaneletAtEgoPosition(const ll::LaneletMapConstPtr& map, con
   return findLaneletAtPoint(map, rosToLaneletPoint(ego_data));
 }
 
+ll::BasicPoint2d projectPointToCenterline(const ll::BasicPoint2d& point, const ll::ConstLanelet& lanelet) {
+  ll::BasicPoint3d point_3d = ll::BasicPoint3d(point.x(), point.y(), 0.0);
+  ll::BasicPoint3d projected_point_3d = ll::geometry::project(lanelet.centerline(), point_3d);
+  return ll::BasicPoint2d(projected_point_3d.x(), projected_point_3d.y());
+}
+
+ll::BasicPoint2d projectPointToCenterline(const geometry_msgs::msg::Point& point, const ll::ConstLanelet& lanelet) {
+  return projectPointToCenterline(rosToLaneletPoint(point), lanelet);
+}
+
+ll::BasicPoint2d projectPointToCenterline(const perception_msgs::msg::EgoData& ego_data,
+                                          const ll::ConstLanelet& lanelet) {
+  return projectPointToCenterline(rosToLaneletPoint(ego_data), lanelet);
+}
+
 }  // namespace new_lanelet2_route_planning

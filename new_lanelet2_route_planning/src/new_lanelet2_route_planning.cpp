@@ -1,6 +1,7 @@
 #include <functional>
 #include <thread>
 
+#include <lanelet2_routing/Route.h>
 #include <lanelet2_routing/RoutingGraph.h>
 #include <lanelet2_traffic_rules/TrafficRulesFactory.h>
 #include <geometry_msgs/msg/point_stamped.hpp>
@@ -229,16 +230,27 @@ void NewLanelet2RoutePlanning::planRoute() {
   ll::traffic_rules::TrafficRulesPtr traffic_rules = ll::traffic_rules::TrafficRulesFactory::create(
       ll::Locations::Germany, std::string(lanelet::Participants::Vehicle) + ":ika");  // TODO: what is this postfix?
 
-  // build routing graph
-  ll::routing::RoutingGraphUPtr routing_graph = ll::routing::RoutingGraph::build(*map, *traffic_rules);
-
-  // find ego lanelet
+  // project ego position to lanelet
   const perception_msgs::msg::EgoData ego_data;  // TODO: move elsewhere
-  ll::ConstLanelet ego_lanelet = findLaneletAtEgoPosition(map, ll2_interface_->map_frame_id_, ego_data, traffic_rules);
+  ll::ConstLanelet ego_ll = findLaneletAtEgoPosition(map, ll2_interface_->map_frame_id_, ego_data, traffic_rules);
+  ll::BasicPoint2d ego_ll_position = projectPointToCenterline(ego_data, ego_ll);
 
-  // find destination lanelet
+  // project destination to lanelet
   const geometry_msgs::msg::PointStamped destination;  // TODO: move elsewhere
-  ll::ConstLanelet destination_lanelet = findLaneletAtPoint(map, destination.point, traffic_rules);
+  ll::ConstLanelet destination_ll = findLaneletAtPoint(map, destination.point, traffic_rules);
+  ll::BasicPoint2d destination_ll_position = projectPointToCenterline(destination.point, destination_ll);
+
+  // TODO: add offsets to start and end
+
+  // plan route
+  ll::routing::RoutingGraphUPtr routing_graph = ll::routing::RoutingGraph::build(*map, *traffic_rules);
+  auto route = routing_graph->getRoute(ego_ll, destination_ll);
+  if (route) {
+    // TODO: what to do with the route?
+  } else {
+    RCLCPP_ERROR(get_logger(), "Failed to plan route from lanelet %ld to lanelet %ld", ego_ll.id(),
+                 destination_ll.id());
+  }
 }
 
 }  // namespace new_lanelet2_route_planning
