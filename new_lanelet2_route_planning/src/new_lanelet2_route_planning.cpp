@@ -301,7 +301,8 @@ bool NewLanelet2RoutePlanning::planRoute(const geometry_msgs::msg::Point& destin
   }
 
   // undershoot/overshoot route endpoints
-  ll::ConstLanelet undershot_ego_ll = followLanelet(routing_graph, ego_ll, ego_ll_position, route_undershoot_distance_);
+  ll::ConstLanelet undershot_ego_ll =
+      followLanelet(routing_graph, ego_ll, ego_ll_position, -std::abs(route_undershoot_distance_));
   ll::ConstLanelet overshot_destination_ll =
       followLanelet(routing_graph, destination_ll, destination_ll_position, route_overshoot_distance_);
   // TODO: check that start/end are not the same lanelet (?) (see L314 in global_planner_node.cpp)
