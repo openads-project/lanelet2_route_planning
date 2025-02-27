@@ -8,12 +8,10 @@ find_package(std_msgs REQUIRED)
 
 rosidl_generate_interfaces(${PROJECT_NAME}
   action/GlobalManeuver.action
-  msg/Boundaries.msg
-  msg/DriveableSpace.msg
-  msg/Lane.msg
-  msg/LaneSeparator.msg
+  msg/LaneElement.msg
   msg/RegulatoryElement.msg
   msg/Route.msg
+  msg/RouteElement.msg
   DEPENDENCIES builtin_interfaces geometry_msgs std_msgs
 )
 
