@@ -1,3 +1,4 @@
+#include <numeric>
 #include <tuple>
 
 #include <lanelet2_routing/Route.h>
@@ -139,6 +140,89 @@ ll::ConstLanelet followLanelet(const ll::routing::RoutingGraphUPtr& routing_grap
   }
 
   return new_lanelet;
+}
+
+new_lanelet2_route_planning_interfaces::msg::Route laneletToRosRoute(const ll::routing::Route& route) {
+  new_lanelet2_route_planning_interfaces::msg::Route route_msg;
+  route_msg.destination = geometry_msgs::msg::Point();  // TODO
+  route_msg.traveled_route = {};                        // TODO
+  route_msg.current_speed_limit = 0;                    // TODO: move to RouteElement or LaneElement?
+
+  // get shortest path
+  ll::routing::LaneletPath shortest_path = route.shortestPath();
+
+  // loop over lanelets along shortest path to extract RouteElements
+  for (const auto& lanelet : shortest_path) {
+    std::vector<new_lanelet2_route_planning_interfaces::msg::RouteElement> route_element_msgs =
+        laneletToRosRouteElements(lanelet, route);
+    route_msg.remaining_route.insert(route_msg.remaining_route.end(), route_element_msgs.begin(),
+                                     route_element_msgs.end());
+  }
+
+  return route_msg;
+}
+
+std::vector<new_lanelet2_route_planning_interfaces::msg::RouteElement> laneletToRosRouteElements(
+    const ll::ConstLanelet& shortest_path_lanelet, const ll::routing::Route& route) {
+  std::vector<new_lanelet2_route_planning_interfaces::msg::RouteElement> route_element_msgs;
+
+  // TODO: refactor this function?
+
+  // get centerline and left/right bounds
+  ll::ConstLineString2d centerline = shortest_path_lanelet.centerline2d();
+  ll::ConstLineString2d left_bound = shortest_path_lanelet.leftBound2d();
+  ll::ConstLineString2d right_bound = shortest_path_lanelet.rightBound2d();
+  if (centerline.size() != left_bound.size() || centerline.size() != right_bound.size()) {
+    RCLCPP_WARN(rclcpp::get_logger("new_lanelet2_route_planning"),
+                "Number of lanelet bound points (%ld, %ld) do not match number of centerline points (%ld)",
+                left_bound.size(), right_bound.size(), centerline.size());
+  }
+
+  // extract RouteElements as cross sections of route lanelets
+  for (size_t i = 0; i < centerline.size(); ++i) {
+    if (i >= left_bound.size() || i >= right_bound.size()) {
+      break;
+    }
+
+    // TODO: rename RouteElement to RouteCrossSection and LaneElement to LaneCrossSection?
+    new_lanelet2_route_planning_interfaces::msg::RouteElement route_element_msg;
+    route_element_msg.domain_id = 0;                                       // TODO
+    route_element_msg.current_lane_id = 0;                                 // TODO
+    route_element_msg.current_s = 0;                                       // TODO: remove from msg?
+    route_element_msg.lane_change = false;                                 // TODO
+    route_element_msg.boundary_left = laneletToRosPoint(left_bound[i]);    // TODO
+    route_element_msg.boundary_right = laneletToRosPoint(right_bound[i]);  // TODO
+
+    // get all adjacent lanelets of route cross section along shortest path lanelet
+    std::vector<ll::ConstLanelet> lanelets_of_cross_section;
+    ll::routing::LaneletRelations left_relations = route.leftRelations(shortest_path_lanelet);
+    ll::routing::LaneletRelations right_relations = route.rightRelations(shortest_path_lanelet);
+    for (const auto& left_relation : left_relations) {
+      if (left_relation.relationType == ll::routing::RelationType::Left) {
+        lanelets_of_cross_section.push_back(left_relation.lanelet);
+      }
+    }
+    lanelets_of_cross_section.push_back(shortest_path_lanelet);
+    for (const auto& right_relation : right_relations) {
+      if (right_relation.relationType == ll::routing::RelationType::Right) {
+        lanelets_of_cross_section.push_back(right_relation.lanelet);
+      }
+    }
+
+    // TODO: also get LaneElements for adjacent lanelets
+    new_lanelet2_route_planning_interfaces::msg::LaneElement lane_element_msg;
+    lane_element_msg.center_pose.position = laneletToRosPoint(centerline[i]);
+    lane_element_msg.center_pose.orientation = geometry_msgs::msg::Quaternion();  // TODO
+    lane_element_msg.width = ll::geometry::distance(left_bound[i], right_bound[i]);
+    lane_element_msg.lane_separator_type_left = 0;   // TODO
+    lane_element_msg.lane_separator_type_right = 0;  // TODO
+    lane_element_msg.regulatory_elements = {};       // TODO
+    route_element_msg.lane_elements.push_back(lane_element_msg);
+
+    route_element_msgs.push_back(route_element_msg);
+  }
+
+  return route_element_msgs;
 }
 
 }  // namespace new_lanelet2_route_planning

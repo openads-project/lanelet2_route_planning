@@ -1,9 +1,12 @@
 #pragma once
 
+#include <vector>
+
 #include <lanelet2_core/LaneletMap.h>
 #include <lanelet2_routing/RoutingGraph.h>
 #include <lanelet2_traffic_rules/TrafficRules.h>
 #include <geometry_msgs/msg/point.hpp>
+#include <new_lanelet2_route_planning_interfaces/msg/route.hpp>
 #include <perception_msgs/msg/ego_data.hpp>
 
 namespace new_lanelet2_route_planning {
@@ -39,5 +42,10 @@ ll::BasicPoint2d projectPointToCenterline(const perception_msgs::msg::EgoData& e
 
 ll::ConstLanelet followLanelet(const ll::routing::RoutingGraphUPtr& routing_graph, const ll::ConstLanelet& lanelet,
                                const ll::BasicPoint2d& position, const double distance);
+
+new_lanelet2_route_planning_interfaces::msg::Route laneletToRosRoute(const ll::routing::Route& route);
+
+std::vector<new_lanelet2_route_planning_interfaces::msg::RouteElement> laneletToRosRouteElements(
+    const ll::ConstLanelet& shortest_path_lanelet, const ll::routing::Route& route);
 
 }  // namespace new_lanelet2_route_planning

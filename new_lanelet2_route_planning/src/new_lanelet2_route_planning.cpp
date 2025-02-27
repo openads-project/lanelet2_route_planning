@@ -215,6 +215,9 @@ rclcpp_action::GoalResponse NewLanelet2RoutePlanning::actionHandleGoal(
 
   // TODO: abort current action if running
 
+  // convert route to custom format
+  new_lanelet2_route_planning_interfaces::msg::Route route_msg = laneletToRosRoute(route);
+
   // accept action goal request
   return rclcpp_action::GoalResponse::ACCEPT_AND_EXECUTE;
 }
