@@ -192,8 +192,8 @@ std::vector<route_planning_msgs::msg::RouteElement> laneletToRosRouteElements(
     route_element_msg.current_lane_id = 0;                                 // TODO
     route_element_msg.current_s = 0;                                       // TODO: remove from msg?
     route_element_msg.lane_change = false;                                 // TODO
-    route_element_msg.boundary_left = laneletToRosPoint(left_bound[i]);    // TODO
-    route_element_msg.boundary_right = laneletToRosPoint(right_bound[i]);  // TODO
+    route_element_msg.drivable_space_left = laneletToRosPoint(left_bound[i]);    // TODO
+    route_element_msg.drivable_space_right = laneletToRosPoint(right_bound[i]);  // TODO
 
     // get all adjacent lanelets of route cross section along shortest path lanelet
     std::vector<ll::ConstLanelet> lanelets_of_cross_section;
@@ -213,9 +213,10 @@ std::vector<route_planning_msgs::msg::RouteElement> laneletToRosRouteElements(
 
     // TODO: also get LaneElements for adjacent lanelets
     route_planning_msgs::msg::LaneElement lane_element_msg;
-    lane_element_msg.center_pose.position = laneletToRosPoint(centerline[i]);
-    lane_element_msg.center_pose.orientation = geometry_msgs::msg::Quaternion();  // TODO
-    lane_element_msg.width = ll::geometry::distance(left_bound[i], right_bound[i]);
+    lane_element_msg.reference_pose.position = laneletToRosPoint(centerline[i]);
+    lane_element_msg.reference_pose.orientation = geometry_msgs::msg::Quaternion();  // TODO
+    lane_element_msg.lane_boundary_left = laneletToRosPoint(left_bound[i]);
+    lane_element_msg.lane_boundary_right = laneletToRosPoint(right_bound[i]);
     lane_element_msg.lane_separator_type_left = 0;   // TODO
     lane_element_msg.lane_separator_type_right = 0;  // TODO
     lane_element_msg.regulatory_elements = {};       // TODO
