@@ -66,7 +66,7 @@ bool findLaneletAtPoint(const ll::LaneletMapConstPtr& map, const ll::BasicPoint2
     return true;
   }
   RCLCPP_ERROR(rclcpp::get_logger("new_lanelet2_route_planning"),
-               "No passable lanelet within %.3fm of given point (%.3f, %.3f)", point.x(), point.y());
+               "No passable lanelet within %.3fm of given point (%.3f, %.3f)", k_max_distance_lanelet_matching, point.x(), point.y());
   return false;
 }
 
@@ -142,18 +142,20 @@ ll::ConstLanelet followLanelet(const ll::routing::RoutingGraphUPtr& routing_grap
   return new_lanelet;
 }
 
-new_lanelet2_route_planning_interfaces::msg::Route laneletToRosRoute(const ll::routing::Route& route) {
-  new_lanelet2_route_planning_interfaces::msg::Route route_msg;
+route_planning_msgs::msg::Route laneletToRosRoute(const ll::routing::Route& route, const std::string& frame_id) {
+  route_planning_msgs::msg::Route route_msg;
+  // route_msg.header.stamp = rclcpp::Clock(RCL_ROS_TIME).now(); // TODO: not correctly working with simtime
+  route_msg.header.frame_id = frame_id;
   route_msg.destination = geometry_msgs::msg::Point();  // TODO
   route_msg.traveled_route = {};                        // TODO
-  route_msg.current_speed_limit = 0;                    // TODO: move to RouteElement or LaneElement?
+  // route_msg.current_speed_limit = 0;                    // TODO: move to RouteElement or LaneElement?
 
   // get shortest path
   ll::routing::LaneletPath shortest_path = route.shortestPath();
 
   // loop over lanelets along shortest path to extract RouteElements
   for (const auto& lanelet : shortest_path) {
-    std::vector<new_lanelet2_route_planning_interfaces::msg::RouteElement> route_element_msgs =
+    std::vector<route_planning_msgs::msg::RouteElement> route_element_msgs =
         laneletToRosRouteElements(lanelet, route);
     route_msg.remaining_route.insert(route_msg.remaining_route.end(), route_element_msgs.begin(),
                                      route_element_msgs.end());
@@ -162,9 +164,9 @@ new_lanelet2_route_planning_interfaces::msg::Route laneletToRosRoute(const ll::r
   return route_msg;
 }
 
-std::vector<new_lanelet2_route_planning_interfaces::msg::RouteElement> laneletToRosRouteElements(
+std::vector<route_planning_msgs::msg::RouteElement> laneletToRosRouteElements(
     const ll::ConstLanelet& shortest_path_lanelet, const ll::routing::Route& route) {
-  std::vector<new_lanelet2_route_planning_interfaces::msg::RouteElement> route_element_msgs;
+  std::vector<route_planning_msgs::msg::RouteElement> route_element_msgs;
 
   // TODO: refactor this function?
 
@@ -185,7 +187,7 @@ std::vector<new_lanelet2_route_planning_interfaces::msg::RouteElement> laneletTo
     }
 
     // TODO: rename RouteElement to RouteCrossSection and LaneElement to LaneCrossSection?
-    new_lanelet2_route_planning_interfaces::msg::RouteElement route_element_msg;
+    route_planning_msgs::msg::RouteElement route_element_msg;
     route_element_msg.domain_id = 0;                                       // TODO
     route_element_msg.current_lane_id = 0;                                 // TODO
     route_element_msg.current_s = 0;                                       // TODO: remove from msg?
@@ -210,7 +212,7 @@ std::vector<new_lanelet2_route_planning_interfaces::msg::RouteElement> laneletTo
     }
 
     // TODO: also get LaneElements for adjacent lanelets
-    new_lanelet2_route_planning_interfaces::msg::LaneElement lane_element_msg;
+    route_planning_msgs::msg::LaneElement lane_element_msg;
     lane_element_msg.center_pose.position = laneletToRosPoint(centerline[i]);
     lane_element_msg.center_pose.orientation = geometry_msgs::msg::Quaternion();  // TODO
     lane_element_msg.width = ll::geometry::distance(left_bound[i], right_bound[i]);

@@ -154,13 +154,18 @@ void NewLanelet2RoutePlanning::setup() {
   tf_buffer_ = std::make_unique<tf2_ros::Buffer>(this->get_clock());
   tf_listener_ = std::make_shared<tf2_ros::TransformListener>(*tf_buffer_);
 
+  // publishers
+  publisher_route_ = this->create_publisher<route_planning_msgs::msg::Route>("~/route", 1);
+  publish_timer_ = this->create_wall_timer(std::chrono::seconds(1),
+                                           [this]() { publisher_route_->publish(latest_route_); }); // TODO: remove timer?
+
   // subscribers
   subscriber_ego_data_ = this->create_subscription<perception_msgs::msg::EgoData>(
       "~/ego_data", 1, std::bind(&NewLanelet2RoutePlanning::egoDataCallback, this, std::placeholders::_1));
 
   // action server for handling action goal requests
-  action_server_ = rclcpp_action::create_server<new_lanelet2_route_planning_interfaces::action::GlobalManeuver>(
-      this, "~/action",
+  action_server_ = rclcpp_action::create_server<route_planning_msgs::action::GlobalManeuver>(
+      this, "~/route",
       std::bind(&NewLanelet2RoutePlanning::actionHandleGoal, this, std::placeholders::_1, std::placeholders::_2),
       std::bind(&NewLanelet2RoutePlanning::actionHandleCancel, this, std::placeholders::_1),
       std::bind(&NewLanelet2RoutePlanning::actionHandleAccepted, this, std::placeholders::_1));
@@ -179,7 +184,7 @@ void NewLanelet2RoutePlanning::egoDataCallback(const perception_msgs::msg::EgoDa
  */
 rclcpp_action::GoalResponse NewLanelet2RoutePlanning::actionHandleGoal(
     const rclcpp_action::GoalUUID& uuid,
-    new_lanelet2_route_planning_interfaces::action::GlobalManeuver::Goal::ConstSharedPtr goal) {
+    route_planning_msgs::action::GlobalManeuver::Goal::ConstSharedPtr goal) {
   (void)uuid;
   (void)goal;
 
@@ -216,7 +221,12 @@ rclcpp_action::GoalResponse NewLanelet2RoutePlanning::actionHandleGoal(
   // TODO: abort current action if running
 
   // convert route to custom format
-  new_lanelet2_route_planning_interfaces::msg::Route route_msg = laneletToRosRoute(route);
+  route_planning_msgs::msg::Route route_msg = laneletToRosRoute(route, ll2_interface_->map_frame_id_);
+  route_msg.header.stamp = this->now();
+  latest_route_ = route_msg;
+
+
+
 
   // accept action goal request
   return rclcpp_action::GoalResponse::ACCEPT_AND_EXECUTE;
@@ -230,7 +240,7 @@ rclcpp_action::GoalResponse NewLanelet2RoutePlanning::actionHandleGoal(
  */
 rclcpp_action::CancelResponse NewLanelet2RoutePlanning::actionHandleCancel(
     const std::shared_ptr<
-        rclcpp_action::ServerGoalHandle<new_lanelet2_route_planning_interfaces::action::GlobalManeuver>>
+        rclcpp_action::ServerGoalHandle<route_planning_msgs::action::GlobalManeuver>>
         goal_handle) {
   (void)goal_handle;
 
@@ -246,7 +256,7 @@ rclcpp_action::CancelResponse NewLanelet2RoutePlanning::actionHandleCancel(
  */
 void NewLanelet2RoutePlanning::actionHandleAccepted(
     const std::shared_ptr<
-        rclcpp_action::ServerGoalHandle<new_lanelet2_route_planning_interfaces::action::GlobalManeuver>>
+        rclcpp_action::ServerGoalHandle<route_planning_msgs::action::GlobalManeuver>>
         goal_handle) {
   // execute action in a separate thread to avoid blocking
   std::thread{std::bind(&NewLanelet2RoutePlanning::actionExecute, this, std::placeholders::_1), goal_handle}.detach();
@@ -259,7 +269,7 @@ void NewLanelet2RoutePlanning::actionHandleAccepted(
  */
 void NewLanelet2RoutePlanning::actionExecute(
     const std::shared_ptr<
-        rclcpp_action::ServerGoalHandle<new_lanelet2_route_planning_interfaces::action::GlobalManeuver>>
+        rclcpp_action::ServerGoalHandle<route_planning_msgs::action::GlobalManeuver>>
         goal_handle) {
   RCLCPP_INFO(this->get_logger(), "Executing action goal");
 }

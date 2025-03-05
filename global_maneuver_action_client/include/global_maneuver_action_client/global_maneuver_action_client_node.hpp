@@ -2,8 +2,8 @@
 #include <rclcpp_action/rclcpp_action.hpp>
 
 #include <geometry_msgs/msg/pose_stamped.hpp>
-#include <route_planning_msgs/action/global_maneuver.hpp>
 #include <lanelet2_map_interface/lanelet2_map_interface.hpp>
+#include <route_planning_msgs/action/global_maneuver.hpp>
 
 namespace global_maneuver_action_client {
 
@@ -27,7 +27,7 @@ class GlobalManeuverActionClient : public rclcpp::Node {
 
  private:
   // input topics
-  const std::string kGoalPoseTopic = "~/goal_pose";
+  const std::string kGoalPoseTopic = "/goal_pose";
 
   void setup();
 
@@ -64,6 +64,7 @@ class GlobalManeuverActionClient : public rclcpp::Node {
   // parameter defaults
   uint8_t destination_mode_ = DestinationMode::SUBSCRIPTION;
   std::string map_server_name_ = "ll2_map_server";
+  std::string action_name_ = "new_lanelet2_route_planning/route";
   std::vector<std::string> coordinate_strings_;
   bool cancel_route_ = false;
 

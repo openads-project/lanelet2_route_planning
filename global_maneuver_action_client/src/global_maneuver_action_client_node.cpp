@@ -17,6 +17,7 @@ GlobalManeuverActionClient::GlobalManeuverActionClient() : Node("global_maneuver
   // declare and load node parameters
   this->declareAndLoadParameter("destination_mode", destination_mode_, "Integer indicating the choosen destination mode - 0: goal-pose subscription 1: shuttle-mode (list of gnss points) 2: random-planning");
   this->declareAndLoadParameter("map_server_name", map_server_name_, "Name of the lanelet2 map server");
+  this->declareAndLoadParameter("action_name", action_name_, "Name of the route planning action");
   this->declareAndLoadParameter("coordinates", coordinate_strings_, "List of coordinates for shuttle-mode", false);
   this->declareAndLoadParameter("cancel_route", cancel_route_, "Cancel running route planning action (can be set dynamically)", false);
 
@@ -188,7 +189,7 @@ void GlobalManeuverActionClient::setup() {
   timer_ = create_wall_timer(1s, std::bind(&GlobalManeuverActionClient::cyclicGoalTimerCallback, this));
 
   // action client
-  action_client_ = rclcpp_action::create_client<GlobalManeuver>(this, "ll2_route_planning/execute_global_maneuver");
+  action_client_ = rclcpp_action::create_client<GlobalManeuver>(this, action_name_);
 
   // lanelet2 map interface
   ll2if_ = std::make_unique<LL2MapInterface>(*this, map_server_name_);

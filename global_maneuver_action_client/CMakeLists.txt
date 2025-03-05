@@ -7,9 +7,6 @@ endif()
 
 # find dependencies
 find_package(ament_cmake REQUIRED)
-# uncomment the following section in order to fill in
-# further dependencies manually.
-# find_package(<dependency> REQUIRED)
 find_package(geometry_msgs REQUIRED)
 find_package(lanelet2_map_interface REQUIRED)
 find_package(route_planning_msgs REQUIRED)

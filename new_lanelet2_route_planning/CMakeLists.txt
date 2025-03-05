@@ -11,7 +11,7 @@ find_package(lanelet2_map_interface REQUIRED)
 find_package(lanelet2_routing REQUIRED)
 find_package(lanelet2_traffic_rules REQUIRED)
 find_package(lanelet2_utilities REQUIRED)
-find_package(new_lanelet2_route_planning_interfaces REQUIRED)
+find_package(route_planning_msgs REQUIRED)
 find_package(perception_msgs REQUIRED)
 find_package(perception_msgs_utils REQUIRED)
 find_package(rclcpp REQUIRED)
@@ -39,7 +39,7 @@ ament_target_dependencies(${TARGET_NAME}
   lanelet2_routing
   lanelet2_traffic_rules
   lanelet2_utilities
-  new_lanelet2_route_planning_interfaces
+  route_planning_msgs
   perception_msgs
   perception_msgs_utils
   rclcpp

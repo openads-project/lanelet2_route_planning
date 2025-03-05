@@ -12,7 +12,10 @@ from launch_ros.actions import Node, SetParameter
 def generate_launch_description():
 
     remappable_topics = [
-        DeclareLaunchArgument("output_topic", default_value="~/output"),
+        DeclareLaunchArgument("ego_data_topic", default_value="~/ego_data"),
+        DeclareLaunchArgument("route_topic", default_value="~/route"),
+        DeclareLaunchArgument("route_action", default_value="~/route"),
+        DeclareLaunchArgument("goal_pose_topic", default_value="/goal_pose"),
     ]
 
     args = [
@@ -31,6 +34,17 @@ def generate_launch_description():
             namespace=LaunchConfiguration("namespace"),
             name=LaunchConfiguration("name"),
             parameters=[LaunchConfiguration("params")],
+            arguments=["--ros-args", "--log-level", LaunchConfiguration("log_level")],
+            remappings=[(la.default_value[0].text, LaunchConfiguration(la.name)) for la in remappable_topics],
+            output="screen",
+            emulate_tty=True,
+        ),
+        Node(
+            package="global_maneuver_action_client",
+            executable="global_maneuver_action_client_node",
+            namespace=LaunchConfiguration("namespace"),
+            name="global_maneuver_action_client",
+            parameters=[],
             arguments=["--ros-args", "--log-level", LaunchConfiguration("log_level")],
             remappings=[(la.default_value[0].text, LaunchConfiguration(la.name)) for la in remappable_topics],
             output="screen",
