@@ -40,6 +40,11 @@ ll::BasicPoint2d projectPointToCenterline(const geometry_msgs::msg::Point& posit
 ll::BasicPoint2d projectPointToCenterline(const perception_msgs::msg::EgoData& ego_data,
                                           const ll::ConstLanelet& lanelet);
 
+ll::BasicLineString2d projectLinePointsToOtherLine(const ll::ConstLineString2d& line, const ll::ConstLineString2d& other_line);
+
+ll::BasicPoint2d projectPointToLineAlongAxis(const ll::BasicPoint2d& point, const ll::BasicPoint2d& axis_point,
+    const ll::BasicLineString2d& line, bool& found_intersection_with_line_segment);
+
 ll::ConstLanelet followLanelet(const ll::routing::RoutingGraphUPtr& routing_graph, const ll::ConstLanelet& lanelet,
                                const ll::BasicPoint2d& position, const double distance);
 

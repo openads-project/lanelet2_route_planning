@@ -112,6 +112,95 @@ ll::BasicPoint2d projectPointToCenterline(const perception_msgs::msg::EgoData& e
   return projectPointToCenterline(rosToLaneletPoint(ego_data), lanelet);
 }
 
+ll::BasicLineString2d projectLinePointsToOtherLine(const ll::ConstLineString2d& line, const ll::ConstLineString2d& other_line) {
+
+  ll::BasicLineString2d projected_line;
+  for (size_t i = 0; i < line.size(); ++i) {
+
+    const ll::BasicPoint2d point(line[i].x(), line[i].y());
+
+    // if at end of line, just use ends of other line
+    if (i == 0 || i == line.size() - 1) {
+      const ll::BasicPoint2d other_point = (i == 0) ? ll::BasicPoint2d(other_line.front().x(), other_line.front().y())
+                                                    : ll::BasicPoint2d(other_line.back().x(), other_line.back().y());
+      projected_line.push_back(other_point);
+      continue;
+    }
+
+    // project point to line connecting its neighbors
+    const ll::BasicPoint2d prev_neighbor = ll::Point2d(line[i - 1].x(), line[i - 1].y());
+    const ll::BasicPoint2d next_neighbor = ll::Point2d(line[i + 1].x(), line[i + 1].y());
+    ll::BasicLineString2d neighbors_line;
+    neighbors_line.push_back(prev_neighbor);
+    neighbors_line.push_back(next_neighbor);
+    const ll::BasicPoint2d projected_to_neighbors = ll::geometry::project(neighbors_line, point);
+
+    // project point to other line along a normal on the line connecting its neighbors
+    bool found_intersection_with_line_segment;
+    BasicLineString2d other_line_2d;
+    for (const auto& other_point : other_line) {
+      other_line_2d.push_back(ll::BasicPoint2d(other_point.x(), other_point.y()));
+    }
+    const ll::BasicPoint2d projected_to_other = projectPointToLineAlongAxis(point, projected_to_neighbors, other_line_2d, found_intersection_with_line_segment);
+    if (found_intersection_with_line_segment) {
+      projected_line.push_back(projected_to_other);
+    } else {
+      RCLCPP_ERROR(rclcpp::get_logger("new_lanelet2_route_planning"), "Failed to project point to other line");
+    }
+  }
+
+  return projected_line;
+}
+
+ll::BasicPoint2d projectPointToLineAlongAxis(const ll::BasicPoint2d& point, const ll::BasicPoint2d& axis_point,
+                                             const ll::BasicLineString2d& line, bool& found_intersection_with_line_segment) {
+
+  ll::BasicPoint2d projected_point;
+  found_intersection_with_line_segment = false;
+
+  if (point.x() == axis_point.x() && point.y() == axis_point.y()) {
+    RCLCPP_ERROR(rclcpp::get_logger("new_lanelet2_route_planning"), "Cannot project point along axis defined by itself");
+    return projected_point;
+  }
+
+  // define straight line (a1 x + b1 y = c1) through point and axis point
+  const double a1 = axis_point.y() - point.y();
+  const double b1 = point.x() - axis_point.x();
+  const double c1 = point.x() * axis_point.y() - axis_point.x() * point.y();
+
+  // loop over line segments
+  for (size_t i = 0; i < line.size() - 1; ++i) {
+
+    const ll::BasicPoint2d& line_point1 = line[i];
+    const ll::BasicPoint2d& line_point2 = line[i + 1];
+
+    // define straight line (a2 x + b2 y = c2) through line segment points
+    const double a2 = line_point2.y() - line_point1.y();
+    const double b2 = line_point1.x() - line_point2.x();
+    const double c2 = line_point1.x() * line_point2.y() - line_point2.x() * line_point1.y();
+
+    // find intersection of both lines by solving for x and y
+    const double det = a1 * b2 - a2 * b1;
+    if (det != 0) {
+      const double x = (b2 * c1 - b1 * c2) / det;
+      const double y = (a1 * c2 - a2 * c1) / det;
+
+      // check if intersection point is within line segment
+      if (x >= std::min(line_point1.x(), line_point2.x()) && x <= std::max(line_point1.x(), line_point2.x()) &&
+          y >= std::min(line_point1.y(), line_point2.y()) && y <= std::max(line_point1.y(), line_point2.y())) {
+        projected_point = ll::BasicPoint2d(x, y);
+        found_intersection_with_line_segment = true;
+        break;
+      }
+    } else {
+      RCLCPP_ERROR(rclcpp::get_logger("new_lanelet2_route_planning"), "Cannot find intersection of parallel lines");
+      return projected_point;
+    }
+  }
+
+  return projected_point;
+}
+
 ll::ConstLanelet followLanelet(const ll::routing::RoutingGraphUPtr& routing_graph, const ll::ConstLanelet& lanelet,
                                const ll::BasicPoint2d& position, const double distance) {
   ll::ConstLanelet new_lanelet = lanelet;
@@ -170,53 +259,49 @@ std::vector<route_planning_msgs::msg::RouteElement> laneletToRosRouteElements(
 
   // TODO: refactor this function?
 
-  // get centerline and left/right bounds
-  ll::ConstLineString2d centerline = shortest_path_lanelet.centerline2d();
-  ll::ConstLineString2d left_bound = shortest_path_lanelet.leftBound2d();
-  ll::ConstLineString2d right_bound = shortest_path_lanelet.rightBound2d();
-  if (centerline.size() != left_bound.size() || centerline.size() != right_bound.size()) {
-    RCLCPP_WARN(rclcpp::get_logger("new_lanelet2_route_planning"),
-                "Number of lanelet bound points (%ld, %ld) do not match number of centerline points (%ld)",
-                left_bound.size(), right_bound.size(), centerline.size());
+  // get all adjacent lanelets of route cross section along shortest path lanelet
+  std::vector<ll::ConstLanelet> adjacent_lanelets;
+  ll::routing::LaneletRelations left_relations = route.leftRelations(shortest_path_lanelet);
+  ll::routing::LaneletRelations right_relations = route.rightRelations(shortest_path_lanelet);
+  for (const auto& left_relation : left_relations) {
+    if (left_relation.relationType == ll::routing::RelationType::Left) {
+      adjacent_lanelets.push_back(left_relation.lanelet);
+    }
+  }
+  for (const auto& right_relation : right_relations) {
+    if (right_relation.relationType == ll::routing::RelationType::Right) {
+      adjacent_lanelets.push_back(right_relation.lanelet);
+    }
   }
 
-  // extract RouteElements as cross sections of route lanelets
-  for (size_t i = 0; i < centerline.size(); ++i) {
-    if (i >= left_bound.size() || i >= right_bound.size()) {
-      break;
-    }
+  // walk along centerline of shortest path lanelet
+  ll::ConstLineString2d centerline = shortest_path_lanelet.centerline2d();
 
-    // TODO: rename RouteElement to RouteCrossSection and LaneElement to LaneCrossSection?
+  // project centerline points to bounds to ensure same number of points
+  ll::BasicLineString2d projected_left_bound = projectLinePointsToOtherLine(centerline, shortest_path_lanelet.leftBound2d());
+  ll::BasicLineString2d projected_right_bound = projectLinePointsToOtherLine(centerline, shortest_path_lanelet.rightBound2d());
+  if (projected_left_bound.size() != centerline.size() || projected_right_bound.size() != centerline.size()) {
+    RCLCPP_ERROR(rclcpp::get_logger("new_lanelet2_route_planning"), "Failed to project centerline to bounds");
+    return route_element_msgs;
+  }
+
+  // walk along centerline to extract route elements
+  for (size_t i = 0; i < centerline.size(); ++i) {
+
     route_planning_msgs::msg::RouteElement route_element_msg;
     route_element_msg.domain_id = 0;                                       // TODO
     route_element_msg.current_lane_id = 0;                                 // TODO
     route_element_msg.current_s = 0;                                       // TODO: remove from msg?
     route_element_msg.lane_change = false;                                 // TODO
-    route_element_msg.drivable_space_left = laneletToRosPoint(left_bound[i]);    // TODO
-    route_element_msg.drivable_space_right = laneletToRosPoint(right_bound[i]);  // TODO
+    // route_element_msg.drivable_space_left = laneletToRosPoint(left_bound[i]);    // TODO
+    // route_element_msg.drivable_space_right = laneletToRosPoint(right_bound[i]);  // TODO
 
-    // get all adjacent lanelets of route cross section along shortest path lanelet
-    std::vector<ll::ConstLanelet> lanelets_of_cross_section;
-    ll::routing::LaneletRelations left_relations = route.leftRelations(shortest_path_lanelet);
-    ll::routing::LaneletRelations right_relations = route.rightRelations(shortest_path_lanelet);
-    for (const auto& left_relation : left_relations) {
-      if (left_relation.relationType == ll::routing::RelationType::Left) {
-        lanelets_of_cross_section.push_back(left_relation.lanelet);
-      }
-    }
-    lanelets_of_cross_section.push_back(shortest_path_lanelet);
-    for (const auto& right_relation : right_relations) {
-      if (right_relation.relationType == ll::routing::RelationType::Right) {
-        lanelets_of_cross_section.push_back(right_relation.lanelet);
-      }
-    }
-
-    // TODO: also get LaneElements for adjacent lanelets
+    // create lane element
     route_planning_msgs::msg::LaneElement lane_element_msg;
     lane_element_msg.reference_pose.position = laneletToRosPoint(centerline[i]);
     lane_element_msg.reference_pose.orientation = geometry_msgs::msg::Quaternion();  // TODO
-    lane_element_msg.lane_boundary_left = laneletToRosPoint(left_bound[i]);
-    lane_element_msg.lane_boundary_right = laneletToRosPoint(right_bound[i]);
+    lane_element_msg.lane_boundary_left = laneletToRosPoint(projected_left_bound[i]);
+    lane_element_msg.lane_boundary_right = laneletToRosPoint(projected_right_bound[i]);
     lane_element_msg.lane_separator_type_left = 0;   // TODO
     lane_element_msg.lane_separator_type_right = 0;  // TODO
     lane_element_msg.regulatory_elements = {};       // TODO
@@ -224,6 +309,51 @@ std::vector<route_planning_msgs::msg::RouteElement> laneletToRosRouteElements(
 
     route_element_msgs.push_back(route_element_msg);
   }
+
+  // // extract RouteElements as cross sections of route lanelets
+  // for (size_t i = 0; i < centerline.size(); ++i) {
+  //   if (i >= left_bound.size() || i >= right_bound.size()) {
+  //     break;
+  //   }
+
+  //   // TODO: rename RouteElement to RouteCrossSection and LaneElement to LaneCrossSection?
+  //   route_planning_msgs::msg::RouteElement route_element_msg;
+  //   route_element_msg.domain_id = 0;                                       // TODO
+  //   route_element_msg.current_lane_id = 0;                                 // TODO
+  //   route_element_msg.current_s = 0;                                       // TODO: remove from msg?
+  //   route_element_msg.lane_change = false;                                 // TODO
+  //   route_element_msg.drivable_space_left = laneletToRosPoint(left_bound[i]);    // TODO
+  //   route_element_msg.drivable_space_right = laneletToRosPoint(right_bound[i]);  // TODO
+
+  //   // get all adjacent lanelets of route cross section along shortest path lanelet
+  //   std::vector<ll::ConstLanelet> lanelets_of_cross_section;
+  //   ll::routing::LaneletRelations left_relations = route.leftRelations(shortest_path_lanelet);
+  //   ll::routing::LaneletRelations right_relations = route.rightRelations(shortest_path_lanelet);
+  //   for (const auto& left_relation : left_relations) {
+  //     if (left_relation.relationType == ll::routing::RelationType::Left) {
+  //       lanelets_of_cross_section.push_back(left_relation.lanelet);
+  //     }
+  //   }
+  //   lanelets_of_cross_section.push_back(shortest_path_lanelet);
+  //   for (const auto& right_relation : right_relations) {
+  //     if (right_relation.relationType == ll::routing::RelationType::Right) {
+  //       lanelets_of_cross_section.push_back(right_relation.lanelet);
+  //     }
+  //   }
+
+  //   // TODO: also get LaneElements for adjacent lanelets
+  //   route_planning_msgs::msg::LaneElement lane_element_msg;
+  //   lane_element_msg.reference_pose.position = laneletToRosPoint(centerline[i]);
+  //   lane_element_msg.reference_pose.orientation = geometry_msgs::msg::Quaternion();  // TODO
+  //   lane_element_msg.lane_boundary_left = laneletToRosPoint(left_bound[i]);
+  //   lane_element_msg.lane_boundary_right = laneletToRosPoint(right_bound[i]);
+  //   lane_element_msg.lane_separator_type_left = 0;   // TODO
+  //   lane_element_msg.lane_separator_type_right = 0;  // TODO
+  //   lane_element_msg.regulatory_elements = {};       // TODO
+  //   route_element_msg.lane_elements.push_back(lane_element_msg);
+
+  //   route_element_msgs.push_back(route_element_msg);
+  // }
 
   return route_element_msgs;
 }
