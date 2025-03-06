@@ -127,23 +127,23 @@ ll::BasicLineString2d projectLinePointsToOtherLine(const ll::ConstLineString2d& 
       continue;
     }
 
-    // project point to line connecting its neighbors
-    const ll::BasicPoint2d prev_neighbor = ll::Point2d(line[i - 1].x(), line[i - 1].y());
-    const ll::BasicPoint2d next_neighbor = ll::Point2d(line[i + 1].x(), line[i + 1].y());
-    ll::BasicLineString2d neighbors_line;
-    neighbors_line.push_back(prev_neighbor);
-    neighbors_line.push_back(next_neighbor);
-    const ll::BasicPoint2d projected_to_neighbors = ll::geometry::project(neighbors_line, point);
+    // find normal to tangent at point
+    const Eigen::Vector2d current_point(line[i].x(), line[i].y());
+    const Eigen::Vector2d prev_neighbor(line[i - 1].x(), line[i - 1].y());
+    const Eigen::Vector2d next_neighbor(line[i + 1].x(), line[i + 1].y());
+    const Eigen::Vector2d current_to_prev_unit = (prev_neighbor - current_point).normalized();
+    const Eigen::Vector2d current_to_next_unit = (next_neighbor - current_point).normalized();
+    const Eigen::Vector2d normal = (current_to_prev_unit + current_to_next_unit).normalized();
 
-    // project point to other line along a normal on the line connecting its neighbors
-    bool found_intersection_with_line_segment;
-    BasicLineString2d other_line_2d;
+    // project current point to other line along normal to tangent
+    std::vector<Eigen::Vector2d> other_line_eigen;
     for (const auto& other_point : other_line) {
-      other_line_2d.push_back(ll::BasicPoint2d(other_point.x(), other_point.y()));
+      other_line_eigen.push_back(Eigen::Vector2d(other_point.x(), other_point.y()));
     }
-    const ll::BasicPoint2d projected_to_other = projectPointToLineAlongAxis(point, projected_to_neighbors, other_line_2d, found_intersection_with_line_segment);
+    bool found_intersection_with_line_segment;
+    const Eigen::Vector2d projected_to_other = projectPointToLineAlongAxis(current_point, normal, other_line_eigen, found_intersection_with_line_segment);
     if (found_intersection_with_line_segment) {
-      projected_line.push_back(projected_to_other);
+      projected_line.push_back(ll::BasicPoint2d(projected_to_other[0], projected_to_other[1]));
     } else {
       RCLCPP_ERROR(rclcpp::get_logger("new_lanelet2_route_planning"), "Failed to project point to other line");
     }
@@ -152,32 +152,30 @@ ll::BasicLineString2d projectLinePointsToOtherLine(const ll::ConstLineString2d& 
   return projected_line;
 }
 
-ll::BasicPoint2d projectPointToLineAlongAxis(const ll::BasicPoint2d& point, const ll::BasicPoint2d& axis_point,
-                                             const ll::BasicLineString2d& line, bool& found_intersection_with_line_segment) {
+Eigen::Vector2d projectPointToLineAlongAxis(const Eigen::Vector2d& point, const Eigen::Vector2d& axis,
+                                             const std::vector<Eigen::Vector2d>& line, bool& found_intersection_with_line_segment) {
 
-  ll::BasicPoint2d projected_point;
+  // TODO: use Eigen to compute intersection?
+  // https://stackoverflow.com/a/50763846
+
+  Eigen::Vector2d projected_point;
   found_intersection_with_line_segment = false;
 
-  if (point.x() == axis_point.x() && point.y() == axis_point.y()) {
-    RCLCPP_ERROR(rclcpp::get_logger("new_lanelet2_route_planning"), "Cannot project point along axis defined by itself");
-    return projected_point;
-  }
-
-  // define straight line (a1 x + b1 y = c1) through point and axis point
-  const double a1 = axis_point.y() - point.y();
-  const double b1 = point.x() - axis_point.x();
-  const double c1 = point.x() * axis_point.y() - axis_point.x() * point.y();
+  // define straight line (a1 x + b1 y = c1) along axis at point
+  const double a1 = axis[1];
+  const double b1 = -axis[0];
+  const double c1 = a1 * point[0] + b1 * point[1];
 
   // loop over line segments
   for (size_t i = 0; i < line.size() - 1; ++i) {
 
-    const ll::BasicPoint2d& line_point1 = line[i];
-    const ll::BasicPoint2d& line_point2 = line[i + 1];
+    const auto& line_point1 = line[i];
+    const auto& line_point2 = line[i + 1];
 
     // define straight line (a2 x + b2 y = c2) through line segment points
-    const double a2 = line_point2.y() - line_point1.y();
-    const double b2 = line_point1.x() - line_point2.x();
-    const double c2 = line_point1.x() * line_point2.y() - line_point2.x() * line_point1.y();
+    const double a2 = line_point2[1] - line_point1[1];
+    const double b2 = line_point1[0] - line_point2[0];
+    const double c2 = line_point1[0] * line_point2[1] - line_point2[0] * line_point1[1];
 
     // find intersection of both lines by solving for x and y
     const double det = a1 * b2 - a2 * b1;
@@ -186,9 +184,9 @@ ll::BasicPoint2d projectPointToLineAlongAxis(const ll::BasicPoint2d& point, cons
       const double y = (a1 * c2 - a2 * c1) / det;
 
       // check if intersection point is within line segment
-      if (x >= std::min(line_point1.x(), line_point2.x()) && x <= std::max(line_point1.x(), line_point2.x()) &&
-          y >= std::min(line_point1.y(), line_point2.y()) && y <= std::max(line_point1.y(), line_point2.y())) {
-        projected_point = ll::BasicPoint2d(x, y);
+      if (x >= std::min(line_point1[0], line_point2[0]) && x <= std::max(line_point1[0], line_point2[0]) &&
+          y >= std::min(line_point1[1], line_point2[1]) && y <= std::max(line_point1[1], line_point2[1])) {
+        projected_point = Eigen::Vector2d(x, y);
         found_intersection_with_line_segment = true;
         break;
       }
