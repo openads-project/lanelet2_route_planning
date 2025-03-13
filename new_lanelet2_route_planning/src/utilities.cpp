@@ -344,29 +344,37 @@ route_planning_msgs::msg::Route laneletToRosRoute(const ll::routing::Route& rout
     // get lanelet corresponding to centerline point
     const ll::ConstLanelet& lanelet = shortest_path[lanelet_idx_by_point[c]];
 
+    // identify lane changes
+    bool changes_lane_from_prev_point = ((point - prev_point).norm() > delta_s + 0.001); // TODO: better handle epsilon for floating point comparison
+    bool changes_lane_to_next_point = ((next_point - point).norm() > delta_s + 0.001);
+
     // get adjacent lanelets
     std::vector<ll::ConstLanelet> adjacent_left_lanelets = adjacentLeftOrRightLanelets(lanelet, route, true);
     std::vector<ll::ConstLanelet> adjacent_right_lanelets = adjacentLeftOrRightLanelets(lanelet, route, false);
 
+    // determine neighboring points for projection
+    Eigen::Vector2d prev_point_for_projection = changes_lane_from_prev_point ? point : prev_point;
+    Eigen::Vector2d next_point_for_projection = changes_lane_to_next_point ? point : next_point;
+
     // project centerline point to lanelet bounds
-    ll::BasicPoint2d left_bounds_point = projectPointToLineStringAlongNormal(point, prev_point, next_point, lanelet.leftBound2d().basicLineString());
-    ll::BasicPoint2d right_bounds_point = projectPointToLineStringAlongNormal(point, prev_point, next_point, lanelet.rightBound2d().basicLineString());
+    ll::BasicPoint2d left_bounds_point = projectPointToLineStringAlongNormal(point, prev_point_for_projection, next_point_for_projection, lanelet.leftBound2d().basicLineString());
+    ll::BasicPoint2d right_bounds_point = projectPointToLineStringAlongNormal(point, prev_point_for_projection, next_point_for_projection, lanelet.rightBound2d().basicLineString());
 
     // project centerline point to adjacent lanelet centerlines and bounds
     std::vector<ll::BasicPoint2d> adjacent_left_lanelets_centerline_points, adjacent_left_lanelets_left_bounds_points, adjacent_left_lanelets_right_bounds_points;
     std::vector<ll::BasicPoint2d> adjacent_right_lanelets_centerline_points, adjacent_right_lanelets_left_bounds_points, adjacent_right_lanelets_right_bounds_points;
     for (const auto& adjacent_lanelet : adjacent_left_lanelets) {
-      ll::BasicPoint2d adjacent_lanelet_centerline_point = projectPointToLineStringAlongNormal(point, prev_point, next_point, adjacent_lanelet.centerline2d().basicLineString());
-      ll::BasicPoint2d adjacent_lanelet_left_bounds_point = projectPointToLineStringAlongNormal(point, prev_point, next_point, adjacent_lanelet.leftBound2d().basicLineString());
-      ll::BasicPoint2d adjacent_lanelet_right_bounds_point = projectPointToLineStringAlongNormal(point, prev_point, next_point, adjacent_lanelet.rightBound2d().basicLineString());
+      ll::BasicPoint2d adjacent_lanelet_centerline_point = projectPointToLineStringAlongNormal(point, prev_point_for_projection, next_point_for_projection, adjacent_lanelet.centerline2d().basicLineString());
+      ll::BasicPoint2d adjacent_lanelet_left_bounds_point = projectPointToLineStringAlongNormal(point, prev_point_for_projection, next_point_for_projection, adjacent_lanelet.leftBound2d().basicLineString());
+      ll::BasicPoint2d adjacent_lanelet_right_bounds_point = projectPointToLineStringAlongNormal(point, prev_point_for_projection, next_point_for_projection, adjacent_lanelet.rightBound2d().basicLineString());
       adjacent_left_lanelets_centerline_points.push_back(adjacent_lanelet_centerline_point);
       adjacent_left_lanelets_left_bounds_points.push_back(adjacent_lanelet_left_bounds_point);
       adjacent_left_lanelets_right_bounds_points.push_back(adjacent_lanelet_right_bounds_point);
     }
     for (const auto& adjacent_lanelet : adjacent_right_lanelets) {
-      ll::BasicPoint2d adjacent_lanelet_centerline_point = projectPointToLineStringAlongNormal(point, prev_point, next_point, adjacent_lanelet.centerline2d().basicLineString());
-      ll::BasicPoint2d adjacent_lanelet_left_bounds_point = projectPointToLineStringAlongNormal(point, prev_point, next_point, adjacent_lanelet.leftBound2d().basicLineString());
-      ll::BasicPoint2d adjacent_lanelet_right_bounds_point = projectPointToLineStringAlongNormal(point, prev_point, next_point, adjacent_lanelet.rightBound2d().basicLineString());
+      ll::BasicPoint2d adjacent_lanelet_centerline_point = projectPointToLineStringAlongNormal(point, prev_point_for_projection, next_point_for_projection, adjacent_lanelet.centerline2d().basicLineString());
+      ll::BasicPoint2d adjacent_lanelet_left_bounds_point = projectPointToLineStringAlongNormal(point, prev_point_for_projection, next_point_for_projection, adjacent_lanelet.leftBound2d().basicLineString());
+      ll::BasicPoint2d adjacent_lanelet_right_bounds_point = projectPointToLineStringAlongNormal(point, prev_point_for_projection, next_point_for_projection, adjacent_lanelet.rightBound2d().basicLineString());
       adjacent_right_lanelets_centerline_points.push_back(adjacent_lanelet_centerline_point);
       adjacent_right_lanelets_left_bounds_points.push_back(adjacent_lanelet_left_bounds_point);
       adjacent_right_lanelets_right_bounds_points.push_back(adjacent_lanelet_right_bounds_point);
