@@ -34,6 +34,10 @@ bool findLaneletAtEgoPosition(const ll::LaneletMapConstPtr& map, const std::stri
                               const perception_msgs::msg::EgoData& ego_data, ll::ConstLanelet& lanelet,
                               const std::optional<ll::traffic_rules::TrafficRulesPtr> traffic_rules = std::nullopt);
 
+Eigen::Vector2d tangentOfPointAlongLineString(const Eigen::Vector2d& point, const Eigen::Vector2d& prev_point, const Eigen::Vector2d& next_point);
+
+Eigen::Vector2d normalOfPointAlongLineString(const Eigen::Vector2d& point, const Eigen::Vector2d& prev_point, const Eigen::Vector2d& next_point);
+
 // TODO: rewrite utilities for simpler datatypes? when to use constlinestring, when to use basic? Basic is probably better, just a typedef on vector<Eigen>
 ll::BasicLineString2d resampleLineString(const ll::BasicLineString2d& line, const double delta_s, double& offset);
 
@@ -44,17 +48,18 @@ ll::BasicPoint2d projectPointToCenterline(const geometry_msgs::msg::Point& posit
 ll::BasicPoint2d projectPointToCenterline(const perception_msgs::msg::EgoData& ego_data,
                                           const ll::ConstLanelet& lanelet);
 
-ll::BasicLineString2d projectLinePointsToOtherLine(const ll::BasicLineString2d& line, const ll::BasicLineString2d& other_line);
+Eigen::Vector2d projectPointToLineStringAlongNormal(const Eigen::Vector2d& point, const Eigen::Vector2d& prev_point, const Eigen::Vector2d& next_point, const ll::BasicLineString2d& line);
 
 Eigen::Vector2d projectPointToLineAlongAxis(const Eigen::Vector2d& point, const Eigen::Vector2d& axis,
-    const std::vector<Eigen::Vector2d>& line, bool& found_intersection_with_line_segment);
+    const ll::BasicLineString2d& line, bool& found_intersection_with_line_segment);
 
 ll::ConstLanelet followLanelet(const ll::routing::RoutingGraphUPtr& routing_graph, const ll::ConstLanelet& lanelet,
                                const ll::BasicPoint2d& position, const double distance);
 
-route_planning_msgs::msg::Route laneletToRosRoute(const ll::routing::Route& route, const std::string& frame_id);
+ll::BasicLineString2d resampleCenterlinesAlongPath(const ll::routing::LaneletPath& path, const double delta_s, std::vector<size_t>& lanelet_idx_by_point);
 
-std::vector<route_planning_msgs::msg::RouteElement> laneletToRosRouteElements(
-    const ll::ConstLanelet& shortest_path_lanelet, const ll::routing::Route& route, double& resampling_offset);
+std::vector<ll::ConstLanelet> adjacentLeftOrRightLanelets(const ll::ConstLanelet& lanelet, const ll::routing::Route& route, bool left);
+
+route_planning_msgs::msg::Route laneletToRosRoute(const ll::routing::Route& route, const std::string& frame_id);
 
 }  // namespace new_lanelet2_route_planning
