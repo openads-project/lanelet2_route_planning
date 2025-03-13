@@ -169,6 +169,7 @@ ll::BasicLineString2d projectLinePointsToOtherLine(const ll::BasicLineString2d& 
     const ll::BasicPoint2d point(line[i].x(), line[i].y());
 
     // if at end of line, just use ends of other line
+    // TODO: should allow to overshoot bounds, otherwise LaneElement will not be straight?
     if (i == 0 || i == line.size() - 1) {
       const ll::BasicPoint2d other_point = (i == 0) ? ll::BasicPoint2d(other_line.front().x(), other_line.front().y())
                                                     : ll::BasicPoint2d(other_line.back().x(), other_line.back().y());
@@ -182,7 +183,11 @@ ll::BasicLineString2d projectLinePointsToOtherLine(const ll::BasicLineString2d& 
     const Eigen::Vector2d next_neighbor(line[i + 1].x(), line[i + 1].y());
     const Eigen::Vector2d current_to_prev_unit = (prev_neighbor - current_point).normalized();
     const Eigen::Vector2d current_to_next_unit = (next_neighbor - current_point).normalized();
-    const Eigen::Vector2d normal = (current_to_prev_unit + current_to_next_unit).normalized();
+    Eigen::Vector2d normal = current_to_prev_unit + current_to_next_unit;
+    if (normal.norm() < 1e-12) { // all three points are colinear, just turn one of the vectors by 90deg
+      normal = Eigen::Vector2d(current_to_next_unit.y(), -current_to_next_unit.x());
+    }
+    normal = normal.normalized();
 
     // project current point to other line along normal to tangent
     std::vector<Eigen::Vector2d> other_line_eigen;
