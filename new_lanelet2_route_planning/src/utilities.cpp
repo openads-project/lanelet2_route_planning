@@ -323,12 +323,12 @@ std::vector<route_planning_msgs::msg::RouteElement> laneletToRosRouteElements(
   ll::routing::LaneletRelations left_relations = route.leftRelations(shortest_path_lanelet);
   ll::routing::LaneletRelations right_relations = route.rightRelations(shortest_path_lanelet);
   for (const auto& left_relation : left_relations) {
-    if (left_relation.relationType == ll::routing::RelationType::Left) {
+    if (left_relation.relationType == ll::routing::RelationType::Left || left_relation.relationType == ll::routing::RelationType::AdjacentLeft) {
       adjacent_left_lanelets.push_back(left_relation.lanelet);
     }
   }
   for (const auto& right_relation : right_relations) {
-    if (right_relation.relationType == ll::routing::RelationType::Right) {
+    if (right_relation.relationType == ll::routing::RelationType::Right || right_relation.relationType == ll::routing::RelationType::AdjacentRight) {
       adjacent_right_lanelets.push_back(right_relation.lanelet);
     }
   }
