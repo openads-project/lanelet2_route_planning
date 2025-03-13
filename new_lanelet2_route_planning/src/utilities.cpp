@@ -337,36 +337,40 @@ std::vector<route_planning_msgs::msg::RouteElement> laneletToRosRouteElements(
   }
 
   // project centerline points to bounds to ensure same number of points
-  // ll::BasicLineString2d projected_left_bound = projectLinePointsToOtherLine(resampled_centerline, shortest_path_lanelet.leftBound2d().basicLineString());
-  // ll::BasicLineString2d projected_right_bound = projectLinePointsToOtherLine(resampled_centerline, shortest_path_lanelet.rightBound2d().basicLineString());
-  // if (projected_left_bound.size() != resampled_centerline.size() || projected_right_bound.size() != resampled_centerline.size()) {
-  //   RCLCPP_ERROR(rclcpp::get_logger("new_lanelet2_route_planning"), "Failed to project centerline to bounds");
-  //   return route_element_msgs;
-  // }
+  ll::BasicLineString2d projected_left_bound = projectLinePointsToOtherLine(resampled_centerline, shortest_path_lanelet.leftBound2d().basicLineString());
+  ll::BasicLineString2d projected_right_bound = projectLinePointsToOtherLine(resampled_centerline, shortest_path_lanelet.rightBound2d().basicLineString());
+  if (projected_left_bound.size() != resampled_centerline.size() || projected_right_bound.size() != resampled_centerline.size()) {
+    RCLCPP_ERROR(rclcpp::get_logger("new_lanelet2_route_planning"), "Failed to project centerline to bounds");
+    return route_element_msgs;
+  }
 
-  // project centerline points to bounds of adjacent lanelets
-  // std::vector<ll::BasicLineString2d> adjacent_left_lanelets_left_bounds, adjacent_left_lanelets_right_bounds;
-  // std::vector<ll::BasicLineString2d> adjacent_right_lanelets_left_bounds, adjacent_right_lanelets_right_bounds;
-  // for (const auto& adjacent_left_lanelet : adjacent_left_lanelets) {
-  //   ll::BasicLineString2d adjacent_left_bound = projectLinePointsToOtherLine(resampled_centerline, adjacent_left_lanelet.leftBound2d().basicLineString());
-  //   ll::BasicLineString2d adjacent_right_bound = projectLinePointsToOtherLine(resampled_centerline, adjacent_left_lanelet.rightBound2d().basicLineString());
-  //   if (adjacent_left_bound.size() != resampled_centerline.size() || adjacent_right_bound.size() != resampled_centerline.size()) {
-  //     RCLCPP_ERROR(rclcpp::get_logger("new_lanelet2_route_planning"), "Failed to project centerline to bounds");
-  //     return route_element_msgs;
-  //   }
-  //   adjacent_left_lanelets_left_bounds.push_back(adjacent_left_bound);
-  //   adjacent_left_lanelets_right_bounds.push_back(adjacent_right_bound);
-  // }
-  // for (const auto& adjacent_right_lanelet : adjacent_right_lanelets) {
-  //   ll::BasicLineString2d adjacent_left_bound = projectLinePointsToOtherLine(resampled_centerline, adjacent_right_lanelet.leftBound2d().basicLineString());
-  //   ll::BasicLineString2d adjacent_right_bound = projectLinePointsToOtherLine(resampled_centerline, adjacent_right_lanelet.rightBound2d().basicLineString());
-  //   if (adjacent_left_bound.size() != resampled_centerline.size() || adjacent_right_bound.size() != resampled_centerline.size()) {
-  //     RCLCPP_ERROR(rclcpp::get_logger("new_lanelet2_route_planning"), "Failed to project centerline to bounds");
-  //     return route_element_msgs;
-  //   }
-  //   adjacent_right_lanelets_left_bounds.push_back(adjacent_left_bound);
-  //   adjacent_right_lanelets_right_bounds.push_back(adjacent_right_bound);
-  // }
+  // project centerline points to centerline and bounds of adjacent lanelets
+  std::vector<ll::BasicLineString2d> adjacent_left_lanelets_left_bounds, adjacent_left_lanelets_centerline, adjacent_left_lanelets_right_bounds;
+  std::vector<ll::BasicLineString2d> adjacent_right_lanelets_left_bounds, adjacent_right_lanelets_centerline, adjacent_right_lanelets_right_bounds;
+  for (const auto& adjacent_left_lanelet : adjacent_left_lanelets) {
+    ll::BasicLineString2d adjacent_left_bound = projectLinePointsToOtherLine(resampled_centerline, adjacent_left_lanelet.leftBound2d().basicLineString());
+    ll::BasicLineString2d adjacent_centerline = projectLinePointsToOtherLine(resampled_centerline, adjacent_left_lanelet.centerline2d().basicLineString());
+    ll::BasicLineString2d adjacent_right_bound = projectLinePointsToOtherLine(resampled_centerline, adjacent_left_lanelet.rightBound2d().basicLineString());
+    if (adjacent_left_bound.size() != resampled_centerline.size() || adjacent_centerline.size() != resampled_centerline.size() || adjacent_right_bound.size() != resampled_centerline.size()) {
+      RCLCPP_ERROR(rclcpp::get_logger("new_lanelet2_route_planning"), "Failed to project centerline to bounds");
+      return route_element_msgs;
+    }
+    adjacent_left_lanelets_left_bounds.push_back(adjacent_left_bound);
+    adjacent_left_lanelets_centerline.push_back(adjacent_centerline);
+    adjacent_left_lanelets_right_bounds.push_back(adjacent_right_bound);
+  }
+  for (const auto& adjacent_right_lanelet : adjacent_right_lanelets) {
+    ll::BasicLineString2d adjacent_left_bound = projectLinePointsToOtherLine(resampled_centerline, adjacent_right_lanelet.leftBound2d().basicLineString());
+    ll::BasicLineString2d adjacent_centerline = projectLinePointsToOtherLine(resampled_centerline, adjacent_right_lanelet.centerline2d().basicLineString());
+    ll::BasicLineString2d adjacent_right_bound = projectLinePointsToOtherLine(resampled_centerline, adjacent_right_lanelet.rightBound2d().basicLineString());
+    if (adjacent_left_bound.size() != resampled_centerline.size() || adjacent_centerline.size() != resampled_centerline.size() || adjacent_right_bound.size() != resampled_centerline.size()) {
+      RCLCPP_ERROR(rclcpp::get_logger("new_lanelet2_route_planning"), "Failed to project centerline to bounds");
+      return route_element_msgs;
+    }
+    adjacent_right_lanelets_left_bounds.push_back(adjacent_left_bound);
+    adjacent_right_lanelets_centerline.push_back(adjacent_centerline);
+    adjacent_right_lanelets_right_bounds.push_back(adjacent_right_bound);
+  }
 
   // walk along centerline to extract route elements
   for (size_t i = 0; i < resampled_centerline.size(); ++i) {
@@ -383,10 +387,10 @@ std::vector<route_planning_msgs::msg::RouteElement> laneletToRosRouteElements(
     for (size_t j = 0; j < adjacent_left_lanelets.size(); ++j) {
 
       route_planning_msgs::msg::LaneElement lane_element_msg;
-      lane_element_msg.reference_pose.position = laneletToRosPoint(resampled_centerline[i]); // TODO: use projected point!
+      lane_element_msg.reference_pose.position = laneletToRosPoint(adjacent_left_lanelets_centerline[j][i]);
       lane_element_msg.reference_pose.orientation = geometry_msgs::msg::Quaternion();  // TODO
-      // lane_element_msg.lane_boundary_left = laneletToRosPoint(adjacent_left_lanelets_left_bounds[j][i]);
-      // lane_element_msg.lane_boundary_right = laneletToRosPoint(adjacent_left_lanelets_right_bounds[j][i]);
+      lane_element_msg.lane_boundary_left = laneletToRosPoint(adjacent_left_lanelets_left_bounds[j][i]);
+      lane_element_msg.lane_boundary_right = laneletToRosPoint(adjacent_left_lanelets_right_bounds[j][i]);
       lane_element_msg.lane_separator_type_left = 0;   // TODO
       lane_element_msg.lane_separator_type_right = 0;  // TODO
       lane_element_msg.regulatory_elements = {};       // TODO
@@ -397,8 +401,8 @@ std::vector<route_planning_msgs::msg::RouteElement> laneletToRosRouteElements(
     route_planning_msgs::msg::LaneElement current_lane_element_msg;
     current_lane_element_msg.reference_pose.position = laneletToRosPoint(resampled_centerline[i]);
     current_lane_element_msg.reference_pose.orientation = geometry_msgs::msg::Quaternion();  // TODO
-    // current_lane_element_msg.lane_boundary_left = laneletToRosPoint(projected_left_bound[i]);
-    // current_lane_element_msg.lane_boundary_right = laneletToRosPoint(projected_right_bound[i]);
+    current_lane_element_msg.lane_boundary_left = laneletToRosPoint(projected_left_bound[i]);
+    current_lane_element_msg.lane_boundary_right = laneletToRosPoint(projected_right_bound[i]);
     current_lane_element_msg.lane_separator_type_left = 0;   // TODO
     current_lane_element_msg.lane_separator_type_right = 0;  // TODO
     current_lane_element_msg.regulatory_elements = {};       // TODO
@@ -409,10 +413,10 @@ std::vector<route_planning_msgs::msg::RouteElement> laneletToRosRouteElements(
     for (size_t j = 0; j < adjacent_right_lanelets.size(); ++j) {
 
       route_planning_msgs::msg::LaneElement lane_element_msg;
-      lane_element_msg.reference_pose.position = laneletToRosPoint(resampled_centerline[i]); // TODO: use projected point!
+      lane_element_msg.reference_pose.position = laneletToRosPoint(adjacent_right_lanelets_centerline[j][i]);
       lane_element_msg.reference_pose.orientation = geometry_msgs::msg::Quaternion();  // TODO
-      // lane_element_msg.lane_boundary_left = laneletToRosPoint(adjacent_right_lanelets_left_bounds[j][i]);
-      // lane_element_msg.lane_boundary_right = laneletToRosPoint(adjacent_right_lanelets_right_bounds[j][i]);
+      lane_element_msg.lane_boundary_left = laneletToRosPoint(adjacent_right_lanelets_left_bounds[j][i]);
+      lane_element_msg.lane_boundary_right = laneletToRosPoint(adjacent_right_lanelets_right_bounds[j][i]);
       lane_element_msg.lane_separator_type_left = 0;   // TODO
       lane_element_msg.lane_separator_type_right = 0;  // TODO
       lane_element_msg.regulatory_elements = {};       // TODO
