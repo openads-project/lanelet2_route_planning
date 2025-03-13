@@ -166,26 +166,26 @@ ll::BasicLineString2d projectLinePointsToOtherLine(const ll::BasicLineString2d& 
   ll::BasicLineString2d projected_line;
   for (size_t i = 0; i < line.size(); ++i) {
 
-    const ll::BasicPoint2d point(line[i].x(), line[i].y());
-
-    // if at end of line, just use ends of other line
-    // TODO: should allow to overshoot bounds, otherwise LaneElement will not be straight?
-    if (i == 0 || i == line.size() - 1) {
-      const ll::BasicPoint2d other_point = (i == 0) ? ll::BasicPoint2d(other_line.front().x(), other_line.front().y())
-                                                    : ll::BasicPoint2d(other_line.back().x(), other_line.back().y());
-      projected_line.push_back(other_point);
-      continue;
-    }
-
     // find normal to tangent at point
     const Eigen::Vector2d current_point(line[i].x(), line[i].y());
-    const Eigen::Vector2d prev_neighbor(line[i - 1].x(), line[i - 1].y());
-    const Eigen::Vector2d next_neighbor(line[i + 1].x(), line[i + 1].y());
-    const Eigen::Vector2d current_to_prev_unit = (prev_neighbor - current_point).normalized();
-    const Eigen::Vector2d current_to_next_unit = (next_neighbor - current_point).normalized();
-    Eigen::Vector2d normal = current_to_prev_unit + current_to_next_unit;
-    if (normal.norm() < 1e-12) { // all three points are colinear, just turn one of the vectors by 90deg
+    Eigen::Vector2d prev_point, next_point;
+    Eigen::Vector2d current_to_prev_unit, current_to_next_unit;
+    Eigen::Vector2d normal;
+    if (i > 0) {
+      prev_point = Eigen::Vector2d(line[i - 1].x(), line[i - 1].y());
+      current_to_prev_unit = (prev_point - current_point).normalized();
+      normal = Eigen::Vector2d(current_to_prev_unit.y(), -current_to_prev_unit.x());
+    }
+    if (i < line.size() - 1) {
+      next_point = Eigen::Vector2d(line[i + 1].x(), line[i + 1].y());
+      current_to_next_unit = (next_point - current_point).normalized();
       normal = Eigen::Vector2d(current_to_next_unit.y(), -current_to_next_unit.x());
+    }
+    if (i > 0 && i < line.size() - 1) {
+      normal = current_to_prev_unit + current_to_next_unit;
+      if (normal.norm() < 1e-12) { // all three points are colinear
+        normal = Eigen::Vector2d(current_to_next_unit.y(), -current_to_next_unit.x());
+      }
     }
     normal = normal.normalized();
 
@@ -196,11 +196,7 @@ ll::BasicLineString2d projectLinePointsToOtherLine(const ll::BasicLineString2d& 
     }
     bool found_intersection_with_line_segment;
     const Eigen::Vector2d projected_to_other = projectPointToLineAlongAxis(current_point, normal, other_line_eigen, found_intersection_with_line_segment);
-    if (found_intersection_with_line_segment) {
-      projected_line.push_back(ll::BasicPoint2d(projected_to_other[0], projected_to_other[1]));
-    } else {
-      RCLCPP_ERROR(rclcpp::get_logger("new_lanelet2_route_planning"), "Failed to project point to other line");
-    }
+    projected_line.push_back(ll::BasicPoint2d(projected_to_other[0], projected_to_other[1]));
   }
 
   return projected_line;
@@ -212,8 +208,10 @@ Eigen::Vector2d projectPointToLineAlongAxis(const Eigen::Vector2d& point, const 
   // TODO: use Eigen to compute intersection?
   // https://stackoverflow.com/a/50763846
 
-  Eigen::Vector2d projected_point;
+  Eigen::Vector2d closest_projected_point;
   found_intersection_with_line_segment = false;
+  double closest_distance_to_line_segment = std::numeric_limits<double>::max();
+  bool found_at_least_one_intersection = false;
 
   // define straight line (a1 x + b1 y = c1) along axis at point
   const double a1 = axis[1];
@@ -236,21 +234,30 @@ Eigen::Vector2d projectPointToLineAlongAxis(const Eigen::Vector2d& point, const 
     if (det != 0) {
       const double x = (b2 * c1 - b1 * c2) / det;
       const double y = (a1 * c2 - a2 * c1) / det;
+      Eigen::Vector2d projected_point = Eigen::Vector2d(x, y);
+      found_at_least_one_intersection = true;
 
       // check if intersection point is within line segment
       if (x >= std::min(line_point1[0], line_point2[0]) && x <= std::max(line_point1[0], line_point2[0]) &&
           y >= std::min(line_point1[1], line_point2[1]) && y <= std::max(line_point1[1], line_point2[1])) {
-        projected_point = Eigen::Vector2d(x, y);
         found_intersection_with_line_segment = true;
+        closest_projected_point = projected_point;
         break;
+      } else { // else still save as best projected point if closest to line segment
+        double distance_to_line_segment = std::min((projected_point - line_point1).norm(), (projected_point - line_point2).norm());
+        if (distance_to_line_segment < closest_distance_to_line_segment) {
+          closest_distance_to_line_segment = distance_to_line_segment;
+          closest_projected_point = projected_point;
+        }
       }
-    } else {
-      RCLCPP_ERROR(rclcpp::get_logger("new_lanelet2_route_planning"), "Cannot find intersection of parallel lines");
-      return projected_point;
     }
   }
 
-  return projected_point;
+  if (!found_at_least_one_intersection) {
+    RCLCPP_ERROR(rclcpp::get_logger("new_lanelet2_route_planning"), "Could not project point to line along axis because axis is parallel to all line segments");
+  }
+
+  return closest_projected_point;
 }
 
 ll::ConstLanelet followLanelet(const ll::routing::RoutingGraphUPtr& routing_graph, const ll::ConstLanelet& lanelet,
