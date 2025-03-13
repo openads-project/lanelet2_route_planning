@@ -1,3 +1,4 @@
+#include <cmath>
 #include <numeric>
 #include <tuple>
 
@@ -334,6 +335,8 @@ route_planning_msgs::msg::Route laneletToRosRoute(const ll::routing::Route& rout
   ll::BasicLineString2d shortest_path_centerline = resampleCenterlinesAlongPath(shortest_path, delta_s, lanelet_idx_by_point);
 
   // loop over global centerline
+  Eigen::Vector2d prev_valid_point = Eigen::Vector2d(0.0, 0.0);
+  Eigen::Vector2d prev_valid_orientation = Eigen::Vector2d(0.0, 0.0);
   for (size_t c = 0; c < shortest_path_centerline.size(); ++c) {
 
     // get current, previous and next centerline point
@@ -341,20 +344,31 @@ route_planning_msgs::msg::Route laneletToRosRoute(const ll::routing::Route& rout
     const Eigen::Vector2d& prev_point = (c > 0) ? shortest_path_centerline[c - 1] : point;
     const Eigen::Vector2d& next_point = (c < shortest_path_centerline.size() - 1) ? shortest_path_centerline[c + 1] : point;
 
-    // get lanelet corresponding to centerline point
-    const ll::ConstLanelet& lanelet = shortest_path[lanelet_idx_by_point[c]];
+    // skip point if behind previous point, e.g., if on adjacent lanelet in shortest path due to lane change
+    if ((point - prev_valid_point).dot(prev_valid_orientation) < 0) {
+      continue;
+    } else {
+      prev_valid_point = point;
+    }
 
     // identify lane changes
     bool changes_lane_from_prev_point = ((point - prev_point).norm() > delta_s + 0.001); // TODO: better handle epsilon for floating point comparison
     bool changes_lane_to_next_point = ((next_point - point).norm() > delta_s + 0.001);
 
-    // get adjacent lanelets
-    std::vector<ll::ConstLanelet> adjacent_left_lanelets = adjacentLeftOrRightLanelets(lanelet, route, true);
-    std::vector<ll::ConstLanelet> adjacent_right_lanelets = adjacentLeftOrRightLanelets(lanelet, route, false);
-
     // determine neighboring points for projection
     Eigen::Vector2d prev_point_for_projection = changes_lane_from_prev_point ? point : prev_point;
     Eigen::Vector2d next_point_for_projection = changes_lane_to_next_point ? point : next_point;
+
+    // compute orientation of centerline point
+    Eigen::Vector2d orientation = tangentOfPointAlongLineString(point, prev_point_for_projection, next_point_for_projection);
+    prev_valid_orientation = orientation;
+
+    // get lanelet corresponding to centerline point
+    const ll::ConstLanelet& lanelet = shortest_path[lanelet_idx_by_point[c]];
+
+    // get adjacent lanelets
+    std::vector<ll::ConstLanelet> adjacent_left_lanelets = adjacentLeftOrRightLanelets(lanelet, route, true);
+    std::vector<ll::ConstLanelet> adjacent_right_lanelets = adjacentLeftOrRightLanelets(lanelet, route, false);
 
     // project centerline point to lanelet bounds
     ll::BasicPoint2d left_bounds_point = projectPointToLineStringAlongNormal(point, prev_point_for_projection, next_point_for_projection, lanelet.leftBound2d().basicLineString());
@@ -404,7 +418,7 @@ route_planning_msgs::msg::Route laneletToRosRoute(const ll::routing::Route& rout
     // create LaneElement for centerline lane
     route_planning_msgs::msg::LaneElement centerline_lane_element_msg;
     centerline_lane_element_msg.reference_pose.position = laneletToRosPoint(point);
-    centerline_lane_element_msg.reference_pose.orientation = geometry_msgs::msg::Quaternion();  // TODO: =========== try to find orientation by tangent with neighbors; use orientation to disallow going backwards on lange changes? =======
+    centerline_lane_element_msg.reference_pose.orientation = vectorToRosQuaternion(orientation);
     centerline_lane_element_msg.lane_boundary_left = laneletToRosPoint(left_bounds_point);
     centerline_lane_element_msg.lane_boundary_right = laneletToRosPoint(right_bounds_point);
     centerline_lane_element_msg.lane_separator_type_left = 0;   // TODO
@@ -430,6 +444,18 @@ route_planning_msgs::msg::Route laneletToRosRoute(const ll::routing::Route& rout
   }
 
   return route_msg;
+}
+
+geometry_msgs::msg::Quaternion vectorToRosQuaternion(const Eigen::Vector2d& vector) {
+  Eigen::Vector2d unit_vector = vector.normalized();
+  double angle = std::atan2(unit_vector.y(), unit_vector.x());
+  Eigen::Quaterniond quaternion(Eigen::AngleAxisd(angle, Eigen::Vector3d::UnitZ()));
+  geometry_msgs::msg::Quaternion ros_quaternion;
+  ros_quaternion.x = quaternion.x();
+  ros_quaternion.y = quaternion.y();
+  ros_quaternion.z = quaternion.z();
+  ros_quaternion.w = quaternion.w();
+  return ros_quaternion;
 }
 
 }  // namespace new_lanelet2_route_planning

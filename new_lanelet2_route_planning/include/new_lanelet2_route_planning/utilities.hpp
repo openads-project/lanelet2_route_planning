@@ -62,4 +62,6 @@ std::vector<ll::ConstLanelet> adjacentLeftOrRightLanelets(const ll::ConstLanelet
 
 route_planning_msgs::msg::Route laneletToRosRoute(const ll::routing::Route& route, const std::string& frame_id);
 
+geometry_msgs::msg::Quaternion vectorToRosQuaternion(const Eigen::Vector2d& vector);
+
 }  // namespace new_lanelet2_route_planning
