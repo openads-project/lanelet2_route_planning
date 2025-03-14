@@ -323,8 +323,6 @@ route_planning_msgs::msg::Route laneletToRosRoute(const ll::routing::Route& rout
   // route_msg.header.stamp = rclcpp::Clock(RCL_ROS_TIME).now(); // TODO: not correctly working with simtime
   route_msg.header.frame_id = frame_id;
   route_msg.destination = geometry_msgs::msg::Point();  // TODO
-  route_msg.traveled_route = {};                        // TODO
-  // route_msg.current_speed_limit = 0;                    // TODO: move to RouteElement or LaneElement?
 
   // get shortest path
   ll::routing::LaneletPath shortest_path = route.shortestPath();
@@ -396,22 +394,26 @@ route_planning_msgs::msg::Route laneletToRosRoute(const ll::routing::Route& rout
 
     // create RouteElement
     route_planning_msgs::msg::RouteElement route_element_msg;
-    route_element_msg.domain_id = 0;                                       // TODO
-    route_element_msg.current_s = 0;                                       // TODO: remove from msg?
-    route_element_msg.lane_change = false;                                 // TODO
-    // route_element_msg.drivable_space_left = laneletToRosPoint(left_bound[i]);    // TODO
-    // route_element_msg.drivable_space_right = laneletToRosPoint(right_bound[i]);  // TODO
+    route_element_msg.suggested_lane_idx = 0;                              // TODO
+    route_element_msg.has_changed_suggested_lane = false;                  // TODO
+    // route_element_msg.drivable_space = 0;                               // TODO
+    route_element_msg.s = 0;                                               // TODO
 
     // create LaneElements for left adjacent lanes
     for (size_t a = 0; a < adjacent_left_lanelets.size(); ++a) {
       route_planning_msgs::msg::LaneElement lane_element_msg;
       lane_element_msg.reference_pose.position = laneletToRosPoint(adjacent_left_lanelets_centerline_points[a]);
       lane_element_msg.reference_pose.orientation = geometry_msgs::msg::Quaternion();  // TODO
-      lane_element_msg.lane_boundary_left = laneletToRosPoint(adjacent_left_lanelets_left_bounds_points[a]);
-      lane_element_msg.lane_boundary_right = laneletToRosPoint(adjacent_left_lanelets_right_bounds_points[a]);
-      lane_element_msg.lane_separator_type_left = 0;   // TODO
-      lane_element_msg.lane_separator_type_right = 0;  // TODO
+      lane_element_msg.left_boundary = laneletToRosPoint(adjacent_left_lanelets_left_bounds_points[a]);
+      lane_element_msg.has_left_boundary = true;
+      // lane_element_msg.left_boundary_type = 0;   // TODO
+      lane_element_msg.right_boundary = laneletToRosPoint(adjacent_left_lanelets_right_bounds_points[a]);
+      lane_element_msg.has_right_boundary = true;
+      // lane_element_msg.right_boundary_type = 0;  // TODO
+      lane_element_msg.speed_limit = 0;          // TODO
       lane_element_msg.regulatory_elements = {};       // TODO
+      lane_element_msg.following_lane_idx = 0;        // TODO
+      lane_element_msg.has_following_lane_idx = false; // TODO
       route_element_msg.lane_elements.push_back(lane_element_msg);
     }
 
@@ -419,28 +421,38 @@ route_planning_msgs::msg::Route laneletToRosRoute(const ll::routing::Route& rout
     route_planning_msgs::msg::LaneElement centerline_lane_element_msg;
     centerline_lane_element_msg.reference_pose.position = laneletToRosPoint(point);
     centerline_lane_element_msg.reference_pose.orientation = vectorToRosQuaternion(orientation);
-    centerline_lane_element_msg.lane_boundary_left = laneletToRosPoint(left_bounds_point);
-    centerline_lane_element_msg.lane_boundary_right = laneletToRosPoint(right_bounds_point);
-    centerline_lane_element_msg.lane_separator_type_left = 0;   // TODO
-    centerline_lane_element_msg.lane_separator_type_right = 0;  // TODO
+    centerline_lane_element_msg.left_boundary = laneletToRosPoint(left_bounds_point);
+    centerline_lane_element_msg.has_left_boundary = true;
+    // centerline_lane_element_msg.left_boundary_type = 0;   // TODO
+    centerline_lane_element_msg.right_boundary = laneletToRosPoint(right_bounds_point);
+    centerline_lane_element_msg.has_right_boundary = true;
+    // centerline_lane_element_msg.right_boundary_type = 0;  // TODO
+    centerline_lane_element_msg.speed_limit = 0;          // TODO
     centerline_lane_element_msg.regulatory_elements = {};       // TODO
+    centerline_lane_element_msg.following_lane_idx = 0;        // TODO
+    centerline_lane_element_msg.has_following_lane_idx = false; // TODO
     route_element_msg.lane_elements.push_back(centerline_lane_element_msg);
-    route_element_msg.current_lane_id = route_element_msg.lane_elements.size() - 1;
+    route_element_msg.suggested_lane_idx = route_element_msg.lane_elements.size() - 1;
 
     // create LaneElements for right adjacent lanes
     for (size_t a = 0; a < adjacent_right_lanelets.size(); ++a) {
       route_planning_msgs::msg::LaneElement lane_element_msg;
       lane_element_msg.reference_pose.position = laneletToRosPoint(adjacent_right_lanelets_centerline_points[a]);
       lane_element_msg.reference_pose.orientation = geometry_msgs::msg::Quaternion();  // TODO
-      lane_element_msg.lane_boundary_left = laneletToRosPoint(adjacent_right_lanelets_left_bounds_points[a]);
-      lane_element_msg.lane_boundary_right = laneletToRosPoint(adjacent_right_lanelets_right_bounds_points[a]);
-      lane_element_msg.lane_separator_type_left = 0;   // TODO
-      lane_element_msg.lane_separator_type_right = 0;  // TODO
+      lane_element_msg.left_boundary = laneletToRosPoint(adjacent_right_lanelets_left_bounds_points[a]);
+      lane_element_msg.has_left_boundary = true;
+      // lane_element_msg.left_boundary_type = 0;   // TODO
+      lane_element_msg.right_boundary = laneletToRosPoint(adjacent_right_lanelets_right_bounds_points[a]);
+      lane_element_msg.has_right_boundary = true;
+      // lane_element_msg.right_boundary_type = 0;  // TODO
+      lane_element_msg.speed_limit = 0;          // TODO
       lane_element_msg.regulatory_elements = {};       // TODO
+      lane_element_msg.following_lane_idx = 0;        // TODO
+      lane_element_msg.has_following_lane_idx = false; // TODO
       route_element_msg.lane_elements.push_back(lane_element_msg);
     }
 
-    route_msg.remaining_route.push_back(route_element_msg);
+    route_msg.route_elements.push_back(route_element_msg);
   }
 
   return route_msg;

@@ -314,6 +314,7 @@ bool NewLanelet2RoutePlanning::planRoute(const geometry_msgs::msg::Point& destin
   }
 
   // undershoot/overshoot route endpoints
+  // TODO: still needed?
   ll::ConstLanelet undershot_ego_ll =
       followLanelet(routing_graph, ego_ll, ego_ll_position, -std::abs(route_undershoot_distance_));
   ll::ConstLanelet overshot_destination_ll =
