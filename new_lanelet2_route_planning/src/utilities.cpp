@@ -290,17 +290,49 @@ ll::ConstLanelet followLanelet(const ll::routing::RoutingGraphUPtr& routing_grap
   return new_lanelet;
 }
 
-ll::BasicLineString2d resampleCenterlinesAlongPath(const ll::routing::LaneletPath& path, const double delta_s, std::vector<size_t>& lanelet_idx_by_point) {
+ll::BasicLineString2d resampleCenterlinesAlongPath(const ll::routing::LaneletPath& path, const double delta_s, bool monotonically, std::vector<size_t>& lanelet_idx_by_point) {
+
+  // init variables
   ll::BasicLineString2d resampled_path_centerline;
   double resampling_offset = 0.0;
   lanelet_idx_by_point.clear();
+  Eigen::Vector2d prev_sampled_point = Eigen::Vector2d(0.0, 0.0); // TODO: dangerous to init to 0?
+  Eigen::Vector2d prev_sampled_point_orientation = Eigen::Vector2d(0.0, 0.0);
+
+  // loop over lanelets in path
   for (size_t l = 0; l < path.size(); ++l) {
+
+    // get centerline
     const ll::ConstLanelet& lanelet = path[l];
     ll::BasicLineString2d centerline = lanelet.centerline2d().basicLineString();
+
+    // skip point if behind previous sampled point, e.g., if on adjacent lanelet in shortest path due to lane change
+    if (monotonically && l > 0) {
+      for (auto cit = centerline.begin(); cit != centerline.end();) {
+        auto& centerline_point = *cit;
+        if ((centerline_point - prev_sampled_point).dot(prev_sampled_point_orientation) < 0) { // angle > 90deg
+          cit = centerline.erase(cit);
+        } else {
+          break;
+        }
+      }
+    }
+
+    // resample lanelet centerline
     ll::BasicLineString2d resampled_centerline = resampleLineString(centerline, delta_s, resampling_offset);
     resampled_path_centerline.insert(resampled_path_centerline.end(), resampled_centerline.begin(), resampled_centerline.end());
     lanelet_idx_by_point.insert(lanelet_idx_by_point.end(), resampled_centerline.size(), l);
+
+    // update information for monotonicity check
+    if (monotonically && !resampled_centerline.empty()) {
+      if (resampled_centerline.size() > 1) {
+        prev_sampled_point = resampled_centerline[resampled_centerline.size() - 2];
+      }
+      prev_sampled_point_orientation = tangentOfPointAlongLineString(resampled_centerline.back(), prev_sampled_point, resampled_centerline.back());
+      prev_sampled_point = resampled_centerline.back();
+    }
   }
+
   return resampled_path_centerline;
 }
 
@@ -329,25 +361,17 @@ route_planning_msgs::msg::Route laneletToRosRoute(const ll::routing::Route& rout
 
   // resample centerlines along shortest path to accumulate global centerline
   const double delta_s = 1.0; // TODO: move elsewhere
+  bool monotonically = true;
   std::vector<size_t> lanelet_idx_by_point;
-  ll::BasicLineString2d shortest_path_centerline = resampleCenterlinesAlongPath(shortest_path, delta_s, lanelet_idx_by_point);
+  ll::BasicLineString2d shortest_path_centerline = resampleCenterlinesAlongPath(shortest_path, delta_s, monotonically, lanelet_idx_by_point);
 
   // loop over global centerline
-  Eigen::Vector2d prev_valid_point = Eigen::Vector2d(0.0, 0.0);
-  Eigen::Vector2d prev_valid_orientation = Eigen::Vector2d(0.0, 0.0);
   for (size_t c = 0; c < shortest_path_centerline.size(); ++c) {
 
     // get current, previous and next centerline point
     const Eigen::Vector2d& point = shortest_path_centerline[c];
     const Eigen::Vector2d& prev_point = (c > 0) ? shortest_path_centerline[c - 1] : point;
     const Eigen::Vector2d& next_point = (c < shortest_path_centerline.size() - 1) ? shortest_path_centerline[c + 1] : point;
-
-    // skip point if behind previous point, e.g., if on adjacent lanelet in shortest path due to lane change
-    if ((point - prev_valid_point).dot(prev_valid_orientation) < 0) {
-      continue;
-    } else {
-      prev_valid_point = point;
-    }
 
     // identify lane changes
     bool changes_lane_from_prev_point = ((point - prev_point).norm() > delta_s + 0.001); // TODO: better handle epsilon for floating point comparison
@@ -359,7 +383,6 @@ route_planning_msgs::msg::Route laneletToRosRoute(const ll::routing::Route& rout
 
     // compute orientation of centerline point
     Eigen::Vector2d orientation = tangentOfPointAlongLineString(point, prev_point_for_projection, next_point_for_projection);
-    prev_valid_orientation = orientation;
 
     // get lanelet corresponding to centerline point
     const ll::ConstLanelet& lanelet = shortest_path[lanelet_idx_by_point[c]];
@@ -395,7 +418,7 @@ route_planning_msgs::msg::Route laneletToRosRoute(const ll::routing::Route& rout
     // create RouteElement
     route_planning_msgs::msg::RouteElement route_element_msg;
     route_element_msg.suggested_lane_idx = 0;                              // TODO
-    route_element_msg.has_changed_suggested_lane = false;                  // TODO
+    route_element_msg.has_changed_suggested_lane = changes_lane_from_prev_point;
     // route_element_msg.drivable_space = 0;                               // TODO
     route_element_msg.s = 0;                                               // TODO
 
