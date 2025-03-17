@@ -14,16 +14,16 @@ namespace new_lanelet2_route_planning {
 
 namespace ll = lanelet;
 
-ll::BasicPoint2d rosToLaneletPoint(const geometry_msgs::msg::Point& point);
+Eigen::Vector2d rosToLaneletPoint(const geometry_msgs::msg::Point& point);
 
-ll::BasicPoint2d rosToLaneletPoint(const perception_msgs::msg::EgoData& ego_data);
+Eigen::Vector2d rosToLaneletPoint(const perception_msgs::msg::EgoData& ego_data);
 
-geometry_msgs::msg::Point laneletToRosPoint(const ll::BasicPoint2d& point);
+geometry_msgs::msg::Point laneletToRosPoint(const Eigen::Vector2d& point);
 
 bool buildRoutingGraph(const ll::LaneletMapConstPtr& map, const ll::traffic_rules::TrafficRulesPtr& traffic_rules,
                        ll::routing::RoutingGraphUPtr& routing_graph);
 
-bool findLaneletAtPoint(const ll::LaneletMapConstPtr& map, const ll::BasicPoint2d& point, ll::ConstLanelet& lanelet,
+bool findLaneletAtPoint(const ll::LaneletMapConstPtr& map, const Eigen::Vector2d& point, ll::ConstLanelet& lanelet,
                         const std::optional<ll::traffic_rules::TrafficRulesPtr> traffic_rules = std::nullopt);
 
 bool findLaneletAtPoint(const ll::LaneletMapConstPtr& map, const geometry_msgs::msg::Point& point,
@@ -41,11 +41,11 @@ Eigen::Vector2d normalOfPointAlongLineString(const Eigen::Vector2d& point, const
 // TODO: rewrite utilities for simpler datatypes? when to use constlinestring, when to use basic? Basic is probably better, just a typedef on vector<Eigen>
 ll::BasicLineString2d resampleLineString(const ll::BasicLineString2d& line, const double delta_s, double& offset);
 
-ll::BasicPoint2d projectPointToCenterline(const ll::BasicPoint2d& position, const ll::ConstLanelet& lanelet);
+Eigen::Vector2d projectPointToCenterline(const Eigen::Vector2d& position, const ll::ConstLanelet& lanelet);
 
-ll::BasicPoint2d projectPointToCenterline(const geometry_msgs::msg::Point& position, const ll::ConstLanelet& lanelet);
+Eigen::Vector2d projectPointToCenterline(const geometry_msgs::msg::Point& position, const ll::ConstLanelet& lanelet);
 
-ll::BasicPoint2d projectPointToCenterline(const perception_msgs::msg::EgoData& ego_data,
+Eigen::Vector2d projectPointToCenterline(const perception_msgs::msg::EgoData& ego_data,
                                           const ll::ConstLanelet& lanelet);
 
 Eigen::Vector2d projectPointToLineStringAlongNormal(const Eigen::Vector2d& point, const Eigen::Vector2d& prev_point, const Eigen::Vector2d& next_point, const ll::BasicLineString2d& line);
@@ -54,7 +54,7 @@ Eigen::Vector2d projectPointToLineAlongAxis(const Eigen::Vector2d& point, const 
     const ll::BasicLineString2d& line, bool& found_intersection_with_line_segment);
 
 ll::ConstLanelet followLanelet(const ll::routing::RoutingGraphUPtr& routing_graph, const ll::ConstLanelet& lanelet,
-                               const ll::BasicPoint2d& position, const double distance);
+                               const Eigen::Vector2d& position, const double distance);
 
 ll::BasicLineString2d resampleCenterlinesAlongPath(const ll::routing::LaneletPath& path, const double delta_s, bool monotonically, std::vector<size_t>& lanelet_idx_by_point);
 

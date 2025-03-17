@@ -15,16 +15,16 @@ static const unsigned int k_nearest_lanelets = 5;
 static const double k_timeout_ego_data = 1.0;
 static const double k_max_distance_lanelet_matching = 5.0;
 
-ll::BasicPoint2d rosToLaneletPoint(const geometry_msgs::msg::Point& point) {
-  return ll::BasicPoint2d(point.x, point.y);
+Eigen::Vector2d rosToLaneletPoint(const geometry_msgs::msg::Point& point) {
+  return Eigen::Vector2d(point.x, point.y);
 }
 
-ll::BasicPoint2d rosToLaneletPoint(const perception_msgs::msg::EgoData& ego_data) {
-  return ll::BasicPoint2d(perception_msgs::object_access::getX(ego_data),
+Eigen::Vector2d rosToLaneletPoint(const perception_msgs::msg::EgoData& ego_data) {
+  return Eigen::Vector2d(perception_msgs::object_access::getX(ego_data),
                           perception_msgs::object_access::getY(ego_data));
 }
 
-geometry_msgs::msg::Point laneletToRosPoint(const ll::BasicPoint2d& point) {
+geometry_msgs::msg::Point laneletToRosPoint(const Eigen::Vector2d& point) {
   geometry_msgs::msg::Point ros_point;
   ros_point.x = point.x();
   ros_point.y = point.y();
@@ -46,7 +46,7 @@ bool buildRoutingGraph(const ll::LaneletMapConstPtr& map, const ll::traffic_rule
   return true;
 }
 
-bool findLaneletAtPoint(const ll::LaneletMapConstPtr& map, const ll::BasicPoint2d& point, ll::ConstLanelet& lanelet,
+bool findLaneletAtPoint(const ll::LaneletMapConstPtr& map, const Eigen::Vector2d& point, ll::ConstLanelet& lanelet,
                         const std::optional<ll::traffic_rules::TrafficRulesPtr> traffic_rules) {
   // find nearest lanelets
   std::vector<std::pair<double, ll::ConstLanelet>> nearest_lanelets =
@@ -169,23 +169,23 @@ ll::BasicLineString2d resampleLineString(const ll::BasicLineString2d& line, cons
   // copy back to BasicLineString2d
   ll::BasicLineString2d resampled_line;
   for (const auto& point : resampled_line_eigen) {
-    resampled_line.push_back(ll::BasicPoint2d(point.x(), point.y()));
+    resampled_line.push_back(Eigen::Vector2d(point.x(), point.y()));
   }
 
   return resampled_line;
 }
 
-ll::BasicPoint2d projectPointToCenterline(const ll::BasicPoint2d& point, const ll::ConstLanelet& lanelet) {
-  ll::BasicPoint3d point_3d = ll::BasicPoint3d(point.x(), point.y(), 0.0);
-  ll::BasicPoint3d projected_point_3d = ll::geometry::project(lanelet.centerline(), point_3d);
-  return ll::BasicPoint2d(projected_point_3d.x(), projected_point_3d.y());
+Eigen::Vector2d projectPointToCenterline(const Eigen::Vector2d& point, const ll::ConstLanelet& lanelet) {
+  Eigen::Vector3d point_3d = Eigen::Vector3d(point.x(), point.y(), 0.0);
+  Eigen::Vector3d projected_point_3d = ll::geometry::project(lanelet.centerline(), point_3d);
+  return Eigen::Vector2d(projected_point_3d.x(), projected_point_3d.y());
 }
 
-ll::BasicPoint2d projectPointToCenterline(const geometry_msgs::msg::Point& point, const ll::ConstLanelet& lanelet) {
+Eigen::Vector2d projectPointToCenterline(const geometry_msgs::msg::Point& point, const ll::ConstLanelet& lanelet) {
   return projectPointToCenterline(rosToLaneletPoint(point), lanelet);
 }
 
-ll::BasicPoint2d projectPointToCenterline(const perception_msgs::msg::EgoData& ego_data,
+Eigen::Vector2d projectPointToCenterline(const perception_msgs::msg::EgoData& ego_data,
                                           const ll::ConstLanelet& lanelet) {
   return projectPointToCenterline(rosToLaneletPoint(ego_data), lanelet);
 }
@@ -261,7 +261,7 @@ Eigen::Vector2d projectPointToLineAlongAxis(const Eigen::Vector2d& point, const 
 }
 
 ll::ConstLanelet followLanelet(const ll::routing::RoutingGraphUPtr& routing_graph, const ll::ConstLanelet& lanelet,
-                               const ll::BasicPoint2d& position, const double distance) {
+                               const Eigen::Vector2d& position, const double distance) {
   ll::ConstLanelet new_lanelet = lanelet;
   double remaining_length;
   if (distance > 0) {
