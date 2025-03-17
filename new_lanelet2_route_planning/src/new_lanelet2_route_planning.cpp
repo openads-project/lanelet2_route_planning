@@ -164,7 +164,7 @@ void NewLanelet2RoutePlanning::setup() {
   // publishers
   publisher_route_ = this->create_publisher<route_planning_msgs::msg::Route>("~/route", 1);
   publish_timer_ = this->create_wall_timer(std::chrono::seconds(1),
-                                           [this]() { publisher_route_->publish(latest_route_); }); // TODO: remove timer?
+                                           [this]() { publisher_route_->publish(latest_route_msg_); }); // TODO: remove timer?
 
   // subscribers
   subscriber_ego_data_ = this->create_subscription<perception_msgs::msg::EgoData>(
@@ -249,13 +249,18 @@ rclcpp_action::GoalResponse NewLanelet2RoutePlanning::actionHandleGoal(
 
   // TODO: abort current action if running
 
-  // convert route to custom format
-  route_planning_msgs::msg::Route route_msg = laneletToRosRoute(route, ll2_interface_->map_frame_id_, routing_graph_);
-  route_msg.header.stamp = this->now();
-  latest_route_ = route_msg;
-
-
-
+  // convert route to ROS message
+  RCLCPP_INFO(this->get_logger(), "Converting route to ROS message ...");
+  t0 = std::chrono::steady_clock::now();
+  success = this->laneletToRosRoute();
+  t1 = std::chrono::steady_clock::now();
+  dt = std::chrono::duration_cast<std::chrono::duration<double>>(t1 - t0).count();
+  if (!success) {
+    RCLCPP_ERROR(this->get_logger(), "Failed to convert route to ROS message, rejecting request");
+    return rclcpp_action::GoalResponse::REJECT;
+  } else {
+    RCLCPP_INFO(this->get_logger(), "Successfully converted route to ROS message (%.3fs)", dt);
+  }
 
   // accept action goal request
   return rclcpp_action::GoalResponse::ACCEPT_AND_EXECUTE;
@@ -346,13 +351,154 @@ bool NewLanelet2RoutePlanning::planRoute(const geometry_msgs::msg::Point& destin
   const int routing_cost_id = 0;  // RoutingCostDistance
   auto planned_route = routing_graph_->getRoute(undershot_ego_ll, overshot_destination_ll, routing_cost_id);
   if (planned_route) {
-    route = std::move(*planned_route);
+    latest_route_ = std::move(*planned_route);
     return true;
   } else {
     RCLCPP_ERROR(get_logger(), "Failed to plan route from lanelet %ld to lanelet %ld", ego_ll.id(),
                  destination_ll.id());
     return false;
   }
+}
+
+bool NewLanelet2RoutePlanning::laneletToRosRoute() {
+
+  // create Route message
+  route_planning_msgs::msg::Route route_msg;
+  route_msg.header.stamp = this->now();
+  route_msg.header.frame_id = ll2_interface_->map_frame_id_;
+  route_msg.destination = geometry_msgs::msg::Point();  // TODO
+  route_msg.traveled_route_elements = {};               // TODO
+
+  // get shortest path
+  ll::routing::LaneletPath shortest_path = latest_route_.shortestPath();
+
+  // resample centerlines along shortest path to accumulate global centerline
+  const double delta_s = 1.0; // TODO: move elsewhere
+  bool monotonically = true;
+  std::vector<size_t> lanelet_idx_by_point;
+  ll::BasicLineString2d shortest_path_centerline = resampleCenterlinesAlongPath(shortest_path, delta_s, monotonically, lanelet_idx_by_point);
+
+  // loop over global centerline
+  for (size_t c = 0; c < shortest_path_centerline.size(); ++c) {
+
+    // get current, previous and next centerline point
+    const Eigen::Vector2d& point = shortest_path_centerline[c];
+    const Eigen::Vector2d& prev_point = (c > 0) ? shortest_path_centerline[c - 1] : point;
+    const Eigen::Vector2d& next_point = (c < shortest_path_centerline.size() - 1) ? shortest_path_centerline[c + 1] : point;
+
+    // identify lane changes based on break in equidistant centerline
+    bool changes_lane_from_prev_point = ((point - prev_point).norm() > delta_s + 0.001); // TODO: better handle epsilon for floating point comparison
+    bool changes_lane_to_next_point = ((next_point - point).norm() > delta_s + 0.001);
+
+    // determine neighboring points for projection
+    Eigen::Vector2d prev_point_for_projection = changes_lane_from_prev_point ? point : prev_point;
+    Eigen::Vector2d next_point_for_projection = changes_lane_to_next_point ? point : next_point;
+
+    // compute orientation of centerline point
+    Eigen::Vector2d orientation = tangentOfPointAlongLineString(point, prev_point_for_projection, next_point_for_projection);
+
+    // get lanelet corresponding to centerline point
+    const ll::ConstLanelet& lanelet = shortest_path[lanelet_idx_by_point[c]];
+
+    // get adjacent lanelets
+    // TODO: this is re-executed for every point on the same lanelet
+    std::vector<ll::ConstLanelet> adjacent_left_lanelets = adjacentLeftOrRightLanelets(lanelet, latest_route_, true);
+    std::vector<ll::ConstLanelet> adjacent_right_lanelets = adjacentLeftOrRightLanelets(lanelet, latest_route_, false);
+    int suggested_lane_idx = adjacent_left_lanelets.size();
+
+    // project centerline point to lanelet bounds
+    ll::BasicPoint2d left_bounds_point = projectPointToLineStringAlongNormal(point, prev_point_for_projection, next_point_for_projection, lanelet.leftBound2d().basicLineString());
+    ll::BasicPoint2d right_bounds_point = projectPointToLineStringAlongNormal(point, prev_point_for_projection, next_point_for_projection, lanelet.rightBound2d().basicLineString());
+
+    // project centerline point to adjacent lanelet centerlines and bounds
+    std::vector<ll::BasicPoint2d> adjacent_left_lanelets_centerline_points, adjacent_left_lanelets_left_bounds_points, adjacent_left_lanelets_right_bounds_points;
+    std::vector<ll::BasicPoint2d> adjacent_right_lanelets_centerline_points, adjacent_right_lanelets_left_bounds_points, adjacent_right_lanelets_right_bounds_points;
+    for (const auto& adjacent_lanelet : adjacent_left_lanelets) {
+      ll::BasicPoint2d adjacent_lanelet_centerline_point = projectPointToLineStringAlongNormal(point, prev_point_for_projection, next_point_for_projection, adjacent_lanelet.centerline2d().basicLineString());
+      ll::BasicPoint2d adjacent_lanelet_left_bounds_point = projectPointToLineStringAlongNormal(point, prev_point_for_projection, next_point_for_projection, adjacent_lanelet.leftBound2d().basicLineString());
+      ll::BasicPoint2d adjacent_lanelet_right_bounds_point = projectPointToLineStringAlongNormal(point, prev_point_for_projection, next_point_for_projection, adjacent_lanelet.rightBound2d().basicLineString());
+      adjacent_left_lanelets_centerline_points.push_back(adjacent_lanelet_centerline_point);
+      adjacent_left_lanelets_left_bounds_points.push_back(adjacent_lanelet_left_bounds_point);
+      adjacent_left_lanelets_right_bounds_points.push_back(adjacent_lanelet_right_bounds_point);
+    }
+    for (const auto& adjacent_lanelet : adjacent_right_lanelets) {
+      ll::BasicPoint2d adjacent_lanelet_centerline_point = projectPointToLineStringAlongNormal(point, prev_point_for_projection, next_point_for_projection, adjacent_lanelet.centerline2d().basicLineString());
+      ll::BasicPoint2d adjacent_lanelet_left_bounds_point = projectPointToLineStringAlongNormal(point, prev_point_for_projection, next_point_for_projection, adjacent_lanelet.leftBound2d().basicLineString());
+      ll::BasicPoint2d adjacent_lanelet_right_bounds_point = projectPointToLineStringAlongNormal(point, prev_point_for_projection, next_point_for_projection, adjacent_lanelet.rightBound2d().basicLineString());
+      adjacent_right_lanelets_centerline_points.push_back(adjacent_lanelet_centerline_point);
+      adjacent_right_lanelets_left_bounds_points.push_back(adjacent_lanelet_left_bounds_point);
+      adjacent_right_lanelets_right_bounds_points.push_back(adjacent_lanelet_right_bounds_point);
+    }
+
+    // compute offset of lane element indices from current to next route element
+    const ll::ConstLanelet& lanelet_of_next_point = (c < shortest_path_centerline.size() - 1) ? shortest_path[lanelet_idx_by_point[c + 1]] : lanelet;
+    int following_lane_idx_offset = computeFollowingLaneIdxOffset(lanelet, lanelet_of_next_point, latest_route_, routing_graph_);
+
+    // create RouteElement
+    route_planning_msgs::msg::RouteElement route_element_msg;
+    route_element_msg.suggested_lane_idx = suggested_lane_idx;
+    route_element_msg.will_change_suggested_lane = changes_lane_to_next_point;
+    // route_element_msg.left_boundary = 0;                                // TODO
+    // route_element_msg.right_boundary = 0;                               // TODO
+    route_element_msg.s = 0;                                               // TODO
+
+    // create LaneElements for left adjacent lanes
+    for (size_t a = 0; a < adjacent_left_lanelets.size(); ++a) {
+      route_planning_msgs::msg::LaneElement lane_element_msg;
+      lane_element_msg.reference_pose.position = laneletToRosPoint(adjacent_left_lanelets_centerline_points[a]);
+      lane_element_msg.reference_pose.orientation = geometry_msgs::msg::Quaternion();  // TODO
+      lane_element_msg.left_boundary.point = laneletToRosPoint(adjacent_left_lanelets_left_bounds_points[a]);
+      lane_element_msg.left_boundary.type = route_planning_msgs::msg::LaneBoundary::UNKNOWN;   // TODO
+      lane_element_msg.has_left_boundary = true;
+      lane_element_msg.right_boundary.point = laneletToRosPoint(adjacent_left_lanelets_right_bounds_points[a]);
+      lane_element_msg.right_boundary.type = route_planning_msgs::msg::LaneBoundary::UNKNOWN;   // TODO
+      lane_element_msg.has_right_boundary = true;
+      lane_element_msg.speed_limit = 0;          // TODO
+      lane_element_msg.regulatory_elements = {};       // TODO
+      lane_element_msg.following_lane_idx = route_element_msg.lane_elements.size() + following_lane_idx_offset;
+      lane_element_msg.has_following_lane_idx = true;
+      route_element_msg.lane_elements.push_back(lane_element_msg);
+    }
+
+    // create LaneElement for centerline lane
+    route_planning_msgs::msg::LaneElement centerline_lane_element_msg;
+    centerline_lane_element_msg.reference_pose.position = laneletToRosPoint(point);
+    centerline_lane_element_msg.reference_pose.orientation = vectorToRosQuaternion(orientation);
+    centerline_lane_element_msg.left_boundary.point = laneletToRosPoint(left_bounds_point);
+    centerline_lane_element_msg.left_boundary.type = route_planning_msgs::msg::LaneBoundary::UNKNOWN;   // TODO
+    centerline_lane_element_msg.has_left_boundary = true;
+    centerline_lane_element_msg.right_boundary.point = laneletToRosPoint(right_bounds_point);
+    centerline_lane_element_msg.right_boundary.type = route_planning_msgs::msg::LaneBoundary::UNKNOWN;   // TODO
+    centerline_lane_element_msg.has_right_boundary = true;
+    centerline_lane_element_msg.speed_limit = 0;          // TODO
+    centerline_lane_element_msg.regulatory_elements = {};       // TODO
+    centerline_lane_element_msg.following_lane_idx = route_element_msg.lane_elements.size() + following_lane_idx_offset;
+    centerline_lane_element_msg.has_following_lane_idx = true;
+    route_element_msg.lane_elements.push_back(centerline_lane_element_msg);
+
+    // create LaneElements for right adjacent lanes
+    for (size_t a = 0; a < adjacent_right_lanelets.size(); ++a) {
+      route_planning_msgs::msg::LaneElement lane_element_msg;
+      lane_element_msg.reference_pose.position = laneletToRosPoint(adjacent_right_lanelets_centerline_points[a]);
+      lane_element_msg.reference_pose.orientation = geometry_msgs::msg::Quaternion();  // TODO
+      lane_element_msg.left_boundary.point = laneletToRosPoint(adjacent_right_lanelets_left_bounds_points[a]);
+      lane_element_msg.left_boundary.type = route_planning_msgs::msg::LaneBoundary::UNKNOWN;   // TODO
+      lane_element_msg.has_left_boundary = true;
+      lane_element_msg.right_boundary.point = laneletToRosPoint(adjacent_right_lanelets_right_bounds_points[a]);
+      lane_element_msg.right_boundary.type = route_planning_msgs::msg::LaneBoundary::UNKNOWN;   // TODO
+      lane_element_msg.has_right_boundary = true;
+      lane_element_msg.speed_limit = 0;          // TODO
+      lane_element_msg.regulatory_elements = {};       // TODO
+      lane_element_msg.following_lane_idx = route_element_msg.lane_elements.size() + following_lane_idx_offset;
+      lane_element_msg.has_following_lane_idx = true;
+      route_element_msg.lane_elements.push_back(lane_element_msg);
+    }
+
+    route_msg.remaining_route_elements.push_back(route_element_msg);
+  }
+
+  latest_route_msg_ = route_msg;
+  return true;
 }
 
 }  // namespace new_lanelet2_route_planning

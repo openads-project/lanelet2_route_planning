@@ -66,6 +66,8 @@ class NewLanelet2RoutePlanning : public rclcpp::Node {
 
   bool planRoute(const geometry_msgs::msg::Point &destination, ll::routing::Route &route);
 
+  bool laneletToRosRoute();
+
  private:
   std::vector<std::tuple<std::string, std::function<void(const rclcpp::Parameter &)>>> auto_reconfigurable_params_;
 
@@ -87,13 +89,15 @@ class NewLanelet2RoutePlanning : public rclcpp::Node {
 
   perception_msgs::msg::EgoData latest_ego_data_;
 
-  route_planning_msgs::msg::Route latest_route_;
-
   std::unique_ptr<LL2MapInterface> ll2_interface_;
 
   std::string ll2_map_server_name_ = "ll2_map_server";
 
   ll::routing::RoutingGraphUPtr routing_graph_;
+
+  ll::routing::Route latest_route_;
+
+  route_planning_msgs::msg::Route latest_route_msg_;
 
   double route_undershoot_distance_ = 0.0;
 
