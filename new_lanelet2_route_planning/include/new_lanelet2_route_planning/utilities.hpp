@@ -60,6 +60,8 @@ ll::BasicLineString2d resampleCenterlinesAlongPath(const ll::routing::LaneletPat
 
 std::vector<ll::ConstLanelet> adjacentLeftOrRightLanelets(const ll::ConstLanelet& lanelet, const ll::routing::Route& route, bool left);
 
+int computeFollowingLaneIdxOffset(const ll::ConstLanelet& lanelet, const ll::ConstLanelet& lanelet_of_next_point, const ll::routing::Route& route, const ll::routing::RoutingGraphUPtr& routing_graph);
+
 route_planning_msgs::msg::Route laneletToRosRoute(const ll::routing::Route& route, const std::string& frame_id, const ll::routing::RoutingGraphUPtr& routing_graph);
 
 geometry_msgs::msg::Quaternion vectorToRosQuaternion(const Eigen::Vector2d& vector);
