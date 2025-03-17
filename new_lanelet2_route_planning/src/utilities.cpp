@@ -348,7 +348,8 @@ std::vector<ll::ConstLanelet> adjacentLeftOrRightLanelets(const ll::ConstLanelet
   return adjacent_lanelets;
 }
 
-route_planning_msgs::msg::Route laneletToRosRoute(const ll::routing::Route& route, const std::string& frame_id) {
+// TODO: move more functions to class for easy member access
+route_planning_msgs::msg::Route laneletToRosRoute(const ll::routing::Route& route, const std::string& frame_id, const ll::routing::RoutingGraphUPtr& routing_graph) {
 
   // create Route
   route_planning_msgs::msg::Route route_msg;
@@ -373,7 +374,7 @@ route_planning_msgs::msg::Route laneletToRosRoute(const ll::routing::Route& rout
     const Eigen::Vector2d& prev_point = (c > 0) ? shortest_path_centerline[c - 1] : point;
     const Eigen::Vector2d& next_point = (c < shortest_path_centerline.size() - 1) ? shortest_path_centerline[c + 1] : point;
 
-    // identify lane changes
+    // identify lane changes based on break in equidistant centerline
     bool changes_lane_from_prev_point = ((point - prev_point).norm() > delta_s + 0.001); // TODO: better handle epsilon for floating point comparison
     bool changes_lane_to_next_point = ((next_point - point).norm() > delta_s + 0.001);
 
@@ -388,8 +389,131 @@ route_planning_msgs::msg::Route laneletToRosRoute(const ll::routing::Route& rout
     const ll::ConstLanelet& lanelet = shortest_path[lanelet_idx_by_point[c]];
 
     // get adjacent lanelets
+    // TODO: this is re-executed for every point on the same lanelet
     std::vector<ll::ConstLanelet> adjacent_left_lanelets = adjacentLeftOrRightLanelets(lanelet, route, true);
     std::vector<ll::ConstLanelet> adjacent_right_lanelets = adjacentLeftOrRightLanelets(lanelet, route, false);
+    int suggested_lane_idx = adjacent_left_lanelets.size();
+
+    // TODO: refactor this stuff into separate functions
+    // determine offset of lane element indices from current to next route element
+    int following_lane_idx_offset = 0;
+    size_t n_adjacent_lanelets_of_next_lanelet;
+    const ll::ConstLanelet& lanelet_of_next_point = (c < shortest_path_centerline.size() - 1) ? shortest_path[lanelet_idx_by_point[c + 1]] : lanelet;
+    if (lanelet_of_next_point.id() != lanelet.id()) {
+
+      // get adjacent lanelets of next lanelet
+      std::vector<ll::ConstLanelet> adjacent_left_lanelets_of_next_lanelet = adjacentLeftOrRightLanelets(lanelet_of_next_point, route, true);
+      std::vector<ll::ConstLanelet> adjacent_right_lanelets_of_next_lanelet = adjacentLeftOrRightLanelets(lanelet_of_next_point, route, false);
+      std::vector<ll::ConstLanelet> adjacent_lanelets_of_next_lanelet = adjacent_left_lanelets_of_next_lanelet;
+      adjacent_lanelets_of_next_lanelet.push_back(lanelet_of_next_point);
+      adjacent_lanelets_of_next_lanelet.insert(adjacent_lanelets_of_next_lanelet.end(), adjacent_right_lanelets_of_next_lanelet.begin(), adjacent_right_lanelets_of_next_lanelet.end());
+      n_adjacent_lanelets_of_next_lanelet = adjacent_lanelets_of_next_lanelet.size();
+
+      // find following lanelet of current lanelet in adjacent lanelets of next lanelet
+      following_lane_idx_offset = std::numeric_limits<int>::max();
+      auto following_lanelets = routing_graph->following(lanelet, false);
+      auto following_lanelet = following_lanelets.front();
+      size_t following_lanelet_idx = 0;
+      size_t follow_further_idx = 0;
+      size_t max_follow_further_iterations = 3;
+      while (following_lane_idx_offset == std::numeric_limits<int>::max()) { // loop over all following lanelets because sampling might have skipped short ones
+        for (size_t l = 0; l < adjacent_lanelets_of_next_lanelet.size(); ++l) {
+          if (following_lanelet.id() == adjacent_lanelets_of_next_lanelet[l].id()) {
+            following_lane_idx_offset = l - suggested_lane_idx;
+            break;
+          }
+        }
+        follow_further_idx++;
+        if (follow_further_idx >= max_follow_further_iterations) {
+          break;
+        }
+        following_lanelet_idx++;
+        if (following_lanelet_idx < following_lanelets.size()) {
+          following_lanelet = following_lanelets[following_lanelet_idx];
+        } else {
+          following_lanelets = routing_graph->following(following_lanelet, false);
+          following_lanelet = following_lanelets.front();
+          following_lanelet_idx = 0;
+        }
+      }
+      if (following_lane_idx_offset == std::numeric_limits<int>::max()) {
+        RCLCPP_WARN(rclcpp::get_logger("new_lanelet2_route_planning"), "Could not match following lanelet of current lanelet to adjacent lanelets of next lanelet");
+
+        for (size_t a = 0; a < adjacent_left_lanelets.size(); ++a) {
+
+          following_lanelets = routing_graph->following(adjacent_left_lanelets[a], false);
+          following_lanelet = following_lanelets.front();
+          following_lanelet_idx = 0;
+          follow_further_idx = 0;
+          while (following_lane_idx_offset == std::numeric_limits<int>::max()) { // loop over all following lanelets because sampling might have skipped short ones
+            for (size_t l = 0; l < adjacent_lanelets_of_next_lanelet.size(); ++l) {
+              if (following_lanelet.id() == adjacent_lanelets_of_next_lanelet[l].id()) {
+                following_lane_idx_offset = l - suggested_lane_idx + (a + 1); // gottesformel
+                break;
+              }
+            }
+            follow_further_idx++;
+            if (follow_further_idx >= max_follow_further_iterations) {
+              break;
+            }
+            following_lanelet_idx++;
+            if (following_lanelet_idx < following_lanelets.size()) {
+              following_lanelet = following_lanelets[following_lanelet_idx];
+            } else {
+              following_lanelets = routing_graph->following(following_lanelet, false);
+              following_lanelet = following_lanelets.front();
+              following_lanelet_idx = 0;
+            }
+          }
+          if (following_lane_idx_offset == std::numeric_limits<int>::max()) {
+            RCLCPP_WARN(rclcpp::get_logger("new_lanelet2_route_planning"), "Could not match following lanelet of adjacent left lanelet %ld to adjacent lanelets of next lanelet", a);
+          } else {
+            RCLCPP_INFO(rclcpp::get_logger("new_lanelet2_route_planning"), "Matched following lanelet of adjacent left lanelet %ld to adjacent lanelets of next lanelet", a);
+          }
+        }
+
+        if (following_lane_idx_offset == std::numeric_limits<int>::max()) {
+
+          for (size_t a = 0; a < adjacent_right_lanelets.size(); ++a) {
+
+            following_lanelets = routing_graph->following(adjacent_right_lanelets[a], false);
+            following_lanelet = following_lanelets.front();
+            following_lanelet_idx = 0;
+            follow_further_idx = 0;
+            while (following_lane_idx_offset == std::numeric_limits<int>::max()) { // loop over all following lanelets because sampling might have skipped short ones
+              for (size_t l = 0; l < adjacent_lanelets_of_next_lanelet.size(); ++l) {
+                if (following_lanelet.id() == adjacent_lanelets_of_next_lanelet[l].id()) {
+                  following_lane_idx_offset = l - suggested_lane_idx - (a + 1); // gottesformel
+                  break;
+                }
+              }
+              follow_further_idx++;
+              if (follow_further_idx >= max_follow_further_iterations) {
+                break;
+              }
+              following_lanelet_idx++;
+              if (following_lanelet_idx < following_lanelets.size()) {
+                following_lanelet = following_lanelets[following_lanelet_idx];
+              } else {
+                following_lanelets = routing_graph->following(following_lanelet, false);
+                following_lanelet = following_lanelets.front();
+                following_lanelet_idx = 0;
+              }
+            }
+            if (following_lane_idx_offset == std::numeric_limits<int>::max()) {
+              RCLCPP_WARN(rclcpp::get_logger("new_lanelet2_route_planning"), "Could not match following lanelet of adjacent right lanelet %ld to adjacent lanelets of next lanelet", a);
+            } else {
+              RCLCPP_INFO(rclcpp::get_logger("new_lanelet2_route_planning"), "Matched following lanelet of adjacent right lanelet %ld to adjacent lanelets of next lanelet", a);
+            }
+          }
+        }
+      } else {
+        RCLCPP_INFO(rclcpp::get_logger("new_lanelet2_route_planning"), "Matched following lanelet of current lanelet to adjacent lanelets of next lanelet");
+      }
+      if (following_lane_idx_offset == std::numeric_limits<int>::max()) {
+        RCLCPP_ERROR(rclcpp::get_logger("new_lanelet2_route_planning"), "Could not match following lanelets to adjacent lanelets of next lanelet");
+      }
+    }
 
     // project centerline point to lanelet bounds
     ll::BasicPoint2d left_bounds_point = projectPointToLineStringAlongNormal(point, prev_point_for_projection, next_point_for_projection, lanelet.leftBound2d().basicLineString());
@@ -417,7 +541,7 @@ route_planning_msgs::msg::Route laneletToRosRoute(const ll::routing::Route& rout
 
     // create RouteElement
     route_planning_msgs::msg::RouteElement route_element_msg;
-    route_element_msg.suggested_lane_idx = 0;                              // TODO
+    route_element_msg.suggested_lane_idx = suggested_lane_idx;
     route_element_msg.has_changed_suggested_lane = changes_lane_from_prev_point;
     // route_element_msg.drivable_space = 0;                               // TODO
     route_element_msg.s = 0;                                               // TODO
@@ -435,8 +559,8 @@ route_planning_msgs::msg::Route laneletToRosRoute(const ll::routing::Route& rout
       // lane_element_msg.right_boundary_type = 0;  // TODO
       lane_element_msg.speed_limit = 0;          // TODO
       lane_element_msg.regulatory_elements = {};       // TODO
-      lane_element_msg.following_lane_idx = 0;        // TODO
-      lane_element_msg.has_following_lane_idx = false; // TODO
+      lane_element_msg.following_lane_idx = route_element_msg.lane_elements.size() + following_lane_idx_offset;
+      lane_element_msg.has_following_lane_idx = (lane_element_msg.following_lane_idx >= 0 && lane_element_msg.following_lane_idx < n_adjacent_lanelets_of_next_lanelet);
       route_element_msg.lane_elements.push_back(lane_element_msg);
     }
 
@@ -452,10 +576,9 @@ route_planning_msgs::msg::Route laneletToRosRoute(const ll::routing::Route& rout
     // centerline_lane_element_msg.right_boundary_type = 0;  // TODO
     centerline_lane_element_msg.speed_limit = 0;          // TODO
     centerline_lane_element_msg.regulatory_elements = {};       // TODO
-    centerline_lane_element_msg.following_lane_idx = 0;        // TODO
-    centerline_lane_element_msg.has_following_lane_idx = false; // TODO
+    centerline_lane_element_msg.following_lane_idx = route_element_msg.lane_elements.size() + following_lane_idx_offset;
+    centerline_lane_element_msg.has_following_lane_idx = (centerline_lane_element_msg.following_lane_idx >= 0 && centerline_lane_element_msg.following_lane_idx < n_adjacent_lanelets_of_next_lanelet);
     route_element_msg.lane_elements.push_back(centerline_lane_element_msg);
-    route_element_msg.suggested_lane_idx = route_element_msg.lane_elements.size() - 1;
 
     // create LaneElements for right adjacent lanes
     for (size_t a = 0; a < adjacent_right_lanelets.size(); ++a) {
@@ -470,8 +593,8 @@ route_planning_msgs::msg::Route laneletToRosRoute(const ll::routing::Route& rout
       // lane_element_msg.right_boundary_type = 0;  // TODO
       lane_element_msg.speed_limit = 0;          // TODO
       lane_element_msg.regulatory_elements = {};       // TODO
-      lane_element_msg.following_lane_idx = 0;        // TODO
-      lane_element_msg.has_following_lane_idx = false; // TODO
+      lane_element_msg.following_lane_idx = route_element_msg.lane_elements.size() + following_lane_idx_offset;
+      lane_element_msg.has_following_lane_idx = (lane_element_msg.following_lane_idx >= 0 && lane_element_msg.following_lane_idx < n_adjacent_lanelets_of_next_lanelet);
       route_element_msg.lane_elements.push_back(lane_element_msg);
     }
 

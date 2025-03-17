@@ -42,6 +42,8 @@ class NewLanelet2RoutePlanning : public rclcpp::Node {
 
   void setup();
 
+  void setupRoutingGraph();
+
   void egoDataCallback(const perception_msgs::msg::EgoData::SharedPtr msg);
 
   rclcpp_action::GoalResponse actionHandleGoal(
@@ -69,6 +71,8 @@ class NewLanelet2RoutePlanning : public rclcpp::Node {
 
   OnSetParametersCallbackHandle::SharedPtr parameters_callback_;
 
+  rclcpp::TimerBase::SharedPtr delayed_setup_timer_;
+
   rclcpp::Subscription<perception_msgs::msg::EgoData>::SharedPtr subscriber_ego_data_;
 
   rclcpp::Publisher<route_planning_msgs::msg::Route>::SharedPtr publisher_route_;
@@ -88,6 +92,8 @@ class NewLanelet2RoutePlanning : public rclcpp::Node {
   std::unique_ptr<LL2MapInterface> ll2_interface_;
 
   std::string ll2_map_server_name_ = "ll2_map_server";
+
+  ll::routing::RoutingGraphUPtr routing_graph_;
 
   double route_undershoot_distance_ = 0.0;
 

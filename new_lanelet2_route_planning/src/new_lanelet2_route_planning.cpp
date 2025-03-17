@@ -25,7 +25,11 @@ NewLanelet2RoutePlanning::NewLanelet2RoutePlanning() : Node("new_lanelet2_route_
   this->declareAndLoadParameter("route_overshoot_distance", route_overshoot_distance_,
                                 "Overshoot route by this distance behind destination", true, false, false);
 
-  this->setup();
+  // initialize lanelet2 interface
+  ll2_interface_ = std::make_unique<LL2MapInterface>(*this, ll2_map_server_name_);
+
+  // delay setup to spin to allow to load the map
+  delayed_setup_timer_ = this->create_wall_timer(std::chrono::milliseconds(500), [this]() { this->setup(); });
 }
 
 /**
@@ -143,8 +147,11 @@ rcl_interfaces::msg::SetParametersResult NewLanelet2RoutePlanning::parametersCal
  * @brief Sets up subscribers, publishers, etc. to configure the node
  */
 void NewLanelet2RoutePlanning::setup() {
-  // initialize lanelet2 interface
-  ll2_interface_ = std::make_unique<LL2MapInterface>(*this, ll2_map_server_name_);
+
+  delayed_setup_timer_.reset();
+
+  // build routing graph
+  this->setupRoutingGraph();
 
   // callback for dynamic parameter configuration
   parameters_callback_ = this->add_on_set_parameters_callback(
@@ -169,6 +176,28 @@ void NewLanelet2RoutePlanning::setup() {
       std::bind(&NewLanelet2RoutePlanning::actionHandleGoal, this, std::placeholders::_1, std::placeholders::_2),
       std::bind(&NewLanelet2RoutePlanning::actionHandleCancel, this, std::placeholders::_1),
       std::bind(&NewLanelet2RoutePlanning::actionHandleAccepted, this, std::placeholders::_1));
+}
+
+void NewLanelet2RoutePlanning::setupRoutingGraph() {
+
+  bool success;
+  if (!ll2_interface_->map_loaded_) {
+    RCLCPP_FATAL(get_logger(), "Cannot build routing graph, map not loaded by '%s'", ll2_map_server_name_.c_str());
+    exit(EXIT_FAILURE);
+  }
+
+  // get map and traffic rules
+  ll::LaneletMapConstPtr map = ll2_interface_->getMapPtr();
+  ll::traffic_rules::TrafficRulesPtr traffic_rules = ll::traffic_rules::TrafficRulesFactory::create(
+      ll::Locations::Germany,
+      std::string(lanelet::Participants::Vehicle) + ":ika");  // TODO: what is this postfix? move to constant?
+
+  // build routing graph
+  success = buildRoutingGraph(map, traffic_rules, routing_graph_);
+  if (!success) {
+    RCLCPP_FATAL(get_logger(), "Failed to build routing graph");
+    exit(EXIT_FAILURE);
+  }
 }
 
 void NewLanelet2RoutePlanning::egoDataCallback(const perception_msgs::msg::EgoData::SharedPtr msg) {
@@ -221,7 +250,7 @@ rclcpp_action::GoalResponse NewLanelet2RoutePlanning::actionHandleGoal(
   // TODO: abort current action if running
 
   // convert route to custom format
-  route_planning_msgs::msg::Route route_msg = laneletToRosRoute(route, ll2_interface_->map_frame_id_);
+  route_planning_msgs::msg::Route route_msg = laneletToRosRoute(route, ll2_interface_->map_frame_id_, routing_graph_);
   route_msg.header.stamp = this->now();
   latest_route_ = route_msg;
 
@@ -305,25 +334,17 @@ bool NewLanelet2RoutePlanning::planRoute(const geometry_msgs::msg::Point& destin
   }
   ll::BasicPoint2d destination_ll_position = projectPointToCenterline(destination, destination_ll);
 
-  // build routing graph
-  ll::routing::RoutingGraphUPtr routing_graph;
-  success = buildRoutingGraph(map, traffic_rules, routing_graph);
-  if (!success) {
-    RCLCPP_ERROR(get_logger(), "Failed to build routing graph");
-    return false;
-  }
-
   // undershoot/overshoot route endpoints
   // TODO: still needed?
   ll::ConstLanelet undershot_ego_ll =
-      followLanelet(routing_graph, ego_ll, ego_ll_position, -std::abs(route_undershoot_distance_));
+      followLanelet(routing_graph_, ego_ll, ego_ll_position, -std::abs(route_undershoot_distance_));
   ll::ConstLanelet overshot_destination_ll =
-      followLanelet(routing_graph, destination_ll, destination_ll_position, route_overshoot_distance_);
+      followLanelet(routing_graph_, destination_ll, destination_ll_position, route_overshoot_distance_);
   // TODO: check that start/end are not the same lanelet (?) (see L314 in global_planner_node.cpp)
 
   // plan route
   const int routing_cost_id = 0;  // RoutingCostDistance
-  auto planned_route = routing_graph->getRoute(undershot_ego_ll, overshot_destination_ll, routing_cost_id);
+  auto planned_route = routing_graph_->getRoute(undershot_ego_ll, overshot_destination_ll, routing_cost_id);
   if (planned_route) {
     route = std::move(*planned_route);
     return true;

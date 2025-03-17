@@ -60,7 +60,7 @@ ll::BasicLineString2d resampleCenterlinesAlongPath(const ll::routing::LaneletPat
 
 std::vector<ll::ConstLanelet> adjacentLeftOrRightLanelets(const ll::ConstLanelet& lanelet, const ll::routing::Route& route, bool left);
 
-route_planning_msgs::msg::Route laneletToRosRoute(const ll::routing::Route& route, const std::string& frame_id);
+route_planning_msgs::msg::Route laneletToRosRoute(const ll::routing::Route& route, const std::string& frame_id, const ll::routing::RoutingGraphUPtr& routing_graph);
 
 geometry_msgs::msg::Quaternion vectorToRosQuaternion(const Eigen::Vector2d& vector);
 
