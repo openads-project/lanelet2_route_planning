@@ -99,6 +99,8 @@ class NewLanelet2RoutePlanning : public rclcpp::Node {
 
   route_planning_msgs::msg::Route latest_route_msg_;
 
+  double sampling_distance_ = 0.5;
+
   double route_undershoot_distance_ = 0.0;
 
   double route_overshoot_distance_ = 0.0;

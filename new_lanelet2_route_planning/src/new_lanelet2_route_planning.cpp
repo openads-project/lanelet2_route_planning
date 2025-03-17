@@ -20,6 +20,8 @@ namespace new_lanelet2_route_planning {
 NewLanelet2RoutePlanning::NewLanelet2RoutePlanning() : Node("new_lanelet2_route_planning") {
   this->declareAndLoadParameter("ll2_map_server_name", ll2_map_server_name_, "Name of lanelet2_map_server node", false,
                                 false, true);
+  this->declareAndLoadParameter("sampling_distance", sampling_distance_,
+                                "Distance between resampled points along route", true, false, false);
   this->declareAndLoadParameter("route_undershoot_distance", route_undershoot_distance_,
                                 "Undershoot route by this distance before ego position", true, false, false);
   this->declareAndLoadParameter("route_overshoot_distance", route_overshoot_distance_,
@@ -373,10 +375,9 @@ bool NewLanelet2RoutePlanning::laneletToRosRoute() {
   ll::routing::LaneletPath shortest_path = latest_route_.shortestPath();
 
   // resample centerlines along shortest path to accumulate global centerline
-  const double delta_s = 1.0; // TODO: move elsewhere
   bool monotonically = true;
   std::vector<size_t> lanelet_idx_by_point;
-  ll::BasicLineString2d shortest_path_centerline = resampleCenterlinesAlongPath(shortest_path, delta_s, monotonically, lanelet_idx_by_point);
+  ll::BasicLineString2d shortest_path_centerline = resampleCenterlinesAlongPath(shortest_path, sampling_distance_, monotonically, lanelet_idx_by_point);
 
   // loop over global centerline
   for (size_t c = 0; c < shortest_path_centerline.size(); ++c) {
@@ -387,8 +388,9 @@ bool NewLanelet2RoutePlanning::laneletToRosRoute() {
     const Eigen::Vector2d& next_point = (c < shortest_path_centerline.size() - 1) ? shortest_path_centerline[c + 1] : point;
 
     // identify lane changes based on break in equidistant centerline
-    bool changes_lane_from_prev_point = ((point - prev_point).norm() > delta_s + 0.001); // TODO: better handle epsilon for floating point comparison
-    bool changes_lane_to_next_point = ((next_point - point).norm() > delta_s + 0.001);
+    const double sampling_distance_epsilon = 1e-6;
+    bool changes_lane_from_prev_point = ((point - prev_point).norm() > sampling_distance_ + sampling_distance_epsilon);
+    bool changes_lane_to_next_point = ((next_point - point).norm() > sampling_distance_ + sampling_distance_epsilon);
 
     // determine neighboring points for projection
     Eigen::Vector2d prev_point_for_projection = changes_lane_from_prev_point ? point : prev_point;
