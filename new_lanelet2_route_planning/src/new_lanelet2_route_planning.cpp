@@ -503,6 +503,11 @@ bool NewLanelet2RoutePlanning::laneletToLocalRosRoute() {
       continue;
     }
 
+    // skip recomputation of local route if already enriched
+    if (lane_element_msg.has_left_boundary) {
+      continue;
+    }
+
     // get current, previous and next centerline point
     // TODO: geometry_msgs::msg::Point -> Eigen::Vector2d
     route_planning_msgs::msg::LaneElement& prev_lane_element_msg = (c > 0) ? route_elements[c - 1].lane_elements[route_elements[c - 1].suggested_lane_idx] : lane_element_msg;
