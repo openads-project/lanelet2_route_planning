@@ -64,9 +64,11 @@ class NewLanelet2RoutePlanning : public rclcpp::Node {
                      rclcpp_action::ServerGoalHandle<route_planning_msgs::action::GlobalManeuver>>
                          goal_handle);
 
-  bool planRoute(const geometry_msgs::msg::Point &destination, ll::routing::Route &route);
+  bool planRoute(const geometry_msgs::msg::PointStamped& destination);
 
-  bool laneletToRosRoute();
+  bool laneletToGlobalRosRoute();
+
+  bool laneletToLocalRosRoute();
 
  private:
   std::vector<std::tuple<std::string, std::function<void(const rclcpp::Parameter &)>>> auto_reconfigurable_params_;
@@ -97,9 +99,17 @@ class NewLanelet2RoutePlanning : public rclcpp::Node {
 
   ll::routing::Route latest_route_;
 
+  std::vector<size_t> latest_lanelet_idx_by_reference_line_point_idx_;
+
+  geometry_msgs::msg::Point destination_;
+
   route_planning_msgs::msg::Route latest_route_msg_;
 
   double sampling_distance_ = 0.5;
+
+  double local_route_ahead_distance_ = 30.0;
+
+  double local_route_behind_distance_ = 10.0;
 
   double route_undershoot_distance_ = 0.0;
 

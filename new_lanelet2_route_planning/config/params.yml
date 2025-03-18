@@ -2,5 +2,7 @@
   ros__parameters:
     ll2_map_server_name: ll2_map_server
     sampling_distance: 0.5
+    local_route_ahead_distance: 30.0
+    local_route_behind_distance: 10.0
     route_undershoot_distance: 0.0
     route_overshoot_distance: 0.0
