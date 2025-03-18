@@ -21,16 +21,18 @@ namespace new_lanelet2_route_planning {
 NewLanelet2RoutePlanning::NewLanelet2RoutePlanning() : Node("new_lanelet2_route_planning") {
   this->declareAndLoadParameter("ll2_map_server_name", ll2_map_server_name_, "Name of lanelet2_map_server node", false,
                                 false, true);
+  this->declareAndLoadParameter("publish_frequency", publish_frequency_, "Frequency of route publication [Hz]", true, false,
+                                false, 0.1, 10.0, 0.1);
   this->declareAndLoadParameter("sampling_distance", sampling_distance_,
-                                "Distance between resampled points along route", true, false, false, 0.01, 10.0, 0.01);
+                                "Distance between resampled points along route [m]", true, false, false, 0.01, 10.0, 0.01);
   this->declareAndLoadParameter("local_route_ahead_distance", local_route_ahead_distance_,
-                                "Distance ahead of ego position where global route is enriched with more information (negative=unlimited)", true, false, false, -1.0, 1000.0, 0.1);
+                                "Distance ahead of ego position where global route is enriched with more information [m] (negative=unlimited)", true, false, false, -1.0, 1000.0, 0.1);
   this->declareAndLoadParameter("local_route_behind_distance", local_route_behind_distance_,
-                                "Distance behind ego position where global route is enriched with more information (negative=unlimited)", true, false, false, -1.0, 1000.0, 0.1);
+                                "Distance behind ego position where global route is enriched with more information [m] (negative=unlimited)", true, false, false, -1.0, 1000.0, 0.1);
   this->declareAndLoadParameter("route_undershoot_distance", route_undershoot_distance_,
-                                "Undershoot route by this distance before ego position", true, false, false);
+                                "Undershoot route by this distance before ego position [m]", true, false, false);
   this->declareAndLoadParameter("route_overshoot_distance", route_overshoot_distance_,
-                                "Overshoot route by this distance behind destination", true, false, false);
+                                "Overshoot route by this distance behind destination [m]", true, false, false);
   if (local_route_ahead_distance_ < 0.0) local_route_ahead_distance_ = std::numeric_limits<double>::infinity();
   if (local_route_behind_distance_ < 0.0) local_route_behind_distance_ = std::numeric_limits<double>::infinity();
 
@@ -172,8 +174,9 @@ void NewLanelet2RoutePlanning::setup() {
 
   // publishers
   publisher_route_ = this->create_publisher<route_planning_msgs::msg::Route>("~/route", 1);
-  publish_timer_ = this->create_wall_timer(std::chrono::seconds(1),
-                                           [this]() { publisher_route_->publish(latest_route_msg_); }); // TODO: remove timer?
+  // TODO: start publishing only when route is available
+  publish_timer_ = this->create_wall_timer(std::chrono::duration<double>(1.0 / publish_frequency_),
+                                           [this]() { publisher_route_->publish(latest_route_msg_); });
 
   // subscribers
   subscriber_ego_data_ = this->create_subscription<perception_msgs::msg::EgoData>(
