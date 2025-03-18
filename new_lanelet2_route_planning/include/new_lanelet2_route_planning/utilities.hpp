@@ -64,4 +64,6 @@ int computeFollowingLaneIdxOffset(const ll::ConstLanelet& lanelet, const ll::Con
 
 geometry_msgs::msg::Quaternion vectorToRosQuaternion(const Eigen::Vector2d& vector);
 
+uint8_t laneBoundaryType(const ll::ConstLineString2d& line);
+
 }  // namespace new_lanelet2_route_planning
