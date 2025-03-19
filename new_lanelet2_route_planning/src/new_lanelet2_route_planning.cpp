@@ -431,10 +431,11 @@ bool NewLanelet2RoutePlanning::laneletToGlobalRosRoute() {
 
     // create RouteElement
     route_planning_msgs::msg::RouteElement route_element_msg;
-    route_element_msg.suggested_lane_idx = 0;
-    route_element_msg.will_change_suggested_lane = changes_lane_to_next_point;
     // route_element_msg.left_boundary not set in global route
     // route_element_msg.right_boundary not set in global route
+    // route_element_msg.regulatory_elements not set in global route
+    route_element_msg.suggested_lane_idx = 0;
+    route_element_msg.will_change_suggested_lane = changes_lane_to_next_point;
     route_element_msg.s = accumulated_distance;
 
     // create LaneElement
@@ -446,7 +447,9 @@ bool NewLanelet2RoutePlanning::laneletToGlobalRosRoute() {
     // lane_element_msg.right_boundary not set in global route
     lane_element_msg.has_right_boundary = false;
     lane_element_msg.speed_limit = 0;          // TODO
-    // lane_element_msg.regulatory_elements not set in global route
+    // TODO: rename to regulatory_element_idcs?
+    // TODO: has_regulatory_elements not needed?
+    // lane_element_msg.regulatory_element_idx not set in global route
     lane_element_msg.following_lane_idx = 0;
     lane_element_msg.has_following_lane_idx = true;
     route_element_msg.lane_elements.push_back(lane_element_msg);
@@ -498,7 +501,7 @@ bool NewLanelet2RoutePlanning::laneletToLocalRosRoute() {
       lane_element_msg.has_right_boundary = false;
       lane_element_msg.right_boundary = route_planning_msgs::msg::LaneBoundary();
       lane_element_msg.speed_limit = 0;
-      lane_element_msg.regulatory_elements = {};
+      lane_element_msg.regulatory_element_idx = {};
       lane_element_msg.following_lane_idx = 0;
       lane_element_msg.has_following_lane_idx = false;
       route_element_msg.lane_elements = {lane_element_msg};
@@ -574,10 +577,11 @@ bool NewLanelet2RoutePlanning::laneletToLocalRosRoute() {
 
     // enrich RouteElement with local route information
     route_element_msg.lane_elements = {};
-    route_element_msg.suggested_lane_idx = suggested_lane_idx;
-    route_element_msg.will_change_suggested_lane = changes_lane_to_next_point;
     // route_element_msg.left_boundary = 0;                                // TODO
     // route_element_msg.right_boundary = 0;                               // TODO
+    // route_element_msg.regulatory_elements = {};                         // TODO
+    route_element_msg.suggested_lane_idx = suggested_lane_idx;
+    route_element_msg.will_change_suggested_lane = changes_lane_to_next_point;
     // route_element_msg.s already set in global route
 
     // create LaneElements for left adjacent lanes
@@ -592,7 +596,7 @@ bool NewLanelet2RoutePlanning::laneletToLocalRosRoute() {
       lane_element_msg.right_boundary.type = laneBoundaryType(adjacent_left_lanelets[a].rightBound2d());
       lane_element_msg.has_right_boundary = true;
       lane_element_msg.speed_limit = 0;          // TODO
-      lane_element_msg.regulatory_elements = {};       // TODO
+      lane_element_msg.regulatory_element_idx = {};       // TODO
       lane_element_msg.following_lane_idx = route_element_msg.lane_elements.size() + following_lane_idx_offset;
       lane_element_msg.has_following_lane_idx = true;
       route_element_msg.lane_elements.push_back(lane_element_msg);
@@ -609,7 +613,7 @@ bool NewLanelet2RoutePlanning::laneletToLocalRosRoute() {
     centerline_lane_element_msg.right_boundary.type = laneBoundaryType(lanelet.rightBound2d());
     centerline_lane_element_msg.has_right_boundary = true;
     centerline_lane_element_msg.speed_limit = 0;          // TODO
-    centerline_lane_element_msg.regulatory_elements = {};       // TODO
+    centerline_lane_element_msg.regulatory_element_idx = {};       // TODO
     centerline_lane_element_msg.following_lane_idx = route_element_msg.lane_elements.size() + following_lane_idx_offset;
     centerline_lane_element_msg.has_following_lane_idx = true;
     route_element_msg.lane_elements.push_back(centerline_lane_element_msg);
@@ -626,7 +630,7 @@ bool NewLanelet2RoutePlanning::laneletToLocalRosRoute() {
       lane_element_msg.right_boundary.type = laneBoundaryType(adjacent_right_lanelets[a].rightBound2d());
       lane_element_msg.has_right_boundary = true;
       lane_element_msg.speed_limit = 0;          // TODO
-      lane_element_msg.regulatory_elements = {};       // TODO
+      lane_element_msg.regulatory_element_idx = {};       // TODO
       lane_element_msg.following_lane_idx = route_element_msg.lane_elements.size() + following_lane_idx_offset;
       lane_element_msg.has_following_lane_idx = true;
       route_element_msg.lane_elements.push_back(lane_element_msg);
