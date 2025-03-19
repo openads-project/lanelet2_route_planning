@@ -85,6 +85,16 @@ class NewLanelet2RoutePlanning : public rclcpp::Node {
 
   rclcpp_action::Server<route_planning_msgs::action::GlobalManeuver>::SharedPtr action_server_;
 
+  route_planning_msgs::action::GlobalManeuver::Feedback::SharedPtr action_feedback_;
+
+  route_planning_msgs::action::GlobalManeuver::Result::SharedPtr action_result_;
+
+  std::shared_ptr<rclcpp_action::ServerGoalHandle<route_planning_msgs::action::GlobalManeuver>> action_goal_handle_;
+
+  rclcpp::CallbackGroup::SharedPtr action_callback_group_;
+
+  rclcpp::Time action_start_time_;
+
   std::unique_ptr<tf2_ros::Buffer> tf_buffer_;
 
   std::shared_ptr<tf2_ros::TransformListener> tf_listener_;
@@ -105,9 +115,11 @@ class NewLanelet2RoutePlanning : public rclcpp::Node {
 
   route_planning_msgs::msg::Route latest_route_msg_;
 
-  bool is_publishing_route_ = false;
+  bool is_publishing_route_;
 
   double publish_frequency_ = 1.0;
+
+  double action_feedback_frequency_ = 1.0;
 
   double sampling_distance_ = 0.5;
 

@@ -23,6 +23,8 @@ NewLanelet2RoutePlanning::NewLanelet2RoutePlanning() : Node("new_lanelet2_route_
                                 false, true);
   this->declareAndLoadParameter("publish_frequency", publish_frequency_, "Frequency of route publication [Hz]", true, false,
                                 false, 0.1, 10.0, 0.1);
+  this->declareAndLoadParameter("action_feedback_frequency", action_feedback_frequency_,
+                                "Frequency of action feedback publication [Hz]", true, false, false, 0.1, 10.0, 0.1);
   this->declareAndLoadParameter("sampling_distance", sampling_distance_,
                                 "Distance between resampled points along route [m]", true, false, false, 0.01, 10.0, 0.01);
   this->declareAndLoadParameter("local_route_ahead_distance", local_route_ahead_distance_,
@@ -148,6 +150,9 @@ rcl_interfaces::msg::SetParametersResult NewLanelet2RoutePlanning::parametersCal
     }
   }
 
+  if (local_route_ahead_distance_ < 0.0) local_route_ahead_distance_ = std::numeric_limits<double>::infinity();
+  if (local_route_behind_distance_ < 0.0) local_route_behind_distance_ = std::numeric_limits<double>::infinity();
+
   rcl_interfaces::msg::SetParametersResult result;
   result.successful = true;
 
@@ -177,17 +182,21 @@ void NewLanelet2RoutePlanning::setup() {
   // TODO: start publishing only when route is available
   publish_timer_ = this->create_wall_timer(std::chrono::duration<double>(1.0 / publish_frequency_),
                                            [this]() { publisher_route_->publish(latest_route_msg_); });
+  is_publishing_route_ = false;
 
   // subscribers
   subscriber_ego_data_ = this->create_subscription<perception_msgs::msg::EgoData>(
       "~/ego_data", 1, std::bind(&NewLanelet2RoutePlanning::egoDataCallback, this, std::placeholders::_1));
 
   // action server for handling action goal requests
+  // TODO: what is the callback group for?
+  action_callback_group_ = this->create_callback_group(rclcpp::CallbackGroupType::MutuallyExclusive);
   action_server_ = rclcpp_action::create_server<route_planning_msgs::action::GlobalManeuver>(
       this, "~/route",
       std::bind(&NewLanelet2RoutePlanning::actionHandleGoal, this, std::placeholders::_1, std::placeholders::_2),
       std::bind(&NewLanelet2RoutePlanning::actionHandleCancel, this, std::placeholders::_1),
-      std::bind(&NewLanelet2RoutePlanning::actionHandleAccepted, this, std::placeholders::_1));
+      std::bind(&NewLanelet2RoutePlanning::actionHandleAccepted, this, std::placeholders::_1),
+      rcl_action_server_get_default_options(), action_callback_group_);
 }
 
 void NewLanelet2RoutePlanning::setupRoutingGraph() {
@@ -256,12 +265,9 @@ rclcpp_action::GoalResponse NewLanelet2RoutePlanning::actionHandleGoal(
     RCLCPP_ERROR(this->get_logger(), "Failed to plan route to destination, rejecting request");
     return rclcpp_action::GoalResponse::REJECT;
   } else {
+    // TODO: change some prints to DEBUG; improve all logs in general
     RCLCPP_INFO(this->get_logger(), "Successfully planned route to destination (%.3fs)", dt);
   }
-
-  // TODO: check egoIsOnRoute? is there any way ego lanelet could not be on the route?
-
-  // TODO: abort current action if running
 
   // convert route to ROS message
   RCLCPP_INFO(this->get_logger(), "Converting route to ROS message ...");
@@ -274,6 +280,13 @@ rclcpp_action::GoalResponse NewLanelet2RoutePlanning::actionHandleGoal(
     return rclcpp_action::GoalResponse::REJECT;
   } else {
     RCLCPP_INFO(this->get_logger(), "Successfully converted route to ROS message (%.3fs)", dt);
+  }
+
+  // abort current action if running
+  if (action_goal_handle_ && action_goal_handle_->is_active()) {
+    RCLCPP_WARN(this->get_logger(), "Existing action detected, aborting before accepting new goal");
+    is_publishing_route_ = false; // stop publishing route
+    action_goal_handle_->abort(action_result_);
   }
 
   // accept action goal request
@@ -307,6 +320,23 @@ void NewLanelet2RoutePlanning::actionHandleAccepted(
         rclcpp_action::ServerGoalHandle<route_planning_msgs::action::GlobalManeuver>>
         goal_handle) {
 
+  action_goal_handle_ = goal_handle;
+
+  // initialize feedback and result
+  action_start_time_ = this->now();
+  action_feedback_ = std::make_shared<route_planning_msgs::action::GlobalManeuver::Feedback>();
+  action_feedback_->distance_traveled = 0.0;
+  action_feedback_->distance_remaining = 0.0;
+  if (!latest_route_msg_.remaining_route_elements.empty()) {
+    action_feedback_->distance_remaining = latest_route_msg_.remaining_route_elements.back().s;
+  }
+  action_feedback_->time_traveled = rclcpp::Duration::from_seconds(0.0);
+  action_feedback_->time_remaining = rclcpp::Duration::from_seconds(0.0); // TODO: compute with speed limit along route
+  action_result_ = std::make_shared<route_planning_msgs::action::GlobalManeuver::Result>();
+  action_result_->distance_traveled = 0.0;
+  action_result_->time_traveled = rclcpp::Duration::from_seconds(0.0);
+  action_result_->destination_reached = false;
+
   // start publishing route
   is_publishing_route_ = true;
 
@@ -324,6 +354,51 @@ void NewLanelet2RoutePlanning::actionExecute(
         rclcpp_action::ServerGoalHandle<route_planning_msgs::action::GlobalManeuver>>
         goal_handle) {
   RCLCPP_INFO(this->get_logger(), "Executing action goal");
+
+  rclcpp::Rate feedback_rate(action_feedback_frequency_);
+  bool has_reached_destination = false;
+  while (goal_handle->is_executing() && !goal_handle->is_canceling() && !has_reached_destination) {
+
+    // check if destination reached
+    // TODO: check by comparing ego-position to destination with threshold
+
+    // update feedback and result
+    // TODO: distance only accurate to RouteElements, but accurate enough?
+    if (!latest_route_msg_.traveled_route_elements.empty()) {
+      action_feedback_->distance_traveled = latest_route_msg_.traveled_route_elements.back().s;
+    }
+    if (!latest_route_msg_.remaining_route_elements.empty()) {
+      action_feedback_->distance_remaining = latest_route_msg_.remaining_route_elements.back().s - action_feedback_->distance_traveled;
+    }
+    action_feedback_->time_traveled = this->now() - action_start_time_;
+    action_feedback_->time_remaining = rclcpp::Duration::from_seconds(0.0); // TODO: compute with speed limit along route
+    action_result_->distance_traveled = action_feedback_->distance_traveled;
+    action_result_->time_traveled = action_feedback_->time_traveled;
+
+    // publish feedback
+    goal_handle->publish_feedback(action_feedback_);
+    feedback_rate.sleep();
+  }
+
+  // prepare result
+  if (!latest_route_msg_.traveled_route_elements.empty()) {
+    action_result_->distance_traveled = latest_route_msg_.traveled_route_elements.back().s;
+  }
+  action_result_->time_traveled = this->now() - action_start_time_;
+  action_result_->destination_reached = has_reached_destination;
+
+  // stop publishing route
+  is_publishing_route_ = false;
+
+  // publish result
+  if (goal_handle->is_canceling()) {
+    // TODO: reroute to a few meters ahead if canceling? or rather handle the safe stop in simple_planner?
+    goal_handle->canceled(action_result_);
+    RCLCPP_INFO(this->get_logger(), "Goal canceled");
+  } else if (rclcpp::ok()) {
+    goal_handle->succeed(action_result_);
+    RCLCPP_INFO(this->get_logger(), "Goal succeeded");
+  }
 }
 
 bool NewLanelet2RoutePlanning::planRoute(const geometry_msgs::msg::PointStamped& destination) {

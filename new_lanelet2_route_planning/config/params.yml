@@ -2,6 +2,7 @@
   ros__parameters:
     ll2_map_server_name: ll2_map_server
     publish_frequency: 1.0
+    action_feedback_frequency_: 1.0
     sampling_distance: 0.5
     local_route_ahead_distance: 30.0
     local_route_behind_distance: 10.0
