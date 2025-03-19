@@ -216,14 +216,16 @@ void NewLanelet2RoutePlanning::egoDataCallback(const perception_msgs::msg::EgoDa
   latest_ego_data_ = *msg;
 
   // recompute local route
-  auto t0 = std::chrono::steady_clock::now();
-  bool success = this->laneletToLocalRosRoute();
-  auto t1 = std::chrono::steady_clock::now();
-  auto dt = std::chrono::duration_cast<std::chrono::duration<double>>(t1 - t0).count();
-  if (!success) {
-    RCLCPP_ERROR(this->get_logger(), "Failed to compute local route, rejecting request");
-  } else {
-    RCLCPP_INFO(this->get_logger(), "Successfully computed local route (%.3fs)", dt);
+  if (is_publishing_route_) {
+    auto t0 = std::chrono::steady_clock::now();
+    bool success = this->laneletToLocalRosRoute();
+    auto t1 = std::chrono::steady_clock::now();
+    auto dt = std::chrono::duration_cast<std::chrono::duration<double>>(t1 - t0).count();
+    if (!success) {
+      RCLCPP_ERROR(this->get_logger(), "Failed to compute local route, rejecting request");
+    } else {
+      RCLCPP_INFO(this->get_logger(), "Successfully computed local route (%.3fs)", dt);
+    }
   }
 }
 
@@ -304,6 +306,10 @@ void NewLanelet2RoutePlanning::actionHandleAccepted(
     const std::shared_ptr<
         rclcpp_action::ServerGoalHandle<route_planning_msgs::action::GlobalManeuver>>
         goal_handle) {
+
+  // start publishing route
+  is_publishing_route_ = true;
+
   // execute action in a separate thread to avoid blocking
   std::thread{std::bind(&NewLanelet2RoutePlanning::actionExecute, this, std::placeholders::_1), goal_handle}.detach();
 }

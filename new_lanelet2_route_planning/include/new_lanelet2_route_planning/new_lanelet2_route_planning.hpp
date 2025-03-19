@@ -105,6 +105,8 @@ class NewLanelet2RoutePlanning : public rclcpp::Node {
 
   route_planning_msgs::msg::Route latest_route_msg_;
 
+  bool is_publishing_route_ = false;
+
   double publish_frequency_ = 1.0;
 
   double sampling_distance_ = 0.5;
