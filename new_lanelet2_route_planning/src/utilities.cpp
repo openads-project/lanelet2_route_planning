@@ -15,13 +15,11 @@ static const unsigned int k_nearest_lanelets = 5;
 static const double k_timeout_ego_data = 1.0;
 static const double k_max_distance_lanelet_matching = 5.0;
 
-Eigen::Vector2d rosToLaneletPoint(const geometry_msgs::msg::Point& point) {
-  return Eigen::Vector2d(point.x, point.y);
-}
+Eigen::Vector2d rosToLaneletPoint(const geometry_msgs::msg::Point& point) { return Eigen::Vector2d(point.x, point.y); }
 
 Eigen::Vector2d rosToLaneletPoint(const perception_msgs::msg::EgoData& ego_data) {
   return Eigen::Vector2d(perception_msgs::object_access::getX(ego_data),
-                          perception_msgs::object_access::getY(ego_data));
+                         perception_msgs::object_access::getY(ego_data));
 }
 
 geometry_msgs::msg::Point laneletToRosPoint(const Eigen::Vector2d& point) {
@@ -67,7 +65,8 @@ bool findLaneletAtPoint(const ll::LaneletMapConstPtr& map, const Eigen::Vector2d
     return true;
   }
   RCLCPP_ERROR(rclcpp::get_logger("new_lanelet2_route_planning"),
-               "No passable lanelet within %.3fm of given point (%.3f, %.3f)", k_max_distance_lanelet_matching, point.x(), point.y());
+               "No passable lanelet within %.3fm of given point (%.3f, %.3f)", k_max_distance_lanelet_matching,
+               point.x(), point.y());
   return false;
 }
 
@@ -98,18 +97,18 @@ bool findLaneletAtEgoPosition(const ll::LaneletMapConstPtr& map, const std::stri
   return findLaneletAtPoint(map, rosToLaneletPoint(ego_data), lanelet, traffic_rules);
 }
 
-Eigen::Vector2d tangentOfPointAlongLineString(const Eigen::Vector2d& point, const Eigen::Vector2d& prev_point, const Eigen::Vector2d& next_point) {
-
+Eigen::Vector2d tangentOfPointAlongLineString(const Eigen::Vector2d& point, const Eigen::Vector2d& prev_point,
+                                              const Eigen::Vector2d& next_point) {
   Eigen::Vector2d tangent;
 
-  if (point == prev_point && point != next_point) { // single line segment
+  if (point == prev_point && point != next_point) {  // single line segment
     tangent = (next_point - point).normalized();
-  } else if (point != prev_point && point == next_point) { // single line segment
+  } else if (point != prev_point && point == next_point) {  // single line segment
     tangent = (point - prev_point).normalized();
-  } else if (point == prev_point && point == next_point) { // single point
+  } else if (point == prev_point && point == next_point) {  // single point
     RCLCPP_WARN(rclcpp::get_logger("new_lanelet2_route_planning"), "Tangent of single point is undefined");
     tangent = Eigen::Vector2d(0.0, 0.0);
-  } else { // proper two line segments with previous and next point
+  } else {  // proper two line segments with previous and next point
     const Eigen::Vector2d prev_to_point_unit = (point - prev_point).normalized();
     const Eigen::Vector2d point_to_next_unit = (next_point - point).normalized();
     tangent = (prev_to_point_unit + point_to_next_unit).normalized();
@@ -118,8 +117,8 @@ Eigen::Vector2d tangentOfPointAlongLineString(const Eigen::Vector2d& point, cons
   return tangent;
 }
 
-Eigen::Vector2d normalOfPointAlongLineString(const Eigen::Vector2d& point, const Eigen::Vector2d& prev_point, const Eigen::Vector2d& next_point) {
-
+Eigen::Vector2d normalOfPointAlongLineString(const Eigen::Vector2d& point, const Eigen::Vector2d& prev_point,
+                                             const Eigen::Vector2d& next_point) {
   Eigen::Vector2d tangent = tangentOfPointAlongLineString(point, prev_point, next_point);
   Eigen::Vector2d normal = Eigen::Vector2d(tangent.y(), -tangent.x());
 
@@ -127,7 +126,6 @@ Eigen::Vector2d normalOfPointAlongLineString(const Eigen::Vector2d& point, const
 }
 
 ll::BasicLineString2d resampleLineString(const ll::BasicLineString2d& line, const double delta_s, double& offset) {
-
   // TODO: use internal type for lines for easier processing? -> better understand what BasicLineString2d actually is, might save some lines here or there
   // copy to Eigen line
   std::vector<Eigen::Vector2d> line_eigen;
@@ -139,15 +137,14 @@ ll::BasicLineString2d resampleLineString(const ll::BasicLineString2d& line, cons
 
   // set initial sampling distance
   double sampling_distance = delta_s;
-  if (offset == 0.0) { // if no offset, start with first line point
+  if (offset == 0.0) {  // if no offset, start with first line point
     resampled_line_eigen.push_back(line_eigen.front());
-  } else { // else sample first point with offset != delta_s
+  } else {  // else sample first point with offset != delta_s
     sampling_distance = offset;
   }
 
   // loop over all line segments
   for (size_t i = 1; i < line_eigen.size(); ++i) {
-
     // determine segment length and unit direction
     double segment_length = (line_eigen[i] - line_eigen[i - 1]).norm();
     const Eigen::Vector2d segment_direction = (line_eigen[i] - line_eigen[i - 1]).normalized();
@@ -186,25 +183,27 @@ Eigen::Vector2d projectPointToCenterline(const geometry_msgs::msg::Point& point,
 }
 
 Eigen::Vector2d projectPointToCenterline(const perception_msgs::msg::EgoData& ego_data,
-                                          const ll::ConstLanelet& lanelet) {
+                                         const ll::ConstLanelet& lanelet) {
   return projectPointToCenterline(rosToLaneletPoint(ego_data), lanelet);
 }
 
-Eigen::Vector2d projectPointToLineStringAlongNormal(const Eigen::Vector2d& point, const Eigen::Vector2d& prev_point, const Eigen::Vector2d& next_point, const ll::BasicLineString2d& line) {
-
+Eigen::Vector2d projectPointToLineStringAlongNormal(const Eigen::Vector2d& point, const Eigen::Vector2d& prev_point,
+                                                    const Eigen::Vector2d& next_point,
+                                                    const ll::BasicLineString2d& line) {
   // find normal to tangent at point
   Eigen::Vector2d normal = normalOfPointAlongLineString(point, prev_point, next_point);
 
   // project current point to other line along normal to tangent
   bool found_intersection_with_line_segment;
-  const Eigen::Vector2d projected_point = projectPointToLineAlongAxis(point, normal, line, found_intersection_with_line_segment);
+  const Eigen::Vector2d projected_point =
+      projectPointToLineAlongAxis(point, normal, line, found_intersection_with_line_segment);
 
   return projected_point;
 }
 
 Eigen::Vector2d projectPointToLineAlongAxis(const Eigen::Vector2d& point, const Eigen::Vector2d& axis,
-                                             const ll::BasicLineString2d& line, bool& found_intersection_with_line_segment) {
-
+                                            const ll::BasicLineString2d& line,
+                                            bool& found_intersection_with_line_segment) {
   // TODO: use Eigen to compute intersection?
   // https://stackoverflow.com/a/50763846
 
@@ -220,7 +219,6 @@ Eigen::Vector2d projectPointToLineAlongAxis(const Eigen::Vector2d& point, const 
 
   // loop over line segments
   for (size_t i = 0; i < line.size() - 1; ++i) {
-
     const auto& line_point1 = line[i];
     const auto& line_point2 = line[i + 1];
 
@@ -243,8 +241,9 @@ Eigen::Vector2d projectPointToLineAlongAxis(const Eigen::Vector2d& point, const 
         found_intersection_with_line_segment = true;
         closest_projected_point = projected_point;
         break;
-      } else { // else still save as best projected point if closest to line segment
-        double distance_to_line_segment = std::min((projected_point - line_point1).norm(), (projected_point - line_point2).norm());
+      } else {  // else still save as best projected point if closest to line segment
+        double distance_to_line_segment =
+            std::min((projected_point - line_point1).norm(), (projected_point - line_point2).norm());
         if (distance_to_line_segment < closest_distance_to_line_segment) {
           closest_distance_to_line_segment = distance_to_line_segment;
           closest_projected_point = projected_point;
@@ -254,7 +253,8 @@ Eigen::Vector2d projectPointToLineAlongAxis(const Eigen::Vector2d& point, const 
   }
 
   if (!found_at_least_one_intersection) {
-    RCLCPP_ERROR(rclcpp::get_logger("new_lanelet2_route_planning"), "Could not project point to line along axis because axis is parallel to all line segments");
+    RCLCPP_ERROR(rclcpp::get_logger("new_lanelet2_route_planning"),
+                 "Could not project point to line along axis because axis is parallel to all line segments");
   }
 
   return closest_projected_point;
@@ -290,18 +290,17 @@ ll::ConstLanelet followLanelet(const ll::routing::RoutingGraphUPtr& routing_grap
   return new_lanelet;
 }
 
-ll::BasicLineString2d resampleCenterlinesAlongPath(const ll::routing::LaneletPath& path, const double delta_s, bool monotonically, std::vector<size_t>& lanelet_idx_by_point) {
-
+ll::BasicLineString2d resampleCenterlinesAlongPath(const ll::routing::LaneletPath& path, const double delta_s,
+                                                   bool monotonically, std::vector<size_t>& lanelet_idx_by_point) {
   // init variables
   ll::BasicLineString2d resampled_path_centerline;
   double resampling_offset = 0.0;
   lanelet_idx_by_point.clear();
-  Eigen::Vector2d prev_sampled_point = Eigen::Vector2d(0.0, 0.0); // TODO: dangerous to init to 0?
+  Eigen::Vector2d prev_sampled_point = Eigen::Vector2d(0.0, 0.0);  // TODO: dangerous to init to 0?
   Eigen::Vector2d prev_sampled_point_orientation = Eigen::Vector2d(0.0, 0.0);
 
   // loop over lanelets in path
   for (size_t l = 0; l < path.size(); ++l) {
-
     // get centerline
     const ll::ConstLanelet& lanelet = path[l];
     ll::BasicLineString2d centerline = lanelet.centerline2d().basicLineString();
@@ -310,7 +309,7 @@ ll::BasicLineString2d resampleCenterlinesAlongPath(const ll::routing::LaneletPat
     if (monotonically && l > 0) {
       for (auto cit = centerline.begin(); cit != centerline.end();) {
         auto& centerline_point = *cit;
-        if ((centerline_point - prev_sampled_point).dot(prev_sampled_point_orientation) < 0) { // angle > 90deg
+        if ((centerline_point - prev_sampled_point).dot(prev_sampled_point_orientation) < 0) {  // angle > 90deg
           cit = centerline.erase(cit);
         } else {
           break;
@@ -320,7 +319,8 @@ ll::BasicLineString2d resampleCenterlinesAlongPath(const ll::routing::LaneletPat
 
     // resample lanelet centerline
     ll::BasicLineString2d resampled_centerline = resampleLineString(centerline, delta_s, resampling_offset);
-    resampled_path_centerline.insert(resampled_path_centerline.end(), resampled_centerline.begin(), resampled_centerline.end());
+    resampled_path_centerline.insert(resampled_path_centerline.end(), resampled_centerline.begin(),
+                                     resampled_centerline.end());
     lanelet_idx_by_point.insert(lanelet_idx_by_point.end(), resampled_centerline.size(), l);
 
     // update information for monotonicity check
@@ -328,7 +328,8 @@ ll::BasicLineString2d resampleCenterlinesAlongPath(const ll::routing::LaneletPat
       if (resampled_centerline.size() > 1) {
         prev_sampled_point = resampled_centerline[resampled_centerline.size() - 2];
       }
-      prev_sampled_point_orientation = tangentOfPointAlongLineString(resampled_centerline.back(), prev_sampled_point, resampled_centerline.back());
+      prev_sampled_point_orientation =
+          tangentOfPointAlongLineString(resampled_centerline.back(), prev_sampled_point, resampled_centerline.back());
       prev_sampled_point = resampled_centerline.back();
     }
   }
@@ -336,40 +337,47 @@ ll::BasicLineString2d resampleCenterlinesAlongPath(const ll::routing::LaneletPat
   return resampled_path_centerline;
 }
 
-std::vector<ll::ConstLanelet> adjacentLeftOrRightLanelets(const ll::ConstLanelet& lanelet, const ll::routing::Route& route, bool left) {
+std::vector<ll::ConstLanelet> adjacentLeftOrRightLanelets(const ll::ConstLanelet& lanelet,
+                                                          const ll::routing::Route& route, bool left) {
   std::vector<ll::ConstLanelet> adjacent_lanelets;
   ll::routing::LaneletRelations relations = left ? route.leftRelations(lanelet) : route.rightRelations(lanelet);
   for (const auto& relation : relations) {
-    if ((left && (relation.relationType == ll::routing::RelationType::Left || relation.relationType == ll::routing::RelationType::AdjacentLeft)) ||
-        (!left && (relation.relationType == ll::routing::RelationType::Right || relation.relationType == ll::routing::RelationType::AdjacentRight))) {
+    if ((left && (relation.relationType == ll::routing::RelationType::Left ||
+                  relation.relationType == ll::routing::RelationType::AdjacentLeft)) ||
+        (!left && (relation.relationType == ll::routing::RelationType::Right ||
+                   relation.relationType == ll::routing::RelationType::AdjacentRight))) {
       adjacent_lanelets.push_back(relation.lanelet);
     }
   }
   return adjacent_lanelets;
 }
 
-int computeFollowingLaneIdxOffset(const ll::ConstLanelet& lanelet, const ll::ConstLanelet& lanelet_of_next_point, const ll::routing::Route& route, const ll::routing::RoutingGraphUPtr& routing_graph) {
-
+int computeFollowingLaneIdxOffset(const ll::ConstLanelet& lanelet, const ll::ConstLanelet& lanelet_of_next_point,
+                                  const ll::routing::Route& route, const ll::routing::RoutingGraphUPtr& routing_graph) {
   int following_lane_idx_offset = 0;
   size_t n_adjacent_lanelets_of_next_lanelet;
   if (lanelet_of_next_point.id() != lanelet.id()) {
-
     // get adjacent lanelets of current lanelet
     std::vector<ll::ConstLanelet> adjacent_left_lanelets = adjacentLeftOrRightLanelets(lanelet, route, true);
     std::vector<ll::ConstLanelet> adjacent_right_lanelets = adjacentLeftOrRightLanelets(lanelet, route, false);
     int suggested_lane_idx = adjacent_left_lanelets.size();
 
     // get adjacent lanelets of next lanelet (lanelet of next point)
-    std::vector<ll::ConstLanelet> adjacent_left_lanelets_of_next_lanelet = adjacentLeftOrRightLanelets(lanelet_of_next_point, route, true);
-    std::vector<ll::ConstLanelet> adjacent_right_lanelets_of_next_lanelet = adjacentLeftOrRightLanelets(lanelet_of_next_point, route, false);
+    std::vector<ll::ConstLanelet> adjacent_left_lanelets_of_next_lanelet =
+        adjacentLeftOrRightLanelets(lanelet_of_next_point, route, true);
+    std::vector<ll::ConstLanelet> adjacent_right_lanelets_of_next_lanelet =
+        adjacentLeftOrRightLanelets(lanelet_of_next_point, route, false);
     std::vector<ll::ConstLanelet> adjacent_lanelets_of_next_lanelet = adjacent_left_lanelets_of_next_lanelet;
     adjacent_lanelets_of_next_lanelet.push_back(lanelet_of_next_point);
-    adjacent_lanelets_of_next_lanelet.insert(adjacent_lanelets_of_next_lanelet.end(), adjacent_right_lanelets_of_next_lanelet.begin(), adjacent_right_lanelets_of_next_lanelet.end());
+    adjacent_lanelets_of_next_lanelet.insert(adjacent_lanelets_of_next_lanelet.end(),
+                                             adjacent_right_lanelets_of_next_lanelet.begin(),
+                                             adjacent_right_lanelets_of_next_lanelet.end());
     n_adjacent_lanelets_of_next_lanelet = adjacent_lanelets_of_next_lanelet.size();
 
     // find following lanelet of current lanelet and adjacent lanelets in adjacent lanelets of next lanelet
-    std::vector<std::vector<ll::ConstLanelet>> lanelet_groups = { {lanelet}, adjacent_left_lanelets, adjacent_right_lanelets };
-    std::vector<int> lanelet_group_offset_factors = { 0, 1, -1 };
+    std::vector<std::vector<ll::ConstLanelet>> lanelet_groups = {
+        {lanelet}, adjacent_left_lanelets, adjacent_right_lanelets};
+    std::vector<int> lanelet_group_offset_factors = {0, 1, -1};
     following_lane_idx_offset = std::numeric_limits<int>::max();
 
     // first try to match following lanelet of current lanelet, then of adjacent left lanelets, then of adjacent right lanelets
@@ -382,15 +390,16 @@ int computeFollowingLaneIdxOffset(const ll::ConstLanelet& lanelet, const ll::Con
         auto following_lanelets = routing_graph->following(lanelet_group[a], false);
         auto following_lanelet = following_lanelets.front();
         size_t following_lanelet_idx = 0;
-        size_t follow_further_idx = 0; // counter for following lanelets more than once (e.g., if sampling skipped short lanelets)
-        size_t max_follow_further_iterations = 3; // maximum number of following lanelets to check
+        size_t follow_further_idx =
+            0;  // counter for following lanelets more than once (e.g., if sampling skipped short lanelets)
+        size_t max_follow_further_iterations = 3;  // maximum number of following lanelets to check
 
         // loop until following lanelet is found in adjacent lanelets of next lanelet
         while (following_lane_idx_offset == std::numeric_limits<int>::max()) {
           // check all adjacent lanelets of next lanelet
           for (size_t l = 0; l < adjacent_lanelets_of_next_lanelet.size(); ++l) {
             if (following_lanelet.id() == adjacent_lanelets_of_next_lanelet[l].id()) {
-              following_lane_idx_offset = l - suggested_lane_idx + group_offset_factor * (a + 1); // gottesformel
+              following_lane_idx_offset = l - suggested_lane_idx + group_offset_factor * (a + 1);  // gottesformel
               break;
             }
           }
@@ -423,7 +432,8 @@ int computeFollowingLaneIdxOffset(const ll::ConstLanelet& lanelet, const ll::Con
     }
 
     if (following_lane_idx_offset == std::numeric_limits<int>::max()) {
-      RCLCPP_ERROR(rclcpp::get_logger("new_lanelet2_route_planning"), "Could not match following lanelets to adjacent lanelets of lanelet of next point");
+      RCLCPP_ERROR(rclcpp::get_logger("new_lanelet2_route_planning"),
+                   "Could not match following lanelets to adjacent lanelets of lanelet of next point");
     }
   }
 
@@ -443,7 +453,6 @@ geometry_msgs::msg::Quaternion vectorToRosQuaternion(const Eigen::Vector2d& vect
 }
 
 uint8_t laneBoundaryType(const ll::ConstLineString2d& line) {
-
   uint8_t lane_boundary_type = route_planning_msgs::msg::LaneBoundary::TYPE_UNKNOWN;
 
   // get type attribute

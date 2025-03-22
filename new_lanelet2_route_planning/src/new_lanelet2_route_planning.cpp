@@ -21,16 +21,21 @@ namespace new_lanelet2_route_planning {
 NewLanelet2RoutePlanning::NewLanelet2RoutePlanning() : Node("new_lanelet2_route_planning") {
   this->declareAndLoadParameter("ll2_map_server_name", ll2_map_server_name_, "Name of lanelet2_map_server node", false,
                                 false, true);
-  this->declareAndLoadParameter("publish_frequency", publish_frequency_, "Frequency of route publication [Hz]", true, false,
-                                false, 0.1, 10.0, 0.1);
+  this->declareAndLoadParameter("publish_frequency", publish_frequency_, "Frequency of route publication [Hz]", true,
+                                false, false, 0.1, 10.0, 0.1);
   this->declareAndLoadParameter("action_feedback_frequency", action_feedback_frequency_,
                                 "Frequency of action feedback publication [Hz]", true, false, false, 0.1, 10.0, 0.1);
   this->declareAndLoadParameter("sampling_distance", sampling_distance_,
-                                "Distance between resampled points along route [m]", true, false, false, 0.01, 10.0, 0.01);
-  this->declareAndLoadParameter("local_route_ahead_distance", local_route_ahead_distance_,
-                                "Distance ahead of ego position where global route is enriched with more information [m] (negative=unlimited)", true, false, false, -1.0, 1000.0, 0.1);
-  this->declareAndLoadParameter("local_route_behind_distance", local_route_behind_distance_,
-                                "Distance behind ego position where global route is enriched with more information [m] (negative=unlimited)", true, false, false, -1.0, 1000.0, 0.1);
+                                "Distance between resampled points along route [m]", true, false, false, 0.01, 10.0,
+                                0.01);
+  this->declareAndLoadParameter(
+      "local_route_ahead_distance", local_route_ahead_distance_,
+      "Distance ahead of ego position where global route is enriched with more information [m] (negative=unlimited)",
+      true, false, false, -1.0, 1000.0, 0.1);
+  this->declareAndLoadParameter(
+      "local_route_behind_distance", local_route_behind_distance_,
+      "Distance behind ego position where global route is enriched with more information [m] (negative=unlimited)",
+      true, false, false, -1.0, 1000.0, 0.1);
   this->declareAndLoadParameter("route_undershoot_distance", route_undershoot_distance_,
                                 "Undershoot route by this distance before ego position [m]", true, false, false);
   this->declareAndLoadParameter("route_overshoot_distance", route_overshoot_distance_,
@@ -163,7 +168,6 @@ rcl_interfaces::msg::SetParametersResult NewLanelet2RoutePlanning::parametersCal
  * @brief Sets up subscribers, publishers, etc. to configure the node
  */
 void NewLanelet2RoutePlanning::setup() {
-
   delayed_setup_timer_.reset();
 
   // build routing graph
@@ -200,7 +204,6 @@ void NewLanelet2RoutePlanning::setup() {
 }
 
 void NewLanelet2RoutePlanning::setupRoutingGraph() {
-
   bool success;
   if (!ll2_interface_->map_loaded_) {
     RCLCPP_FATAL(get_logger(), "Cannot build routing graph, map not loaded by '%s'", ll2_map_server_name_.c_str());
@@ -242,8 +245,7 @@ void NewLanelet2RoutePlanning::egoDataCallback(const perception_msgs::msg::EgoDa
  * @return goal response
  */
 rclcpp_action::GoalResponse NewLanelet2RoutePlanning::actionHandleGoal(
-    const rclcpp_action::GoalUUID& uuid,
-    route_planning_msgs::action::GlobalManeuver::Goal::ConstSharedPtr goal) {
+    const rclcpp_action::GoalUUID& uuid, route_planning_msgs::action::GlobalManeuver::Goal::ConstSharedPtr goal) {
   (void)uuid;
   (void)goal;
 
@@ -281,7 +283,7 @@ rclcpp_action::GoalResponse NewLanelet2RoutePlanning::actionHandleGoal(
   // abort current action if running
   if (action_goal_handle_ && action_goal_handle_->is_active()) {
     RCLCPP_WARN(this->get_logger(), "Existing action detected, aborting before accepting new goal");
-    is_publishing_route_ = false; // stop publishing route
+    is_publishing_route_ = false;  // stop publishing route
     action_goal_handle_->abort(action_result_);
   }
 
@@ -296,9 +298,7 @@ rclcpp_action::GoalResponse NewLanelet2RoutePlanning::actionHandleGoal(
  * @return cancel response
  */
 rclcpp_action::CancelResponse NewLanelet2RoutePlanning::actionHandleCancel(
-    const std::shared_ptr<
-        rclcpp_action::ServerGoalHandle<route_planning_msgs::action::GlobalManeuver>>
-        goal_handle) {
+    const std::shared_ptr<rclcpp_action::ServerGoalHandle<route_planning_msgs::action::GlobalManeuver>> goal_handle) {
   (void)goal_handle;
 
   RCLCPP_INFO(this->get_logger(), "Received request to cancel action goal");
@@ -312,10 +312,7 @@ rclcpp_action::CancelResponse NewLanelet2RoutePlanning::actionHandleCancel(
  * @param goal_handle action goal handle
  */
 void NewLanelet2RoutePlanning::actionHandleAccepted(
-    const std::shared_ptr<
-        rclcpp_action::ServerGoalHandle<route_planning_msgs::action::GlobalManeuver>>
-        goal_handle) {
-
+    const std::shared_ptr<rclcpp_action::ServerGoalHandle<route_planning_msgs::action::GlobalManeuver>> goal_handle) {
   action_goal_handle_ = goal_handle;
 
   // initialize feedback and result
@@ -327,7 +324,7 @@ void NewLanelet2RoutePlanning::actionHandleAccepted(
     action_feedback_->distance_remaining = latest_route_msg_.remaining_route_elements.back().s;
   }
   action_feedback_->time_traveled = rclcpp::Duration::from_seconds(0.0);
-  action_feedback_->time_remaining = rclcpp::Duration::from_seconds(0.0); // TODO: compute with speed limit along route
+  action_feedback_->time_remaining = rclcpp::Duration::from_seconds(0.0);  // TODO: compute with speed limit along route
   action_result_ = std::make_shared<route_planning_msgs::action::GlobalManeuver::Result>();
   action_result_->distance_traveled = 0.0;
   action_result_->time_traveled = rclcpp::Duration::from_seconds(0.0);
@@ -346,15 +343,12 @@ void NewLanelet2RoutePlanning::actionHandleAccepted(
  * @param goal_handle action goal handle
  */
 void NewLanelet2RoutePlanning::actionExecute(
-    const std::shared_ptr<
-        rclcpp_action::ServerGoalHandle<route_planning_msgs::action::GlobalManeuver>>
-        goal_handle) {
+    const std::shared_ptr<rclcpp_action::ServerGoalHandle<route_planning_msgs::action::GlobalManeuver>> goal_handle) {
   RCLCPP_INFO(this->get_logger(), "Executing action goal");
 
   rclcpp::Rate feedback_rate(action_feedback_frequency_);
   bool has_reached_destination = false;
   while (goal_handle->is_executing() && !goal_handle->is_canceling() && !has_reached_destination) {
-
     // check if destination reached
     // TODO: check by comparing ego-position to destination with threshold
 
@@ -364,10 +358,12 @@ void NewLanelet2RoutePlanning::actionExecute(
       action_feedback_->distance_traveled = latest_route_msg_.traveled_route_elements.back().s;
     }
     if (!latest_route_msg_.remaining_route_elements.empty()) {
-      action_feedback_->distance_remaining = latest_route_msg_.remaining_route_elements.back().s - action_feedback_->distance_traveled;
+      action_feedback_->distance_remaining =
+          latest_route_msg_.remaining_route_elements.back().s - action_feedback_->distance_traveled;
     }
     action_feedback_->time_traveled = this->now() - action_start_time_;
-    action_feedback_->time_remaining = rclcpp::Duration::from_seconds(0.0); // TODO: compute with speed limit along route
+    action_feedback_->time_remaining =
+        rclcpp::Duration::from_seconds(0.0);  // TODO: compute with speed limit along route
     action_result_->distance_traveled = action_feedback_->distance_traveled;
     action_result_->time_traveled = action_feedback_->time_traveled;
 
@@ -462,7 +458,6 @@ bool NewLanelet2RoutePlanning::planRoute(const geometry_msgs::msg::PointStamped&
 }
 
 bool NewLanelet2RoutePlanning::laneletToGlobalRosRoute() {
-
   // create Route message
   route_planning_msgs::msg::Route route_msg;
   route_msg.header.stamp = this->now();
@@ -476,16 +471,17 @@ bool NewLanelet2RoutePlanning::laneletToGlobalRosRoute() {
 
   // resample centerlines along shortest path to accumulate global reference line
   bool monotonically = true;
-  ll::BasicLineString2d shortest_path_centerline = resampleCenterlinesAlongPath(shortest_path, sampling_distance_, monotonically, latest_lanelet_idx_by_reference_line_point_idx_);
+  ll::BasicLineString2d shortest_path_centerline = resampleCenterlinesAlongPath(
+      shortest_path, sampling_distance_, monotonically, latest_lanelet_idx_by_reference_line_point_idx_);
 
   // fill route message with global reference line
   double accumulated_distance = 0;
   for (size_t c = 0; c < shortest_path_centerline.size(); ++c) {
-
     // get current, previous and next centerline point
     const Eigen::Vector2d& point = shortest_path_centerline[c];
     const Eigen::Vector2d& prev_point = (c > 0) ? shortest_path_centerline[c - 1] : point;
-    const Eigen::Vector2d& next_point = (c < shortest_path_centerline.size() - 1) ? shortest_path_centerline[c + 1] : point;
+    const Eigen::Vector2d& next_point =
+        (c < shortest_path_centerline.size() - 1) ? shortest_path_centerline[c + 1] : point;
 
     // identify lane changes based on break in equidistant centerline
     const double sampling_distance_epsilon = 1e-6;
@@ -495,7 +491,8 @@ bool NewLanelet2RoutePlanning::laneletToGlobalRosRoute() {
     // compute orientation of centerline point
     Eigen::Vector2d prev_point_for_orientation = changes_lane_from_prev_point ? point : prev_point;
     Eigen::Vector2d next_point_for_orientation = changes_lane_to_next_point ? point : next_point;
-    Eigen::Vector2d orientation = tangentOfPointAlongLineString(point, prev_point_for_orientation, next_point_for_orientation);
+    Eigen::Vector2d orientation =
+        tangentOfPointAlongLineString(point, prev_point_for_orientation, next_point_for_orientation);
 
     // accumulate distance
     accumulated_distance += (point - prev_point).norm();
@@ -517,7 +514,7 @@ bool NewLanelet2RoutePlanning::laneletToGlobalRosRoute() {
     lane_element_msg.has_left_boundary = false;
     // lane_element_msg.right_boundary not set in global route
     lane_element_msg.has_right_boundary = false;
-    lane_element_msg.speed_limit = 0;          // TODO
+    lane_element_msg.speed_limit = 0;  // TODO
     // TODO: rename to regulatory_element_idcs?
     // TODO: has_regulatory_elements not needed?
     // lane_element_msg.regulatory_element_idx not set in global route
@@ -534,11 +531,11 @@ bool NewLanelet2RoutePlanning::laneletToGlobalRosRoute() {
 
 // TODO: rename this function?
 bool NewLanelet2RoutePlanning::laneletToLocalRosRoute() {
-
   // join traveled and remaining route elements
   route_planning_msgs::msg::Route route_msg = latest_route_msg_;
   std::vector<route_planning_msgs::msg::RouteElement> route_elements = route_msg.traveled_route_elements;
-  route_elements.insert(route_elements.end(), route_msg.remaining_route_elements.begin(), route_msg.remaining_route_elements.end());
+  route_elements.insert(route_elements.end(), route_msg.remaining_route_elements.begin(),
+                        route_msg.remaining_route_elements.end());
 
   // find point of global reference line closest to ego position
   // TODO: refactor to function?
@@ -546,10 +543,12 @@ bool NewLanelet2RoutePlanning::laneletToLocalRosRoute() {
   size_t c_min_distance_ego_to_route = 0;
   for (size_t c = 0; c < route_elements.size(); ++c) {
     const route_planning_msgs::msg::RouteElement& route_element_msg = route_elements[c];
-    const route_planning_msgs::msg::LaneElement& lane_element_msg = route_element_msg.lane_elements[route_element_msg.suggested_lane_idx];
+    const route_planning_msgs::msg::LaneElement& lane_element_msg =
+        route_element_msg.lane_elements[route_element_msg.suggested_lane_idx];
     const geometry_msgs::msg::Point& point = lane_element_msg.reference_pose.position;
-    const Eigen::Vector2d point_eigen = {point.x, point.y}; // TODO: refactor to function?
-    const Eigen::Vector2d ego_position_eigen = {perception_msgs::object_access::getX(latest_ego_data_), perception_msgs::object_access::getY(latest_ego_data_)};
+    const Eigen::Vector2d point_eigen = {point.x, point.y};  // TODO: refactor to function?
+    const Eigen::Vector2d ego_position_eigen = {perception_msgs::object_access::getX(latest_ego_data_),
+                                                perception_msgs::object_access::getY(latest_ego_data_)};
     double distance_ego_to_route = (ego_position_eigen - point_eigen).norm();
     if (distance_ego_to_route < min_distance_ego_to_route) {
       min_distance_ego_to_route = distance_ego_to_route;
@@ -560,7 +559,8 @@ bool NewLanelet2RoutePlanning::laneletToLocalRosRoute() {
   // loop over global reference line
   for (size_t c = 0; c < route_elements.size(); ++c) {
     route_planning_msgs::msg::RouteElement& route_element_msg = route_elements[c];
-    route_planning_msgs::msg::LaneElement& lane_element_msg = route_element_msg.lane_elements[route_element_msg.suggested_lane_idx];
+    route_planning_msgs::msg::LaneElement& lane_element_msg =
+        route_element_msg.lane_elements[route_element_msg.suggested_lane_idx];
 
     // only consider route elements within local_route_behind_distance_ and local_route_ahead_distance_ for local route
     double distance_ahead = route_element_msg.s - route_elements[c_min_distance_ego_to_route].s;
@@ -590,11 +590,17 @@ bool NewLanelet2RoutePlanning::laneletToLocalRosRoute() {
 
     // get current, previous and next centerline point
     // TODO: geometry_msgs::msg::Point -> Eigen::Vector2d
-    route_planning_msgs::msg::LaneElement& prev_lane_element_msg = (c > 0) ? route_elements[c - 1].lane_elements[route_elements[c - 1].suggested_lane_idx] : lane_element_msg;
-    route_planning_msgs::msg::LaneElement& next_lane_element_msg = (c < route_elements.size() - 1) ? route_elements[c + 1].lane_elements[route_elements[c + 1].suggested_lane_idx] : lane_element_msg;
-    const Eigen::Vector2d point = {lane_element_msg.reference_pose.position.x, lane_element_msg.reference_pose.position.y};
-    const Eigen::Vector2d prev_point = {prev_lane_element_msg.reference_pose.position.x, prev_lane_element_msg.reference_pose.position.y};
-    const Eigen::Vector2d next_point = {next_lane_element_msg.reference_pose.position.x, next_lane_element_msg.reference_pose.position.y};
+    route_planning_msgs::msg::LaneElement& prev_lane_element_msg =
+        (c > 0) ? route_elements[c - 1].lane_elements[route_elements[c - 1].suggested_lane_idx] : lane_element_msg;
+    route_planning_msgs::msg::LaneElement& next_lane_element_msg =
+        (c < route_elements.size() - 1) ? route_elements[c + 1].lane_elements[route_elements[c + 1].suggested_lane_idx]
+                                        : lane_element_msg;
+    const Eigen::Vector2d point = {lane_element_msg.reference_pose.position.x,
+                                   lane_element_msg.reference_pose.position.y};
+    const Eigen::Vector2d prev_point = {prev_lane_element_msg.reference_pose.position.x,
+                                        prev_lane_element_msg.reference_pose.position.y};
+    const Eigen::Vector2d next_point = {next_lane_element_msg.reference_pose.position.x,
+                                        next_lane_element_msg.reference_pose.position.y};
 
     // identify lane changes based on break in equidistant centerline
     const double sampling_distance_epsilon = 1e-6;
@@ -606,7 +612,8 @@ bool NewLanelet2RoutePlanning::laneletToLocalRosRoute() {
     Eigen::Vector2d next_point_for_projection = changes_lane_to_next_point ? point : next_point;
 
     // compute orientation of centerline point
-    Eigen::Vector2d orientation = tangentOfPointAlongLineString(point, prev_point_for_projection, next_point_for_projection);
+    Eigen::Vector2d orientation =
+        tangentOfPointAlongLineString(point, prev_point_for_projection, next_point_for_projection);
 
     // get lanelet corresponding to centerline point
     ll::routing::LaneletPath shortest_path = latest_route_.shortestPath();
@@ -619,32 +626,51 @@ bool NewLanelet2RoutePlanning::laneletToLocalRosRoute() {
     int suggested_lane_idx = adjacent_left_lanelets.size();
 
     // project centerline point to lanelet bounds
-    ll::BasicPoint2d left_bounds_point = projectPointToLineStringAlongNormal(point, prev_point_for_projection, next_point_for_projection, lanelet.leftBound2d().basicLineString());
-    ll::BasicPoint2d right_bounds_point = projectPointToLineStringAlongNormal(point, prev_point_for_projection, next_point_for_projection, lanelet.rightBound2d().basicLineString());
+    ll::BasicPoint2d left_bounds_point = projectPointToLineStringAlongNormal(
+        point, prev_point_for_projection, next_point_for_projection, lanelet.leftBound2d().basicLineString());
+    ll::BasicPoint2d right_bounds_point = projectPointToLineStringAlongNormal(
+        point, prev_point_for_projection, next_point_for_projection, lanelet.rightBound2d().basicLineString());
 
     // project centerline point to adjacent lanelet centerlines and bounds
-    std::vector<ll::BasicPoint2d> adjacent_left_lanelets_centerline_points, adjacent_left_lanelets_left_bounds_points, adjacent_left_lanelets_right_bounds_points;
-    std::vector<ll::BasicPoint2d> adjacent_right_lanelets_centerline_points, adjacent_right_lanelets_left_bounds_points, adjacent_right_lanelets_right_bounds_points;
+    std::vector<ll::BasicPoint2d> adjacent_left_lanelets_centerline_points, adjacent_left_lanelets_left_bounds_points,
+        adjacent_left_lanelets_right_bounds_points;
+    std::vector<ll::BasicPoint2d> adjacent_right_lanelets_centerline_points, adjacent_right_lanelets_left_bounds_points,
+        adjacent_right_lanelets_right_bounds_points;
     for (const auto& adjacent_lanelet : adjacent_left_lanelets) {
-      ll::BasicPoint2d adjacent_lanelet_centerline_point = projectPointToLineStringAlongNormal(point, prev_point_for_projection, next_point_for_projection, adjacent_lanelet.centerline2d().basicLineString());
-      ll::BasicPoint2d adjacent_lanelet_left_bounds_point = projectPointToLineStringAlongNormal(point, prev_point_for_projection, next_point_for_projection, adjacent_lanelet.leftBound2d().basicLineString());
-      ll::BasicPoint2d adjacent_lanelet_right_bounds_point = projectPointToLineStringAlongNormal(point, prev_point_for_projection, next_point_for_projection, adjacent_lanelet.rightBound2d().basicLineString());
+      ll::BasicPoint2d adjacent_lanelet_centerline_point =
+          projectPointToLineStringAlongNormal(point, prev_point_for_projection, next_point_for_projection,
+                                              adjacent_lanelet.centerline2d().basicLineString());
+      ll::BasicPoint2d adjacent_lanelet_left_bounds_point =
+          projectPointToLineStringAlongNormal(point, prev_point_for_projection, next_point_for_projection,
+                                              adjacent_lanelet.leftBound2d().basicLineString());
+      ll::BasicPoint2d adjacent_lanelet_right_bounds_point =
+          projectPointToLineStringAlongNormal(point, prev_point_for_projection, next_point_for_projection,
+                                              adjacent_lanelet.rightBound2d().basicLineString());
       adjacent_left_lanelets_centerline_points.push_back(adjacent_lanelet_centerline_point);
       adjacent_left_lanelets_left_bounds_points.push_back(adjacent_lanelet_left_bounds_point);
       adjacent_left_lanelets_right_bounds_points.push_back(adjacent_lanelet_right_bounds_point);
     }
     for (const auto& adjacent_lanelet : adjacent_right_lanelets) {
-      ll::BasicPoint2d adjacent_lanelet_centerline_point = projectPointToLineStringAlongNormal(point, prev_point_for_projection, next_point_for_projection, adjacent_lanelet.centerline2d().basicLineString());
-      ll::BasicPoint2d adjacent_lanelet_left_bounds_point = projectPointToLineStringAlongNormal(point, prev_point_for_projection, next_point_for_projection, adjacent_lanelet.leftBound2d().basicLineString());
-      ll::BasicPoint2d adjacent_lanelet_right_bounds_point = projectPointToLineStringAlongNormal(point, prev_point_for_projection, next_point_for_projection, adjacent_lanelet.rightBound2d().basicLineString());
+      ll::BasicPoint2d adjacent_lanelet_centerline_point =
+          projectPointToLineStringAlongNormal(point, prev_point_for_projection, next_point_for_projection,
+                                              adjacent_lanelet.centerline2d().basicLineString());
+      ll::BasicPoint2d adjacent_lanelet_left_bounds_point =
+          projectPointToLineStringAlongNormal(point, prev_point_for_projection, next_point_for_projection,
+                                              adjacent_lanelet.leftBound2d().basicLineString());
+      ll::BasicPoint2d adjacent_lanelet_right_bounds_point =
+          projectPointToLineStringAlongNormal(point, prev_point_for_projection, next_point_for_projection,
+                                              adjacent_lanelet.rightBound2d().basicLineString());
       adjacent_right_lanelets_centerline_points.push_back(adjacent_lanelet_centerline_point);
       adjacent_right_lanelets_left_bounds_points.push_back(adjacent_lanelet_left_bounds_point);
       adjacent_right_lanelets_right_bounds_points.push_back(adjacent_lanelet_right_bounds_point);
     }
 
     // compute offset of lane element indices from current to next route element
-    const ll::ConstLanelet& lanelet_of_next_point = (c < route_elements.size() - 1) ? shortest_path[latest_lanelet_idx_by_reference_line_point_idx_[c + 1]] : lanelet;
-    int following_lane_idx_offset = computeFollowingLaneIdxOffset(lanelet, lanelet_of_next_point, latest_route_, routing_graph_);
+    const ll::ConstLanelet& lanelet_of_next_point =
+        (c < route_elements.size() - 1) ? shortest_path[latest_lanelet_idx_by_reference_line_point_idx_[c + 1]]
+                                        : lanelet;
+    int following_lane_idx_offset =
+        computeFollowingLaneIdxOffset(lanelet, lanelet_of_next_point, latest_route_, routing_graph_);
 
     // enrich RouteElement with local route information
     route_element_msg.lane_elements = {};
@@ -674,8 +700,8 @@ bool NewLanelet2RoutePlanning::laneletToLocalRosRoute() {
       lane_element_msg.right_boundary.point = laneletToRosPoint(adjacent_left_lanelets_right_bounds_points[a]);
       lane_element_msg.right_boundary.type = laneBoundaryType(adjacent_left_lanelets[a].rightBound2d());
       lane_element_msg.has_right_boundary = true;
-      lane_element_msg.speed_limit = 0;          // TODO
-      lane_element_msg.regulatory_element_idx = {};       // TODO
+      lane_element_msg.speed_limit = 0;              // TODO
+      lane_element_msg.regulatory_element_idx = {};  // TODO
       lane_element_msg.following_lane_idx = route_element_msg.lane_elements.size() + following_lane_idx_offset;
       lane_element_msg.has_following_lane_idx = true;
       route_element_msg.lane_elements.push_back(lane_element_msg);
@@ -691,8 +717,8 @@ bool NewLanelet2RoutePlanning::laneletToLocalRosRoute() {
     centerline_lane_element_msg.right_boundary.point = laneletToRosPoint(right_bounds_point);
     centerline_lane_element_msg.right_boundary.type = laneBoundaryType(lanelet.rightBound2d());
     centerline_lane_element_msg.has_right_boundary = true;
-    centerline_lane_element_msg.speed_limit = 0;          // TODO
-    centerline_lane_element_msg.regulatory_element_idx = {};       // TODO
+    centerline_lane_element_msg.speed_limit = 0;              // TODO
+    centerline_lane_element_msg.regulatory_element_idx = {};  // TODO
     centerline_lane_element_msg.following_lane_idx = route_element_msg.lane_elements.size() + following_lane_idx_offset;
     centerline_lane_element_msg.has_following_lane_idx = true;
     route_element_msg.lane_elements.push_back(centerline_lane_element_msg);
@@ -708,8 +734,8 @@ bool NewLanelet2RoutePlanning::laneletToLocalRosRoute() {
       lane_element_msg.right_boundary.point = laneletToRosPoint(adjacent_right_lanelets_right_bounds_points[a]);
       lane_element_msg.right_boundary.type = laneBoundaryType(adjacent_right_lanelets[a].rightBound2d());
       lane_element_msg.has_right_boundary = true;
-      lane_element_msg.speed_limit = 0;          // TODO
-      lane_element_msg.regulatory_element_idx = {};       // TODO
+      lane_element_msg.speed_limit = 0;              // TODO
+      lane_element_msg.regulatory_element_idx = {};  // TODO
       lane_element_msg.following_lane_idx = route_element_msg.lane_elements.size() + following_lane_idx_offset;
       lane_element_msg.has_following_lane_idx = true;
       route_element_msg.lane_elements.push_back(lane_element_msg);
@@ -719,8 +745,11 @@ bool NewLanelet2RoutePlanning::laneletToLocalRosRoute() {
   // split in traveled and remaining route elements
   route_msg.traveled_route_elements = {};
   route_msg.remaining_route_elements = {};
-  route_msg.traveled_route_elements.insert(route_msg.traveled_route_elements.end(), route_elements.begin(), route_elements.begin() + c_min_distance_ego_to_route + 1);
-  route_msg.remaining_route_elements.insert(route_msg.remaining_route_elements.end(), route_elements.begin() + c_min_distance_ego_to_route + 1, route_elements.end());
+  route_msg.traveled_route_elements.insert(route_msg.traveled_route_elements.end(), route_elements.begin(),
+                                           route_elements.begin() + c_min_distance_ego_to_route + 1);
+  route_msg.remaining_route_elements.insert(route_msg.remaining_route_elements.end(),
+                                            route_elements.begin() + c_min_distance_ego_to_route + 1,
+                                            route_elements.end());
   route_msg.header.stamp = latest_ego_data_.header.stamp;
 
   // save as latest route message
