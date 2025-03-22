@@ -652,8 +652,16 @@ bool NewLanelet2RoutePlanning::laneletToLocalRosRoute() {
 
     // enrich RouteElement with local route information
     route_element_msg.lane_elements = {};
-    // route_element_msg.left_boundary = 0;                                // TODO
-    // route_element_msg.right_boundary = 0;                               // TODO
+    if (!adjacent_left_lanelets_left_bounds_points.empty()) {
+      route_element_msg.left_boundary = laneletToRosPoint(adjacent_left_lanelets_left_bounds_points.front());
+    } else {
+      route_element_msg.left_boundary = laneletToRosPoint(left_bounds_point);
+    }
+    if (!adjacent_right_lanelets_right_bounds_points.empty()) {
+      route_element_msg.right_boundary = laneletToRosPoint(adjacent_right_lanelets_right_bounds_points.front());
+    } else {
+      route_element_msg.right_boundary = laneletToRosPoint(right_bounds_point);
+    }
     // route_element_msg.regulatory_elements = {};                         // TODO
     route_element_msg.suggested_lane_idx = suggested_lane_idx;
     route_element_msg.will_change_suggested_lane = changes_lane_to_next_point;
