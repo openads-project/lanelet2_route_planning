@@ -222,18 +222,14 @@ void NewLanelet2RoutePlanning::setupRoutingGraph() {
 }
 
 void NewLanelet2RoutePlanning::egoDataCallback(const perception_msgs::msg::EgoData::SharedPtr msg) {
+  // TODO: won't ego_data have to be transformed? are we ensuring same frames somewhere?
   latest_ego_data_ = *msg;
 
   // recompute local route
   if (is_publishing_route_) {
-    auto t0 = std::chrono::steady_clock::now();
     bool success = this->laneletToLocalRosRoute();
-    auto t1 = std::chrono::steady_clock::now();
-    auto dt = std::chrono::duration_cast<std::chrono::duration<double>>(t1 - t0).count();
     if (!success) {
-      RCLCPP_ERROR(this->get_logger(), "Failed to compute local route, rejecting request");
-    } else {
-      RCLCPP_INFO(this->get_logger(), "Successfully computed local route (%.3fs)", dt);
+      RCLCPP_ERROR(this->get_logger(), "Failed to compute local route");
     }
   }
 }
