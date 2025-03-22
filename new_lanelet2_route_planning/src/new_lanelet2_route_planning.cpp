@@ -680,7 +680,7 @@ bool NewLanelet2RoutePlanning::laneletToLocalRosRoute() {
       route_element_msg.left_boundary = laneletToRosPoint(left_bounds_point);
     }
     if (!adjacent_right_lanelets_right_bounds_points.empty()) {
-      route_element_msg.right_boundary = laneletToRosPoint(adjacent_right_lanelets_right_bounds_points.front());
+      route_element_msg.right_boundary = laneletToRosPoint(adjacent_right_lanelets_right_bounds_points.back());
     } else {
       route_element_msg.right_boundary = laneletToRosPoint(right_bounds_point);
     }
