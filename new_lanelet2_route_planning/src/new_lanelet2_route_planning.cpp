@@ -1,5 +1,6 @@
 #include <functional>
 #include <thread>
+#include <unordered_map>
 
 #include <lanelet2_routing/RoutingGraph.h>
 #include <lanelet2_traffic_rules/TrafficRulesFactory.h>
@@ -684,10 +685,52 @@ bool NewLanelet2RoutePlanning::laneletToLocalRosRoute() {
     } else {
       route_element_msg.right_boundary = laneletToRosPoint(right_bounds_point);
     }
-    // route_element_msg.regulatory_elements = {};                         // TODO
+    route_element_msg.regulatory_elements = {};
     route_element_msg.suggested_lane_idx = suggested_lane_idx;
     route_element_msg.will_change_suggested_lane = changes_lane_to_next_point;
     // route_element_msg.s already set in global route
+
+    // create RegulatoryElements
+    // TODO: refactor to function?
+    const auto regulatory_elements = lanelet.regulatoryElements();
+    std::unordered_map<int, size_t> regulatory_element_idx_by_id;
+    for (const auto& regulatory_element : regulatory_elements) {
+      if (regulatory_element_idx_by_id.count(regulatory_element->id()) > 0) {
+        continue;
+      }
+
+      // create RegulatoryElement
+      route_planning_msgs::msg::RegulatoryElement regulatory_element_msg;
+
+      // infer type of regulatory element
+      regulatory_element_msg.type = route_planning_msgs::msg::RegulatoryElement::TYPE_UNKNOWN;
+      if (regulatory_element->hasAttribute("subtype")) {
+        std::string subtype = regulatory_element->attribute("subtype").value();
+        if (subtype == "traffic_light") {
+          regulatory_element_msg.type = route_planning_msgs::msg::RegulatoryElement::TYPE_TRAFFIC_LIGHT;
+        } else if (subtype == "speed_limit") {
+          regulatory_element_msg.type = route_planning_msgs::msg::RegulatoryElement::TYPE_SPEED_LIMIT;
+          // regulatory_element_msg.meta_value = // TODO
+        } else if (subtype == "right_of_way") {
+          regulatory_element_msg.type = route_planning_msgs::msg::RegulatoryElement::TYPE_YIELD;
+        } else if (subtype == "all_way_stop") {
+          regulatory_element_msg.type = route_planning_msgs::msg::RegulatoryElement::TYPE_STOP;
+        } else {
+          RCLCPP_WARN(this->get_logger(), "Unknown regulatory element subtype '%s', ignoring", subtype.c_str());
+          continue;
+        }
+      } else {
+        RCLCPP_WARN(this->get_logger(), "Regulatory element has no subtype, ignoring");
+        continue;
+      }
+
+      // TODO: infer effect line and signal positions
+      // TODO: infer affected lanelets
+      // TODO: only add to RouteElement closet to effect line;
+
+      regulatory_element_idx_by_id[regulatory_element->id()] = route_element_msg.regulatory_elements.size();
+      route_element_msg.regulatory_elements.push_back(regulatory_element_msg);
+    }
 
     // create LaneElements for left adjacent lanes
     for (size_t a = 0; a < adjacent_left_lanelets.size(); ++a) {
