@@ -63,4 +63,6 @@ Eigen::Vector2d normalOfPointAlongLineString(const Eigen::Vector2d& point, const
 std::vector<Eigen::Vector2d> resampleLineString(const std::vector<Eigen::Vector2d>& line_string, const double delta,
                                                 double& offset);
 
+Eigen::Vector2d projectPointToLineString(const Eigen::Vector2d& point, const std::vector<Eigen::Vector2d>& line_string);
+
 }  // namespace new_lanelet2_route_planning

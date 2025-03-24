@@ -28,17 +28,6 @@ bool findLaneletAtEgoPosition(const ll::LaneletMapConstPtr& map, const std::stri
                               const perception_msgs::msg::EgoData& ego_data, ll::ConstLanelet& lanelet,
                               const std::optional<ll::traffic_rules::TrafficRulesPtr> traffic_rules = std::nullopt);
 
-
-
-
-
-Eigen::Vector2d projectPointToCenterline(const Eigen::Vector2d& position, const ll::ConstLanelet& lanelet);
-
-Eigen::Vector2d projectPointToCenterline(const geometry_msgs::msg::Point& position, const ll::ConstLanelet& lanelet);
-
-Eigen::Vector2d projectPointToCenterline(const perception_msgs::msg::EgoData& ego_data,
-                                         const ll::ConstLanelet& lanelet);
-
 Eigen::Vector2d projectPointToLineStringAlongNormal(const Eigen::Vector2d& point, const Eigen::Vector2d& prev_point,
                                                     const Eigen::Vector2d& next_point,
                                                     const ll::BasicLineString2d& line);

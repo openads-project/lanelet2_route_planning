@@ -1,5 +1,7 @@
+#include <lanelet2_core/geometry/LineString.h>
 #include <rclcpp/rclcpp.hpp>
 
+#include "new_lanelet2_route_planning/conversions.hpp"
 #include "new_lanelet2_route_planning/geometry.hpp"
 
 namespace new_lanelet2_route_planning {
@@ -105,6 +107,11 @@ std::vector<Eigen::Vector2d> resampleLineString(const std::vector<Eigen::Vector2
   offset = sampling_distance;
 
   return resampled_line_string;
+}
+
+Eigen::Vector2d projectPointToLineString(const Eigen::Vector2d& point,
+                                         const std::vector<Eigen::Vector2d>& line_string) {
+  return lanelet::geometry::project(lineStringAsLanelet(line_string), pointAsLanelet(point));
 }
 
 }  // namespace new_lanelet2_route_planning

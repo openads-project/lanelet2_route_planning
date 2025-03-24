@@ -426,7 +426,7 @@ bool NewLanelet2RoutePlanning::planRoute(const geometry_msgs::msg::PointStamped&
     RCLCPP_ERROR(get_logger(), "Failed to find lanelet at ego position");
     return false;
   }
-  ll::BasicPoint2d ego_ll_position = projectPointToCenterline(latest_ego_data_, ego_ll);
+  Eigen::Vector2d ego_ll_position = projectPointToLineString(pointAsEigen2d(position(latest_ego_data_)), as2d(lineStringAsEigen(ego_ll.centerline().basicLineString())));
 
   // project destination to lanelet
   ll::ConstLanelet destination_ll;
@@ -435,14 +435,14 @@ bool NewLanelet2RoutePlanning::planRoute(const geometry_msgs::msg::PointStamped&
     RCLCPP_ERROR(get_logger(), "Failed to find lanelet at destination");
     return false;
   }
-  ll::BasicPoint2d destination_ll_position = projectPointToCenterline(destination_map, destination_ll);
+  Eigen::Vector2d destination_ll_position = projectPointToLineString(pointAsEigen2d(destination_map), as2d(lineStringAsEigen(destination_ll.centerline().basicLineString())));
 
   // undershoot/overshoot route endpoints
   // TODO: still needed?
   ll::ConstLanelet undershot_ego_ll =
-      followLanelet(routing_graph_, ego_ll, ego_ll_position, -std::abs(route_undershoot_distance_));
+      followLanelet(routing_graph_, ego_ll, pointAsLanelet(ego_ll_position), -std::abs(route_undershoot_distance_));
   ll::ConstLanelet overshot_destination_ll =
-      followLanelet(routing_graph_, destination_ll, destination_ll_position, route_overshoot_distance_);
+      followLanelet(routing_graph_, destination_ll, pointAsLanelet(destination_ll_position), route_overshoot_distance_);
   // TODO: check that start/end are not the same lanelet (?) (see L314 in global_planner_node.cpp)
 
   // plan route
