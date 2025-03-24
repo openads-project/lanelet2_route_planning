@@ -14,14 +14,6 @@ namespace new_lanelet2_route_planning {
 
 namespace ll = lanelet;
 
-Eigen::Vector2d rosToLaneletPoint(const geometry_msgs::msg::Point& point);
-
-Eigen::Vector2d rosToLaneletPoint(const perception_msgs::msg::EgoData& ego_data);
-
-geometry_msgs::msg::Point laneletToRosPoint2d(const Eigen::Vector2d& point);
-
-geometry_msgs::msg::Point laneletToRosPoint(const Eigen::Vector3d& point);
-
 bool buildRoutingGraph(const ll::LaneletMapConstPtr& map, const ll::traffic_rules::TrafficRulesPtr& traffic_rules,
                        ll::routing::RoutingGraphUPtr& routing_graph);
 
@@ -66,8 +58,6 @@ std::vector<ll::ConstLanelet> adjacentLeftOrRightLanelets(const ll::ConstLanelet
 
 int computeFollowingLaneIdxOffset(const ll::ConstLanelet& lanelet, const ll::ConstLanelet& lanelet_of_next_point,
                                   const ll::routing::Route& route, const ll::routing::RoutingGraphUPtr& routing_graph);
-
-geometry_msgs::msg::Quaternion vectorToRosQuaternion(const Eigen::Vector2d& vector);
 
 uint8_t laneBoundaryType(const ll::ConstLineString2d& line);
 

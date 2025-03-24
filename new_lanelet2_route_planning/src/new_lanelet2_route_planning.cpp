@@ -8,6 +8,7 @@
 #include <perception_msgs_utils/object_access.hpp>
 #include <tf2_geometry_msgs/tf2_geometry_msgs.hpp>
 
+#include "new_lanelet2_route_planning/conversions.hpp"
 #include "new_lanelet2_route_planning/geometry.hpp"
 #include "new_lanelet2_route_planning/new_lanelet2_route_planning.hpp"
 #include "new_lanelet2_route_planning/utilities.hpp"
@@ -509,8 +510,8 @@ bool NewLanelet2RoutePlanning::laneletToGlobalRosRoute() {
 
     // create LaneElement
     route_planning_msgs::msg::LaneElement lane_element_msg;
-    lane_element_msg.reference_pose.position = laneletToRosPoint2d(point);
-    lane_element_msg.reference_pose.orientation = vectorToRosQuaternion(orientation);
+    lane_element_msg.reference_pose.position = pointAsRos(point);
+    lane_element_msg.reference_pose.orientation = vectorAsRosQuaternion(orientation);
     // lane_element_msg.left_boundary not set in global route
     lane_element_msg.has_left_boundary = false;
     // lane_element_msg.right_boundary not set in global route
@@ -676,14 +677,14 @@ bool NewLanelet2RoutePlanning::laneletToLocalRosRoute() {
     // enrich RouteElement with local route information
     route_element_msg.lane_elements = {};
     if (!adjacent_left_lanelets_left_bounds_points.empty()) {
-      route_element_msg.left_boundary = laneletToRosPoint2d(adjacent_left_lanelets_left_bounds_points.front());
+      route_element_msg.left_boundary = pointAsRos(adjacent_left_lanelets_left_bounds_points.front());
     } else {
-      route_element_msg.left_boundary = laneletToRosPoint2d(left_bounds_point);
+      route_element_msg.left_boundary = pointAsRos(left_bounds_point);
     }
     if (!adjacent_right_lanelets_right_bounds_points.empty()) {
-      route_element_msg.right_boundary = laneletToRosPoint2d(adjacent_right_lanelets_right_bounds_points.back());
+      route_element_msg.right_boundary = pointAsRos(adjacent_right_lanelets_right_bounds_points.back());
     } else {
-      route_element_msg.right_boundary = laneletToRosPoint2d(right_bounds_point);
+      route_element_msg.right_boundary = pointAsRos(right_bounds_point);
     }
     route_element_msg.regulatory_elements = {};
     route_element_msg.suggested_lane_idx = suggested_lane_idx;
@@ -725,8 +726,8 @@ bool NewLanelet2RoutePlanning::laneletToLocalRosRoute() {
 
       // create RegulatoryElement
       route_planning_msgs::msg::RegulatoryElement regulatory_element_msg;
-      regulatory_element_msg.effect_line[0] = laneletToRosPoint(effect_line.front());
-      regulatory_element_msg.effect_line[1] = laneletToRosPoint(effect_line.back());
+      regulatory_element_msg.effect_line[0] = pointAsRos(effect_line.front());
+      regulatory_element_msg.effect_line[1] = pointAsRos(effect_line.back());
 
       // extract sign position of regulatory element
       const std::vector<ll::ConstLineString3d> sign_lines = regulatory_element->getParameters<lanelet::ConstLineString3d>(ll::RoleName::Refers);
@@ -742,7 +743,7 @@ bool NewLanelet2RoutePlanning::laneletToLocalRosRoute() {
         } else if (sign_line.size() > 1) {
           RCLCPP_WARN(this->get_logger(), "Regulatory element '%ld' has referring sign with more than 1 point, using only first one", regulatory_element->id());
         }
-        regulatory_element_msg.sign_positions.push_back(laneletToRosPoint(sign_line.front()));
+        regulatory_element_msg.sign_positions.push_back(pointAsRos(sign_line.front()));
       }
 
       // infer type of regulatory element
@@ -777,12 +778,12 @@ bool NewLanelet2RoutePlanning::laneletToLocalRosRoute() {
     // create LaneElements for left adjacent lanes
     for (size_t a = 0; a < adjacent_left_lanelets.size(); ++a) {
       route_planning_msgs::msg::LaneElement lane_element_msg;
-      lane_element_msg.reference_pose.position = laneletToRosPoint2d(adjacent_left_lanelets_centerline_points[a]);
+      lane_element_msg.reference_pose.position = pointAsRos(adjacent_left_lanelets_centerline_points[a]);
       lane_element_msg.reference_pose.orientation = geometry_msgs::msg::Quaternion();  // TODO
-      lane_element_msg.left_boundary.point = laneletToRosPoint2d(adjacent_left_lanelets_left_bounds_points[a]);
+      lane_element_msg.left_boundary.point = pointAsRos(adjacent_left_lanelets_left_bounds_points[a]);
       lane_element_msg.left_boundary.type = laneBoundaryType(adjacent_left_lanelets[a].leftBound2d());
       lane_element_msg.has_left_boundary = true;
-      lane_element_msg.right_boundary.point = laneletToRosPoint2d(adjacent_left_lanelets_right_bounds_points[a]);
+      lane_element_msg.right_boundary.point = pointAsRos(adjacent_left_lanelets_right_bounds_points[a]);
       lane_element_msg.right_boundary.type = laneBoundaryType(adjacent_left_lanelets[a].rightBound2d());
       lane_element_msg.has_right_boundary = true;
       lane_element_msg.speed_limit = 0;              // TODO
@@ -794,12 +795,12 @@ bool NewLanelet2RoutePlanning::laneletToLocalRosRoute() {
 
     // create LaneElement for centerline lane
     route_planning_msgs::msg::LaneElement centerline_lane_element_msg;
-    centerline_lane_element_msg.reference_pose.position = laneletToRosPoint2d(point);
-    centerline_lane_element_msg.reference_pose.orientation = vectorToRosQuaternion(orientation);
-    centerline_lane_element_msg.left_boundary.point = laneletToRosPoint2d(left_bounds_point);
+    centerline_lane_element_msg.reference_pose.position = pointAsRos(point);
+    centerline_lane_element_msg.reference_pose.orientation = vectorAsRosQuaternion(orientation);
+    centerline_lane_element_msg.left_boundary.point = pointAsRos(left_bounds_point);
     centerline_lane_element_msg.left_boundary.type = laneBoundaryType(lanelet.leftBound2d());
     centerline_lane_element_msg.has_left_boundary = true;
-    centerline_lane_element_msg.right_boundary.point = laneletToRosPoint2d(right_bounds_point);
+    centerline_lane_element_msg.right_boundary.point = pointAsRos(right_bounds_point);
     centerline_lane_element_msg.right_boundary.type = laneBoundaryType(lanelet.rightBound2d());
     centerline_lane_element_msg.has_right_boundary = true;
     centerline_lane_element_msg.speed_limit = 0;              // TODO
@@ -812,12 +813,12 @@ bool NewLanelet2RoutePlanning::laneletToLocalRosRoute() {
     // create LaneElements for right adjacent lanes
     for (size_t a = 0; a < adjacent_right_lanelets.size(); ++a) {
       route_planning_msgs::msg::LaneElement lane_element_msg;
-      lane_element_msg.reference_pose.position = laneletToRosPoint2d(adjacent_right_lanelets_centerline_points[a]);
+      lane_element_msg.reference_pose.position = pointAsRos(adjacent_right_lanelets_centerline_points[a]);
       lane_element_msg.reference_pose.orientation = geometry_msgs::msg::Quaternion();  // TODO
-      lane_element_msg.left_boundary.point = laneletToRosPoint2d(adjacent_right_lanelets_left_bounds_points[a]);
+      lane_element_msg.left_boundary.point = pointAsRos(adjacent_right_lanelets_left_bounds_points[a]);
       lane_element_msg.left_boundary.type = laneBoundaryType(adjacent_right_lanelets[a].leftBound2d());
       lane_element_msg.has_left_boundary = true;
-      lane_element_msg.right_boundary.point = laneletToRosPoint2d(adjacent_right_lanelets_right_bounds_points[a]);
+      lane_element_msg.right_boundary.point = pointAsRos(adjacent_right_lanelets_right_bounds_points[a]);
       lane_element_msg.right_boundary.type = laneBoundaryType(adjacent_right_lanelets[a].rightBound2d());
       lane_element_msg.has_right_boundary = true;
       lane_element_msg.speed_limit = 0;              // TODO

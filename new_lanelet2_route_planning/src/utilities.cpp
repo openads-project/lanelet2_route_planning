@@ -4,9 +4,9 @@
 
 #include <lanelet2_routing/Route.h>
 #include <lanelet2_utilities/lanelet2_utils.hpp>
-#include <perception_msgs_utils/object_access.hpp>
 #include <rclcpp/rclcpp.hpp>
 
+#include "new_lanelet2_route_planning/conversions.hpp"
 #include "new_lanelet2_route_planning/geometry.hpp"
 #include "new_lanelet2_route_planning/utilities.hpp"
 
@@ -15,33 +15,6 @@ namespace new_lanelet2_route_planning {
 static const unsigned int k_nearest_lanelets = 5;
 static const double k_timeout_ego_data = 1.0;
 static const double k_max_distance_lanelet_matching = 5.0;
-
-std::vector<Eigen::Vector2d> lineStringAsEigen(const ll::BasicLineString2d& line_string) {
-  return std::vector<Eigen::Vector2d>(line_string.begin(), line_string.end());
-}
-
-Eigen::Vector2d rosToLaneletPoint(const geometry_msgs::msg::Point& point) { return Eigen::Vector2d(point.x, point.y); }
-
-Eigen::Vector2d rosToLaneletPoint(const perception_msgs::msg::EgoData& ego_data) {
-  return Eigen::Vector2d(perception_msgs::object_access::getX(ego_data),
-                         perception_msgs::object_access::getY(ego_data));
-}
-
-geometry_msgs::msg::Point laneletToRosPoint2d(const Eigen::Vector2d& point) {
-  geometry_msgs::msg::Point ros_point;
-  ros_point.x = point.x();
-  ros_point.y = point.y();
-  ros_point.z = 0.0;
-  return ros_point;
-}
-
-geometry_msgs::msg::Point laneletToRosPoint(const Eigen::Vector3d& point) {
-  geometry_msgs::msg::Point ros_point;
-  ros_point.x = point.x();
-  ros_point.y = point.y();
-  ros_point.z = point.z();
-  return ros_point;
-}
 
 bool buildRoutingGraph(const ll::LaneletMapConstPtr& map, const ll::traffic_rules::TrafficRulesPtr& traffic_rules,
                        ll::routing::RoutingGraphUPtr& routing_graph) {
@@ -87,7 +60,7 @@ bool findLaneletAtPoint(const ll::LaneletMapConstPtr& map, const Eigen::Vector2d
 bool findLaneletAtPoint(const ll::LaneletMapConstPtr& map, const geometry_msgs::msg::Point& point,
                         ll::ConstLanelet& lanelet,
                         const std::optional<ll::traffic_rules::TrafficRulesPtr> traffic_rules) {
-  return findLaneletAtPoint(map, rosToLaneletPoint(point), lanelet, traffic_rules);
+  return findLaneletAtPoint(map, pointAsEigen2d(point), lanelet, traffic_rules);
 }
 
 bool findLaneletAtEgoPosition(const ll::LaneletMapConstPtr& map, const std::string& map_frame_id,
@@ -108,7 +81,7 @@ bool findLaneletAtEgoPosition(const ll::LaneletMapConstPtr& map, const std::stri
     return false;
   }
 
-  return findLaneletAtPoint(map, rosToLaneletPoint(ego_data), lanelet, traffic_rules);
+  return findLaneletAtPoint(map, pointAsEigen2d(position(ego_data)), lanelet, traffic_rules);
 }
 
 Eigen::Vector2d projectPointToCenterline(const Eigen::Vector2d& point, const ll::ConstLanelet& lanelet) {
@@ -118,12 +91,12 @@ Eigen::Vector2d projectPointToCenterline(const Eigen::Vector2d& point, const ll:
 }
 
 Eigen::Vector2d projectPointToCenterline(const geometry_msgs::msg::Point& point, const ll::ConstLanelet& lanelet) {
-  return projectPointToCenterline(rosToLaneletPoint(point), lanelet);
+  return projectPointToCenterline(pointAsEigen2d(point), lanelet);
 }
 
 Eigen::Vector2d projectPointToCenterline(const perception_msgs::msg::EgoData& ego_data,
                                          const ll::ConstLanelet& lanelet) {
-  return projectPointToCenterline(rosToLaneletPoint(ego_data), lanelet);
+  return projectPointToCenterline(pointAsEigen2d(position(ego_data)), lanelet);
 }
 
 Eigen::Vector2d projectPointToLineStringAlongNormal(const Eigen::Vector2d& point, const Eigen::Vector2d& prev_point,
@@ -362,18 +335,6 @@ int computeFollowingLaneIdxOffset(const ll::ConstLanelet& lanelet, const ll::Con
   }
 
   return following_lane_idx_offset;
-}
-
-geometry_msgs::msg::Quaternion vectorToRosQuaternion(const Eigen::Vector2d& vector) {
-  Eigen::Vector2d unit_vector = vector.normalized();
-  double angle = std::atan2(unit_vector.y(), unit_vector.x());
-  Eigen::Quaterniond quaternion(Eigen::AngleAxisd(angle, Eigen::Vector3d::UnitZ()));
-  geometry_msgs::msg::Quaternion ros_quaternion;
-  ros_quaternion.x = quaternion.x();
-  ros_quaternion.y = quaternion.y();
-  ros_quaternion.z = quaternion.z();
-  ros_quaternion.w = quaternion.w();
-  return ros_quaternion;
 }
 
 uint8_t laneBoundaryType(const ll::ConstLineString2d& line) {
