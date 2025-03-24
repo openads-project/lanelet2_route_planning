@@ -1,6 +1,5 @@
 #include <functional>
 #include <thread>
-#include <unordered_map>
 
 #include <lanelet2_routing/RoutingGraph.h>
 #include <lanelet2_traffic_rules/TrafficRulesFactory.h>
@@ -509,7 +508,7 @@ bool NewLanelet2RoutePlanning::laneletToGlobalRosRoute() {
 
     // create LaneElement
     route_planning_msgs::msg::LaneElement lane_element_msg;
-    lane_element_msg.reference_pose.position = laneletToRosPoint(point);
+    lane_element_msg.reference_pose.position = laneletToRosPoint2d(point);
     lane_element_msg.reference_pose.orientation = vectorToRosQuaternion(orientation);
     // lane_element_msg.left_boundary not set in global route
     lane_element_msg.has_left_boundary = false;
@@ -676,14 +675,14 @@ bool NewLanelet2RoutePlanning::laneletToLocalRosRoute() {
     // enrich RouteElement with local route information
     route_element_msg.lane_elements = {};
     if (!adjacent_left_lanelets_left_bounds_points.empty()) {
-      route_element_msg.left_boundary = laneletToRosPoint(adjacent_left_lanelets_left_bounds_points.front());
+      route_element_msg.left_boundary = laneletToRosPoint2d(adjacent_left_lanelets_left_bounds_points.front());
     } else {
-      route_element_msg.left_boundary = laneletToRosPoint(left_bounds_point);
+      route_element_msg.left_boundary = laneletToRosPoint2d(left_bounds_point);
     }
     if (!adjacent_right_lanelets_right_bounds_points.empty()) {
-      route_element_msg.right_boundary = laneletToRosPoint(adjacent_right_lanelets_right_bounds_points.back());
+      route_element_msg.right_boundary = laneletToRosPoint2d(adjacent_right_lanelets_right_bounds_points.back());
     } else {
-      route_element_msg.right_boundary = laneletToRosPoint(right_bounds_point);
+      route_element_msg.right_boundary = laneletToRosPoint2d(right_bounds_point);
     }
     route_element_msg.regulatory_elements = {};
     route_element_msg.suggested_lane_idx = suggested_lane_idx;
@@ -693,14 +692,59 @@ bool NewLanelet2RoutePlanning::laneletToLocalRosRoute() {
     // create RegulatoryElements
     // TODO: refactor to function?
     const auto regulatory_elements = lanelet.regulatoryElements();
-    std::unordered_map<int, size_t> regulatory_element_idx_by_id;
     for (const auto& regulatory_element : regulatory_elements) {
-      if (regulatory_element_idx_by_id.count(regulatory_element->id()) > 0) {
+
+      // extract effect line of regulatory element
+      const std::vector<ll::ConstLineString3d> effect_lines = regulatory_element->getParameters<lanelet::ConstLineString3d>(ll::RoleName::RefLine);
+      if (effect_lines.empty()) {
+        RCLCPP_WARN(this->get_logger(), "Regulatory element '%ld' has no reference line, ignoring", regulatory_element->id());
         continue;
+      }
+      const std::vector<Eigen::Vector3d> effect_line = effect_lines.front().basicLineString();
+      if (effect_line.size() < 2) {
+        RCLCPP_WARN(this->get_logger(), "Regulatory element '%ld' has reference line with less than 2 points, ignoring", regulatory_element->id());
+        continue;
+      } else if (effect_line.size() > 2) {
+        RCLCPP_WARN(this->get_logger(), "Regulatory element '%ld' has reference line with more than 2 points, connecting end points", regulatory_element->id());
+      }
+      const std::vector<Eigen::Vector2d> effect_line_2d = {effect_line.front().head<2>(), effect_line.back().head<2>()};
+
+      // only process regulatory element and add it to route element if effect line intersects with centerline, else skip it
+      std::vector<Eigen::Vector2d> line_to_next_point = {point, next_point};
+      std::vector<Eigen::Vector2d> line_to_prev_point = {point, prev_point};
+      Eigen::Vector2d effect_point;
+      bool intersects_effect_line, intersects_line_to_other_point;
+      if (intersectionOfLines(effect_line_2d, line_to_next_point, effect_point, intersects_effect_line, intersects_line_to_other_point)) {
+        if (!intersects_line_to_other_point) {
+          if (intersectionOfLines(effect_line_2d, line_to_prev_point, effect_point, intersects_effect_line, intersects_line_to_other_point)) {
+            if (!intersects_line_to_other_point) {
+              continue;
+            }
+          }
+        }
       }
 
       // create RegulatoryElement
       route_planning_msgs::msg::RegulatoryElement regulatory_element_msg;
+      regulatory_element_msg.effect_line[0] = laneletToRosPoint(effect_line.front());
+      regulatory_element_msg.effect_line[1] = laneletToRosPoint(effect_line.back());
+
+      // extract sign position of regulatory element
+      const std::vector<ll::ConstLineString3d> sign_lines = regulatory_element->getParameters<lanelet::ConstLineString3d>(ll::RoleName::Refers);
+      if (sign_lines.empty()) {
+        RCLCPP_WARN(this->get_logger(), "Regulatory element '%ld' has no referring sign, ignoring", regulatory_element->id());
+        continue;
+      }
+      for (const auto& sign_line_ll : sign_lines) {
+        const std::vector<Eigen::Vector3d> sign_line = sign_line_ll.basicLineString();
+        if (sign_line.size() < 1) {
+          RCLCPP_WARN(this->get_logger(), "Regulatory element '%ld' has referring sign with no points, ignoring", regulatory_element->id());
+          continue;
+        } else if (sign_line.size() > 1) {
+          RCLCPP_WARN(this->get_logger(), "Regulatory element '%ld' has referring sign with more than 1 point, using only first one", regulatory_element->id());
+        }
+        regulatory_element_msg.sign_positions.push_back(laneletToRosPoint(sign_line.front()));
+      }
 
       // infer type of regulatory element
       regulatory_element_msg.type = route_planning_msgs::msg::RegulatoryElement::TYPE_UNKNOWN;
@@ -716,31 +760,30 @@ bool NewLanelet2RoutePlanning::laneletToLocalRosRoute() {
         } else if (subtype == "all_way_stop") {
           regulatory_element_msg.type = route_planning_msgs::msg::RegulatoryElement::TYPE_STOP;
         } else {
-          RCLCPP_WARN(this->get_logger(), "Unknown regulatory element subtype '%s', ignoring", subtype.c_str());
+          RCLCPP_WARN(this->get_logger(), "Regulatory element '%ld' has unknown subtype '%s', ignoring", regulatory_element->id(), subtype.c_str());
           continue;
         }
       } else {
-        RCLCPP_WARN(this->get_logger(), "Regulatory element has no subtype, ignoring");
+        RCLCPP_WARN(this->get_logger(), "Regulatory element '%ld' has no subtype, ignoring", regulatory_element->id());
         continue;
       }
 
-      // TODO: infer effect line and signal positions
-      // TODO: infer affected lanelets
-      // TODO: only add to RouteElement closet to effect line;
-
-      regulatory_element_idx_by_id[regulatory_element->id()] = route_element_msg.regulatory_elements.size();
+      // save together with current route element index for later adding to the closet route element
       route_element_msg.regulatory_elements.push_back(regulatory_element_msg);
+
+
+      // TODO: infer lane elements affected by this regulatory element -> assign to current centerline lane element -> somehow also do the same checks above for adjacent lanes, but store RegElemMsg by ID to avoid recomputation
     }
 
     // create LaneElements for left adjacent lanes
     for (size_t a = 0; a < adjacent_left_lanelets.size(); ++a) {
       route_planning_msgs::msg::LaneElement lane_element_msg;
-      lane_element_msg.reference_pose.position = laneletToRosPoint(adjacent_left_lanelets_centerline_points[a]);
+      lane_element_msg.reference_pose.position = laneletToRosPoint2d(adjacent_left_lanelets_centerline_points[a]);
       lane_element_msg.reference_pose.orientation = geometry_msgs::msg::Quaternion();  // TODO
-      lane_element_msg.left_boundary.point = laneletToRosPoint(adjacent_left_lanelets_left_bounds_points[a]);
+      lane_element_msg.left_boundary.point = laneletToRosPoint2d(adjacent_left_lanelets_left_bounds_points[a]);
       lane_element_msg.left_boundary.type = laneBoundaryType(adjacent_left_lanelets[a].leftBound2d());
       lane_element_msg.has_left_boundary = true;
-      lane_element_msg.right_boundary.point = laneletToRosPoint(adjacent_left_lanelets_right_bounds_points[a]);
+      lane_element_msg.right_boundary.point = laneletToRosPoint2d(adjacent_left_lanelets_right_bounds_points[a]);
       lane_element_msg.right_boundary.type = laneBoundaryType(adjacent_left_lanelets[a].rightBound2d());
       lane_element_msg.has_right_boundary = true;
       lane_element_msg.speed_limit = 0;              // TODO
@@ -752,16 +795,17 @@ bool NewLanelet2RoutePlanning::laneletToLocalRosRoute() {
 
     // create LaneElement for centerline lane
     route_planning_msgs::msg::LaneElement centerline_lane_element_msg;
-    centerline_lane_element_msg.reference_pose.position = laneletToRosPoint(point);
+    centerline_lane_element_msg.reference_pose.position = laneletToRosPoint2d(point);
     centerline_lane_element_msg.reference_pose.orientation = vectorToRosQuaternion(orientation);
-    centerline_lane_element_msg.left_boundary.point = laneletToRosPoint(left_bounds_point);
+    centerline_lane_element_msg.left_boundary.point = laneletToRosPoint2d(left_bounds_point);
     centerline_lane_element_msg.left_boundary.type = laneBoundaryType(lanelet.leftBound2d());
     centerline_lane_element_msg.has_left_boundary = true;
-    centerline_lane_element_msg.right_boundary.point = laneletToRosPoint(right_bounds_point);
+    centerline_lane_element_msg.right_boundary.point = laneletToRosPoint2d(right_bounds_point);
     centerline_lane_element_msg.right_boundary.type = laneBoundaryType(lanelet.rightBound2d());
     centerline_lane_element_msg.has_right_boundary = true;
     centerline_lane_element_msg.speed_limit = 0;              // TODO
-    centerline_lane_element_msg.regulatory_element_idx = {};  // TODO
+    centerline_lane_element_msg.regulatory_element_idx.resize(route_element_msg.regulatory_elements.size()); // TODO: dont assign all RegElems of RouteElem to CenterlineElem
+    std::iota(centerline_lane_element_msg.regulatory_element_idx.begin(), centerline_lane_element_msg.regulatory_element_idx.end(), 0);
     centerline_lane_element_msg.following_lane_idx = route_element_msg.lane_elements.size() + following_lane_idx_offset;
     centerline_lane_element_msg.has_following_lane_idx = true;
     route_element_msg.lane_elements.push_back(centerline_lane_element_msg);
@@ -769,12 +813,12 @@ bool NewLanelet2RoutePlanning::laneletToLocalRosRoute() {
     // create LaneElements for right adjacent lanes
     for (size_t a = 0; a < adjacent_right_lanelets.size(); ++a) {
       route_planning_msgs::msg::LaneElement lane_element_msg;
-      lane_element_msg.reference_pose.position = laneletToRosPoint(adjacent_right_lanelets_centerline_points[a]);
+      lane_element_msg.reference_pose.position = laneletToRosPoint2d(adjacent_right_lanelets_centerline_points[a]);
       lane_element_msg.reference_pose.orientation = geometry_msgs::msg::Quaternion();  // TODO
-      lane_element_msg.left_boundary.point = laneletToRosPoint(adjacent_right_lanelets_left_bounds_points[a]);
+      lane_element_msg.left_boundary.point = laneletToRosPoint2d(adjacent_right_lanelets_left_bounds_points[a]);
       lane_element_msg.left_boundary.type = laneBoundaryType(adjacent_right_lanelets[a].leftBound2d());
       lane_element_msg.has_left_boundary = true;
-      lane_element_msg.right_boundary.point = laneletToRosPoint(adjacent_right_lanelets_right_bounds_points[a]);
+      lane_element_msg.right_boundary.point = laneletToRosPoint2d(adjacent_right_lanelets_right_bounds_points[a]);
       lane_element_msg.right_boundary.type = laneBoundaryType(adjacent_right_lanelets[a].rightBound2d());
       lane_element_msg.has_right_boundary = true;
       lane_element_msg.speed_limit = 0;              // TODO

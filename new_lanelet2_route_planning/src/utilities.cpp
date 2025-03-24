@@ -22,10 +22,19 @@ Eigen::Vector2d rosToLaneletPoint(const perception_msgs::msg::EgoData& ego_data)
                          perception_msgs::object_access::getY(ego_data));
 }
 
-geometry_msgs::msg::Point laneletToRosPoint(const Eigen::Vector2d& point) {
+geometry_msgs::msg::Point laneletToRosPoint2d(const Eigen::Vector2d& point) {
   geometry_msgs::msg::Point ros_point;
   ros_point.x = point.x();
   ros_point.y = point.y();
+  ros_point.z = 0.0;
+  return ros_point;
+}
+
+geometry_msgs::msg::Point laneletToRosPoint(const Eigen::Vector3d& point) {
+  geometry_msgs::msg::Point ros_point;
+  ros_point.x = point.x();
+  ros_point.y = point.y();
+  ros_point.z = point.z();
   return ros_point;
 }
 
@@ -202,51 +211,36 @@ Eigen::Vector2d projectPointToLineStringAlongNormal(const Eigen::Vector2d& point
 }
 
 Eigen::Vector2d projectPointToLineAlongAxis(const Eigen::Vector2d& point, const Eigen::Vector2d& axis,
-                                            const ll::BasicLineString2d& line,
-                                            bool& found_intersection_with_line_segment) {
-  // TODO: use Eigen to compute intersection?
-  // https://stackoverflow.com/a/50763846
+                      const ll::BasicLineString2d& line,
+                      bool& found_intersection_with_line_segment) {
 
   Eigen::Vector2d closest_projected_point;
   found_intersection_with_line_segment = false;
   double closest_distance_to_line_segment = std::numeric_limits<double>::max();
   bool found_at_least_one_intersection = false;
 
-  // define straight line (a1 x + b1 y = c1) along axis at point
-  const double a1 = axis[1];
-  const double b1 = -axis[0];
-  const double c1 = a1 * point[0] + b1 * point[1];
+  // define straight line along axis at point
+  std::vector<Eigen::Vector2d> axis_line = {point, point + axis};
 
   // loop over line segments
   for (size_t i = 0; i < line.size() - 1; ++i) {
-    const auto& line_point1 = line[i];
-    const auto& line_point2 = line[i + 1];
+    std::vector<Eigen::Vector2d> line_segment = {line[i], line[i + 1]};
+    Eigen::Vector2d intersection;
+    bool intersects_axis_line, intersects_line_segment;
 
-    // define straight line (a2 x + b2 y = c2) through line segment points
-    const double a2 = line_point2[1] - line_point1[1];
-    const double b2 = line_point1[0] - line_point2[0];
-    const double c2 = line_point1[0] * line_point2[1] - line_point2[0] * line_point1[1];
-
-    // find intersection of both lines by solving for x and y
-    const double det = a1 * b2 - a2 * b1;
-    if (det != 0) {
-      const double x = (b2 * c1 - b1 * c2) / det;
-      const double y = (a1 * c2 - a2 * c1) / det;
-      Eigen::Vector2d projected_point = Eigen::Vector2d(x, y);
+    // find intersection of axis line and line segment
+    if (intersectionOfLines(axis_line, line_segment, intersection, intersects_axis_line, intersects_line_segment)) {
       found_at_least_one_intersection = true;
-
-      // check if intersection point is within line segment
-      if (x >= std::min(line_point1[0], line_point2[0]) && x <= std::max(line_point1[0], line_point2[0]) &&
-          y >= std::min(line_point1[1], line_point2[1]) && y <= std::max(line_point1[1], line_point2[1])) {
+      if (intersects_line_segment) {
         found_intersection_with_line_segment = true;
-        closest_projected_point = projected_point;
+        closest_projected_point = intersection;
         break;
-      } else {  // else still save as best projected point if closest to line segment
+      } else {
         double distance_to_line_segment =
-            std::min((projected_point - line_point1).norm(), (projected_point - line_point2).norm());
+          std::min((intersection - line[i]).norm(), (intersection - line[i + 1]).norm());
         if (distance_to_line_segment < closest_distance_to_line_segment) {
           closest_distance_to_line_segment = distance_to_line_segment;
-          closest_projected_point = projected_point;
+          closest_projected_point = intersection;
         }
       }
     }
@@ -254,10 +248,44 @@ Eigen::Vector2d projectPointToLineAlongAxis(const Eigen::Vector2d& point, const 
 
   if (!found_at_least_one_intersection) {
     RCLCPP_ERROR(rclcpp::get_logger("new_lanelet2_route_planning"),
-                 "Could not project point to line along axis because axis is parallel to all line segments");
+          "Could not project point to line along axis because axis is parallel to all line segments");
   }
 
   return closest_projected_point;
+}
+
+bool intersectionOfLines(const std::vector<Eigen::Vector2d>& line1, const std::vector<Eigen::Vector2d>& line2,
+  Eigen::Vector2d& intersection, bool& intersects_line1, bool& intersects_line2) {
+
+  // check if lines are valid
+  if (line1.size() < 2 || line2.size() < 2) {
+    RCLCPP_ERROR(rclcpp::get_logger("new_lanelet2_route_planning"), "Lines must have no more or less than two points, found %lu and %lu points", line1.size(), line2.size());
+    return false;
+  }
+
+  // define straight lines (a1 x + b1 y = c1) and (a2 x + b2 y = c2) through line points
+  const double a1 = line1[1].y() - line1[0].y();
+  const double b1 = line1[0].x() - line1[1].x();
+  const double c1 = line1[0].x() * line1[1].y() - line1[1].x() * line1[0].y();
+  const double a2 = line2[1].y() - line2[0].y();
+  const double b2 = line2[0].x() - line2[1].x();
+  const double c2 = line2[0].x() * line2[1].y() - line2[1].x() * line2[0].y();
+
+  // find intersection of both lines by solving for x and y
+  const double det = a1 * b2 - a2 * b1;
+  if (det != 0) {
+    const double x = (b2 * c1 - b1 * c2) / det;
+    const double y = (a1 * c2 - a2 * c1) / det;
+    intersection = Eigen::Vector2d(x, y);
+
+    // check if intersection point is within line segments
+    intersects_line1 = (x >= std::min(line1[0].x(), line1[1].x()) && x <= std::max(line1[0].x(), line1[1].x()) &&
+                        y >= std::min(line1[0].y(), line1[1].y()) && y <= std::max(line1[0].y(), line1[1].y()));
+    intersects_line2 = (x >= std::min(line2[0].x(), line2[1].x()) && x <= std::max(line2[0].x(), line2[1].x()) &&
+                        y >= std::min(line2[0].y(), line2[1].y()) && y <= std::max(line2[0].y(), line2[1].y()));
+  } else {
+    return false;
+  }
 }
 
 ll::ConstLanelet followLanelet(const ll::routing::RoutingGraphUPtr& routing_graph, const ll::ConstLanelet& lanelet,
