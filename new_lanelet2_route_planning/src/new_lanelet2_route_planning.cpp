@@ -8,6 +8,7 @@
 #include <perception_msgs_utils/object_access.hpp>
 #include <tf2_geometry_msgs/tf2_geometry_msgs.hpp>
 
+#include "new_lanelet2_route_planning/geometry.hpp"
 #include "new_lanelet2_route_planning/new_lanelet2_route_planning.hpp"
 #include "new_lanelet2_route_planning/utilities.hpp"
 
@@ -712,12 +713,10 @@ bool NewLanelet2RoutePlanning::laneletToLocalRosRoute() {
       // only process regulatory element and add it to route element if effect line intersects with centerline, else skip it
       std::vector<Eigen::Vector2d> line_to_next_point = {point, next_point};
       std::vector<Eigen::Vector2d> line_to_prev_point = {point, prev_point};
-      Eigen::Vector2d effect_point;
-      bool intersects_effect_line, intersects_line_to_other_point;
-      if (intersectionOfLines(effect_line_2d, line_to_next_point, effect_point, intersects_effect_line, intersects_line_to_other_point)) {
-        if (!intersects_line_to_other_point) {
-          if (intersectionOfLines(effect_line_2d, line_to_prev_point, effect_point, intersects_effect_line, intersects_line_to_other_point)) {
-            if (!intersects_line_to_other_point) {
+      if (auto result = intersectionOfLines(effect_line_2d, line_to_next_point)) {
+        if (!result->intersects_line2) {
+          if (auto inner_result = intersectionOfLines(effect_line_2d, line_to_prev_point)) {
+            if (!inner_result->intersects_line2) {
               continue;
             }
           }

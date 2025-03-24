@@ -36,14 +36,9 @@ bool findLaneletAtEgoPosition(const ll::LaneletMapConstPtr& map, const std::stri
                               const perception_msgs::msg::EgoData& ego_data, ll::ConstLanelet& lanelet,
                               const std::optional<ll::traffic_rules::TrafficRulesPtr> traffic_rules = std::nullopt);
 
-Eigen::Vector2d tangentOfPointAlongLineString(const Eigen::Vector2d& point, const Eigen::Vector2d& prev_point,
-                                              const Eigen::Vector2d& next_point);
 
-Eigen::Vector2d normalOfPointAlongLineString(const Eigen::Vector2d& point, const Eigen::Vector2d& prev_point,
-                                             const Eigen::Vector2d& next_point);
 
-// TODO: rewrite utilities for simpler datatypes? when to use constlinestring, when to use basic? Basic is probably better, just a typedef on vector<Eigen>
-ll::BasicLineString2d resampleLineString(const ll::BasicLineString2d& line, const double delta_s, double& offset);
+
 
 Eigen::Vector2d projectPointToCenterline(const Eigen::Vector2d& position, const ll::ConstLanelet& lanelet);
 
@@ -59,9 +54,6 @@ Eigen::Vector2d projectPointToLineStringAlongNormal(const Eigen::Vector2d& point
 Eigen::Vector2d projectPointToLineAlongAxis(const Eigen::Vector2d& point, const Eigen::Vector2d& axis,
                                             const ll::BasicLineString2d& line,
                                             bool& found_intersection_with_line_segment);
-
-bool intersectionOfLines(const std::vector<Eigen::Vector2d>& line1, const std::vector<Eigen::Vector2d>& line2,
-                         Eigen::Vector2d& intersection, bool& intersects_line1, bool& intersects_line2);
 
 ll::ConstLanelet followLanelet(const ll::routing::RoutingGraphUPtr& routing_graph, const ll::ConstLanelet& lanelet,
                                const Eigen::Vector2d& position, const double distance);

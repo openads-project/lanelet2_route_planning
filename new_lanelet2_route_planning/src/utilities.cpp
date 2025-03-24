@@ -7,6 +7,7 @@
 #include <perception_msgs_utils/object_access.hpp>
 #include <rclcpp/rclcpp.hpp>
 
+#include "new_lanelet2_route_planning/geometry.hpp"
 #include "new_lanelet2_route_planning/utilities.hpp"
 
 namespace new_lanelet2_route_planning {
@@ -14,6 +15,10 @@ namespace new_lanelet2_route_planning {
 static const unsigned int k_nearest_lanelets = 5;
 static const double k_timeout_ego_data = 1.0;
 static const double k_max_distance_lanelet_matching = 5.0;
+
+std::vector<Eigen::Vector2d> lineStringAsEigen(const ll::BasicLineString2d& line_string) {
+  return std::vector<Eigen::Vector2d>(line_string.begin(), line_string.end());
+}
 
 Eigen::Vector2d rosToLaneletPoint(const geometry_msgs::msg::Point& point) { return Eigen::Vector2d(point.x, point.y); }
 
@@ -106,81 +111,6 @@ bool findLaneletAtEgoPosition(const ll::LaneletMapConstPtr& map, const std::stri
   return findLaneletAtPoint(map, rosToLaneletPoint(ego_data), lanelet, traffic_rules);
 }
 
-Eigen::Vector2d tangentOfPointAlongLineString(const Eigen::Vector2d& point, const Eigen::Vector2d& prev_point,
-                                              const Eigen::Vector2d& next_point) {
-  Eigen::Vector2d tangent;
-
-  if (point == prev_point && point != next_point) {  // single line segment
-    tangent = (next_point - point).normalized();
-  } else if (point != prev_point && point == next_point) {  // single line segment
-    tangent = (point - prev_point).normalized();
-  } else if (point == prev_point && point == next_point) {  // single point
-    RCLCPP_WARN(rclcpp::get_logger("new_lanelet2_route_planning"), "Tangent of single point is undefined");
-    tangent = Eigen::Vector2d(0.0, 0.0);
-  } else {  // proper two line segments with previous and next point
-    const Eigen::Vector2d prev_to_point_unit = (point - prev_point).normalized();
-    const Eigen::Vector2d point_to_next_unit = (next_point - point).normalized();
-    tangent = (prev_to_point_unit + point_to_next_unit).normalized();
-  }
-
-  return tangent;
-}
-
-Eigen::Vector2d normalOfPointAlongLineString(const Eigen::Vector2d& point, const Eigen::Vector2d& prev_point,
-                                             const Eigen::Vector2d& next_point) {
-  Eigen::Vector2d tangent = tangentOfPointAlongLineString(point, prev_point, next_point);
-  Eigen::Vector2d normal = Eigen::Vector2d(tangent.y(), -tangent.x());
-
-  return normal;
-}
-
-ll::BasicLineString2d resampleLineString(const ll::BasicLineString2d& line, const double delta_s, double& offset) {
-  // TODO: use internal type for lines for easier processing? -> better understand what BasicLineString2d actually is, might save some lines here or there
-  // copy to Eigen line
-  std::vector<Eigen::Vector2d> line_eigen;
-  for (const auto& point : line) {
-    line_eigen.push_back(Eigen::Vector2d(point.x(), point.y()));
-  }
-
-  std::vector<Eigen::Vector2d> resampled_line_eigen;
-
-  // set initial sampling distance
-  double sampling_distance = delta_s;
-  if (offset == 0.0) {  // if no offset, start with first line point
-    resampled_line_eigen.push_back(line_eigen.front());
-  } else {  // else sample first point with offset != delta_s
-    sampling_distance = offset;
-  }
-
-  // loop over all line segments
-  for (size_t i = 1; i < line_eigen.size(); ++i) {
-    // determine segment length and unit direction
-    double segment_length = (line_eigen[i] - line_eigen[i - 1]).norm();
-    const Eigen::Vector2d segment_direction = (line_eigen[i] - line_eigen[i - 1]).normalized();
-
-    // sample points along segment, increasing sampling_distance by delta_s
-    while (segment_length >= sampling_distance) {
-      const Eigen::Vector2d resampled_point = line_eigen[i - 1] + sampling_distance * segment_direction;
-      resampled_line_eigen.push_back(resampled_point);
-      sampling_distance += delta_s;
-    }
-
-    // reset sampling_distance for next segment, including overshoot
-    sampling_distance = sampling_distance - segment_length;
-  }
-
-  // save overshoot in outgoing offset parameter
-  offset = sampling_distance;
-
-  // copy back to BasicLineString2d
-  ll::BasicLineString2d resampled_line;
-  for (const auto& point : resampled_line_eigen) {
-    resampled_line.push_back(Eigen::Vector2d(point.x(), point.y()));
-  }
-
-  return resampled_line;
-}
-
 Eigen::Vector2d projectPointToCenterline(const Eigen::Vector2d& point, const ll::ConstLanelet& lanelet) {
   Eigen::Vector3d point_3d = Eigen::Vector3d(point.x(), point.y(), 0.0);
   Eigen::Vector3d projected_point_3d = ll::geometry::project(lanelet.centerline(), point_3d);
@@ -225,11 +155,11 @@ Eigen::Vector2d projectPointToLineAlongAxis(const Eigen::Vector2d& point, const 
   // loop over line segments
   for (size_t i = 0; i < line.size() - 1; ++i) {
     std::vector<Eigen::Vector2d> line_segment = {line[i], line[i + 1]};
-    Eigen::Vector2d intersection;
-    bool intersects_axis_line, intersects_line_segment;
 
     // find intersection of axis line and line segment
-    if (intersectionOfLines(axis_line, line_segment, intersection, intersects_axis_line, intersects_line_segment)) {
+    if (auto result = intersectionOfLines(axis_line, line_segment)) {
+      const Eigen::Vector2d& intersection = result->intersection;
+      const bool intersects_line_segment = result->intersects_line2;
       found_at_least_one_intersection = true;
       if (intersects_line_segment) {
         found_intersection_with_line_segment = true;
@@ -252,40 +182,6 @@ Eigen::Vector2d projectPointToLineAlongAxis(const Eigen::Vector2d& point, const 
   }
 
   return closest_projected_point;
-}
-
-bool intersectionOfLines(const std::vector<Eigen::Vector2d>& line1, const std::vector<Eigen::Vector2d>& line2,
-  Eigen::Vector2d& intersection, bool& intersects_line1, bool& intersects_line2) {
-
-  // check if lines are valid
-  if (line1.size() < 2 || line2.size() < 2) {
-    RCLCPP_ERROR(rclcpp::get_logger("new_lanelet2_route_planning"), "Lines must have no more or less than two points, found %lu and %lu points", line1.size(), line2.size());
-    return false;
-  }
-
-  // define straight lines (a1 x + b1 y = c1) and (a2 x + b2 y = c2) through line points
-  const double a1 = line1[1].y() - line1[0].y();
-  const double b1 = line1[0].x() - line1[1].x();
-  const double c1 = line1[0].x() * line1[1].y() - line1[1].x() * line1[0].y();
-  const double a2 = line2[1].y() - line2[0].y();
-  const double b2 = line2[0].x() - line2[1].x();
-  const double c2 = line2[0].x() * line2[1].y() - line2[1].x() * line2[0].y();
-
-  // find intersection of both lines by solving for x and y
-  const double det = a1 * b2 - a2 * b1;
-  if (det != 0) {
-    const double x = (b2 * c1 - b1 * c2) / det;
-    const double y = (a1 * c2 - a2 * c1) / det;
-    intersection = Eigen::Vector2d(x, y);
-
-    // check if intersection point is within line segments
-    intersects_line1 = (x >= std::min(line1[0].x(), line1[1].x()) && x <= std::max(line1[0].x(), line1[1].x()) &&
-                        y >= std::min(line1[0].y(), line1[1].y()) && y <= std::max(line1[0].y(), line1[1].y()));
-    intersects_line2 = (x >= std::min(line2[0].x(), line2[1].x()) && x <= std::max(line2[0].x(), line2[1].x()) &&
-                        y >= std::min(line2[0].y(), line2[1].y()) && y <= std::max(line2[0].y(), line2[1].y()));
-  } else {
-    return false;
-  }
 }
 
 ll::ConstLanelet followLanelet(const ll::routing::RoutingGraphUPtr& routing_graph, const ll::ConstLanelet& lanelet,
@@ -346,7 +242,7 @@ ll::BasicLineString2d resampleCenterlinesAlongPath(const ll::routing::LaneletPat
     }
 
     // resample lanelet centerline
-    ll::BasicLineString2d resampled_centerline = resampleLineString(centerline, delta_s, resampling_offset);
+    std::vector<Eigen::Vector2d> resampled_centerline = resampleLineString(lineStringAsEigen(centerline), delta_s, resampling_offset);
     resampled_path_centerline.insert(resampled_path_centerline.end(), resampled_centerline.begin(),
                                      resampled_centerline.end());
     lanelet_idx_by_point.insert(lanelet_idx_by_point.end(), resampled_centerline.size(), l);

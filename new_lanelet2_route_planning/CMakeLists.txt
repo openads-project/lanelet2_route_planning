@@ -23,6 +23,7 @@ find_package(tf2_ros REQUIRED)
 set(TARGET_NAME new_lanelet2_route_planning)
 
 add_executable(${TARGET_NAME}
+  src/geometry.cpp
   src/new_lanelet2_route_planning.cpp
   src/utilities.cpp
 )
