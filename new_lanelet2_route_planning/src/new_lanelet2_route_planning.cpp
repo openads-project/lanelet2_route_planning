@@ -159,6 +159,7 @@ rcl_interfaces::msg::SetParametersResult NewLanelet2RoutePlanning::parametersCal
 
   if (local_route_ahead_distance_ < 0.0) local_route_ahead_distance_ = std::numeric_limits<double>::infinity();
   if (local_route_behind_distance_ < 0.0) local_route_behind_distance_ = std::numeric_limits<double>::infinity();
+  // TODO: check if all params can be handled by DynRcfg
 
   rcl_interfaces::msg::SetParametersResult result;
   result.successful = true;
@@ -706,21 +707,22 @@ bool NewLanelet2RoutePlanning::laneletToLocalRosRoute() {
 
     // create RegulatoryElements
     // TODO: refactor to function?
+    // TODO: this returns super many RegElemens, e.g., 13 for lanelet 10001143
     const auto regulatory_elements = lanelet.regulatoryElements();
     for (const auto& regulatory_element : regulatory_elements) {
 
       // extract effect line of regulatory element
       const std::vector<ll::ConstLineString3d> effect_lines = regulatory_element->getParameters<lanelet::ConstLineString3d>(ll::RoleName::RefLine);
       if (effect_lines.empty()) {
-        RCLCPP_WARN(this->get_logger(), "Regulatory element '%ld' has no reference line, ignoring", regulatory_element->id());
+        RCLCPP_WARN(this->get_logger(), "Regulatory element '%ld' on lanelet '%ld' has no reference line, ignoring", regulatory_element->id(), lanelet.id());
         continue;
       }
       const std::vector<Eigen::Vector3d> effect_line = effect_lines.front().basicLineString();
       if (effect_line.size() < 2) {
-        RCLCPP_WARN(this->get_logger(), "Regulatory element '%ld' has reference line with less than 2 points, ignoring", regulatory_element->id());
+        RCLCPP_WARN(this->get_logger(), "Regulatory element '%ld' on lanelet '%ld' has reference line with less than 2 points, ignoring", regulatory_element->id(), lanelet.id());
         continue;
       } else if (effect_line.size() > 2) {
-        RCLCPP_WARN(this->get_logger(), "Regulatory element '%ld' has reference line with more than 2 points, connecting end points", regulatory_element->id());
+        RCLCPP_WARN(this->get_logger(), "Regulatory element '%ld' on lanelet '%ld' has reference line with more than 2 points, connecting end points", regulatory_element->id(), lanelet.id());
       }
       const std::vector<Eigen::Vector2d> effect_line_2d = {effect_line.front().head<2>(), effect_line.back().head<2>()};
 
