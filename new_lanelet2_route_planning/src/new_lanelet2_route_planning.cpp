@@ -12,6 +12,7 @@
 #include "new_lanelet2_route_planning/geometry.hpp"
 #include "new_lanelet2_route_planning/new_lanelet2_route_planning.hpp"
 #include "new_lanelet2_route_planning/utilities.hpp"
+#include "new_lanelet2_route_planning/utils.hpp"
 
 namespace new_lanelet2_route_planning {
 
@@ -501,30 +502,8 @@ bool NewLanelet2RoutePlanning::laneletToGlobalRosRoute() {
     accumulated_distance += (point - prev_point).norm();
 
     // create RouteElement
-    route_planning_msgs::msg::RouteElement route_element_msg;
-    // route_element_msg.left_boundary not set in global route
-    // route_element_msg.right_boundary not set in global route
-    // route_element_msg.regulatory_elements not set in global route
-    route_element_msg.suggested_lane_idx = 0;
-    route_element_msg.will_change_suggested_lane = changes_lane_to_next_point;
-    route_element_msg.s = accumulated_distance;
-
-    // create LaneElement
-    route_planning_msgs::msg::LaneElement lane_element_msg;
-    lane_element_msg.reference_pose.position = toRos(point);
-    lane_element_msg.reference_pose.orientation = toRosQuaternion(orientation);
-    // lane_element_msg.left_boundary not set in global route
-    lane_element_msg.has_left_boundary = false;
-    // lane_element_msg.right_boundary not set in global route
-    lane_element_msg.has_right_boundary = false;
-    lane_element_msg.speed_limit = 0;  // TODO
-    // TODO: rename to regulatory_element_idcs?
-    // TODO: has_regulatory_elements not needed?
-    // lane_element_msg.regulatory_element_idx not set in global route
-    lane_element_msg.following_lane_idx = 0;
-    lane_element_msg.has_following_lane_idx = true;
-    route_element_msg.lane_elements.push_back(lane_element_msg);
-
+    uint8_t speed_limit = 0; // TODO
+    route_planning_msgs::msg::RouteElement route_element_msg = createMinimalRouteElement(toRos(point), toRosQuaternion(orientation), accumulated_distance, changes_lane_to_next_point, speed_limit);
     route_msg.remaining_route_elements.push_back(route_element_msg);
   }
 
@@ -541,23 +520,9 @@ bool NewLanelet2RoutePlanning::laneletToLocalRosRoute() {
                         route_msg.remaining_route_elements.end());
 
   // find point of global reference line closest to ego position
-  // TODO: refactor to function?
-  double min_distance_ego_to_route = std::numeric_limits<double>::infinity();
-  size_t c_min_distance_ego_to_route = 0;
-  for (size_t c = 0; c < route_elements.size(); ++c) {
-    const route_planning_msgs::msg::RouteElement& route_element_msg = route_elements[c];
-    const route_planning_msgs::msg::LaneElement& lane_element_msg =
-        route_element_msg.lane_elements[route_element_msg.suggested_lane_idx];
-    const geometry_msgs::msg::Point& point = lane_element_msg.reference_pose.position;
-    const Eigen::Vector2d point_eigen = {point.x, point.y};  // TODO: refactor to function?
-    const Eigen::Vector2d ego_position_eigen = {perception_msgs::object_access::getX(latest_ego_data_),
-                                                perception_msgs::object_access::getY(latest_ego_data_)};
-    double distance_ego_to_route = (ego_position_eigen - point_eigen).norm();
-    if (distance_ego_to_route < min_distance_ego_to_route) {
-      min_distance_ego_to_route = distance_ego_to_route;
-      c_min_distance_ego_to_route = c;
-    }
-  }
+  const Eigen::Vector2d ego_position = toEigen2d(egoPosition(latest_ego_data_));
+  const std::vector<Eigen::Vector2d> reference_line = to2d(suggestedReferenceLineToEigen(route_msg));
+  size_t c_min_distance_ego_to_route = indexOfLineStringPointClosestToPoint(reference_line, ego_position);
 
   // loop over global reference line
   for (size_t c = 0; c < route_elements.size(); ++c) {
@@ -569,20 +534,7 @@ bool NewLanelet2RoutePlanning::laneletToLocalRosRoute() {
     double distance_ahead = route_element_msg.s - route_elements[c_min_distance_ego_to_route].s;
     if (distance_ahead > local_route_ahead_distance_ || distance_ahead < -local_route_behind_distance_) {
       // clear local route enriched information, if existing
-      // TODO: refactor to function?
-      lane_element_msg.has_left_boundary = false;
-      lane_element_msg.left_boundary = route_planning_msgs::msg::LaneBoundary();
-      lane_element_msg.has_right_boundary = false;
-      lane_element_msg.right_boundary = route_planning_msgs::msg::LaneBoundary();
-      lane_element_msg.speed_limit = 0;
-      lane_element_msg.regulatory_element_idx = {};
-      lane_element_msg.following_lane_idx = 0;
-      lane_element_msg.has_following_lane_idx = false;
-      route_element_msg.lane_elements = {lane_element_msg};
-      route_element_msg.suggested_lane_idx = 0;
-      route_element_msg.left_boundary = geometry_msgs::msg::Point();
-      route_element_msg.right_boundary = geometry_msgs::msg::Point();
-      route_element_msg.will_change_suggested_lane = false;
+      route_element_msg = createMinimalRouteElement(lane_element_msg.reference_pose.position, lane_element_msg.reference_pose.orientation, route_element_msg.s, route_element_msg.will_change_suggested_lane, lane_element_msg.speed_limit);
       continue;
     }
 

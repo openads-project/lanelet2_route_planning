@@ -8,6 +8,7 @@
 #include <geometry_msgs/msg/point.hpp>
 #include <geometry_msgs/msg/quaternion.hpp>
 #include <perception_msgs/msg/ego_data.hpp>
+#include <route_planning_msgs/msg/route.hpp>
 
 namespace new_lanelet2_route_planning {
 
@@ -148,5 +149,13 @@ lanelet::BasicLineString2d toLanelet(const std::vector<Eigen::Vector2d>& line_st
  * @return converted quaternion
  */
 geometry_msgs::msg::Quaternion toRosQuaternion(const Eigen::Vector2d& vector);
+
+/**
+ * @brief Extracts the reference line along the suggested lane from a Route message.
+ *
+ * @param[in] route_msg route message
+ * @return reference line
+ */
+std::vector<Eigen::Vector3d> suggestedReferenceLineToEigen(const route_planning_msgs::msg::Route& route_msg);
 
 }  // namespace new_lanelet2_route_planning

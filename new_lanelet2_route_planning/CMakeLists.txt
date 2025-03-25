@@ -26,6 +26,7 @@ add_executable(${TARGET_NAME}
   src/conversions.cpp
   src/geometry.cpp
   src/new_lanelet2_route_planning.cpp
+  src/utils.cpp
   src/utilities.cpp
 )
 
