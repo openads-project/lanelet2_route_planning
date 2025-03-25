@@ -19,8 +19,7 @@ namespace new_lanelet2_route_planning {
  * @param[in] point point
  * @return converted point
  */
-Eigen::Vector2d as2d(const Eigen::Vector3d& point);
-// TODO: rename to to2d?
+Eigen::Vector2d to2d(const Eigen::Vector3d& point);
 
 /**
  * @brief Converts a 2D Eigen point to a 3D Eigen point.
@@ -30,7 +29,7 @@ Eigen::Vector2d as2d(const Eigen::Vector3d& point);
  * @param[in] point point
  * @return converted point
  */
-Eigen::Vector3d as3d(const Eigen::Vector2d& point);
+Eigen::Vector3d to3d(const Eigen::Vector2d& point);
 
 /**
  * @brief Converts a vector of 3D Eigen points to a vector of 2D Eigen points.
@@ -40,7 +39,7 @@ Eigen::Vector3d as3d(const Eigen::Vector2d& point);
  * @param[in] points points
  * @return converted points
  */
-std::vector<Eigen::Vector2d> as2d(const std::vector<Eigen::Vector3d>& points);
+std::vector<Eigen::Vector2d> to2d(const std::vector<Eigen::Vector3d>& points);
 
 /**
  * @brief Converts a vector of 2D Eigen points to a vector of 3D Eigen points.
@@ -50,7 +49,7 @@ std::vector<Eigen::Vector2d> as2d(const std::vector<Eigen::Vector3d>& points);
  * @param[in] points points
  * @return converted points
  */
-std::vector<Eigen::Vector3d> as3d(const std::vector<Eigen::Vector2d>& points);
+std::vector<Eigen::Vector3d> to3d(const std::vector<Eigen::Vector2d>& points);
 
 /**
  * @brief Converts a 2D Eigen point to a ROS point.
@@ -58,7 +57,7 @@ std::vector<Eigen::Vector3d> as3d(const std::vector<Eigen::Vector2d>& points);
  * @param[in] point point
  * @return converted point
  */
-geometry_msgs::msg::Point pointAsRos(const Eigen::Vector2d& point);
+geometry_msgs::msg::Point toRos(const Eigen::Vector2d& point);
 
 /**
  * @brief Converts a 3D Eigen point to a ROS point.
@@ -66,7 +65,7 @@ geometry_msgs::msg::Point pointAsRos(const Eigen::Vector2d& point);
  * @param[in] point point
  * @return converted point
  */
-geometry_msgs::msg::Point pointAsRos(const Eigen::Vector3d& point);
+geometry_msgs::msg::Point toRos(const Eigen::Vector3d& point);
 
 /**
  * @brief Converts a 2D Lanelet point to a ROS point.
@@ -74,7 +73,7 @@ geometry_msgs::msg::Point pointAsRos(const Eigen::Vector3d& point);
  * @param[in] point point
  * @return converted point
  */
-geometry_msgs::msg::Point pointAsRos(const lanelet::BasicPoint2d& point);
+geometry_msgs::msg::Point toRos(const lanelet::BasicPoint2d& point);
 
 /**
  * @brief Converts a 2D Eigen point to a Lanelet point.
@@ -82,7 +81,7 @@ geometry_msgs::msg::Point pointAsRos(const lanelet::BasicPoint2d& point);
  * @param[in] point point
  * @return converted point
  */
-lanelet::BasicPoint2d pointAsLanelet(const Eigen::Vector2d& point);
+lanelet::BasicPoint2d toLanelet(const Eigen::Vector2d& point);
 
 /**
  * @brief Converts a 3D Eigen point to a Lanelet point.
@@ -90,7 +89,7 @@ lanelet::BasicPoint2d pointAsLanelet(const Eigen::Vector2d& point);
  * @param[in] point point
  * @return converted point
  */
-lanelet::BasicPoint3d pointAsLanelet(const Eigen::Vector3d& point);
+lanelet::BasicPoint3d toLanelet(const Eigen::Vector3d& point);
 
 /**
  * @brief Converts a ROS point to a 2D Eigen point.
@@ -98,7 +97,7 @@ lanelet::BasicPoint3d pointAsLanelet(const Eigen::Vector3d& point);
  * @param[in] point point
  * @return converted point
  */
-Eigen::Vector2d pointAsEigen2d(const geometry_msgs::msg::Point& point);
+Eigen::Vector2d toEigen2d(const geometry_msgs::msg::Point& point);
 
 /**
  * @brief Converts a ROS point to a 3D Eigen point.
@@ -106,7 +105,7 @@ Eigen::Vector2d pointAsEigen2d(const geometry_msgs::msg::Point& point);
  * @param[in] point point
  * @return converted point
  */
-Eigen::Vector3d pointAsEigen(const geometry_msgs::msg::Point& point);
+Eigen::Vector3d toEigen(const geometry_msgs::msg::Point& point);
 
 /**
  * @brief Extracts an EgoData position as a ROS point.
@@ -114,7 +113,7 @@ Eigen::Vector3d pointAsEigen(const geometry_msgs::msg::Point& point);
  * @param[in] ego_data ego data
  * @return ego data position
  */
-geometry_msgs::msg::Point position(const perception_msgs::msg::EgoData& ego_data);
+geometry_msgs::msg::Point egoPosition(const perception_msgs::msg::EgoData& ego_data);
 
 /**
  * @brief Converts a 2D Lanelet line string to a vector of Eigen points.
@@ -122,7 +121,7 @@ geometry_msgs::msg::Point position(const perception_msgs::msg::EgoData& ego_data
  * @param[in] line_string line string
  * @return converted line string
  */
-std::vector<Eigen::Vector2d> lineStringAsEigen(const lanelet::BasicLineString2d& line_string);
+std::vector<Eigen::Vector2d> toEigen(const lanelet::BasicLineString2d& line_string);
 
 /**
  * @brief Converts a 3D Lanelet line string to a vector of Eigen points.
@@ -130,7 +129,7 @@ std::vector<Eigen::Vector2d> lineStringAsEigen(const lanelet::BasicLineString2d&
  * @param[in] line_string line string
  * @return converted line string
  */
-std::vector<Eigen::Vector3d> lineStringAsEigen(const lanelet::BasicLineString3d& line_string);
+std::vector<Eigen::Vector3d> toEigen(const lanelet::BasicLineString3d& line_string);
 
 /**
  * @brief Converts a vector of 2D Eigen points to a Lanelet line string.
@@ -138,7 +137,7 @@ std::vector<Eigen::Vector3d> lineStringAsEigen(const lanelet::BasicLineString3d&
  * @param[in] line_string line string
  * @return converted line string
  */
-lanelet::BasicLineString2d lineStringAsLanelet(const std::vector<Eigen::Vector2d>& line_string);
+lanelet::BasicLineString2d toLanelet(const std::vector<Eigen::Vector2d>& line_string);
 
 /**
  * @brief Converts a 2D Eigen vector pointing in a specific direction to a ROS quaternion.
@@ -148,6 +147,6 @@ lanelet::BasicLineString2d lineStringAsLanelet(const std::vector<Eigen::Vector2d
  * @param[in] vector vector
  * @return converted quaternion
  */
-geometry_msgs::msg::Quaternion vectorAsRosQuaternion(const Eigen::Vector2d& vector);
+geometry_msgs::msg::Quaternion toRosQuaternion(const Eigen::Vector2d& vector);
 
 }  // namespace new_lanelet2_route_planning

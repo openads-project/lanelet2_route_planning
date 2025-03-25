@@ -427,7 +427,7 @@ bool NewLanelet2RoutePlanning::planRoute(const geometry_msgs::msg::PointStamped&
     RCLCPP_ERROR(get_logger(), "Failed to find lanelet at ego position");
     return false;
   }
-  Eigen::Vector2d ego_ll_position = projectPointToLineString(pointAsEigen2d(position(latest_ego_data_)), lineStringAsEigen(ego_ll.centerline2d().basicLineString()));
+  Eigen::Vector2d ego_ll_position = projectPointToLineString(toEigen2d(egoPosition(latest_ego_data_)), toEigen(ego_ll.centerline2d().basicLineString()));
 
   // project destination to lanelet
   ll::ConstLanelet destination_ll;
@@ -436,14 +436,14 @@ bool NewLanelet2RoutePlanning::planRoute(const geometry_msgs::msg::PointStamped&
     RCLCPP_ERROR(get_logger(), "Failed to find lanelet at destination");
     return false;
   }
-  Eigen::Vector2d destination_ll_position = projectPointToLineString(pointAsEigen2d(destination_map), lineStringAsEigen(destination_ll.centerline2d().basicLineString()));
+  Eigen::Vector2d destination_ll_position = projectPointToLineString(toEigen2d(destination_map), toEigen(destination_ll.centerline2d().basicLineString()));
 
   // undershoot/overshoot route endpoints
   // TODO: still needed?
   ll::ConstLanelet undershot_ego_ll =
-      followLanelet(routing_graph_, ego_ll, pointAsLanelet(ego_ll_position), -std::abs(route_undershoot_distance_));
+      followLanelet(routing_graph_, ego_ll, toLanelet(ego_ll_position), -std::abs(route_undershoot_distance_));
   ll::ConstLanelet overshot_destination_ll =
-      followLanelet(routing_graph_, destination_ll, pointAsLanelet(destination_ll_position), route_overshoot_distance_);
+      followLanelet(routing_graph_, destination_ll, toLanelet(destination_ll_position), route_overshoot_distance_);
   // TODO: check that start/end are not the same lanelet (?) (see L314 in global_planner_node.cpp)
 
   // plan route
@@ -511,8 +511,8 @@ bool NewLanelet2RoutePlanning::laneletToGlobalRosRoute() {
 
     // create LaneElement
     route_planning_msgs::msg::LaneElement lane_element_msg;
-    lane_element_msg.reference_pose.position = pointAsRos(point);
-    lane_element_msg.reference_pose.orientation = vectorAsRosQuaternion(orientation);
+    lane_element_msg.reference_pose.position = toRos(point);
+    lane_element_msg.reference_pose.orientation = toRosQuaternion(orientation);
     // lane_element_msg.left_boundary not set in global route
     lane_element_msg.has_left_boundary = false;
     // lane_element_msg.right_boundary not set in global route
@@ -630,12 +630,12 @@ bool NewLanelet2RoutePlanning::laneletToLocalRosRoute() {
 
     // project centerline point to lanelet bounds
     Eigen::Vector2d left_bounds_point, right_bounds_point;
-    if (auto result = projectPointToLineStringAlongNormal(point, prev_point_for_projection, next_point_for_projection, lineStringAsEigen(lanelet.leftBound2d().basicLineString()))) {
+    if (auto result = projectPointToLineStringAlongNormal(point, prev_point_for_projection, next_point_for_projection, toEigen(lanelet.leftBound2d().basicLineString()))) {
       left_bounds_point = result->projected_point;
     } else {
       RCLCPP_WARN(this->get_logger(), "Failed to project reference point (%.3f, %.3f) to left bounds of lanelet %ld", point.x(), point.y(), lanelet.id());
     }
-    if (auto result = projectPointToLineStringAlongNormal(point, prev_point_for_projection, next_point_for_projection, lineStringAsEigen(lanelet.rightBound2d().basicLineString()))) {
+    if (auto result = projectPointToLineStringAlongNormal(point, prev_point_for_projection, next_point_for_projection, toEigen(lanelet.rightBound2d().basicLineString()))) {
       right_bounds_point = result->projected_point;
     } else {
       RCLCPP_WARN(this->get_logger(), "Failed to project reference point (%.3f, %.3f) to right bounds of lanelet %ld", point.x(), point.y(), lanelet.id());
@@ -647,34 +647,34 @@ bool NewLanelet2RoutePlanning::laneletToLocalRosRoute() {
     std::vector<Eigen::Vector2d> adjacent_right_lanelets_centerline_points, adjacent_right_lanelets_left_bounds_points,
         adjacent_right_lanelets_right_bounds_points;
     for (const auto& adjacent_lanelet : adjacent_left_lanelets) {
-      if (auto result = projectPointToLineStringAlongNormal(point, prev_point_for_projection, next_point_for_projection, lineStringAsEigen(adjacent_lanelet.centerline2d().basicLineString()))) {
+      if (auto result = projectPointToLineStringAlongNormal(point, prev_point_for_projection, next_point_for_projection, toEigen(adjacent_lanelet.centerline2d().basicLineString()))) {
         adjacent_left_lanelets_centerline_points.push_back(result->projected_point);
       } else {
         RCLCPP_WARN(this->get_logger(), "Failed to project reference point (%.3f, %.3f) to centerline of adjacent lanelet %ld", point.x(), point.y(), adjacent_lanelet.id());
       }
-      if (auto result = projectPointToLineStringAlongNormal(point, prev_point_for_projection, next_point_for_projection, lineStringAsEigen(adjacent_lanelet.leftBound2d().basicLineString()))) {
+      if (auto result = projectPointToLineStringAlongNormal(point, prev_point_for_projection, next_point_for_projection, toEigen(adjacent_lanelet.leftBound2d().basicLineString()))) {
         adjacent_left_lanelets_left_bounds_points.push_back(result->projected_point);
       } else {
         RCLCPP_WARN(this->get_logger(), "Failed to project reference point (%.3f, %.3f) to left bounds of adjacent lanelet %ld", point.x(), point.y(), adjacent_lanelet.id());
       }
-      if (auto result = projectPointToLineStringAlongNormal(point, prev_point_for_projection, next_point_for_projection, lineStringAsEigen(adjacent_lanelet.rightBound2d().basicLineString()))) {
+      if (auto result = projectPointToLineStringAlongNormal(point, prev_point_for_projection, next_point_for_projection, toEigen(adjacent_lanelet.rightBound2d().basicLineString()))) {
         adjacent_left_lanelets_right_bounds_points.push_back(result->projected_point);
       } else {
         RCLCPP_WARN(this->get_logger(), "Failed to project reference point (%.3f, %.3f) to right bounds of adjacent lanelet %ld", point.x(), point.y(), adjacent_lanelet.id());
       }
     }
     for (const auto& adjacent_lanelet : adjacent_right_lanelets) {
-      if (auto result = projectPointToLineStringAlongNormal(point, prev_point_for_projection, next_point_for_projection, lineStringAsEigen(adjacent_lanelet.centerline2d().basicLineString()))) {
+      if (auto result = projectPointToLineStringAlongNormal(point, prev_point_for_projection, next_point_for_projection, toEigen(adjacent_lanelet.centerline2d().basicLineString()))) {
         adjacent_right_lanelets_centerline_points.push_back(result->projected_point);
       } else {
         RCLCPP_WARN(this->get_logger(), "Failed to project reference point (%.3f, %.3f) to centerline of adjacent lanelet %ld", point.x(), point.y(), adjacent_lanelet.id());
       }
-      if (auto result = projectPointToLineStringAlongNormal(point, prev_point_for_projection, next_point_for_projection, lineStringAsEigen(adjacent_lanelet.leftBound2d().basicLineString()))) {
+      if (auto result = projectPointToLineStringAlongNormal(point, prev_point_for_projection, next_point_for_projection, toEigen(adjacent_lanelet.leftBound2d().basicLineString()))) {
         adjacent_right_lanelets_left_bounds_points.push_back(result->projected_point);
       } else {
         RCLCPP_WARN(this->get_logger(), "Failed to project reference point (%.3f, %.3f) to left bounds of adjacent lanelet %ld", point.x(), point.y(), adjacent_lanelet.id());
       }
-      if (auto result = projectPointToLineStringAlongNormal(point, prev_point_for_projection, next_point_for_projection, lineStringAsEigen(adjacent_lanelet.rightBound2d().basicLineString()))) {
+      if (auto result = projectPointToLineStringAlongNormal(point, prev_point_for_projection, next_point_for_projection, toEigen(adjacent_lanelet.rightBound2d().basicLineString()))) {
         adjacent_right_lanelets_right_bounds_points.push_back(result->projected_point);
       } else {
         RCLCPP_WARN(this->get_logger(), "Failed to project reference point (%.3f, %.3f) to right bounds of adjacent lanelet %ld", point.x(), point.y(), adjacent_lanelet.id());
@@ -691,14 +691,14 @@ bool NewLanelet2RoutePlanning::laneletToLocalRosRoute() {
     // enrich RouteElement with local route information
     route_element_msg.lane_elements = {};
     if (!adjacent_left_lanelets_left_bounds_points.empty()) {
-      route_element_msg.left_boundary = pointAsRos(adjacent_left_lanelets_left_bounds_points.front());
+      route_element_msg.left_boundary = toRos(adjacent_left_lanelets_left_bounds_points.front());
     } else {
-      route_element_msg.left_boundary = pointAsRos(left_bounds_point);
+      route_element_msg.left_boundary = toRos(left_bounds_point);
     }
     if (!adjacent_right_lanelets_right_bounds_points.empty()) {
-      route_element_msg.right_boundary = pointAsRos(adjacent_right_lanelets_right_bounds_points.back());
+      route_element_msg.right_boundary = toRos(adjacent_right_lanelets_right_bounds_points.back());
     } else {
-      route_element_msg.right_boundary = pointAsRos(right_bounds_point);
+      route_element_msg.right_boundary = toRos(right_bounds_point);
     }
     route_element_msg.regulatory_elements = {};
     route_element_msg.suggested_lane_idx = suggested_lane_idx;
@@ -741,8 +741,8 @@ bool NewLanelet2RoutePlanning::laneletToLocalRosRoute() {
 
       // create RegulatoryElement
       route_planning_msgs::msg::RegulatoryElement regulatory_element_msg;
-      regulatory_element_msg.effect_line[0] = pointAsRos(effect_line.front());
-      regulatory_element_msg.effect_line[1] = pointAsRos(effect_line.back());
+      regulatory_element_msg.effect_line[0] = toRos(effect_line.front());
+      regulatory_element_msg.effect_line[1] = toRos(effect_line.back());
 
       // extract sign position of regulatory element
       const std::vector<ll::ConstLineString3d> sign_lines = regulatory_element->getParameters<lanelet::ConstLineString3d>(ll::RoleName::Refers);
@@ -758,7 +758,7 @@ bool NewLanelet2RoutePlanning::laneletToLocalRosRoute() {
         } else if (sign_line.size() > 1) {
           RCLCPP_WARN(this->get_logger(), "Regulatory element '%ld' has referring sign with more than 1 point, using only first one", regulatory_element->id());
         }
-        regulatory_element_msg.sign_positions.push_back(pointAsRos(sign_line.front()));
+        regulatory_element_msg.sign_positions.push_back(toRos(sign_line.front()));
       }
 
       // infer type of regulatory element
@@ -793,12 +793,12 @@ bool NewLanelet2RoutePlanning::laneletToLocalRosRoute() {
     // create LaneElements for left adjacent lanes
     for (size_t a = 0; a < adjacent_left_lanelets.size(); ++a) {
       route_planning_msgs::msg::LaneElement lane_element_msg;
-      lane_element_msg.reference_pose.position = pointAsRos(adjacent_left_lanelets_centerline_points[a]);
+      lane_element_msg.reference_pose.position = toRos(adjacent_left_lanelets_centerline_points[a]);
       lane_element_msg.reference_pose.orientation = geometry_msgs::msg::Quaternion();  // TODO
-      lane_element_msg.left_boundary.point = pointAsRos(adjacent_left_lanelets_left_bounds_points[a]);
+      lane_element_msg.left_boundary.point = toRos(adjacent_left_lanelets_left_bounds_points[a]);
       lane_element_msg.left_boundary.type = laneBoundaryType(adjacent_left_lanelets[a].leftBound2d());
       lane_element_msg.has_left_boundary = true;
-      lane_element_msg.right_boundary.point = pointAsRos(adjacent_left_lanelets_right_bounds_points[a]);
+      lane_element_msg.right_boundary.point = toRos(adjacent_left_lanelets_right_bounds_points[a]);
       lane_element_msg.right_boundary.type = laneBoundaryType(adjacent_left_lanelets[a].rightBound2d());
       lane_element_msg.has_right_boundary = true;
       lane_element_msg.speed_limit = 0;              // TODO
@@ -810,12 +810,12 @@ bool NewLanelet2RoutePlanning::laneletToLocalRosRoute() {
 
     // create LaneElement for centerline lane
     route_planning_msgs::msg::LaneElement centerline_lane_element_msg;
-    centerline_lane_element_msg.reference_pose.position = pointAsRos(point);
-    centerline_lane_element_msg.reference_pose.orientation = vectorAsRosQuaternion(orientation);
-    centerline_lane_element_msg.left_boundary.point = pointAsRos(left_bounds_point);
+    centerline_lane_element_msg.reference_pose.position = toRos(point);
+    centerline_lane_element_msg.reference_pose.orientation = toRosQuaternion(orientation);
+    centerline_lane_element_msg.left_boundary.point = toRos(left_bounds_point);
     centerline_lane_element_msg.left_boundary.type = laneBoundaryType(lanelet.leftBound2d());
     centerline_lane_element_msg.has_left_boundary = true;
-    centerline_lane_element_msg.right_boundary.point = pointAsRos(right_bounds_point);
+    centerline_lane_element_msg.right_boundary.point = toRos(right_bounds_point);
     centerline_lane_element_msg.right_boundary.type = laneBoundaryType(lanelet.rightBound2d());
     centerline_lane_element_msg.has_right_boundary = true;
     centerline_lane_element_msg.speed_limit = 0;              // TODO
@@ -828,12 +828,12 @@ bool NewLanelet2RoutePlanning::laneletToLocalRosRoute() {
     // create LaneElements for right adjacent lanes
     for (size_t a = 0; a < adjacent_right_lanelets.size(); ++a) {
       route_planning_msgs::msg::LaneElement lane_element_msg;
-      lane_element_msg.reference_pose.position = pointAsRos(adjacent_right_lanelets_centerline_points[a]);
+      lane_element_msg.reference_pose.position = toRos(adjacent_right_lanelets_centerline_points[a]);
       lane_element_msg.reference_pose.orientation = geometry_msgs::msg::Quaternion();  // TODO
-      lane_element_msg.left_boundary.point = pointAsRos(adjacent_right_lanelets_left_bounds_points[a]);
+      lane_element_msg.left_boundary.point = toRos(adjacent_right_lanelets_left_bounds_points[a]);
       lane_element_msg.left_boundary.type = laneBoundaryType(adjacent_right_lanelets[a].leftBound2d());
       lane_element_msg.has_left_boundary = true;
-      lane_element_msg.right_boundary.point = pointAsRos(adjacent_right_lanelets_right_bounds_points[a]);
+      lane_element_msg.right_boundary.point = toRos(adjacent_right_lanelets_right_bounds_points[a]);
       lane_element_msg.right_boundary.type = laneBoundaryType(adjacent_right_lanelets[a].rightBound2d());
       lane_element_msg.has_right_boundary = true;
       lane_element_msg.speed_limit = 0;              // TODO

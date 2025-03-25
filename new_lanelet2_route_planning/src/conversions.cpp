@@ -4,29 +4,29 @@
 
 namespace new_lanelet2_route_planning {
 
-Eigen::Vector2d as2d(const Eigen::Vector3d &point) { return point.head<2>(); }
+Eigen::Vector2d to2d(const Eigen::Vector3d &point) { return point.head<2>(); }
 
-Eigen::Vector3d as3d(const Eigen::Vector2d &point) { return Eigen::Vector3d(point.x(), point.y(), 0.0); }
+Eigen::Vector3d to3d(const Eigen::Vector2d &point) { return Eigen::Vector3d(point.x(), point.y(), 0.0); }
 
-std::vector<Eigen::Vector2d> as2d(const std::vector<Eigen::Vector3d> &points) {
+std::vector<Eigen::Vector2d> to2d(const std::vector<Eigen::Vector3d> &points) {
   std::vector<Eigen::Vector2d> points_2d;
   for (const auto &point : points) {
-    points_2d.push_back(as2d(point));
+    points_2d.push_back(to2d(point));
   }
   return points_2d;
 }
 
-std::vector<Eigen::Vector3d> as3d(const std::vector<Eigen::Vector2d> &points) {
+std::vector<Eigen::Vector3d> to3d(const std::vector<Eigen::Vector2d> &points) {
   std::vector<Eigen::Vector3d> points_3d;
   for (const auto &point : points) {
-    points_3d.push_back(as3d(point));
+    points_3d.push_back(to3d(point));
   }
   return points_3d;
 }
 
-geometry_msgs::msg::Point pointAsRos(const Eigen::Vector2d &point) { return pointAsRos(as3d(point)); }
+geometry_msgs::msg::Point toRos(const Eigen::Vector2d &point) { return toRos(to3d(point)); }
 
-geometry_msgs::msg::Point pointAsRos(const Eigen::Vector3d &point) {
+geometry_msgs::msg::Point toRos(const Eigen::Vector3d &point) {
   geometry_msgs::msg::Point ros_point;
   ros_point.x = point.x();
   ros_point.y = point.y();
@@ -34,23 +34,19 @@ geometry_msgs::msg::Point pointAsRos(const Eigen::Vector3d &point) {
   return ros_point;
 }
 
-geometry_msgs::msg::Point pointAsRos(const lanelet::BasicPoint2d &point) {
-  return pointAsRos(Eigen::Vector2d(point.x(), point.y()));
+geometry_msgs::msg::Point toRos(const lanelet::BasicPoint2d &point) {
+  return toRos(Eigen::Vector2d(point.x(), point.y()));
 }
 
-lanelet::BasicPoint2d pointAsLanelet(const Eigen::Vector2d &point) {
-  return lanelet::BasicPoint2d(point.x(), point.y());
-}
+lanelet::BasicPoint2d toLanelet(const Eigen::Vector2d &point) { return lanelet::BasicPoint2d(point.x(), point.y()); }
 
-lanelet::BasicPoint3d pointAsLanelet(const Eigen::Vector3d &point) { return point; }
+lanelet::BasicPoint3d toLanelet(const Eigen::Vector3d &point) { return point; }
 
-Eigen::Vector2d pointAsEigen2d(const geometry_msgs::msg::Point &point) { return Eigen::Vector2d(point.x, point.y); }
+Eigen::Vector2d toEigen2d(const geometry_msgs::msg::Point &point) { return Eigen::Vector2d(point.x, point.y); }
 
-Eigen::Vector3d pointAsEigen(const geometry_msgs::msg::Point &point) {
-  return Eigen::Vector3d(point.x, point.y, point.z);
-}
+Eigen::Vector3d toEigen(const geometry_msgs::msg::Point &point) { return Eigen::Vector3d(point.x, point.y, point.z); }
 
-geometry_msgs::msg::Point position(const perception_msgs::msg::EgoData &ego_data) {
+geometry_msgs::msg::Point egoPosition(const perception_msgs::msg::EgoData &ego_data) {
   geometry_msgs::msg::Point position;
   position.x = perception_msgs::object_access::getX(ego_data);
   position.y = perception_msgs::object_access::getY(ego_data);
@@ -58,23 +54,23 @@ geometry_msgs::msg::Point position(const perception_msgs::msg::EgoData &ego_data
   return position;
 }
 
-std::vector<Eigen::Vector2d> lineStringAsEigen(const lanelet::BasicLineString2d &line_string) {
+std::vector<Eigen::Vector2d> toEigen(const lanelet::BasicLineString2d &line_string) {
   return std::vector<Eigen::Vector2d>(line_string.begin(), line_string.end());
 }
 
-std::vector<Eigen::Vector3d> lineStringAsEigen(const lanelet::BasicLineString3d &line_string) {
+std::vector<Eigen::Vector3d> toEigen(const lanelet::BasicLineString3d &line_string) {
   return std::vector<Eigen::Vector3d>(line_string.begin(), line_string.end());
 }
 
-lanelet::BasicLineString2d lineStringAsLanelet(const std::vector<Eigen::Vector2d> &line_string) {
+lanelet::BasicLineString2d toLanelet(const std::vector<Eigen::Vector2d> &line_string) {
   lanelet::BasicLineString2d lanelet_line_string;
   for (const auto &point : line_string) {
-    lanelet_line_string.push_back(pointAsLanelet(point));
+    lanelet_line_string.push_back(toLanelet(point));
   }
   return lanelet_line_string;
 }
 
-geometry_msgs::msg::Quaternion vectorAsRosQuaternion(const Eigen::Vector2d &vector) {
+geometry_msgs::msg::Quaternion toRosQuaternion(const Eigen::Vector2d &vector) {
   Eigen::Vector2d unit_vector = vector.normalized();
   double angle = std::atan2(unit_vector.y(), unit_vector.x());
   Eigen::Quaterniond quaternion(Eigen::AngleAxisd(angle, Eigen::Vector3d::UnitZ()));

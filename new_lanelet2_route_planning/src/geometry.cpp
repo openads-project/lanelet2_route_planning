@@ -113,7 +113,7 @@ std::vector<Eigen::Vector2d> resampleLineString(const std::vector<Eigen::Vector2
 
 Eigen::Vector2d projectPointToLineString(const Eigen::Vector2d& point,
                                          const std::vector<Eigen::Vector2d>& line_string) {
-  return lanelet::geometry::project(lineStringAsLanelet(line_string), pointAsLanelet(point));
+  return lanelet::geometry::project(toLanelet(line_string), toLanelet(point));
 }
 
 std::optional<ProjectPointToLineStringAlongAxisResult> projectPointToLineStringAlongAxis(

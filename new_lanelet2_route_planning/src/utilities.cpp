@@ -60,7 +60,7 @@ bool findLaneletAtPoint(const ll::LaneletMapConstPtr& map, const Eigen::Vector2d
 bool findLaneletAtPoint(const ll::LaneletMapConstPtr& map, const geometry_msgs::msg::Point& point,
                         ll::ConstLanelet& lanelet,
                         const std::optional<ll::traffic_rules::TrafficRulesPtr> traffic_rules) {
-  return findLaneletAtPoint(map, pointAsEigen2d(point), lanelet, traffic_rules);
+  return findLaneletAtPoint(map, toEigen2d(point), lanelet, traffic_rules);
 }
 
 bool findLaneletAtEgoPosition(const ll::LaneletMapConstPtr& map, const std::string& map_frame_id,
@@ -81,7 +81,7 @@ bool findLaneletAtEgoPosition(const ll::LaneletMapConstPtr& map, const std::stri
     return false;
   }
 
-  return findLaneletAtPoint(map, pointAsEigen2d(position(ego_data)), lanelet, traffic_rules);
+  return findLaneletAtPoint(map, toEigen2d(egoPosition(ego_data)), lanelet, traffic_rules);
 }
 
 ll::ConstLanelet followLanelet(const ll::routing::RoutingGraphUPtr& routing_graph, const ll::ConstLanelet& lanelet,
@@ -142,7 +142,7 @@ ll::BasicLineString2d resampleCenterlinesAlongPath(const ll::routing::LaneletPat
     }
 
     // resample lanelet centerline
-    std::vector<Eigen::Vector2d> resampled_centerline = resampleLineString(lineStringAsEigen(centerline), delta_s, resampling_offset);
+    std::vector<Eigen::Vector2d> resampled_centerline = resampleLineString(toEigen(centerline), delta_s, resampling_offset);
     resampled_path_centerline.insert(resampled_path_centerline.end(), resampled_centerline.begin(),
                                      resampled_centerline.end());
     lanelet_idx_by_point.insert(lanelet_idx_by_point.end(), resampled_centerline.size(), l);
