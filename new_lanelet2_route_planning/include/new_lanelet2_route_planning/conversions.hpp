@@ -20,6 +20,7 @@ namespace new_lanelet2_route_planning {
  * @return converted point
  */
 Eigen::Vector2d as2d(const Eigen::Vector3d& point);
+// TODO: rename to to2d?
 
 /**
  * @brief Converts a 2D Eigen point to a 3D Eigen point.
@@ -121,7 +122,7 @@ geometry_msgs::msg::Point position(const perception_msgs::msg::EgoData& ego_data
  * @param[in] line_string line string
  * @return converted line string
  */
-std::vector<Eigen::Vector2d> lineStringAsEigen2d(const lanelet::BasicLineString2d& line_string);
+std::vector<Eigen::Vector2d> lineStringAsEigen(const lanelet::BasicLineString2d& line_string);
 
 /**
  * @brief Converts a 3D Lanelet line string to a vector of Eigen points.

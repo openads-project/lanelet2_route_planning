@@ -1,3 +1,5 @@
+#include <limits>
+
 #include <lanelet2_core/geometry/LineString.h>
 #include <rclcpp/rclcpp.hpp>
 
@@ -112,6 +114,64 @@ std::vector<Eigen::Vector2d> resampleLineString(const std::vector<Eigen::Vector2
 Eigen::Vector2d projectPointToLineString(const Eigen::Vector2d& point,
                                          const std::vector<Eigen::Vector2d>& line_string) {
   return lanelet::geometry::project(lineStringAsLanelet(line_string), pointAsLanelet(point));
+}
+
+std::optional<ProjectPointToLineStringAlongAxisResult> projectPointToLineStringAlongAxis(
+    const Eigen::Vector2d& point, const Eigen::Vector2d& axis, const std::vector<Eigen::Vector2d>& line_string) {
+  ProjectPointToLineStringAlongAxisResult result;
+  result.found_intersection_with_line_segment = false;
+  double closest_distance_to_line_segment = std::numeric_limits<double>::max();
+  bool found_at_least_one_intersection = false;
+
+  // define straight line along axis at point
+  std::vector<Eigen::Vector2d> axis_line = {point, point + axis};
+
+  // loop over line segments
+  for (size_t i = 0; i < line_string.size() - 1; ++i) {
+    std::vector<Eigen::Vector2d> line_segment = {line_string[i], line_string[i + 1]};
+
+    // find intersection of axis line and line segment
+    if (auto inner_result = intersectionOfLines(axis_line, line_segment)) {
+      const Eigen::Vector2d& intersection = inner_result->intersection;
+      const bool intersects_line_segment = inner_result->intersects_line2;
+      found_at_least_one_intersection = true;
+      if (intersects_line_segment) {
+        result.found_intersection_with_line_segment = true;
+        result.projected_point = intersection;
+        break;
+      } else {
+        double distance_to_line_segment =
+            std::min((intersection - line_string[i]).norm(), (intersection - line_string[i + 1]).norm());
+        if (distance_to_line_segment < closest_distance_to_line_segment) {
+          closest_distance_to_line_segment = distance_to_line_segment;
+          result.projected_point = intersection;
+        }
+      }
+    }
+  }
+
+  if (!found_at_least_one_intersection) {
+    return std::nullopt;
+  }
+
+  return result;
+}
+
+std::optional<ProjectPointToLineStringAlongAxisResult> projectPointToLineStringAlongNormal(
+    const Eigen::Vector2d& point, const Eigen::Vector2d& prev_point, const Eigen::Vector2d& next_point,
+    const std::vector<Eigen::Vector2d>& line_string) {
+  // find normal to tangent at point
+  Eigen::Vector2d normal = normalOfPointAlongLineString(point, prev_point, next_point);
+  if (normal == Eigen::Vector2d(0.0, 0.0)) {
+    return std::nullopt;
+  }
+
+  // project current point to other line along normal to tangent
+  if (auto result = projectPointToLineStringAlongAxis(point, normal, line_string)) {
+    return result;
+  } else {
+    return std::nullopt;
+  }
 }
 
 }  // namespace new_lanelet2_route_planning

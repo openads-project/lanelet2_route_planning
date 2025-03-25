@@ -58,7 +58,7 @@ geometry_msgs::msg::Point position(const perception_msgs::msg::EgoData &ego_data
   return position;
 }
 
-std::vector<Eigen::Vector2d> lineStringAsEigen2d(const lanelet::BasicLineString2d &line_string) {
+std::vector<Eigen::Vector2d> lineStringAsEigen(const lanelet::BasicLineString2d &line_string) {
   return std::vector<Eigen::Vector2d>(line_string.begin(), line_string.end());
 }
 

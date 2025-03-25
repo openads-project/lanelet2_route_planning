@@ -426,7 +426,7 @@ bool NewLanelet2RoutePlanning::planRoute(const geometry_msgs::msg::PointStamped&
     RCLCPP_ERROR(get_logger(), "Failed to find lanelet at ego position");
     return false;
   }
-  Eigen::Vector2d ego_ll_position = projectPointToLineString(pointAsEigen2d(position(latest_ego_data_)), as2d(lineStringAsEigen(ego_ll.centerline().basicLineString())));
+  Eigen::Vector2d ego_ll_position = projectPointToLineString(pointAsEigen2d(position(latest_ego_data_)), lineStringAsEigen(ego_ll.centerline2d().basicLineString()));
 
   // project destination to lanelet
   ll::ConstLanelet destination_ll;
@@ -435,7 +435,7 @@ bool NewLanelet2RoutePlanning::planRoute(const geometry_msgs::msg::PointStamped&
     RCLCPP_ERROR(get_logger(), "Failed to find lanelet at destination");
     return false;
   }
-  Eigen::Vector2d destination_ll_position = projectPointToLineString(pointAsEigen2d(destination_map), as2d(lineStringAsEigen(destination_ll.centerline().basicLineString())));
+  Eigen::Vector2d destination_ll_position = projectPointToLineString(pointAsEigen2d(destination_map), lineStringAsEigen(destination_ll.centerline2d().basicLineString()));
 
   // undershoot/overshoot route endpoints
   // TODO: still needed?
@@ -628,43 +628,56 @@ bool NewLanelet2RoutePlanning::laneletToLocalRosRoute() {
     int suggested_lane_idx = adjacent_left_lanelets.size();
 
     // project centerline point to lanelet bounds
-    ll::BasicPoint2d left_bounds_point = projectPointToLineStringAlongNormal(
-        point, prev_point_for_projection, next_point_for_projection, lanelet.leftBound2d().basicLineString());
-    ll::BasicPoint2d right_bounds_point = projectPointToLineStringAlongNormal(
-        point, prev_point_for_projection, next_point_for_projection, lanelet.rightBound2d().basicLineString());
+    Eigen::Vector2d left_bounds_point, right_bounds_point;
+    if (auto result = projectPointToLineStringAlongNormal(point, prev_point_for_projection, next_point_for_projection, lineStringAsEigen(lanelet.leftBound2d().basicLineString()))) {
+      left_bounds_point = result->projected_point;
+    } else {
+      RCLCPP_WARN(this->get_logger(), "Failed to project reference point (%.3f, %.3f) to left bounds of lanelet %ld", point.x(), point.y(), lanelet.id());
+    }
+    if (auto result = projectPointToLineStringAlongNormal(point, prev_point_for_projection, next_point_for_projection, lineStringAsEigen(lanelet.rightBound2d().basicLineString()))) {
+      right_bounds_point = result->projected_point;
+    } else {
+      RCLCPP_WARN(this->get_logger(), "Failed to project reference point (%.3f, %.3f) to right bounds of lanelet %ld", point.x(), point.y(), lanelet.id());
+    }
 
     // project centerline point to adjacent lanelet centerlines and bounds
-    std::vector<ll::BasicPoint2d> adjacent_left_lanelets_centerline_points, adjacent_left_lanelets_left_bounds_points,
+    std::vector<Eigen::Vector2d> adjacent_left_lanelets_centerline_points, adjacent_left_lanelets_left_bounds_points,
         adjacent_left_lanelets_right_bounds_points;
-    std::vector<ll::BasicPoint2d> adjacent_right_lanelets_centerline_points, adjacent_right_lanelets_left_bounds_points,
+    std::vector<Eigen::Vector2d> adjacent_right_lanelets_centerline_points, adjacent_right_lanelets_left_bounds_points,
         adjacent_right_lanelets_right_bounds_points;
     for (const auto& adjacent_lanelet : adjacent_left_lanelets) {
-      ll::BasicPoint2d adjacent_lanelet_centerline_point =
-          projectPointToLineStringAlongNormal(point, prev_point_for_projection, next_point_for_projection,
-                                              adjacent_lanelet.centerline2d().basicLineString());
-      ll::BasicPoint2d adjacent_lanelet_left_bounds_point =
-          projectPointToLineStringAlongNormal(point, prev_point_for_projection, next_point_for_projection,
-                                              adjacent_lanelet.leftBound2d().basicLineString());
-      ll::BasicPoint2d adjacent_lanelet_right_bounds_point =
-          projectPointToLineStringAlongNormal(point, prev_point_for_projection, next_point_for_projection,
-                                              adjacent_lanelet.rightBound2d().basicLineString());
-      adjacent_left_lanelets_centerline_points.push_back(adjacent_lanelet_centerline_point);
-      adjacent_left_lanelets_left_bounds_points.push_back(adjacent_lanelet_left_bounds_point);
-      adjacent_left_lanelets_right_bounds_points.push_back(adjacent_lanelet_right_bounds_point);
+      if (auto result = projectPointToLineStringAlongNormal(point, prev_point_for_projection, next_point_for_projection, lineStringAsEigen(adjacent_lanelet.centerline2d().basicLineString()))) {
+        adjacent_left_lanelets_centerline_points.push_back(result->projected_point);
+      } else {
+        RCLCPP_WARN(this->get_logger(), "Failed to project reference point (%.3f, %.3f) to centerline of adjacent lanelet %ld", point.x(), point.y(), adjacent_lanelet.id());
+      }
+      if (auto result = projectPointToLineStringAlongNormal(point, prev_point_for_projection, next_point_for_projection, lineStringAsEigen(adjacent_lanelet.leftBound2d().basicLineString()))) {
+        adjacent_left_lanelets_left_bounds_points.push_back(result->projected_point);
+      } else {
+        RCLCPP_WARN(this->get_logger(), "Failed to project reference point (%.3f, %.3f) to left bounds of adjacent lanelet %ld", point.x(), point.y(), adjacent_lanelet.id());
+      }
+      if (auto result = projectPointToLineStringAlongNormal(point, prev_point_for_projection, next_point_for_projection, lineStringAsEigen(adjacent_lanelet.rightBound2d().basicLineString()))) {
+        adjacent_left_lanelets_right_bounds_points.push_back(result->projected_point);
+      } else {
+        RCLCPP_WARN(this->get_logger(), "Failed to project reference point (%.3f, %.3f) to right bounds of adjacent lanelet %ld", point.x(), point.y(), adjacent_lanelet.id());
+      }
     }
     for (const auto& adjacent_lanelet : adjacent_right_lanelets) {
-      ll::BasicPoint2d adjacent_lanelet_centerline_point =
-          projectPointToLineStringAlongNormal(point, prev_point_for_projection, next_point_for_projection,
-                                              adjacent_lanelet.centerline2d().basicLineString());
-      ll::BasicPoint2d adjacent_lanelet_left_bounds_point =
-          projectPointToLineStringAlongNormal(point, prev_point_for_projection, next_point_for_projection,
-                                              adjacent_lanelet.leftBound2d().basicLineString());
-      ll::BasicPoint2d adjacent_lanelet_right_bounds_point =
-          projectPointToLineStringAlongNormal(point, prev_point_for_projection, next_point_for_projection,
-                                              adjacent_lanelet.rightBound2d().basicLineString());
-      adjacent_right_lanelets_centerline_points.push_back(adjacent_lanelet_centerline_point);
-      adjacent_right_lanelets_left_bounds_points.push_back(adjacent_lanelet_left_bounds_point);
-      adjacent_right_lanelets_right_bounds_points.push_back(adjacent_lanelet_right_bounds_point);
+      if (auto result = projectPointToLineStringAlongNormal(point, prev_point_for_projection, next_point_for_projection, lineStringAsEigen(adjacent_lanelet.centerline2d().basicLineString()))) {
+        adjacent_right_lanelets_centerline_points.push_back(result->projected_point);
+      } else {
+        RCLCPP_WARN(this->get_logger(), "Failed to project reference point (%.3f, %.3f) to centerline of adjacent lanelet %ld", point.x(), point.y(), adjacent_lanelet.id());
+      }
+      if (auto result = projectPointToLineStringAlongNormal(point, prev_point_for_projection, next_point_for_projection, lineStringAsEigen(adjacent_lanelet.leftBound2d().basicLineString()))) {
+        adjacent_right_lanelets_left_bounds_points.push_back(result->projected_point);
+      } else {
+        RCLCPP_WARN(this->get_logger(), "Failed to project reference point (%.3f, %.3f) to left bounds of adjacent lanelet %ld", point.x(), point.y(), adjacent_lanelet.id());
+      }
+      if (auto result = projectPointToLineStringAlongNormal(point, prev_point_for_projection, next_point_for_projection, lineStringAsEigen(adjacent_lanelet.rightBound2d().basicLineString()))) {
+        adjacent_right_lanelets_right_bounds_points.push_back(result->projected_point);
+      } else {
+        RCLCPP_WARN(this->get_logger(), "Failed to project reference point (%.3f, %.3f) to right bounds of adjacent lanelet %ld", point.x(), point.y(), adjacent_lanelet.id());
+      }
     }
 
     // compute offset of lane element indices from current to next route element

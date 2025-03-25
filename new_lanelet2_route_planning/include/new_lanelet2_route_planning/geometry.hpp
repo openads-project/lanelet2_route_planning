@@ -63,6 +63,45 @@ Eigen::Vector2d normalOfPointAlongLineString(const Eigen::Vector2d& point, const
 std::vector<Eigen::Vector2d> resampleLineString(const std::vector<Eigen::Vector2d>& line_string, const double delta,
                                                 double& offset);
 
+/**
+ * @brief Projects a point to the closest line segment of a line string.
+ *
+ * @param[in] point point
+ * @param[in] line_string line string
+ * @return projected point
+ */
 Eigen::Vector2d projectPointToLineString(const Eigen::Vector2d& point, const std::vector<Eigen::Vector2d>& line_string);
+
+/**
+ * @brief Return type of projectPointToLineStringAlongAxis.
+ */
+struct ProjectPointToLineStringAlongAxisResult {
+  Eigen::Vector2d projected_point;            ///< intersection point
+  bool found_intersection_with_line_segment;  ///< whether intersection is on first line segment
+};
+
+/**
+ * @brief Projects a point along an axis to the closest line segment of a line string.
+ *
+ * @param[in] point point
+ * @param[in] axis axis direction
+ * @param[in] line_string line string
+ * @return projected point and whether intersection is on line segment
+ */
+std::optional<ProjectPointToLineStringAlongAxisResult> projectPointToLineStringAlongAxis(
+    const Eigen::Vector2d& point, const Eigen::Vector2d& axis, const std::vector<Eigen::Vector2d>& line_string);
+
+/**
+ * @brief Projects a point to the closest line segment of a line string along the normal to the tangent at the point.
+ *
+ * @param[in] point point along line string
+ * @param[in] prev_point previous point along line string
+ * @param[in] next_point next point along line string
+ * @param[in] line_string other line string to project to
+ * @return projected point and whether intersection is on line segment
+ */
+std::optional<ProjectPointToLineStringAlongAxisResult> projectPointToLineStringAlongNormal(
+    const Eigen::Vector2d& point, const Eigen::Vector2d& prev_point, const Eigen::Vector2d& next_point,
+    const std::vector<Eigen::Vector2d>& line_string);
 
 }  // namespace new_lanelet2_route_planning

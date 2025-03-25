@@ -28,14 +28,6 @@ bool findLaneletAtEgoPosition(const ll::LaneletMapConstPtr& map, const std::stri
                               const perception_msgs::msg::EgoData& ego_data, ll::ConstLanelet& lanelet,
                               const std::optional<ll::traffic_rules::TrafficRulesPtr> traffic_rules = std::nullopt);
 
-Eigen::Vector2d projectPointToLineStringAlongNormal(const Eigen::Vector2d& point, const Eigen::Vector2d& prev_point,
-                                                    const Eigen::Vector2d& next_point,
-                                                    const ll::BasicLineString2d& line);
-
-Eigen::Vector2d projectPointToLineAlongAxis(const Eigen::Vector2d& point, const Eigen::Vector2d& axis,
-                                            const ll::BasicLineString2d& line,
-                                            bool& found_intersection_with_line_segment);
-
 ll::ConstLanelet followLanelet(const ll::routing::RoutingGraphUPtr& routing_graph, const ll::ConstLanelet& lanelet,
                                const Eigen::Vector2d& position, const double distance);
 

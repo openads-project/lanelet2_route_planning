@@ -84,64 +84,6 @@ bool findLaneletAtEgoPosition(const ll::LaneletMapConstPtr& map, const std::stri
   return findLaneletAtPoint(map, pointAsEigen2d(position(ego_data)), lanelet, traffic_rules);
 }
 
-Eigen::Vector2d projectPointToLineStringAlongNormal(const Eigen::Vector2d& point, const Eigen::Vector2d& prev_point,
-                                                    const Eigen::Vector2d& next_point,
-                                                    const ll::BasicLineString2d& line) {
-  // find normal to tangent at point
-  Eigen::Vector2d normal = normalOfPointAlongLineString(point, prev_point, next_point);
-
-  // project current point to other line along normal to tangent
-  bool found_intersection_with_line_segment;
-  const Eigen::Vector2d projected_point =
-      projectPointToLineAlongAxis(point, normal, line, found_intersection_with_line_segment);
-
-  return projected_point;
-}
-
-Eigen::Vector2d projectPointToLineAlongAxis(const Eigen::Vector2d& point, const Eigen::Vector2d& axis,
-                      const ll::BasicLineString2d& line,
-                      bool& found_intersection_with_line_segment) {
-
-  Eigen::Vector2d closest_projected_point;
-  found_intersection_with_line_segment = false;
-  double closest_distance_to_line_segment = std::numeric_limits<double>::max();
-  bool found_at_least_one_intersection = false;
-
-  // define straight line along axis at point
-  std::vector<Eigen::Vector2d> axis_line = {point, point + axis};
-
-  // loop over line segments
-  for (size_t i = 0; i < line.size() - 1; ++i) {
-    std::vector<Eigen::Vector2d> line_segment = {line[i], line[i + 1]};
-
-    // find intersection of axis line and line segment
-    if (auto result = intersectionOfLines(axis_line, line_segment)) {
-      const Eigen::Vector2d& intersection = result->intersection;
-      const bool intersects_line_segment = result->intersects_line2;
-      found_at_least_one_intersection = true;
-      if (intersects_line_segment) {
-        found_intersection_with_line_segment = true;
-        closest_projected_point = intersection;
-        break;
-      } else {
-        double distance_to_line_segment =
-          std::min((intersection - line[i]).norm(), (intersection - line[i + 1]).norm());
-        if (distance_to_line_segment < closest_distance_to_line_segment) {
-          closest_distance_to_line_segment = distance_to_line_segment;
-          closest_projected_point = intersection;
-        }
-      }
-    }
-  }
-
-  if (!found_at_least_one_intersection) {
-    RCLCPP_ERROR(rclcpp::get_logger("new_lanelet2_route_planning"),
-          "Could not project point to line along axis because axis is parallel to all line segments");
-  }
-
-  return closest_projected_point;
-}
-
 ll::ConstLanelet followLanelet(const ll::routing::RoutingGraphUPtr& routing_graph, const ll::ConstLanelet& lanelet,
                                const Eigen::Vector2d& position, const double distance) {
   ll::ConstLanelet new_lanelet = lanelet;
@@ -200,7 +142,7 @@ ll::BasicLineString2d resampleCenterlinesAlongPath(const ll::routing::LaneletPat
     }
 
     // resample lanelet centerline
-    std::vector<Eigen::Vector2d> resampled_centerline = resampleLineString(lineStringAsEigen2d(centerline), delta_s, resampling_offset);
+    std::vector<Eigen::Vector2d> resampled_centerline = resampleLineString(lineStringAsEigen(centerline), delta_s, resampling_offset);
     resampled_path_centerline.insert(resampled_path_centerline.end(), resampled_centerline.begin(),
                                      resampled_centerline.end());
     lanelet_idx_by_point.insert(lanelet_idx_by_point.end(), resampled_centerline.size(), l);
