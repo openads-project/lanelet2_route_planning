@@ -34,9 +34,6 @@ ll::ConstLanelet followLanelet(const ll::routing::RoutingGraphUPtr& routing_grap
 ll::BasicLineString2d resampleCenterlinesAlongPath(const ll::routing::LaneletPath& path, const double delta_s,
                                                    bool monotonically, std::vector<size_t>& lanelet_idx_by_point);
 
-std::vector<ll::ConstLanelet> adjacentLeftOrRightLanelets(const ll::ConstLanelet& lanelet,
-                                                          const ll::routing::Route& route, bool left);
-
 int computeFollowingLaneIdxOffset(const ll::ConstLanelet& lanelet, const ll::ConstLanelet& lanelet_of_next_point,
                                   const ll::routing::Route& route, const ll::routing::RoutingGraphUPtr& routing_graph);
 

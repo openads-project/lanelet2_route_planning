@@ -9,6 +9,7 @@
 #include "new_lanelet2_route_planning/conversions.hpp"
 #include "new_lanelet2_route_planning/geometry.hpp"
 #include "new_lanelet2_route_planning/utilities.hpp"
+#include "new_lanelet2_route_planning/utils.hpp"
 
 namespace new_lanelet2_route_planning {
 
@@ -159,21 +160,6 @@ ll::BasicLineString2d resampleCenterlinesAlongPath(const ll::routing::LaneletPat
   }
 
   return resampled_path_centerline;
-}
-
-std::vector<ll::ConstLanelet> adjacentLeftOrRightLanelets(const ll::ConstLanelet& lanelet,
-                                                          const ll::routing::Route& route, bool left) {
-  std::vector<ll::ConstLanelet> adjacent_lanelets;
-  ll::routing::LaneletRelations relations = left ? route.leftRelations(lanelet) : route.rightRelations(lanelet);
-  for (const auto& relation : relations) {
-    if ((left && (relation.relationType == ll::routing::RelationType::Left ||
-                  relation.relationType == ll::routing::RelationType::AdjacentLeft)) ||
-        (!left && (relation.relationType == ll::routing::RelationType::Right ||
-                   relation.relationType == ll::routing::RelationType::AdjacentRight))) {
-      adjacent_lanelets.push_back(relation.lanelet);
-    }
-  }
-  return adjacent_lanelets;
 }
 
 int computeFollowingLaneIdxOffset(const ll::ConstLanelet& lanelet, const ll::ConstLanelet& lanelet_of_next_point,
