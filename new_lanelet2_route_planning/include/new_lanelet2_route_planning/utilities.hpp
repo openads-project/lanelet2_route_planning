@@ -37,6 +37,4 @@ ll::BasicLineString2d resampleCenterlinesAlongPath(const ll::routing::LaneletPat
 int computeFollowingLaneIdxOffset(const ll::ConstLanelet& lanelet, const ll::ConstLanelet& lanelet_of_next_point,
                                   const ll::routing::Route& route, const ll::routing::RoutingGraphUPtr& routing_graph);
 
-uint8_t laneBoundaryType(const ll::ConstLineString2d& line);
-
 }  // namespace new_lanelet2_route_planning

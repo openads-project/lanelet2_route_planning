@@ -1,6 +1,9 @@
 #pragma once
 
+#include <array>
 #include <cstdint>
+#include <optional>
+#include <utility>
 #include <vector>
 
 #include <lanelet2_core/primitives/Lanelet.h>
@@ -35,24 +38,6 @@ size_t indexOfLineStringPointClosestToPoint(const std::vector<Eigen::Vector2d>& 
  */
 bool changesLaneFromPointToPoint(const Eigen::Vector2d& point, const Eigen::Vector2d& next_point,
                                  const double sampling_distance);
-
-/**
- * @brief Create a minimal route element message.
- *
- * A minimal valid route element only has a single lane element with a reference pose.
- *
- * @param[in] position position
- * @param[in] orientation orientation
- * @param[in] s accumulated distance along route
- * @param[in] will_change_suggested_lane whether the lane will change to the next route element
- * @param[in] speed_limit speed limit
- * @return minimal route element
- */
-route_planning_msgs::msg::RouteElement createMinimalRouteElement(const geometry_msgs::msg::Point& position,
-                                                                 const geometry_msgs::msg::Quaternion& orientation,
-                                                                 double s = 0.0,
-                                                                 bool will_change_suggested_lane = false,
-                                                                 uint8_t speed_limit = 0);
 
 /**
  * @brief Finds lanelets adjacent to the left or right of a given lanelet.
@@ -91,5 +76,85 @@ std::vector<ProjectedLaneletPoints> projectPointToLaneletLines(const Eigen::Vect
                                                                const Eigen::Vector2d& prev_point,
                                                                const Eigen::Vector2d& next_point,
                                                                const std::vector<lanelet::ConstLanelet>& lanelets);
+
+/**
+ * @brief Create a minimal route element message.
+ *
+ * A minimal valid route element only has a single lane element with a reference pose.
+ *
+ * @param[in] position position
+ * @param[in] orientation orientation
+ * @param[in] s accumulated distance along route
+ * @param[in] will_change_suggested_lane whether the lane will change to the next route element
+ * @param[in] speed_limit speed limit
+ * @return minimal route element
+ */
+route_planning_msgs::msg::RouteElement createMinimalRouteElement(const geometry_msgs::msg::Point& position,
+                                                                 const geometry_msgs::msg::Quaternion& orientation,
+                                                                 double s = 0.0,
+                                                                 bool will_change_suggested_lane = false,
+                                                                 uint8_t speed_limit = 0);
+
+/**
+ * @brief Extracts regulatory element information for a route element.
+ *
+ * Regulatory elements are queried from the lanelet.
+ * They are only considered if their effect line intersects with the line from point to next point or previous point to point.
+ * This way, regulatory elements are assignable to the closest route element.
+ *
+ * @param[in] lanelet lanelet
+ * @param[in] point point
+ * @param[in] prev_point previous point
+ * @param[in] next_point next point
+ * @return regulatory elements
+ */
+std::vector<route_planning_msgs::msg::RegulatoryElement> extractRegulatoryElements(const lanelet::ConstLanelet& lanelet,
+                                                                                   const Eigen::Vector2d& point,
+                                                                                   const Eigen::Vector2d& prev_point,
+                                                                                   const Eigen::Vector2d& next_point);
+
+/**
+ * @brief Extracts the effect line of a regulatory element.
+ *
+ * Only the first reference line of the regulatory element is considered.
+ * Only the end points of that reference line are considered.
+ *
+ * @param[in] regulatory_element
+ * @return effect line
+ */
+std::optional<std::array<geometry_msgs::msg::Point, 2>> regulatoryElementEffectLine(
+    const std::shared_ptr<const lanelet::RegulatoryElement>& regulatory_element);
+
+/**
+ * @brief Extracts the sign positions of a regulatory element.
+ *
+ * Only the first point of referenced line strings is considered.
+ *
+ * @param[in] regulatory_element
+ * @return sign positions
+ */
+std::vector<geometry_msgs::msg::Point> regulatoryElementSignPositions(
+    const std::shared_ptr<const lanelet::RegulatoryElement>& regulatory_element);
+
+/**
+ * @brief Extracts the type and meta value of a regulatory element.
+ *
+ * Type and meta value as in route_planning_msgs::msg::RegulatoryElement.
+ *
+ * @param[in] regulatory_element
+ * @return type and meta value
+ */
+std::pair<uint8_t, uint8_t> regulatoryElementType(
+    const std::shared_ptr<const lanelet::RegulatoryElement>& regulatory_element);
+
+/**
+ * @brief Extracts the lane boundary type of a lanelet line.
+ *
+ * Lane boundary type as in route_planning_msgs::msg::LaneBoundary.
+ *
+ * @param[in] line
+ * @return lane boundary type
+ */
+uint8_t laneBoundaryType(const lanelet::ConstLineString2d& line);
 
 }  // namespace new_lanelet2_route_planning

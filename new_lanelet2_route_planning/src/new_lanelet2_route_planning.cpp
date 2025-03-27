@@ -575,10 +575,8 @@ bool NewLanelet2RoutePlanning::laneletToLocalRosRoute() {
     std::vector<ll::ConstLanelet> adjacent_right_lanelets = adjacentLeftOrRightLanelets(lanelet, latest_route_, false);
     int suggested_lane_idx = adjacent_left_lanelets.size();
 
-    // project centerline point to lanelet bounds
+    // project centerline point to lanelet and adjacent lanelet centerlines and bounds
     auto lanelet_projected_points = projectPointToLaneletLines(point, prev_point_for_projection, next_point_for_projection, std::vector<lanelet::ConstLanelet>{lanelet})[0];
-
-    // project centerline point to adjacent lanelet centerlines and bounds
     auto adjacent_left_lanelets_projected_points = projectPointToLaneletLines(point, prev_point_for_projection, next_point_for_projection, adjacent_left_lanelets);
     auto adjacent_right_lanelets_projected_points = projectPointToLaneletLines(point, prev_point_for_projection, next_point_for_projection, adjacent_right_lanelets);
 
@@ -589,107 +587,27 @@ bool NewLanelet2RoutePlanning::laneletToLocalRosRoute() {
     int following_lane_idx_offset =
         computeFollowingLaneIdxOffset(lanelet, lanelet_of_next_point, latest_route_, routing_graph_);
 
+    // extract drivable space
+    // TODO: extract actual drivable space by shooting
+    Eigen::Vector2d drivable_space_left = adjacent_left_lanelets_projected_points.empty()
+                                           ? lanelet_projected_points.left_bound_point
+                                           : adjacent_left_lanelets_projected_points.front().left_bound_point;
+    Eigen::Vector2d drivable_space_right = adjacent_right_lanelets_projected_points.empty()
+                                            ? lanelet_projected_points.right_bound_point
+                                            : adjacent_right_lanelets_projected_points.back().right_bound_point;
+
+    // extract regulatory elements
+    // TODO: extract RegElems for adjacent lanes as well
+    std::vector<route_planning_msgs::msg::RegulatoryElement> regulatory_elements = extractRegulatoryElements(lanelet, point, prev_point, next_point);
+
     // enrich RouteElement with local route information
     route_element_msg.lane_elements = {};
-    if (!adjacent_left_lanelets_projected_points.empty()) {
-      route_element_msg.left_boundary = toRos(adjacent_left_lanelets_projected_points.front().left_bound_point);
-    } else {
-      route_element_msg.left_boundary = toRos(lanelet_projected_points.left_bound_point);
-    }
-    if (!adjacent_right_lanelets_projected_points.empty()) {
-      route_element_msg.right_boundary = toRos(adjacent_right_lanelets_projected_points.back().right_bound_point);
-    } else {
-      route_element_msg.right_boundary = toRos(lanelet_projected_points.right_bound_point);
-    }
-    route_element_msg.regulatory_elements = {};
+    route_element_msg.left_boundary = toRos(drivable_space_left);
+    route_element_msg.right_boundary = toRos(drivable_space_right);
+    route_element_msg.regulatory_elements = regulatory_elements;
     route_element_msg.suggested_lane_idx = suggested_lane_idx;
     route_element_msg.will_change_suggested_lane = changes_lane_to_next_point;
     // route_element_msg.s already set in global route
-
-    // create RegulatoryElements
-    // TODO: refactor to function?
-    // TODO: this returns super many RegElemens, e.g., 13 for lanelet 10001143
-    const auto regulatory_elements = lanelet.regulatoryElements();
-    for (const auto& regulatory_element : regulatory_elements) {
-
-      // extract effect line of regulatory element
-      const std::vector<ll::ConstLineString3d> effect_lines = regulatory_element->getParameters<lanelet::ConstLineString3d>(ll::RoleName::RefLine);
-      if (effect_lines.empty()) {
-        RCLCPP_WARN(this->get_logger(), "Regulatory element '%ld' on lanelet '%ld' has no reference line, ignoring", regulatory_element->id(), lanelet.id());
-        continue;
-      }
-      const std::vector<Eigen::Vector3d> effect_line = effect_lines.front().basicLineString();
-      if (effect_line.size() < 2) {
-        RCLCPP_WARN(this->get_logger(), "Regulatory element '%ld' on lanelet '%ld' has reference line with less than 2 points, ignoring", regulatory_element->id(), lanelet.id());
-        continue;
-      } else if (effect_line.size() > 2) {
-        RCLCPP_WARN(this->get_logger(), "Regulatory element '%ld' on lanelet '%ld' has reference line with more than 2 points, connecting end points", regulatory_element->id(), lanelet.id());
-      }
-      const std::vector<Eigen::Vector2d> effect_line_2d = {effect_line.front().head<2>(), effect_line.back().head<2>()};
-
-      // only process regulatory element and add it to route element if effect line intersects with centerline, else skip it
-      std::vector<Eigen::Vector2d> line_to_next_point = {point, next_point};
-      std::vector<Eigen::Vector2d> line_to_prev_point = {point, prev_point};
-      if (auto result = intersectionOfLines(effect_line_2d, line_to_next_point)) {
-        if (!result->intersects_line2) {
-          if (auto inner_result = intersectionOfLines(effect_line_2d, line_to_prev_point)) {
-            if (!inner_result->intersects_line2) {
-              continue;
-            }
-          }
-        }
-      }
-
-      // create RegulatoryElement
-      route_planning_msgs::msg::RegulatoryElement regulatory_element_msg;
-      regulatory_element_msg.effect_line[0] = toRos(effect_line.front());
-      regulatory_element_msg.effect_line[1] = toRos(effect_line.back());
-
-      // extract sign position of regulatory element
-      const std::vector<ll::ConstLineString3d> sign_lines = regulatory_element->getParameters<lanelet::ConstLineString3d>(ll::RoleName::Refers);
-      if (sign_lines.empty()) {
-        RCLCPP_WARN(this->get_logger(), "Regulatory element '%ld' has no referring sign, ignoring", regulatory_element->id());
-        continue;
-      }
-      for (const auto& sign_line_ll : sign_lines) {
-        const std::vector<Eigen::Vector3d> sign_line = sign_line_ll.basicLineString();
-        if (sign_line.size() < 1) {
-          RCLCPP_WARN(this->get_logger(), "Regulatory element '%ld' has referring sign with no points, ignoring", regulatory_element->id());
-          continue;
-        } else if (sign_line.size() > 1) {
-          RCLCPP_WARN(this->get_logger(), "Regulatory element '%ld' has referring sign with more than 1 point, using only first one", regulatory_element->id());
-        }
-        regulatory_element_msg.sign_positions.push_back(toRos(sign_line.front()));
-      }
-
-      // infer type of regulatory element
-      regulatory_element_msg.type = route_planning_msgs::msg::RegulatoryElement::TYPE_UNKNOWN;
-      if (regulatory_element->hasAttribute("subtype")) {
-        std::string subtype = regulatory_element->attribute("subtype").value();
-        if (subtype == "traffic_light") {
-          regulatory_element_msg.type = route_planning_msgs::msg::RegulatoryElement::TYPE_TRAFFIC_LIGHT;
-        } else if (subtype == "speed_limit") {
-          regulatory_element_msg.type = route_planning_msgs::msg::RegulatoryElement::TYPE_SPEED_LIMIT;
-          // regulatory_element_msg.meta_value = // TODO
-        } else if (subtype == "right_of_way") {
-          regulatory_element_msg.type = route_planning_msgs::msg::RegulatoryElement::TYPE_YIELD;
-        } else if (subtype == "all_way_stop") {
-          regulatory_element_msg.type = route_planning_msgs::msg::RegulatoryElement::TYPE_STOP;
-        } else {
-          RCLCPP_WARN(this->get_logger(), "Regulatory element '%ld' has unknown subtype '%s', ignoring", regulatory_element->id(), subtype.c_str());
-          continue;
-        }
-      } else {
-        RCLCPP_WARN(this->get_logger(), "Regulatory element '%ld' has no subtype, ignoring", regulatory_element->id());
-        continue;
-      }
-
-      // save together with current route element index for later adding to the closet route element
-      route_element_msg.regulatory_elements.push_back(regulatory_element_msg);
-
-
-      // TODO: infer lane elements affected by this regulatory element -> assign to current centerline lane element -> somehow also do the same checks above for adjacent lanes, but store RegElemMsg by ID to avoid recomputation
-    }
 
     // create LaneElements for left adjacent lanes
     for (size_t a = 0; a < adjacent_left_lanelets_projected_points.size(); ++a) {

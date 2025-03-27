@@ -250,42 +250,4 @@ int computeFollowingLaneIdxOffset(const ll::ConstLanelet& lanelet, const ll::Con
   return following_lane_idx_offset;
 }
 
-uint8_t laneBoundaryType(const ll::ConstLineString2d& line) {
-  uint8_t lane_boundary_type = route_planning_msgs::msg::LaneBoundary::TYPE_UNKNOWN;
-
-  // get type attribute
-  ll::Attribute type;
-  if (line.hasAttribute("type")) {
-    type = line.attribute("type");
-  } else {
-    lane_boundary_type = route_planning_msgs::msg::LaneBoundary::TYPE_UNKNOWN;
-    return lane_boundary_type;
-  }
-
-  // map lanelet type to lane boundary type
-  if (type == "road_boarder" || type == "barrier") {
-    lane_boundary_type = route_planning_msgs::msg::LaneBoundary::TYPE_CROSSING_RESTRICTED;
-  } else if (type == "line_thin" || type == "line_thick") {
-    lane_boundary_type = route_planning_msgs::msg::LaneBoundary::TYPE_UNKNOWN;
-    if (line.hasAttribute("subtype")) {
-      ll::Attribute subtype = line.attribute("subtype");
-      if (subtype == "solid" || subtype == "solid_solid") {
-        lane_boundary_type = route_planning_msgs::msg::LaneBoundary::TYPE_CROSSING_RESTRICTED;
-      } else if (subtype == "dashed") {
-        lane_boundary_type = route_planning_msgs::msg::LaneBoundary::TYPE_CROSSING_ALLOWED;
-      } else if (subtype == "dashed_solid") {
-        lane_boundary_type = route_planning_msgs::msg::LaneBoundary::TYPE_CROSSING_ALLOWED_FROM_LEFT;
-      } else if (subtype == "solid_dashed") {
-        lane_boundary_type = route_planning_msgs::msg::LaneBoundary::TYPE_CROSSING_ALLOWED_FROM_RIGHT;
-      }
-    }
-  } else if (type == "virtual") {
-    lane_boundary_type = route_planning_msgs::msg::LaneBoundary::TYPE_UNKNOWN;
-  } else {
-    lane_boundary_type = route_planning_msgs::msg::LaneBoundary::TYPE_UNKNOWN;
-  }
-
-  return lane_boundary_type;
-}
-
 }  // namespace new_lanelet2_route_planning
