@@ -1,5 +1,7 @@
 #include <limits>
 
+#include <lanelet2_core/utility/Units.h>
+#include <lanelet2_traffic_rules/TrafficRulesFactory.h>
 #include <rclcpp/rclcpp.hpp>
 
 #include "new_lanelet2_route_planning/conversions.hpp"
@@ -254,6 +256,20 @@ uint8_t laneBoundaryType(const lanelet::ConstLineString2d& line) {
   }
 
   return lane_boundary_type;
+}
+
+uint8_t speedLimit(const lanelet::ConstLanelet& lanelet) {
+  // TODO: what is the ika postfix? move to constant?
+  // TODO: make Germany a param?
+  // TODO: make vehicle type a param?
+  lanelet::traffic_rules::TrafficRulesPtr traffic_rules = lanelet::traffic_rules::TrafficRulesFactory::create(
+      lanelet::Locations::Germany, std::string(lanelet::Participants::Vehicle) + ":ika");
+  lanelet::traffic_rules::SpeedLimitInformation speed_limit_info = traffic_rules->speedLimit(lanelet);
+  if (speed_limit_info.isMandatory) {  // TODO: include this fact in RouteMsg?
+    return std::round(lanelet::units::KmHQuantity(speed_limit_info.speedLimit).value());
+  } else {
+    return 0;
+  }
 }
 
 }  // namespace new_lanelet2_route_planning

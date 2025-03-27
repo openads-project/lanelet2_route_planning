@@ -157,4 +157,14 @@ std::pair<uint8_t, uint8_t> regulatoryElementType(
  */
 uint8_t laneBoundaryType(const lanelet::ConstLineString2d& line);
 
+/**
+ * @brief Extracts the speed limit of a lanelet.
+ *
+ * Returns 0 if no speed limit is set or speed limit is not mandatory.
+ *
+ * @param[in] lanelet
+ * @return speed limit [km/h]
+ */
+uint8_t speedLimit(const lanelet::ConstLanelet& lanelet);
+
 }  // namespace new_lanelet2_route_planning

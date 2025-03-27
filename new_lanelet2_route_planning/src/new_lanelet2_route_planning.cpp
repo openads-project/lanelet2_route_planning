@@ -494,6 +494,9 @@ bool NewLanelet2RoutePlanning::laneletToGlobalRosRoute() {
     const Eigen::Vector2d& next_point =
         (c < shortest_path_centerline.size() - 1) ? shortest_path_centerline[c + 1] : point;
 
+    // get lanelet corresponding to centerline point
+    const ll::ConstLanelet& lanelet = shortest_path[latest_lanelet_idx_by_reference_line_point_idx_[c]];
+
     // identify lane changes based on break in equidistant centerline
     bool changes_lane_from_prev_point = changesLaneFromPointToPoint(prev_point, point, sampling_distance_);
     bool changes_lane_to_next_point = changesLaneFromPointToPoint(point, next_point, sampling_distance_);
@@ -504,11 +507,13 @@ bool NewLanelet2RoutePlanning::laneletToGlobalRosRoute() {
     Eigen::Vector2d orientation =
         tangentOfPointAlongLineString(point, prev_point_for_orientation, next_point_for_orientation);
 
+    // determine speed limit
+    uint8_t speed_limit = speedLimit(lanelet);
+
     // accumulate distance
     accumulated_distance += (point - prev_point).norm();
 
     // create RouteElement
-    uint8_t speed_limit = 0; // TODO
     route_planning_msgs::msg::RouteElement route_element_msg = createMinimalRouteElement(toRos(point), toRosQuaternion(orientation), accumulated_distance, changes_lane_to_next_point, speed_limit);
     route_msg.remaining_route_elements.push_back(route_element_msg);
   }
@@ -560,6 +565,10 @@ bool NewLanelet2RoutePlanning::laneletToLocalRosRoute() {
     const Eigen::Vector2d prev_point = toEigen2d(prev_lane_element_msg.reference_pose.position);
     const Eigen::Vector2d next_point = toEigen2d(next_lane_element_msg.reference_pose.position);
 
+    // get lanelet corresponding to centerline point
+    ll::routing::LaneletPath shortest_path = latest_route_.shortestPath();
+    const ll::ConstLanelet& lanelet = shortest_path[latest_lanelet_idx_by_reference_line_point_idx_[c]];
+
     // identify lane changes
     bool changes_lane_from_prev_point = changesLaneFromPointToPoint(prev_point, point, sampling_distance_);
     bool changes_lane_to_next_point = changesLaneFromPointToPoint(point, next_point, sampling_distance_);
@@ -571,10 +580,6 @@ bool NewLanelet2RoutePlanning::laneletToLocalRosRoute() {
     // compute orientation of centerline point
     Eigen::Vector2d orientation =
         tangentOfPointAlongLineString(point, prev_point_for_projection, next_point_for_projection);
-
-    // get lanelet corresponding to centerline point
-    ll::routing::LaneletPath shortest_path = latest_route_.shortestPath();
-    const ll::ConstLanelet& lanelet = shortest_path[latest_lanelet_idx_by_reference_line_point_idx_[c]];
 
     // get adjacent lanelets
     // TODO: this is re-executed for every point on the same lanelet
@@ -627,7 +632,7 @@ bool NewLanelet2RoutePlanning::laneletToLocalRosRoute() {
       lane_element_msg.right_boundary.point = toRos(adjacent_left_lanelets_projected_points[a].right_bound_point);
       lane_element_msg.right_boundary.type = laneBoundaryType(adjacent_left_lanelets[a].rightBound2d());
       lane_element_msg.has_right_boundary = true;
-      lane_element_msg.speed_limit = 0;              // TODO
+      lane_element_msg.speed_limit = speedLimit(adjacent_left_lanelets[a]);
       lane_element_msg.regulatory_element_idx = {};  // TODO
       lane_element_msg.following_lane_idx = route_element_msg.lane_elements.size() + following_lane_idx_offset;
       lane_element_msg.has_following_lane_idx = true;
@@ -644,7 +649,7 @@ bool NewLanelet2RoutePlanning::laneletToLocalRosRoute() {
     centerline_lane_element_msg.right_boundary.point = toRos(lanelet_projected_points.right_bound_point);
     centerline_lane_element_msg.right_boundary.type = laneBoundaryType(lanelet.rightBound2d());
     centerline_lane_element_msg.has_right_boundary = true;
-    centerline_lane_element_msg.speed_limit = 0;              // TODO
+    centerline_lane_element_msg.speed_limit = speedLimit(lanelet);
     centerline_lane_element_msg.regulatory_element_idx.resize(route_element_msg.regulatory_elements.size()); // TODO: dont assign all RegElems of RouteElem to CenterlineElem
     std::iota(centerline_lane_element_msg.regulatory_element_idx.begin(), centerline_lane_element_msg.regulatory_element_idx.end(), 0);
     centerline_lane_element_msg.following_lane_idx = route_element_msg.lane_elements.size() + following_lane_idx_offset;
@@ -662,7 +667,7 @@ bool NewLanelet2RoutePlanning::laneletToLocalRosRoute() {
       lane_element_msg.right_boundary.point = toRos(adjacent_right_lanelets_projected_points[a].right_bound_point);
       lane_element_msg.right_boundary.type = laneBoundaryType(adjacent_right_lanelets[a].rightBound2d());
       lane_element_msg.has_right_boundary = true;
-      lane_element_msg.speed_limit = 0;              // TODO
+      lane_element_msg.speed_limit = speedLimit(adjacent_right_lanelets[a]);
       lane_element_msg.regulatory_element_idx = {};  // TODO
       lane_element_msg.following_lane_idx = route_element_msg.lane_elements.size() + following_lane_idx_offset;
       lane_element_msg.has_following_lane_idx = true;
