@@ -27,7 +27,7 @@ NewLanelet2RoutePlanning::NewLanelet2RoutePlanning() : Node("new_lanelet2_route_
   this->declareAndLoadParameter("publish_frequency", publish_frequency_, "Frequency of route publication [Hz]", true,
                                 false, false, 0.1, 10.0, 0.1);
   this->declareAndLoadParameter("action_feedback_frequency", action_feedback_frequency_,
-                                "Frequency of action feedback publication [Hz]", true, false, false, 0.1, 10.0, 0.1);
+                                "Frequency of action feedback publication [Hz]", false, false, false, 0.1, 10.0, 0.1);
   this->declareAndLoadParameter("sampling_distance", sampling_distance_,
                                 "Distance between resampled points along route [m]", true, false, false, 0.01, 10.0,
                                 0.01);
@@ -158,9 +158,16 @@ rcl_interfaces::msg::SetParametersResult NewLanelet2RoutePlanning::parametersCal
     }
   }
 
+  // parameter-specific reconfigurations
+  for (const auto& param : parameters) {
+    if (param.get_name() == "publish_frequency") {
+      publish_timer_->cancel();
+      publish_timer_ = this->create_wall_timer(std::chrono::duration<double>(1.0 / publish_frequency_),
+                                               [this]() { publisher_route_->publish(latest_route_msg_); });
+    }
+  }
   if (local_route_ahead_distance_ < 0.0) local_route_ahead_distance_ = std::numeric_limits<double>::infinity();
   if (local_route_behind_distance_ < 0.0) local_route_behind_distance_ = std::numeric_limits<double>::infinity();
-  // TODO: check if all params can be handled by DynRcfg
 
   rcl_interfaces::msg::SetParametersResult result;
   result.successful = true;
