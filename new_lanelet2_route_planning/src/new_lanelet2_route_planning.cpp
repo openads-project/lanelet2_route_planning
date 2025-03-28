@@ -1,8 +1,8 @@
 #include <functional>
 #include <thread>
+#include <utility>
 
 #include <lanelet2_routing/RoutingGraph.h>
-#include <lanelet2_traffic_rules/TrafficRulesFactory.h>
 #include <geometry_msgs/msg/point_stamped.hpp>
 #include <perception_msgs/msg/ego_data.hpp>
 #include <perception_msgs_utils/object_access.hpp>
@@ -11,7 +11,6 @@
 #include "new_lanelet2_route_planning/conversions.hpp"
 #include "new_lanelet2_route_planning/geometry.hpp"
 #include "new_lanelet2_route_planning/new_lanelet2_route_planning.hpp"
-#include "new_lanelet2_route_planning/utilities.hpp"
 #include "new_lanelet2_route_planning/utils.hpp"
 
 namespace new_lanelet2_route_planning {
@@ -217,20 +216,22 @@ void NewLanelet2RoutePlanning::setup() {
 void NewLanelet2RoutePlanning::setupRoutingGraph() {
   bool success;
   if (!ll2_interface_->map_loaded_) {
-    RCLCPP_FATAL(get_logger(), "Cannot build routing graph, map not loaded by '%s'", ll2_map_server_name_.c_str());
+    RCLCPP_FATAL(this->get_logger(), "Cannot build routing graph, map not loaded by '%s'", ll2_map_server_name_.c_str());
     exit(EXIT_FAILURE);
   }
 
   // get map and traffic rules
   ll::LaneletMapConstPtr map = ll2_interface_->getMapPtr();
-  ll::traffic_rules::TrafficRulesPtr traffic_rules = ll::traffic_rules::TrafficRulesFactory::create(
-      ll::Locations::Germany,
-      std::string(lanelet::Participants::Vehicle) + ":ika");  // TODO: what is this postfix? move to constant?
+  ll::traffic_rules::TrafficRulesPtr traffic_rules = getTrafficRules();
 
   // build routing graph
-  success = buildRoutingGraph(map, traffic_rules, routing_graph_);
-  if (!success) {
-    RCLCPP_FATAL(get_logger(), "Failed to build routing graph");
+  routing_graph_ = ll::routing::RoutingGraph::build(*map, *traffic_rules);
+  ll::routing::Route::Errors errors = routing_graph_->checkValidity();
+  if (errors.size() > 0) {
+    RCLCPP_FATAL(this->get_logger(), "Failed to build valid routing graph");
+    for (size_t i = 0; i < errors.size(); ++i) {
+      RCLCPP_FATAL_STREAM(this->get_logger(), errors[i]);
+    }
     exit(EXIT_FAILURE);
   }
 }
@@ -415,7 +416,7 @@ void NewLanelet2RoutePlanning::actionExecute(
 bool NewLanelet2RoutePlanning::planRoute(const geometry_msgs::msg::PointStamped& destination) {
   bool success;
   if (!ll2_interface_->map_loaded_) {
-    RCLCPP_ERROR(get_logger(), "Cannot plan route, map not loaded by '%s'", ll2_map_server_name_.c_str());
+    RCLCPP_ERROR(this->get_logger(), "Cannot plan route, map not loaded by '%s'", ll2_map_server_name_.c_str());
     return false;
   }
 
@@ -432,34 +433,45 @@ bool NewLanelet2RoutePlanning::planRoute(const geometry_msgs::msg::PointStamped&
 
   // get map and traffic rules
   ll::LaneletMapConstPtr map = ll2_interface_->getMapPtr();
-  ll::traffic_rules::TrafficRulesPtr traffic_rules = ll::traffic_rules::TrafficRulesFactory::create(
-      ll::Locations::Germany,
-      std::string(lanelet::Participants::Vehicle) + ":ika");  // TODO: what is this postfix? move to constant?
+  ll::traffic_rules::TrafficRulesPtr traffic_rules = getTrafficRules();
+
+  // check validity of ego data
+  const double timeout_ego_data = 1.0;
+  if ((this->now() - latest_ego_data_.header.stamp).seconds() > timeout_ego_data) {
+    RCLCPP_WARN(this->get_logger(), "Ego data is outdated by %.3fs > %.3fs", (this->now() - latest_ego_data_.header.stamp).seconds(),
+                timeout_ego_data);
+  }
+  if (latest_ego_data_.header.frame_id != ll2_interface_->map_frame_id_) {
+    RCLCPP_ERROR(this->get_logger(), "Ego data frame '%s' does not match map frame '%s'", latest_ego_data_.header.frame_id.c_str(),
+                 ll2_interface_->map_frame_id_.c_str());
+    return false;
+  }
 
   // project ego position to lanelet
   ll::ConstLanelet ego_ll;
-  success = findLaneletAtEgoPosition(map, ll2_interface_->map_frame_id_, latest_ego_data_, ego_ll, traffic_rules);
-  if (!success) {
-    RCLCPP_ERROR(get_logger(), "Failed to find lanelet at ego position");
+  if (auto result = laneletAtPoint(toEigen2d(egoPosition(latest_ego_data_)), map)) {
+    ego_ll = *result;
+  } else {
+    RCLCPP_ERROR(this->get_logger(), "Failed to find lanelet at ego position");
     return false;
   }
   Eigen::Vector2d ego_ll_position = projectPointToLineString(toEigen2d(egoPosition(latest_ego_data_)), toEigen(ego_ll.centerline2d().basicLineString()));
 
   // project destination to lanelet
   ll::ConstLanelet destination_ll;
-  success = findLaneletAtPoint(map, destination_map, destination_ll, traffic_rules);
-  if (!success) {
-    RCLCPP_ERROR(get_logger(), "Failed to find lanelet at destination");
+  if (auto result = laneletAtPoint(toEigen2d(destination_map), map)) {
+    destination_ll = *result;
+  } else {
+    RCLCPP_ERROR(this->get_logger(), "Failed to find lanelet at destination");
     return false;
   }
   Eigen::Vector2d destination_ll_position = projectPointToLineString(toEigen2d(destination_map), toEigen(destination_ll.centerline2d().basicLineString()));
 
   // undershoot/overshoot route endpoints
   // TODO: still needed?
-  ll::ConstLanelet undershot_ego_ll =
-      followLanelet(routing_graph_, ego_ll, toLanelet(ego_ll_position), -std::abs(route_undershoot_distance_));
-  ll::ConstLanelet overshot_destination_ll =
-      followLanelet(routing_graph_, destination_ll, toLanelet(destination_ll_position), route_overshoot_distance_);
+  ll::ConstLanelet undershot_ego_ll = followLaneletsAlongRoutingGraph(routing_graph_, ego_ll, ego_ll_position, -std::abs(route_undershoot_distance_));
+  ll::ConstLanelet overshot_destination_ll = followLaneletsAlongRoutingGraph(routing_graph_, destination_ll, destination_ll_position, route_overshoot_distance_);
+
   // TODO: check that start/end are not the same lanelet (?) (see L314 in global_planner_node.cpp)
 
   // plan route
@@ -470,7 +482,7 @@ bool NewLanelet2RoutePlanning::planRoute(const geometry_msgs::msg::PointStamped&
     latest_route_ = std::move(*planned_route);
     return true;
   } else {
-    RCLCPP_ERROR(get_logger(), "Failed to plan route from lanelet %ld to lanelet %ld", ego_ll.id(),
+    RCLCPP_ERROR(this->get_logger(), "Failed to plan route from lanelet %ld to lanelet %ld", ego_ll.id(),
                  destination_ll.id());
     return false;
   }
@@ -489,9 +501,10 @@ bool NewLanelet2RoutePlanning::laneletToGlobalRosRoute() {
   ll::routing::LaneletPath shortest_path = latest_route_.shortestPath();
 
   // resample centerlines along shortest path to accumulate global reference line
-  bool monotonically = true;
-  ll::BasicLineString2d shortest_path_centerline = resampleCenterlinesAlongPath(
-      shortest_path, sampling_distance_, monotonically, latest_lanelet_idx_by_reference_line_point_idx_);
+  auto resampling_result = resampleCenterlinesAlongPath(
+    shortest_path, sampling_distance_, true);
+  std::vector<Eigen::Vector2d> shortest_path_centerline = resampling_result.centerline;
+  latest_lanelet_idx_by_reference_line_point_idx_ = resampling_result.lanelet_idx_by_point;
 
   // fill route message with global reference line
   double accumulated_distance = 0;

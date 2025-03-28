@@ -7,7 +7,9 @@
 #include <vector>
 
 #include <lanelet2_core/primitives/Lanelet.h>
-#include <lanelet2_routing/Route.h>
+#include <lanelet2_routing/LaneletPath.h>
+#include <lanelet2_routing/RoutingGraph.h>
+#include <lanelet2_traffic_rules/TrafficRules.h>
 #include <Eigen/Core>
 #include <geometry_msgs/msg/point.hpp>
 #include <geometry_msgs/msg/quaternion.hpp>
@@ -76,6 +78,31 @@ std::vector<ProjectedLaneletPoints> projectPointToLaneletLines(const Eigen::Vect
                                                                const Eigen::Vector2d& prev_point,
                                                                const Eigen::Vector2d& next_point,
                                                                const std::vector<lanelet::ConstLanelet>& lanelets);
+
+/**
+ * @brief Computes the offset of lane element indices from current to next route element.
+ *
+ * The algorithm works as follows:
+ * - find adjacent lanelets of current lanelet
+ * - find adjacent lanelets of next lanelet (lanelet of next point)
+ * - try to match the ID of the lanelet following the current one to the next lanelet and its adjacent lanelets
+ * - if no match is found, try to match the ID of the lanelets following adjacent lanelets of the current lanelet to
+ *   the next lanelet and its adjacent lanelets
+ * - keep following lanelets for up to 3 iterations to account for lanelets that are skipped during sampling
+ *
+ * If lane element j of the next route element follows on lane element i of the current route element, the returned
+ * offset is (j-i).
+ *
+ * @param[in] lanelet current lanelet
+ * @param[in] lanelet_of_next_point lanelet of next point (on next route element)
+ * @param[in] route route
+ * @param[in] routing_graph routing graph
+ * @return following lane index offset
+ */
+int computeFollowingLaneIdxOffset(const lanelet::ConstLanelet& lanelet,
+                                  const lanelet::ConstLanelet& lanelet_of_next_point,
+                                  const lanelet::routing::Route& route,
+                                  const lanelet::routing::RoutingGraphUPtr& routing_graph);
 
 /**
  * @brief Create a minimal route element message.
@@ -166,5 +193,61 @@ uint8_t laneBoundaryType(const lanelet::ConstLineString2d& line);
  * @return speed limit [km/h]
  */
 uint8_t speedLimit(const lanelet::ConstLanelet& lanelet);
+
+/**
+ * @brief Get traffic rules.
+ *
+ * @return traffic rules
+ */
+lanelet::traffic_rules::TrafficRulesPtr getTrafficRules();
+
+/**
+ * @brief Find lanelet at arbitrary point.
+ *
+ * Finds closest passable lanelet within 10m of the given point.
+ * Only considers the 5 closest lanelets.
+ *
+ * @param[in] point point
+ * @param[in] map map
+ * @param[in] traffic_rules traffic rules
+ * @return matching lanelet
+ */
+std::optional<lanelet::ConstLanelet> laneletAtPoint(
+    const Eigen::Vector2d& point, const lanelet::LaneletMapConstPtr& map,
+    const std::optional<lanelet::traffic_rules::TrafficRulesPtr> traffic_rules = std::nullopt);
+
+/**
+ * @brief Follows a lanelet's and following lanelets' centerline for a given distance.
+ *
+ * If lanelets cannot be followed anymore, returns the last lanelet.
+ *
+ * @param[in] routing_graph routing graph
+ * @param[in] lanelet current lanelet
+ * @param[in] position position on current lanelet
+ * @param[in] distance distance to follow lanelets (may be negative to follow in opposite direction)
+ * @return followed lanelet
+ */
+lanelet::ConstLanelet followLaneletsAlongRoutingGraph(const lanelet::routing::RoutingGraphUPtr& routing_graph,
+                                                      const lanelet::ConstLanelet& lanelet,
+                                                      const Eigen::Vector2d& position, const double distance);
+
+/**
+ * @brief Return type of resampleCenterlinesAlongPath.
+ */
+struct ResampleCenterlinesAlongPathResult {
+  std::vector<Eigen::Vector2d> centerline;   ///< resampled centerline
+  std::vector<size_t> lanelet_idx_by_point;  ///< lanelet index in path for each point
+};
+
+/**
+ * @brief Equidistantly resamples lanelet centerlines along a path to one joint centerline.
+ *
+ * @param[in] path path
+ * @param[in] delta_s sampling distance
+ * @param[in] monotonically whether to ensure that the centerline cannot make turns greater than 90 degrees
+ * @return resampled centerline and lanelet index by point
+ */
+ResampleCenterlinesAlongPathResult resampleCenterlinesAlongPath(const lanelet::routing::LaneletPath& path,
+                                                                const double delta_s, bool monotonically);
 
 }  // namespace new_lanelet2_route_planning

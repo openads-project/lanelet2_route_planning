@@ -27,7 +27,6 @@ add_executable(${TARGET_NAME}
   src/geometry.cpp
   src/new_lanelet2_route_planning.cpp
   src/utils.cpp
-  src/utilities.cpp
 )
 
 target_include_directories(${TARGET_NAME} PUBLIC

@@ -2,6 +2,7 @@
 
 #include <lanelet2_core/utility/Units.h>
 #include <lanelet2_traffic_rules/TrafficRulesFactory.h>
+#include <lanelet2_utilities/lanelet2_utils.hpp>
 #include <rclcpp/rclcpp.hpp>
 
 #include "new_lanelet2_route_planning/conversions.hpp"
@@ -90,6 +91,96 @@ std::vector<ProjectedLaneletPoints> projectPointToLaneletLines(const Eigen::Vect
   }
 
   return projected_points_per_lanelet;
+}
+
+int computeFollowingLaneIdxOffset(const lanelet::ConstLanelet& lanelet,
+                                  const lanelet::ConstLanelet& lanelet_of_next_point,
+                                  const lanelet::routing::Route& route,
+                                  const lanelet::routing::RoutingGraphUPtr& routing_graph) {
+  int following_lane_idx_offset = 0;
+  size_t n_adjacent_lanelets_of_next_lanelet;
+  if (lanelet_of_next_point.id() != lanelet.id()) {
+    // get adjacent lanelets of current lanelet
+    std::vector<lanelet::ConstLanelet> adjacent_left_lanelets = adjacentLeftOrRightLanelets(lanelet, route, true);
+    std::vector<lanelet::ConstLanelet> adjacent_right_lanelets = adjacentLeftOrRightLanelets(lanelet, route, false);
+    int suggested_lane_idx = adjacent_left_lanelets.size();
+
+    // get adjacent lanelets of next lanelet (lanelet of next point)
+    std::vector<lanelet::ConstLanelet> adjacent_left_lanelets_of_next_lanelet =
+        adjacentLeftOrRightLanelets(lanelet_of_next_point, route, true);
+    std::vector<lanelet::ConstLanelet> adjacent_right_lanelets_of_next_lanelet =
+        adjacentLeftOrRightLanelets(lanelet_of_next_point, route, false);
+    std::vector<lanelet::ConstLanelet> adjacent_lanelets_of_next_lanelet = adjacent_left_lanelets_of_next_lanelet;
+    adjacent_lanelets_of_next_lanelet.push_back(lanelet_of_next_point);
+    adjacent_lanelets_of_next_lanelet.insert(adjacent_lanelets_of_next_lanelet.end(),
+                                             adjacent_right_lanelets_of_next_lanelet.begin(),
+                                             adjacent_right_lanelets_of_next_lanelet.end());
+    n_adjacent_lanelets_of_next_lanelet = adjacent_lanelets_of_next_lanelet.size();
+
+    // find following lanelet of current lanelet and adjacent lanelets in adjacent lanelets of next lanelet
+    std::vector<std::vector<lanelet::ConstLanelet>> lanelet_groups = {
+        {lanelet}, adjacent_left_lanelets, adjacent_right_lanelets};
+    std::vector<int> lanelet_group_offset_factors = {0, 1, -1};
+    following_lane_idx_offset = std::numeric_limits<int>::max();
+
+    // first try to match following lanelet of current lanelet, then of adjacent left lanelets, then of adjacent right lanelets
+    for (size_t group_idx = 0; group_idx < lanelet_groups.size(); ++group_idx) {
+      const auto& lanelet_group = lanelet_groups[group_idx];
+      int group_offset_factor = lanelet_group_offset_factors[group_idx];
+
+      // loop over all lanelets in group
+      for (size_t a = 0; a < lanelet_group.size(); ++a) {
+        auto following_lanelets = routing_graph->following(lanelet_group[a], false);
+        auto following_lanelet = following_lanelets.front();
+        size_t following_lanelet_idx = 0;
+        size_t follow_further_idx =
+            0;  // counter for following lanelets more than once (e.g., if sampling skipped short lanelets)
+        size_t max_follow_further_iterations = 3;  // maximum number of following lanelets to check
+
+        // loop until following lanelet is found in adjacent lanelets of next lanelet
+        while (following_lane_idx_offset == std::numeric_limits<int>::max()) {
+          // check all adjacent lanelets of next lanelet
+          for (size_t l = 0; l < adjacent_lanelets_of_next_lanelet.size(); ++l) {
+            if (following_lanelet.id() == adjacent_lanelets_of_next_lanelet[l].id()) {
+              following_lane_idx_offset = l - suggested_lane_idx + group_offset_factor * (a + 1);  // gottesformel
+              break;
+            }
+          }
+
+          // check abort conditions
+          follow_further_idx++;
+          if (follow_further_idx >= max_follow_further_iterations) {
+            break;
+          }
+
+          // get next following lanelet
+          following_lanelet_idx++;
+          if (following_lanelet_idx < following_lanelets.size()) {
+            following_lanelet = following_lanelets[following_lanelet_idx];
+          } else {
+            following_lanelets = routing_graph->following(following_lanelet, false);
+            following_lanelet = following_lanelets.front();
+            following_lanelet_idx = 0;
+          }
+        }
+
+        if (following_lane_idx_offset != std::numeric_limits<int>::max()) {
+          break;
+        }
+      }
+
+      if (following_lane_idx_offset != std::numeric_limits<int>::max()) {
+        break;
+      }
+    }
+
+    if (following_lane_idx_offset == std::numeric_limits<int>::max()) {
+      RCLCPP_ERROR(rclcpp::get_logger("new_lanelet2_route_planning"),
+                   "Could not match following lanelets to adjacent lanelets of lanelet of next point");
+    }
+  }
+
+  return following_lane_idx_offset;
 }
 
 route_planning_msgs::msg::RouteElement createMinimalRouteElement(const geometry_msgs::msg::Point& position,
@@ -259,17 +350,131 @@ uint8_t laneBoundaryType(const lanelet::ConstLineString2d& line) {
 }
 
 uint8_t speedLimit(const lanelet::ConstLanelet& lanelet) {
-  // TODO: what is the ika postfix? move to constant?
-  // TODO: make Germany a param?
-  // TODO: make vehicle type a param?
-  lanelet::traffic_rules::TrafficRulesPtr traffic_rules = lanelet::traffic_rules::TrafficRulesFactory::create(
-      lanelet::Locations::Germany, std::string(lanelet::Participants::Vehicle) + ":ika");
+  lanelet::traffic_rules::TrafficRulesPtr traffic_rules = getTrafficRules();
   lanelet::traffic_rules::SpeedLimitInformation speed_limit_info = traffic_rules->speedLimit(lanelet);
   if (speed_limit_info.isMandatory) {  // TODO: include this fact in RouteMsg?
     return std::round(lanelet::units::KmHQuantity(speed_limit_info.speedLimit).value());
   } else {
     return 0;
   }
+}
+
+lanelet::traffic_rules::TrafficRulesPtr getTrafficRules() {
+  // TODO: what is the ika postfix? move to constant?
+  // TODO: make Germany a param?
+  // TODO: make vehicle type a param?
+  auto location = lanelet::Locations::Germany;
+  std::string vehicle_type = std::string(lanelet::Participants::Vehicle) + ":ika";
+  return lanelet::traffic_rules::TrafficRulesFactory::create(location, vehicle_type);
+}
+
+std::optional<lanelet::ConstLanelet> laneletAtPoint(
+    const Eigen::Vector2d& point, const lanelet::LaneletMapConstPtr& map,
+    const std::optional<lanelet::traffic_rules::TrafficRulesPtr> traffic_rules) {
+  // parameters for lanelet matching
+  const unsigned int k_nearest_lanelets = 5;
+  const double max_distance_lanelet_matching = 10.0;
+
+  // find nearest lanelets
+  std::vector<std::pair<double, lanelet::ConstLanelet>> nearest_lanelets =
+      lanelet::geometry::findNearest(map->laneletLayer, point, k_nearest_lanelets);
+
+  // find best matching lanelet
+  if (traffic_rules) {
+    std::ignore = Lanelet2Utilities::laneletSorting(point, nearest_lanelets, {}, traffic_rules.value(), {});
+    for (const auto& ll : nearest_lanelets) {
+      if (ll.first <= max_distance_lanelet_matching && traffic_rules.value()->canPass(ll.second)) {
+        return ll.second;
+      }
+    }
+  } else if (!nearest_lanelets.empty()) {
+    std::ignore = Lanelet2Utilities::laneletSorting(point, nearest_lanelets, {}, {}, {});
+    if (nearest_lanelets[0].first <= max_distance_lanelet_matching) {
+      return nearest_lanelets[0].second;
+    }
+  }
+
+  RCLCPP_ERROR(rclcpp::get_logger("new_lanelet2_route_planning"),
+               "No passable lanelet within %.3fm of given point (%.3f, %.3f)", max_distance_lanelet_matching, point.x(),
+               point.y());
+  return std::nullopt;
+}
+
+lanelet::ConstLanelet followLaneletsAlongRoutingGraph(const lanelet::routing::RoutingGraphUPtr& routing_graph,
+                                                      const lanelet::ConstLanelet& lanelet,
+                                                      const Eigen::Vector2d& position, const double distance) {
+  lanelet::ConstLanelet followed_lanelet = lanelet;
+  double remaining_length;
+  if (distance > 0) {
+    remaining_length = lanelet::geometry::length(lanelet.centerline2d()) -
+                       lanelet::geometry::toArcCoordinates(lanelet.centerline2d(), position).length;
+  } else {
+    remaining_length = lanelet::geometry::toArcCoordinates(lanelet.centerline2d(), position).length;
+  }
+  double remaining_distance = std::abs(distance);
+
+  while (remaining_distance > remaining_length) {
+    lanelet::ConstLanelets next_lanelets;
+    if (distance > 0) {
+      next_lanelets = routing_graph->following(lanelet, false);
+    } else {
+      next_lanelets = routing_graph->previous(lanelet);
+    }
+    if (next_lanelets.empty()) {
+      break;
+    }
+    followed_lanelet = next_lanelets.front();
+    remaining_distance -= remaining_length;
+    remaining_length = lanelet::geometry::length(followed_lanelet.centerline2d());
+  }
+
+  return followed_lanelet;
+}
+
+ResampleCenterlinesAlongPathResult resampleCenterlinesAlongPath(const lanelet::routing::LaneletPath& path,
+                                                                const double delta_s, bool monotonically) {
+  // init variables
+  ResampleCenterlinesAlongPathResult result;
+  double resampling_offset = 0.0;
+  Eigen::Vector2d prev_sampled_point = Eigen::Vector2d(0.0, 0.0);  // TODO: dangerous to init to 0?
+  Eigen::Vector2d prev_sampled_point_orientation = Eigen::Vector2d(0.0, 0.0);
+
+  // loop over lanelets in path
+  for (size_t l = 0; l < path.size(); ++l) {
+    // get centerline
+    const lanelet::ConstLanelet& lanelet = path[l];
+    lanelet::BasicLineString2d centerline = lanelet.centerline2d().basicLineString();
+
+    // skip point if behind previous sampled point, e.g., if on adjacent lanelet in shortest path due to lane change
+    if (monotonically && l > 0) {
+      for (auto cit = centerline.begin(); cit != centerline.end();) {
+        auto& centerline_point = *cit;
+        if ((centerline_point - prev_sampled_point).dot(prev_sampled_point_orientation) < 0) {  // angle > 90deg
+          cit = centerline.erase(cit);
+        } else {
+          break;
+        }
+      }
+    }
+
+    // resample lanelet centerline
+    std::vector<Eigen::Vector2d> resampled_centerline =
+        resampleLineString(toEigen(centerline), delta_s, resampling_offset);
+    result.centerline.insert(result.centerline.end(), resampled_centerline.begin(), resampled_centerline.end());
+    result.lanelet_idx_by_point.insert(result.lanelet_idx_by_point.end(), resampled_centerline.size(), l);
+
+    // update information for monotonicity check
+    if (monotonically && !resampled_centerline.empty()) {
+      if (resampled_centerline.size() > 1) {
+        prev_sampled_point = resampled_centerline[resampled_centerline.size() - 2];
+      }
+      prev_sampled_point_orientation =
+          tangentOfPointAlongLineString(resampled_centerline.back(), prev_sampled_point, resampled_centerline.back());
+      prev_sampled_point = resampled_centerline.back();
+    }
+  }
+
+  return result;
 }
 
 }  // namespace new_lanelet2_route_planning
