@@ -50,7 +50,7 @@ NewLanelet2RoutePlanning::NewLanelet2RoutePlanning() : Node("new_lanelet2_route_
   ll2_interface_ = std::make_unique<LL2MapInterface>(*this, ll2_map_server_name_);
 
   // delay setup to spin to allow to load the map
-  delayed_setup_timer_ = this->create_wall_timer(std::chrono::milliseconds(500), [this]() { this->setup(); });
+  delayed_setup_timer_ = this->create_wall_timer(std::chrono::milliseconds(500), std::bind(&NewLanelet2RoutePlanning::setup, this));
 }
 
 /**
@@ -162,8 +162,8 @@ rcl_interfaces::msg::SetParametersResult NewLanelet2RoutePlanning::parametersCal
   for (const auto& param : parameters) {
     if (param.get_name() == "publish_frequency") {
       publish_timer_->cancel();
-      publish_timer_ = this->create_wall_timer(std::chrono::duration<double>(1.0 / publish_frequency_),
-                                               [this]() { publisher_route_->publish(latest_route_msg_); });
+      publish_timer_ = this->create_wall_timer(std::chrono::duration<double>(1.0 / publish_frequency_), std::bind(
+          &NewLanelet2RoutePlanning::publishTimerCallback, this));
     }
   }
   if (local_route_ahead_distance_ < 0.0) local_route_ahead_distance_ = std::numeric_limits<double>::infinity();
@@ -195,8 +195,8 @@ void NewLanelet2RoutePlanning::setup() {
   // publishers
   publisher_route_ = this->create_publisher<route_planning_msgs::msg::Route>("~/route", 1);
   // TODO: start publishing only when route is available
-  publish_timer_ = this->create_wall_timer(std::chrono::duration<double>(1.0 / publish_frequency_),
-                                           [this]() { publisher_route_->publish(latest_route_msg_); });
+  publish_timer_ = this->create_wall_timer(std::chrono::duration<double>(1.0 / publish_frequency_), std::bind(
+      &NewLanelet2RoutePlanning::publishTimerCallback, this));
   is_publishing_route_ = false;
 
   // subscribers
@@ -248,6 +248,13 @@ void NewLanelet2RoutePlanning::egoDataCallback(const perception_msgs::msg::EgoDa
   }
 }
 
+// TODO: document all functions in header
+void NewLanelet2RoutePlanning::publishTimerCallback() {
+  if (is_publishing_route_) {
+    publisher_route_->publish(latest_route_msg_);
+  }
+}
+
 /**
  * @brief Processes action goal requests
  *
@@ -294,7 +301,7 @@ rclcpp_action::GoalResponse NewLanelet2RoutePlanning::actionHandleGoal(
   // abort current action if running
   if (action_goal_handle_ && action_goal_handle_->is_active()) {
     RCLCPP_WARN(this->get_logger(), "Existing action detected, aborting before accepting new goal");
-    is_publishing_route_ = false;  // stop publishing route
+    is_publishing_route_ = false; // stop publishing route
     action_goal_handle_->abort(action_result_);
   }
 
@@ -313,6 +320,7 @@ rclcpp_action::CancelResponse NewLanelet2RoutePlanning::actionHandleCancel(
   (void)goal_handle;
 
   RCLCPP_INFO(this->get_logger(), "Received request to cancel action goal");
+  is_publishing_route_ = false; // stop publishing route
 
   return rclcpp_action::CancelResponse::ACCEPT;
 }
@@ -390,15 +398,15 @@ void NewLanelet2RoutePlanning::actionExecute(
   action_result_->time_traveled = this->now() - action_start_time_;
   action_result_->destination_reached = has_reached_destination;
 
-  // stop publishing route
-  is_publishing_route_ = false;
-
   // publish result
   if (goal_handle->is_canceling()) {
     // TODO: reroute to a few meters ahead if canceling? or rather handle the safe stop in simple_planner?
     goal_handle->canceled(action_result_);
     RCLCPP_INFO(this->get_logger(), "Goal canceled");
+  } else if (!goal_handle->is_executing()) {
+    RCLCPP_INFO(this->get_logger(), "Goal aborted");
   } else if (rclcpp::ok()) {
+    is_publishing_route_ = false; // stop publishing route
     goal_handle->succeed(action_result_);
     RCLCPP_INFO(this->get_logger(), "Goal succeeded");
   }

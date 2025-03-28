@@ -46,6 +46,8 @@ class NewLanelet2RoutePlanning : public rclcpp::Node {
 
   void egoDataCallback(const perception_msgs::msg::EgoData::SharedPtr msg);
 
+  void publishTimerCallback();
+
   rclcpp_action::GoalResponse actionHandleGoal(
       const rclcpp_action::GoalUUID &uuid,
       std::shared_ptr<const route_planning_msgs::action::GlobalManeuver::Goal> goal);
