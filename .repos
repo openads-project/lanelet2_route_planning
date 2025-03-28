@@ -2,10 +2,10 @@ repositories:
   planning_interfaces:
     type: git
     url: https://gitlab.ika.rwth-aachen.de/fb-fi/definitions/planning_interfaces
-    version: refactor-route-msgs # TODO: change to main
+    version: refactor-route-msgs # TODO: change to github/main
   perception_interfaces:
     type: git
-    url: https://gitlab.ika.rwth-aachen.de/fb-fi/definitions/perception_interfaces
+    url: https://github.com/ika-rwth-aachen/perception_interfaces
     version: main
   lanelet2_map_interface:
     type: git
