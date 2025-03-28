@@ -214,7 +214,6 @@ void NewLanelet2RoutePlanning::setup() {
 }
 
 void NewLanelet2RoutePlanning::setupRoutingGraph() {
-  bool success;
   if (!ll2_interface_->map_loaded_) {
     RCLCPP_FATAL(this->get_logger(), "Cannot build routing graph, map not loaded by '%s'", ll2_map_server_name_.c_str());
     exit(EXIT_FAILURE);
@@ -414,7 +413,6 @@ void NewLanelet2RoutePlanning::actionExecute(
 }
 
 bool NewLanelet2RoutePlanning::planRoute(const geometry_msgs::msg::PointStamped& destination) {
-  bool success;
   if (!ll2_interface_->map_loaded_) {
     RCLCPP_ERROR(this->get_logger(), "Cannot plan route, map not loaded by '%s'", ll2_map_server_name_.c_str());
     return false;
