@@ -6,26 +6,27 @@
   <version>0.0.0</version>
   <description>Plans a route on a Lanelet2 map</description>
 
-  <maintainer email="todo@TODO.com">TODO</maintainer>
-  <author email="todo@TODO.com">TODO</author>
+  <maintainer email="lennart.reiher@ika.rwth-aachen.de">Lennart Reiher</maintainer>
+  <author email="lennart.reiher@ika.rwth-aachen.de">Lennart Reiher</author>
 
   <license>TODO</license>
 
   <buildtool_depend>ament_cmake</buildtool_depend>
 
+  <depend>global_maneuver_action_client</depend>
   <depend>lanelet2_core</depend>
   <depend>lanelet2_map_interface</depend>
   <depend>lanelet2_routing</depend>
   <depend>lanelet2_traffic_rules</depend>
   <depend>lanelet2_utilities</depend>
-  <depend>route_planning_msgs</depend>
-  <depend>perception_msgs</depend>
   <depend>perception_msgs_utils</depend>
-  <depend>rclcpp</depend>
+  <depend>perception_msgs</depend>
   <depend>rclcpp_action</depend>
-  <depend>tf2</depend>
+  <depend>rclcpp</depend>
+  <depend>route_planning_msgs</depend>
   <depend>tf2_geometry_msgs</depend>
   <depend>tf2_ros</depend>
+  <depend>tf2</depend>
 
   <export>
     <build_type>ament_cmake</build_type>
