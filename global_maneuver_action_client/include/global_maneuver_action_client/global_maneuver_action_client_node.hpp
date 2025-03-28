@@ -64,7 +64,7 @@ class GlobalManeuverActionClient : public rclcpp::Node {
   // parameter defaults
   uint8_t destination_mode_ = DestinationMode::SUBSCRIPTION;
   std::string map_server_name_ = "ll2_map_server";
-  std::string action_name_ = "new_lanelet2_route_planning/route";
+  std::string action_name_ = "lanelet2_route_planning/route";
   std::vector<std::string> coordinate_strings_;
   bool cancel_route_ = false;
 

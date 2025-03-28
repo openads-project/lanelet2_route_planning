@@ -15,7 +15,7 @@
 #include <geometry_msgs/msg/quaternion.hpp>
 #include <route_planning_msgs/msg/route_element.hpp>
 
-namespace new_lanelet2_route_planning {
+namespace lanelet2_route_planning {
 
 /**
  * @brief Find index of point in line string that is closest to another point.
@@ -250,4 +250,4 @@ struct ResampleCenterlinesAlongPathResult {
 ResampleCenterlinesAlongPathResult resampleCenterlinesAlongPath(const lanelet::routing::LaneletPath& path,
                                                                 const double delta_s, bool monotonically);
 
-}  // namespace new_lanelet2_route_planning
+}  // namespace lanelet2_route_planning

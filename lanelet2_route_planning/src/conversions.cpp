@@ -1,8 +1,8 @@
 #include <perception_msgs_utils/object_access.hpp>
 
-#include "new_lanelet2_route_planning/conversions.hpp"
+#include "lanelet2_route_planning/conversions.hpp"
 
-namespace new_lanelet2_route_planning {
+namespace lanelet2_route_planning {
 
 Eigen::Vector2d to2d(const Eigen::Vector3d &point) { return point.head<2>(); }
 
@@ -97,4 +97,4 @@ std::vector<Eigen::Vector3d> suggestedReferenceLineToEigen(const route_planning_
   return reference_line;
 }
 
-}  // namespace new_lanelet2_route_planning
+}  // namespace lanelet2_route_planning

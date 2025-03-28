@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.8)
-project(new_lanelet2_route_planning)
+project(lanelet2_route_planning)
 
 if(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
   add_compile_options(-Wall -Wextra -Wpedantic)
@@ -20,12 +20,12 @@ find_package(tf2 REQUIRED)
 find_package(tf2_geometry_msgs REQUIRED)
 find_package(tf2_ros REQUIRED)
 
-set(TARGET_NAME new_lanelet2_route_planning)
+set(TARGET_NAME lanelet2_route_planning)
 
 add_executable(${TARGET_NAME}
   src/conversions.cpp
   src/geometry.cpp
-  src/new_lanelet2_route_planning.cpp
+  src/lanelet2_route_planning.cpp
   src/utils.cpp
 )
 

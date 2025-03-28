@@ -8,19 +8,19 @@
 #include <perception_msgs_utils/object_access.hpp>
 #include <tf2_geometry_msgs/tf2_geometry_msgs.hpp>
 
-#include "new_lanelet2_route_planning/conversions.hpp"
-#include "new_lanelet2_route_planning/geometry.hpp"
-#include "new_lanelet2_route_planning/new_lanelet2_route_planning.hpp"
-#include "new_lanelet2_route_planning/utils.hpp"
+#include "lanelet2_route_planning/conversions.hpp"
+#include "lanelet2_route_planning/geometry.hpp"
+#include "lanelet2_route_planning/lanelet2_route_planning.hpp"
+#include "lanelet2_route_planning/utils.hpp"
 
-namespace new_lanelet2_route_planning {
+namespace lanelet2_route_planning {
 
 /**
  * @brief Constructor
  *
  * @param options node options
  */
-NewLanelet2RoutePlanning::NewLanelet2RoutePlanning() : Node("new_lanelet2_route_planning") {
+Lanelet2RoutePlanning::Lanelet2RoutePlanning() : Node("lanelet2_route_planning") {
   this->declareAndLoadParameter("ll2_map_server_name", ll2_map_server_name_, "Name of lanelet2_map_server node", false,
                                 false, true);
   this->declareAndLoadParameter("publish_frequency", publish_frequency_, "Frequency of route publication [Hz]", true,
@@ -49,7 +49,7 @@ NewLanelet2RoutePlanning::NewLanelet2RoutePlanning() : Node("new_lanelet2_route_
   ll2_interface_ = std::make_unique<LL2MapInterface>(*this, ll2_map_server_name_);
 
   // delay setup to spin to allow to load the map
-  delayed_setup_timer_ = this->create_wall_timer(std::chrono::milliseconds(500), std::bind(&NewLanelet2RoutePlanning::setup, this));
+  delayed_setup_timer_ = this->create_wall_timer(std::chrono::milliseconds(500), std::bind(&Lanelet2RoutePlanning::setup, this));
 }
 
 /**
@@ -67,7 +67,7 @@ NewLanelet2RoutePlanning::NewLanelet2RoutePlanning() : Node("new_lanelet2_route_
  * @param additional_constraints additional constraints description
  */
 template <typename T>
-void NewLanelet2RoutePlanning::declareAndLoadParameter(
+void Lanelet2RoutePlanning::declareAndLoadParameter(
     const std::string& name, T& param, const std::string& description, const bool add_to_auto_reconfigurable_params,
     const bool is_required, const bool read_only, const std::optional<double>& from_value,
     const std::optional<double>& to_value, const std::optional<double>& step_value,
@@ -145,7 +145,7 @@ void NewLanelet2RoutePlanning::declareAndLoadParameter(
  * @param parameters parameters
  * @return parameter change result
  */
-rcl_interfaces::msg::SetParametersResult NewLanelet2RoutePlanning::parametersCallback(
+rcl_interfaces::msg::SetParametersResult Lanelet2RoutePlanning::parametersCallback(
     const std::vector<rclcpp::Parameter>& parameters) {
   for (const auto& param : parameters) {
     for (auto& auto_reconfigurable_param : auto_reconfigurable_params_) {
@@ -162,7 +162,7 @@ rcl_interfaces::msg::SetParametersResult NewLanelet2RoutePlanning::parametersCal
     if (param.get_name() == "publish_frequency") {
       publish_timer_->cancel();
       publish_timer_ = this->create_wall_timer(std::chrono::duration<double>(1.0 / publish_frequency_), std::bind(
-          &NewLanelet2RoutePlanning::publishTimerCallback, this));
+          &Lanelet2RoutePlanning::publishTimerCallback, this));
     }
   }
   if (local_route_ahead_distance_ < 0.0) local_route_ahead_distance_ = std::numeric_limits<double>::infinity();
@@ -177,7 +177,7 @@ rcl_interfaces::msg::SetParametersResult NewLanelet2RoutePlanning::parametersCal
 /**
  * @brief Sets up subscribers, publishers, etc. to configure the node
  */
-void NewLanelet2RoutePlanning::setup() {
+void Lanelet2RoutePlanning::setup() {
   delayed_setup_timer_.reset();
 
   // build routing graph
@@ -185,7 +185,7 @@ void NewLanelet2RoutePlanning::setup() {
 
   // callback for dynamic parameter configuration
   parameters_callback_ = this->add_on_set_parameters_callback(
-      std::bind(&NewLanelet2RoutePlanning::parametersCallback, this, std::placeholders::_1));
+      std::bind(&Lanelet2RoutePlanning::parametersCallback, this, std::placeholders::_1));
 
   // tf transform listener
   tf_buffer_ = std::make_unique<tf2_ros::Buffer>(this->get_clock());
@@ -195,25 +195,25 @@ void NewLanelet2RoutePlanning::setup() {
   publisher_route_ = this->create_publisher<route_planning_msgs::msg::Route>("~/route", 1);
   // TODO: start publishing only when route is available
   publish_timer_ = this->create_wall_timer(std::chrono::duration<double>(1.0 / publish_frequency_), std::bind(
-      &NewLanelet2RoutePlanning::publishTimerCallback, this));
+      &Lanelet2RoutePlanning::publishTimerCallback, this));
   is_publishing_route_ = false;
 
   // subscribers
   subscriber_ego_data_ = this->create_subscription<perception_msgs::msg::EgoData>(
-      "~/ego_data", 1, std::bind(&NewLanelet2RoutePlanning::egoDataCallback, this, std::placeholders::_1));
+      "~/ego_data", 1, std::bind(&Lanelet2RoutePlanning::egoDataCallback, this, std::placeholders::_1));
 
   // action server for handling action goal requests
   // TODO: what is the callback group for?
   action_callback_group_ = this->create_callback_group(rclcpp::CallbackGroupType::MutuallyExclusive);
   action_server_ = rclcpp_action::create_server<route_planning_msgs::action::GlobalManeuver>(
       this, "~/route",
-      std::bind(&NewLanelet2RoutePlanning::actionHandleGoal, this, std::placeholders::_1, std::placeholders::_2),
-      std::bind(&NewLanelet2RoutePlanning::actionHandleCancel, this, std::placeholders::_1),
-      std::bind(&NewLanelet2RoutePlanning::actionHandleAccepted, this, std::placeholders::_1),
+      std::bind(&Lanelet2RoutePlanning::actionHandleGoal, this, std::placeholders::_1, std::placeholders::_2),
+      std::bind(&Lanelet2RoutePlanning::actionHandleCancel, this, std::placeholders::_1),
+      std::bind(&Lanelet2RoutePlanning::actionHandleAccepted, this, std::placeholders::_1),
       rcl_action_server_get_default_options(), action_callback_group_);
 }
 
-void NewLanelet2RoutePlanning::setupRoutingGraph() {
+void Lanelet2RoutePlanning::setupRoutingGraph() {
   if (!ll2_interface_->map_loaded_) {
     RCLCPP_FATAL(this->get_logger(), "Cannot build routing graph, map not loaded by '%s'", ll2_map_server_name_.c_str());
     exit(EXIT_FAILURE);
@@ -235,7 +235,7 @@ void NewLanelet2RoutePlanning::setupRoutingGraph() {
   }
 }
 
-void NewLanelet2RoutePlanning::egoDataCallback(const perception_msgs::msg::EgoData::SharedPtr msg) {
+void Lanelet2RoutePlanning::egoDataCallback(const perception_msgs::msg::EgoData::SharedPtr msg) {
   // TODO: won't ego_data have to be transformed? are we ensuring same frames somewhere?
   latest_ego_data_ = *msg;
 
@@ -249,7 +249,7 @@ void NewLanelet2RoutePlanning::egoDataCallback(const perception_msgs::msg::EgoDa
 }
 
 // TODO: document all functions in header
-void NewLanelet2RoutePlanning::publishTimerCallback() {
+void Lanelet2RoutePlanning::publishTimerCallback() {
   if (is_publishing_route_) {
     publisher_route_->publish(latest_route_msg_);
   }
@@ -262,7 +262,7 @@ void NewLanelet2RoutePlanning::publishTimerCallback() {
  * @param goal action goal
  * @return goal response
  */
-rclcpp_action::GoalResponse NewLanelet2RoutePlanning::actionHandleGoal(
+rclcpp_action::GoalResponse Lanelet2RoutePlanning::actionHandleGoal(
     const rclcpp_action::GoalUUID& uuid, route_planning_msgs::action::GlobalManeuver::Goal::ConstSharedPtr goal) {
   (void)uuid;
   (void)goal;
@@ -315,7 +315,7 @@ rclcpp_action::GoalResponse NewLanelet2RoutePlanning::actionHandleGoal(
  * @param goal_handle action goal handle
  * @return cancel response
  */
-rclcpp_action::CancelResponse NewLanelet2RoutePlanning::actionHandleCancel(
+rclcpp_action::CancelResponse Lanelet2RoutePlanning::actionHandleCancel(
     const std::shared_ptr<rclcpp_action::ServerGoalHandle<route_planning_msgs::action::GlobalManeuver>> goal_handle) {
   (void)goal_handle;
 
@@ -330,7 +330,7 @@ rclcpp_action::CancelResponse NewLanelet2RoutePlanning::actionHandleCancel(
  *
  * @param goal_handle action goal handle
  */
-void NewLanelet2RoutePlanning::actionHandleAccepted(
+void Lanelet2RoutePlanning::actionHandleAccepted(
     const std::shared_ptr<rclcpp_action::ServerGoalHandle<route_planning_msgs::action::GlobalManeuver>> goal_handle) {
   action_goal_handle_ = goal_handle;
 
@@ -353,7 +353,7 @@ void NewLanelet2RoutePlanning::actionHandleAccepted(
   is_publishing_route_ = true;
 
   // execute action in a separate thread to avoid blocking
-  std::thread{std::bind(&NewLanelet2RoutePlanning::actionExecute, this, std::placeholders::_1), goal_handle}.detach();
+  std::thread{std::bind(&Lanelet2RoutePlanning::actionExecute, this, std::placeholders::_1), goal_handle}.detach();
 }
 
 /**
@@ -361,7 +361,7 @@ void NewLanelet2RoutePlanning::actionHandleAccepted(
  *
  * @param goal_handle action goal handle
  */
-void NewLanelet2RoutePlanning::actionExecute(
+void Lanelet2RoutePlanning::actionExecute(
     const std::shared_ptr<rclcpp_action::ServerGoalHandle<route_planning_msgs::action::GlobalManeuver>> goal_handle) {
   RCLCPP_INFO(this->get_logger(), "Executing action goal");
 
@@ -412,7 +412,7 @@ void NewLanelet2RoutePlanning::actionExecute(
   }
 }
 
-bool NewLanelet2RoutePlanning::planRoute(const geometry_msgs::msg::PointStamped& destination) {
+bool Lanelet2RoutePlanning::planRoute(const geometry_msgs::msg::PointStamped& destination) {
   if (!ll2_interface_->map_loaded_) {
     RCLCPP_ERROR(this->get_logger(), "Cannot plan route, map not loaded by '%s'", ll2_map_server_name_.c_str());
     return false;
@@ -486,7 +486,7 @@ bool NewLanelet2RoutePlanning::planRoute(const geometry_msgs::msg::PointStamped&
   }
 }
 
-bool NewLanelet2RoutePlanning::laneletToGlobalRosRoute() {
+bool Lanelet2RoutePlanning::laneletToGlobalRosRoute() {
   // create Route message
   route_planning_msgs::msg::Route route_msg;
   route_msg.header.stamp = this->now();
@@ -542,7 +542,7 @@ bool NewLanelet2RoutePlanning::laneletToGlobalRosRoute() {
 }
 
 // TODO: rename this function?
-bool NewLanelet2RoutePlanning::laneletToLocalRosRoute() {
+bool Lanelet2RoutePlanning::laneletToLocalRosRoute() {
   // join traveled and remaining route elements
   route_planning_msgs::msg::Route route_msg = latest_route_msg_;
   std::vector<route_planning_msgs::msg::RouteElement> route_elements = route_msg.traveled_route_elements;
@@ -709,11 +709,11 @@ bool NewLanelet2RoutePlanning::laneletToLocalRosRoute() {
   return true;
 }
 
-}  // namespace new_lanelet2_route_planning
+}  // namespace lanelet2_route_planning
 
 int main(int argc, char* argv[]) {
   rclcpp::init(argc, argv);
-  rclcpp::spin(std::make_shared<new_lanelet2_route_planning::NewLanelet2RoutePlanning>());
+  rclcpp::spin(std::make_shared<lanelet2_route_planning::Lanelet2RoutePlanning>());
   rclcpp::shutdown();
 
   return 0;

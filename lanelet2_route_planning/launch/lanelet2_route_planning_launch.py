@@ -19,9 +19,9 @@ def generate_launch_description():
     ]
 
     args = [
-        DeclareLaunchArgument("name", default_value="new_lanelet2_route_planning", description="node name"),
+        DeclareLaunchArgument("name", default_value="lanelet2_route_planning", description="node name"),
         DeclareLaunchArgument("namespace", default_value="", description="node namespace"),
-        DeclareLaunchArgument("params", default_value=os.path.join(get_package_share_directory("new_lanelet2_route_planning"), "config", "params.yml"), description="path to parameter file"),
+        DeclareLaunchArgument("params", default_value=os.path.join(get_package_share_directory("lanelet2_route_planning"), "config", "params.yml"), description="path to parameter file"),
         DeclareLaunchArgument("log_level", default_value="info", description="ROS logging level (debug, info, warn, error, fatal)"),
         DeclareLaunchArgument("use_sim_time", default_value="false", description="use simulation clock"),
         *remappable_topics,
@@ -29,8 +29,8 @@ def generate_launch_description():
 
     nodes = [
         Node(
-            package="new_lanelet2_route_planning",
-            executable="new_lanelet2_route_planning",
+            package="lanelet2_route_planning",
+            executable="lanelet2_route_planning",
             namespace=LaunchConfiguration("namespace"),
             name=LaunchConfiguration("name"),
             parameters=[LaunchConfiguration("params")],

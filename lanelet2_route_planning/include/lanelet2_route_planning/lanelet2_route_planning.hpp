@@ -14,7 +14,7 @@
 #include <route_planning_msgs/action/global_maneuver.hpp>
 #include <route_planning_msgs/msg/route.hpp>
 
-namespace new_lanelet2_route_planning {
+namespace lanelet2_route_planning {
 
 template <typename C>
 struct is_vector : std::false_type {};
@@ -25,9 +25,9 @@ inline constexpr bool is_vector_v = is_vector<C>::value;
 
 namespace ll = lanelet;
 
-class NewLanelet2RoutePlanning : public rclcpp::Node {
+class Lanelet2RoutePlanning : public rclcpp::Node {
  public:
-  NewLanelet2RoutePlanning();
+  Lanelet2RoutePlanning();
 
  private:
   template <typename T>
@@ -129,4 +129,4 @@ class NewLanelet2RoutePlanning : public rclcpp::Node {
   double route_overshoot_distance_ = 0.0;
 };
 
-}  // namespace new_lanelet2_route_planning
+}  // namespace lanelet2_route_planning

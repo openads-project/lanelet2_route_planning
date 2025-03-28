@@ -5,7 +5,7 @@
 
 #include <Eigen/Core>
 
-namespace new_lanelet2_route_planning {
+namespace lanelet2_route_planning {
 
 /**
  * @brief Return type of intersectionOfLines.
@@ -104,4 +104,4 @@ std::optional<ProjectPointToLineStringAlongAxisResult> projectPointToLineStringA
     const Eigen::Vector2d& point, const Eigen::Vector2d& prev_point, const Eigen::Vector2d& next_point,
     const std::vector<Eigen::Vector2d>& line_string);
 
-}  // namespace new_lanelet2_route_planning
+}  // namespace lanelet2_route_planning

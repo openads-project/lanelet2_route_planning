@@ -5,11 +5,11 @@
 #include <lanelet2_utilities/lanelet2_utils.hpp>
 #include <rclcpp/rclcpp.hpp>
 
-#include "new_lanelet2_route_planning/conversions.hpp"
-#include "new_lanelet2_route_planning/geometry.hpp"
-#include "new_lanelet2_route_planning/utils.hpp"
+#include "lanelet2_route_planning/conversions.hpp"
+#include "lanelet2_route_planning/geometry.hpp"
+#include "lanelet2_route_planning/utils.hpp"
 
-namespace new_lanelet2_route_planning {
+namespace lanelet2_route_planning {
 
 size_t indexOfLineStringPointClosestToPoint(const std::vector<Eigen::Vector2d>& line_string,
                                             const Eigen::Vector2d& point) {
@@ -62,7 +62,7 @@ std::vector<ProjectedLaneletPoints> projectPointToLaneletLines(const Eigen::Vect
       projected_points.left_bound_point = result->projected_point;
     } else {
       // TODO: how to handle logs here?
-      RCLCPP_WARN(rclcpp::get_logger("new_lanelet2_route_planning"),
+      RCLCPP_WARN(rclcpp::get_logger("lanelet2_route_planning"),
                   "Failed to project point (%.3f, %.3f) to left bounds of lanelet %ld", point.x(), point.y(),
                   lanelet.id());
     }
@@ -72,7 +72,7 @@ std::vector<ProjectedLaneletPoints> projectPointToLaneletLines(const Eigen::Vect
                                                           toEigen(lanelet.centerline2d().basicLineString()))) {
       projected_points.centerline_point = result->projected_point;
     } else {
-      RCLCPP_WARN(rclcpp::get_logger("new_lanelet2_route_planning"),
+      RCLCPP_WARN(rclcpp::get_logger("lanelet2_route_planning"),
                   "Failed to project point (%.3f, %.3f) to centerline of lanelet %ld", point.x(), point.y(),
                   lanelet.id());
     }
@@ -82,7 +82,7 @@ std::vector<ProjectedLaneletPoints> projectPointToLaneletLines(const Eigen::Vect
                                                           toEigen(lanelet.rightBound2d().basicLineString()))) {
       projected_points.right_bound_point = result->projected_point;
     } else {
-      RCLCPP_WARN(rclcpp::get_logger("new_lanelet2_route_planning"),
+      RCLCPP_WARN(rclcpp::get_logger("lanelet2_route_planning"),
                   "Failed to project point (%.3f, %.3f) to right bounds of lanelet %ld", point.x(), point.y(),
                   lanelet.id());
     }
@@ -175,7 +175,7 @@ int computeFollowingLaneIdxOffset(const lanelet::ConstLanelet& lanelet,
     }
 
     if (following_lane_idx_offset == std::numeric_limits<int>::max()) {
-      RCLCPP_ERROR(rclcpp::get_logger("new_lanelet2_route_planning"),
+      RCLCPP_ERROR(rclcpp::get_logger("lanelet2_route_planning"),
                    "Could not match following lanelets to adjacent lanelets of lanelet of next point");
     }
   }
@@ -245,7 +245,7 @@ std::vector<route_planning_msgs::msg::RegulatoryElement> extractRegulatoryElemen
         }
       }
     } else {
-      RCLCPP_WARN(rclcpp::get_logger("new_lanelet2_route_planning"),
+      RCLCPP_WARN(rclcpp::get_logger("lanelet2_route_planning"),
                   "Failed to extract reference line of regulatory element '%ld' on lanelet '%ld', ignoring",
                   regulatory_element->id(), lanelet.id());
       continue;
@@ -394,7 +394,7 @@ std::optional<lanelet::ConstLanelet> laneletAtPoint(
     }
   }
 
-  RCLCPP_ERROR(rclcpp::get_logger("new_lanelet2_route_planning"),
+  RCLCPP_ERROR(rclcpp::get_logger("lanelet2_route_planning"),
                "No passable lanelet within %.3fm of given point (%.3f, %.3f)", max_distance_lanelet_matching, point.x(),
                point.y());
   return std::nullopt;
@@ -477,4 +477,4 @@ ResampleCenterlinesAlongPathResult resampleCenterlinesAlongPath(const lanelet::r
   return result;
 }
 
-}  // namespace new_lanelet2_route_planning
+}  // namespace lanelet2_route_planning

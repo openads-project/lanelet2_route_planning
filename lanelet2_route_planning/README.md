@@ -1,9 +1,9 @@
-# new_lanelet2_route_planning
+# lanelet2_route_planning
 
 Plans a route on a Lanelet2 map
 
 - [Container Images](#container-images)
-- [new_lanelet2_route_planning](#new_lanelet2_route_planning)
+- [lanelet2_route_planning](#lanelet2_route_planning)
 
 
 ### Container Images
@@ -13,7 +13,7 @@ Plans a route on a Lanelet2 map
 |  |  |  |
 
 
-## `new_lanelet2_route_planning`
+## `lanelet2_route_planning`
 
 ### Subscribed Topics
 

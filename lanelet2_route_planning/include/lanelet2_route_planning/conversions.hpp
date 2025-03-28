@@ -10,7 +10,7 @@
 #include <perception_msgs/msg/ego_data.hpp>
 #include <route_planning_msgs/msg/route.hpp>
 
-namespace new_lanelet2_route_planning {
+namespace lanelet2_route_planning {
 
 /**
  * @brief Converts a 3D Eigen point to a 2D Eigen point.
@@ -158,4 +158,4 @@ geometry_msgs::msg::Quaternion toRosQuaternion(const Eigen::Vector2d& vector);
  */
 std::vector<Eigen::Vector3d> suggestedReferenceLineToEigen(const route_planning_msgs::msg::Route& route_msg);
 
-}  // namespace new_lanelet2_route_planning
+}  // namespace lanelet2_route_planning
