@@ -15,11 +15,6 @@
 
 namespace lanelet2_route_planning {
 
-/**
- * @brief Constructor
- *
- * @param options node options
- */
 Lanelet2RoutePlanning::Lanelet2RoutePlanning() : Node("lanelet2_route_planning") {
   this->declareAndLoadParameter("ll2_map_server_name", ll2_map_server_name_, "Name of lanelet2_map_server node", false,
                                 false, true);
@@ -52,20 +47,6 @@ Lanelet2RoutePlanning::Lanelet2RoutePlanning() : Node("lanelet2_route_planning")
   delayed_setup_timer_ = this->create_wall_timer(std::chrono::milliseconds(500), std::bind(&Lanelet2RoutePlanning::setup, this));
 }
 
-/**
- * @brief Declares and loads a ROS parameter
- *
- * @param name name
- * @param param parameter variable to load into
- * @param description description
- * @param add_to_auto_reconfigurable_params enable reconfiguration of parameter
- * @param is_required whether failure to load parameter will stop node
- * @param read_only set parameter to read-only
- * @param from_value parameter range minimum
- * @param to_value parameter range maximum
- * @param step_value parameter range step
- * @param additional_constraints additional constraints description
- */
 template <typename T>
 void Lanelet2RoutePlanning::declareAndLoadParameter(
     const std::string& name, T& param, const std::string& description, const bool add_to_auto_reconfigurable_params,
@@ -139,12 +120,6 @@ void Lanelet2RoutePlanning::declareAndLoadParameter(
   }
 }
 
-/**
- * @brief Handles reconfiguration when a parameter value is changed
- *
- * @param parameters parameters
- * @return parameter change result
- */
 rcl_interfaces::msg::SetParametersResult Lanelet2RoutePlanning::parametersCallback(
     const std::vector<rclcpp::Parameter>& parameters) {
   for (const auto& param : parameters) {
@@ -174,9 +149,6 @@ rcl_interfaces::msg::SetParametersResult Lanelet2RoutePlanning::parametersCallba
   return result;
 }
 
-/**
- * @brief Sets up subscribers, publishers, etc. to configure the node
- */
 void Lanelet2RoutePlanning::setup() {
   delayed_setup_timer_.reset();
 
@@ -220,12 +192,12 @@ void Lanelet2RoutePlanning::setupRoutingGraph() {
   }
 
   // get map and traffic rules
-  ll::LaneletMapConstPtr map = ll2_interface_->getMapPtr();
-  ll::traffic_rules::TrafficRulesPtr traffic_rules = getTrafficRules();
+  lanelet::LaneletMapConstPtr map = ll2_interface_->getMapPtr();
+  lanelet::traffic_rules::TrafficRulesPtr traffic_rules = getTrafficRules();
 
   // build routing graph
-  routing_graph_ = ll::routing::RoutingGraph::build(*map, *traffic_rules);
-  ll::routing::Route::Errors errors = routing_graph_->checkValidity();
+  routing_graph_ = lanelet::routing::RoutingGraph::build(*map, *traffic_rules);
+  lanelet::routing::Route::Errors errors = routing_graph_->checkValidity();
   if (errors.size() > 0) {
     RCLCPP_FATAL(this->get_logger(), "Failed to build valid routing graph");
     for (size_t i = 0; i < errors.size(); ++i) {
@@ -241,27 +213,19 @@ void Lanelet2RoutePlanning::egoDataCallback(const perception_msgs::msg::EgoData:
 
   // recompute local route
   if (is_publishing_route_) {
-    bool success = this->laneletToLocalRosRoute();
+    bool success = this->buildEnrichedRouteMessage();
     if (!success) {
       RCLCPP_ERROR(this->get_logger(), "Failed to compute local route");
     }
   }
 }
 
-// TODO: document all functions in header
 void Lanelet2RoutePlanning::publishTimerCallback() {
   if (is_publishing_route_) {
     publisher_route_->publish(latest_route_msg_);
   }
 }
 
-/**
- * @brief Processes action goal requests
- *
- * @param uuid unique goal identifier
- * @param goal action goal
- * @return goal response
- */
 rclcpp_action::GoalResponse Lanelet2RoutePlanning::actionHandleGoal(
     const rclcpp_action::GoalUUID& uuid, route_planning_msgs::action::GlobalManeuver::Goal::ConstSharedPtr goal) {
   (void)uuid;
@@ -288,7 +252,7 @@ rclcpp_action::GoalResponse Lanelet2RoutePlanning::actionHandleGoal(
   // convert route to ROS message
   RCLCPP_INFO(this->get_logger(), "Converting route to ROS message ...");
   t0 = std::chrono::steady_clock::now();
-  success = this->laneletToGlobalRosRoute();
+  success = this->buildGlobalRouteMessage();
   t1 = std::chrono::steady_clock::now();
   dt = std::chrono::duration_cast<std::chrono::duration<double>>(t1 - t0).count();
   if (!success) {
@@ -303,18 +267,13 @@ rclcpp_action::GoalResponse Lanelet2RoutePlanning::actionHandleGoal(
     RCLCPP_WARN(this->get_logger(), "Existing action detected, aborting before accepting new goal");
     is_publishing_route_ = false; // stop publishing route
     action_goal_handle_->abort(action_result_);
+    action_goal_handle_.reset();
   }
 
   // accept action goal request
   return rclcpp_action::GoalResponse::ACCEPT_AND_EXECUTE;
 }
 
-/**
- * @brief Processes action cancel requests
- *
- * @param goal_handle action goal handle
- * @return cancel response
- */
 rclcpp_action::CancelResponse Lanelet2RoutePlanning::actionHandleCancel(
     const std::shared_ptr<rclcpp_action::ServerGoalHandle<route_planning_msgs::action::GlobalManeuver>> goal_handle) {
   (void)goal_handle;
@@ -356,11 +315,6 @@ void Lanelet2RoutePlanning::actionHandleAccepted(
   std::thread{std::bind(&Lanelet2RoutePlanning::actionExecute, this, std::placeholders::_1), goal_handle}.detach();
 }
 
-/**
- * @brief Executes an action
- *
- * @param goal_handle action goal handle
- */
 void Lanelet2RoutePlanning::actionExecute(
     const std::shared_ptr<rclcpp_action::ServerGoalHandle<route_planning_msgs::action::GlobalManeuver>> goal_handle) {
   RCLCPP_INFO(this->get_logger(), "Executing action goal");
@@ -430,8 +384,8 @@ bool Lanelet2RoutePlanning::planRoute(const geometry_msgs::msg::PointStamped& de
   geometry_msgs::msg::Point& destination_map = destination_map_stamped.point;
 
   // get map and traffic rules
-  ll::LaneletMapConstPtr map = ll2_interface_->getMapPtr();
-  ll::traffic_rules::TrafficRulesPtr traffic_rules = getTrafficRules();
+  lanelet::LaneletMapConstPtr map = ll2_interface_->getMapPtr();
+  lanelet::traffic_rules::TrafficRulesPtr traffic_rules = getTrafficRules();
 
   // check validity of ego data
   const double timeout_ego_data = 1.0;
@@ -446,7 +400,7 @@ bool Lanelet2RoutePlanning::planRoute(const geometry_msgs::msg::PointStamped& de
   }
 
   // project ego position to lanelet
-  ll::ConstLanelet ego_ll;
+  lanelet::ConstLanelet ego_ll;
   if (auto result = laneletAtPoint(toEigen2d(egoPosition(latest_ego_data_)), map)) {
     ego_ll = *result;
   } else {
@@ -456,7 +410,7 @@ bool Lanelet2RoutePlanning::planRoute(const geometry_msgs::msg::PointStamped& de
   Eigen::Vector2d ego_ll_position = projectPointToLineString(toEigen2d(egoPosition(latest_ego_data_)), toEigen(ego_ll.centerline2d().basicLineString()));
 
   // project destination to lanelet
-  ll::ConstLanelet destination_ll;
+  lanelet::ConstLanelet destination_ll;
   if (auto result = laneletAtPoint(toEigen2d(destination_map), map)) {
     destination_ll = *result;
   } else {
@@ -467,8 +421,8 @@ bool Lanelet2RoutePlanning::planRoute(const geometry_msgs::msg::PointStamped& de
 
   // undershoot/overshoot route endpoints
   // TODO: still needed?
-  ll::ConstLanelet undershot_ego_ll = followLaneletsAlongRoutingGraph(routing_graph_, ego_ll, ego_ll_position, -std::abs(route_undershoot_distance_));
-  ll::ConstLanelet overshot_destination_ll = followLaneletsAlongRoutingGraph(routing_graph_, destination_ll, destination_ll_position, route_overshoot_distance_);
+  lanelet::ConstLanelet undershot_ego_ll = followLaneletsAlongRoutingGraph(routing_graph_, ego_ll, ego_ll_position, -std::abs(route_undershoot_distance_));
+  lanelet::ConstLanelet overshot_destination_ll = followLaneletsAlongRoutingGraph(routing_graph_, destination_ll, destination_ll_position, route_overshoot_distance_);
 
   // TODO: check that start/end are not the same lanelet (?) (see L314 in global_planner_node.cpp)
 
@@ -486,7 +440,7 @@ bool Lanelet2RoutePlanning::planRoute(const geometry_msgs::msg::PointStamped& de
   }
 }
 
-bool Lanelet2RoutePlanning::laneletToGlobalRosRoute() {
+bool Lanelet2RoutePlanning::buildGlobalRouteMessage() {
   // create Route message
   route_planning_msgs::msg::Route route_msg;
   route_msg.header.stamp = this->now();
@@ -496,7 +450,7 @@ bool Lanelet2RoutePlanning::laneletToGlobalRosRoute() {
   route_msg.remaining_route_elements = {};
 
   // get shortest path
-  ll::routing::LaneletPath shortest_path = latest_route_.shortestPath();
+  lanelet::routing::LaneletPath shortest_path = latest_route_.shortestPath();
 
   // resample centerlines along shortest path to accumulate global reference line
   auto resampling_result = resampleCenterlinesAlongPath(
@@ -514,7 +468,7 @@ bool Lanelet2RoutePlanning::laneletToGlobalRosRoute() {
         (c < shortest_path_centerline.size() - 1) ? shortest_path_centerline[c + 1] : point;
 
     // get lanelet corresponding to centerline point
-    const ll::ConstLanelet& lanelet = shortest_path[latest_lanelet_idx_by_reference_line_point_idx_[c]];
+    const lanelet::ConstLanelet& lanelet = shortest_path[latest_lanelet_idx_by_reference_line_point_idx_[c]];
 
     // identify lane changes based on break in equidistant centerline
     bool changes_lane_from_prev_point = changesLaneFromPointToPoint(prev_point, point, sampling_distance_);
@@ -542,7 +496,7 @@ bool Lanelet2RoutePlanning::laneletToGlobalRosRoute() {
 }
 
 // TODO: rename this function?
-bool Lanelet2RoutePlanning::laneletToLocalRosRoute() {
+bool Lanelet2RoutePlanning::buildEnrichedRouteMessage() {
   // join traveled and remaining route elements
   route_planning_msgs::msg::Route route_msg = latest_route_msg_;
   std::vector<route_planning_msgs::msg::RouteElement> route_elements = route_msg.traveled_route_elements;
@@ -585,8 +539,8 @@ bool Lanelet2RoutePlanning::laneletToLocalRosRoute() {
     const Eigen::Vector2d next_point = toEigen2d(next_lane_element_msg.reference_pose.position);
 
     // get lanelet corresponding to centerline point
-    ll::routing::LaneletPath shortest_path = latest_route_.shortestPath();
-    const ll::ConstLanelet& lanelet = shortest_path[latest_lanelet_idx_by_reference_line_point_idx_[c]];
+    lanelet::routing::LaneletPath shortest_path = latest_route_.shortestPath();
+    const lanelet::ConstLanelet& lanelet = shortest_path[latest_lanelet_idx_by_reference_line_point_idx_[c]];
 
     // identify lane changes
     bool changes_lane_from_prev_point = changesLaneFromPointToPoint(prev_point, point, sampling_distance_);
@@ -602,8 +556,8 @@ bool Lanelet2RoutePlanning::laneletToLocalRosRoute() {
 
     // get adjacent lanelets
     // TODO: this is re-executed for every point on the same lanelet
-    std::vector<ll::ConstLanelet> adjacent_left_lanelets = adjacentLeftOrRightLanelets(lanelet, latest_route_, true);
-    std::vector<ll::ConstLanelet> adjacent_right_lanelets = adjacentLeftOrRightLanelets(lanelet, latest_route_, false);
+    std::vector<lanelet::ConstLanelet> adjacent_left_lanelets = adjacentLeftOrRightLanelets(lanelet, latest_route_, true);
+    std::vector<lanelet::ConstLanelet> adjacent_right_lanelets = adjacentLeftOrRightLanelets(lanelet, latest_route_, false);
     int suggested_lane_idx = adjacent_left_lanelets.size();
 
     // project centerline point to lanelet and adjacent lanelet centerlines and bounds
@@ -612,7 +566,7 @@ bool Lanelet2RoutePlanning::laneletToLocalRosRoute() {
     auto adjacent_right_lanelets_projected_points = projectPointToLaneletLines(point, prev_point_for_projection, next_point_for_projection, adjacent_right_lanelets);
 
     // compute offset of lane element indices from current to next route element
-    const ll::ConstLanelet& lanelet_of_next_point =
+    const lanelet::ConstLanelet& lanelet_of_next_point =
         (c < route_elements.size() - 1) ? shortest_path[latest_lanelet_idx_by_reference_line_point_idx_[c + 1]]
                                         : lanelet;
     int following_lane_idx_offset =
