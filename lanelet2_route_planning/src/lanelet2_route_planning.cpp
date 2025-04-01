@@ -27,6 +27,9 @@ Lanelet2RoutePlanning::Lanelet2RoutePlanning() : Node("lanelet2_route_planning")
   this->declareAndLoadParameter("sampling_distance", sampling_distance_,
                                 "Distance between resampled points along route [m]", true, false, false, 0.01, 10.0,
                                 0.01);
+  this->declareAndLoadParameter("destination_distance_threshold", destination_distance_threshold_,
+                                "Distance to destination where destination is considered reached [m]", true, false,
+                                false, 0.1, 10.0, 0.1);
   this->declareAndLoadParameter(
       "local_route_ahead_distance", local_route_ahead_distance_,
       "Distance ahead of ego position where global route is enriched with more information [m] (negative=unlimited)",
@@ -212,7 +215,13 @@ void Lanelet2RoutePlanning::setupRoutingGraph() {
 }
 
 void Lanelet2RoutePlanning::egoDataCallback(const perception_msgs::msg::EgoData::SharedPtr msg) {
-  latest_ego_data_ = *msg;
+  // transform ego data to map frame
+  try {
+    latest_ego_data_ = tf_buffer_->transform(*msg, ll2_interface_->map_frame_id_);
+  } catch (tf2::TransformException& ex) {
+    RCLCPP_ERROR(this->get_logger(), "Could not transform ego data from frame '%s' to frame '%s': %s",
+                 msg->header.frame_id.c_str(), ll2_interface_->map_frame_id_.c_str(), ex.what());
+  }
 
   // recompute local route
   if (is_publishing_route_) {
@@ -327,7 +336,8 @@ void Lanelet2RoutePlanning::actionExecute(
   bool has_reached_destination = false;
   while (goal_handle->is_executing() && !goal_handle->is_canceling() && !has_reached_destination) {
     // check if destination reached
-    // TODO: check by comparing ego-position to destination with threshold
+    double distance_to_destination = (toEigen2d(egoPosition(latest_ego_data_)) - toEigen2d(destination_)).norm();
+    has_reached_destination = (distance_to_destination <= destination_distance_threshold_);
 
     // update feedback and result
     if (!latest_route_msg_.traveled_route_elements.empty()) {
@@ -345,7 +355,9 @@ void Lanelet2RoutePlanning::actionExecute(
 
     // publish feedback
     goal_handle->publish_feedback(action_feedback_);
-    feedback_rate.sleep();
+    if (!has_reached_destination) {
+      feedback_rate.sleep();
+    }
   }
 
   // prepare result
@@ -396,14 +408,9 @@ bool Lanelet2RoutePlanning::planRoute(const geometry_msgs::msg::PointStamped& de
                 (this->now() - latest_ego_data_.header.stamp).seconds(), timeout_ego_data);
   }
   if (latest_ego_data_.header.frame_id != ll2_interface_->map_frame_id_) {
-    // transform ego data to map frame
-    try {
-      latest_ego_data_ = tf_buffer_->transform(latest_ego_data_, ll2_interface_->map_frame_id_);
-    } catch (tf2::TransformException& ex) {
-      RCLCPP_ERROR(this->get_logger(), "Could not transform ego data from frame '%s' to frame '%s': %s",
-                   latest_ego_data_.header.frame_id.c_str(), ll2_interface_->map_frame_id_.c_str(), ex.what());
-      return false;
-    }
+    RCLCPP_ERROR(this->get_logger(), "Ego data frame '%s' does not match map frame '%s'",
+                 latest_ego_data_.header.frame_id.c_str(), ll2_interface_->map_frame_id_.c_str());
+    return false;
   }
 
   // project ego position to lanelet

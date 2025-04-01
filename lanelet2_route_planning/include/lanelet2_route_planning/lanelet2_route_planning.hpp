@@ -236,7 +236,7 @@ class Lanelet2RoutePlanning : public rclcpp::Node {
   std::shared_ptr<tf2_ros::TransformListener> tf_listener_;
 
   /**
-   * @brief Latest ego data
+   * @brief Latest ego data in map frame
    */
   perception_msgs::msg::EgoData latest_ego_data_;
 
@@ -297,6 +297,11 @@ class Lanelet2RoutePlanning : public rclcpp::Node {
    * @brief Distance between resampled points along route [m] (parameter)
    */
   double sampling_distance_ = 0.5;
+
+  /**
+   * @brief Distance to destination where destination is considered reached [m] (parameter)
+   */
+  double destination_distance_threshold_ = 1.0;
 
   /**
    * @brief Distance ahead of ego position where global route is enriched with more information [m] (negative=unlimited) (parameter)
