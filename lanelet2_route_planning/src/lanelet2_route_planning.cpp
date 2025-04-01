@@ -575,7 +575,6 @@ bool Lanelet2RoutePlanning::buildEnrichedRouteMessage() {
         tangentOfPointAlongLineString(point, prev_point_for_projection, next_point_for_projection);
 
     // get adjacent lanelets
-    // TODO: this is re-executed for every point on the same lanelet
     std::vector<lanelet::ConstLanelet> adjacent_left_lanelets =
         adjacentLeftOrRightLanelets(lanelet, latest_route_, true);
     std::vector<lanelet::ConstLanelet> adjacent_right_lanelets =

@@ -221,7 +221,6 @@ std::vector<route_planning_msgs::msg::RegulatoryElement> extractRegulatoryElemen
                                                                                    const Eigen::Vector2d& prev_point,
                                                                                    const Eigen::Vector2d& next_point) {
   std::vector<route_planning_msgs::msg::RegulatoryElement> regulatory_element_msgs;
-  // TODO: this returns super many RegElemens, e.g., 13 for lanelet 10001143
   const auto regulatory_elements = lanelet.regulatoryElements();
   for (const auto& regulatory_element : regulatory_elements) {
     // create RegulatoryElement
@@ -437,7 +436,7 @@ ResampleCenterlinesAlongPathResult resampleCenterlinesAlongPath(const lanelet::r
   // init variables
   ResampleCenterlinesAlongPathResult result;
   double resampling_offset = 0.0;
-  Eigen::Vector2d prev_sampled_point = Eigen::Vector2d(0.0, 0.0);  // TODO: dangerous to init to 0?
+  Eigen::Vector2d prev_sampled_point = Eigen::Vector2d(0.0, 0.0);
   Eigen::Vector2d prev_sampled_point_orientation = Eigen::Vector2d(0.0, 0.0);
 
   // loop over lanelets in path
@@ -447,7 +446,7 @@ ResampleCenterlinesAlongPathResult resampleCenterlinesAlongPath(const lanelet::r
     lanelet::BasicLineString2d centerline = lanelet.centerline2d().basicLineString();
 
     // skip point if behind previous sampled point, e.g., if on adjacent lanelet in shortest path due to lane change
-    if (monotonically && l > 0) {
+    if (monotonically && !result.centerline.empty()) {
       for (auto cit = centerline.begin(); cit != centerline.end();) {
         auto& centerline_point = *cit;
         if ((centerline_point - prev_sampled_point).dot(prev_sampled_point_orientation) < 0) {  // angle > 90deg
