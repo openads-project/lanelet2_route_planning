@@ -306,12 +306,12 @@ class Lanelet2RoutePlanning : public rclcpp::Node {
   /**
    * @brief Distance ahead of ego position where global route is enriched with more information [m] (negative=unlimited) (parameter)
    */
-  double local_route_ahead_distance_ = 30.0;
+  double enrich_route_ahead_ego_distance_ = 30.0;
 
   /**
    * @brief Distance behind ego position where global route is enriched with more information [m] (negative=unlimited) (parameter)
    */
-  double local_route_behind_distance_ = 10.0;
+  double enrich_route_behind_ego_distance_ = 10.0;
 
   /**
    * @brief Undershoot route by this distance before ego position [m] (parameter)

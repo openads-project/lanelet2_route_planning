@@ -31,19 +31,21 @@ Lanelet2RoutePlanning::Lanelet2RoutePlanning() : Node("lanelet2_route_planning")
                                 "Distance to destination where destination is considered reached [m]", true, false,
                                 false, 0.1, 10.0, 0.1);
   this->declareAndLoadParameter(
-      "local_route_ahead_distance", local_route_ahead_distance_,
+      "enrich_route_ahead_ego_distance", enrich_route_ahead_ego_distance_,
       "Distance ahead of ego position where global route is enriched with more information [m] (negative=unlimited)",
       true, false, false, -1.0, 1000.0, 0.1);
   this->declareAndLoadParameter(
-      "local_route_behind_distance", local_route_behind_distance_,
+      "enrich_route_behind_ego_distance", enrich_route_behind_ego_distance_,
       "Distance behind ego position where global route is enriched with more information [m] (negative=unlimited)",
       true, false, false, -1.0, 1000.0, 0.1);
   this->declareAndLoadParameter("route_undershoot_distance", route_undershoot_distance_,
                                 "Undershoot route by this distance before ego position [m]", true, false, false);
   this->declareAndLoadParameter("route_overshoot_distance", route_overshoot_distance_,
                                 "Overshoot route by this distance behind destination [m]", true, false, false);
-  if (local_route_ahead_distance_ < 0.0) local_route_ahead_distance_ = std::numeric_limits<double>::infinity();
-  if (local_route_behind_distance_ < 0.0) local_route_behind_distance_ = std::numeric_limits<double>::infinity();
+  if (enrich_route_ahead_ego_distance_ < 0.0)
+    enrich_route_ahead_ego_distance_ = std::numeric_limits<double>::infinity();
+  if (enrich_route_behind_ego_distance_ < 0.0)
+    enrich_route_behind_ego_distance_ = std::numeric_limits<double>::infinity();
 
   // initialize lanelet2 interface
   ll2_interface_ = std::make_unique<LL2MapInterface>(*this, ll2_map_server_name_);
@@ -148,8 +150,10 @@ rcl_interfaces::msg::SetParametersResult Lanelet2RoutePlanning::parametersCallba
                                                std::bind(&Lanelet2RoutePlanning::publishTimerCallback, this));
     }
   }
-  if (local_route_ahead_distance_ < 0.0) local_route_ahead_distance_ = std::numeric_limits<double>::infinity();
-  if (local_route_behind_distance_ < 0.0) local_route_behind_distance_ = std::numeric_limits<double>::infinity();
+  if (enrich_route_ahead_ego_distance_ < 0.0)
+    enrich_route_ahead_ego_distance_ = std::numeric_limits<double>::infinity();
+  if (enrich_route_behind_ego_distance_ < 0.0)
+    enrich_route_behind_ego_distance_ = std::numeric_limits<double>::infinity();
 
   rcl_interfaces::msg::SetParametersResult result;
   result.successful = true;
@@ -528,9 +532,9 @@ bool Lanelet2RoutePlanning::buildEnrichedRouteMessage() {
     route_planning_msgs::msg::LaneElement& lane_element_msg =
         route_element_msg.lane_elements[route_element_msg.suggested_lane_idx];
 
-    // only consider route elements within local_route_behind_distance_ and local_route_ahead_distance_ for local route
+    // only consider route elements within enrich_route_behind_ego_distance_ and enrich_route_ahead_ego_distance_ for local route
     double distance_ahead = route_element_msg.s - route_elements[c_min_distance_ego_to_route].s;
-    if (distance_ahead > local_route_ahead_distance_ || distance_ahead < -local_route_behind_distance_) {
+    if (distance_ahead > enrich_route_ahead_ego_distance_ || distance_ahead < -enrich_route_behind_ego_distance_) {
       // clear local route enriched information, if existing
       route_element_msg = createMinimalRouteElement(
           lane_element_msg.reference_pose.position, lane_element_msg.reference_pose.orientation, route_element_msg.s,
