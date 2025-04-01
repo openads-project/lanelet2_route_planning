@@ -4,6 +4,7 @@
 #include <lanelet2_traffic_rules/TrafficRulesFactory.h>
 #include <lanelet2_utilities/lanelet2_utils.hpp>
 #include <rclcpp/rclcpp.hpp>
+#include <route_planning_msgs_utils/route_access.hpp>
 
 #include "lanelet2_route_planning/conversions.hpp"
 #include "lanelet2_route_planning/geometry.hpp"
@@ -475,6 +476,23 @@ ResampleCenterlinesAlongPathResult resampleCenterlinesAlongPath(const lanelet::r
   }
 
   return result;
+}
+
+double estimateRemainingTime(const std::vector<route_planning_msgs::msg::RouteElement>& route_elements,
+                             const double reference_speed) {
+  double remaining_time = 0.0;
+  for (size_t r = 0; r < route_elements.size() - 1; ++r) {
+    const auto& route_element = route_elements[r];
+    const auto& next_route_element = route_elements[r + 1];
+    double speed_limit = route_planning_msgs::route_access::getSuggestedLaneElement(route_element).speed_limit;
+    if (speed_limit == 0) {
+      speed_limit = reference_speed;
+    }
+    if (speed_limit > 0) {
+      remaining_time += (next_route_element.s - route_element.s) / speed_limit;
+    }
+  }
+  return remaining_time;
 }
 
 }  // namespace lanelet2_route_planning

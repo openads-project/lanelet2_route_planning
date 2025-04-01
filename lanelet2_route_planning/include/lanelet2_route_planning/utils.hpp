@@ -250,4 +250,14 @@ struct ResampleCenterlinesAlongPathResult {
 ResampleCenterlinesAlongPathResult resampleCenterlinesAlongPath(const lanelet::routing::LaneletPath& path,
                                                                 const double delta_s, bool monotonically);
 
+/**
+ * @brief Estimate remaining time for a route based on speed limits.
+ *
+ * @param[in] route_elements route elements
+ * @param[in] reference_speed reference speed if speed limit is not set [m/s]
+ * @return estimated remaining time [s]
+ */
+double estimateRemainingTime(const std::vector<route_planning_msgs::msg::RouteElement>& route_elements,
+                             const double reference_speed = 50.0 / 3.6);
+
 }  // namespace lanelet2_route_planning

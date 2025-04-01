@@ -6,7 +6,9 @@
 #include <geometry_msgs/msg/point_stamped.hpp>
 #include <perception_msgs/msg/ego_data.hpp>
 #include <perception_msgs_utils/object_access.hpp>
+#include <route_planning_msgs_utils/route_access.hpp>
 #include <tf2_geometry_msgs/tf2_geometry_msgs.hpp>
+#include <tf2_perception_msgs/tf2_perception_msgs.hpp>
 
 #include "lanelet2_route_planning/conversions.hpp"
 #include "lanelet2_route_planning/geometry.hpp"
@@ -168,7 +170,6 @@ void Lanelet2RoutePlanning::setup() {
 
   // publishers
   publisher_route_ = this->create_publisher<route_planning_msgs::msg::Route>("~/route", 1);
-  // TODO: start publishing only when route is available
   publish_timer_ = this->create_wall_timer(std::chrono::duration<double>(1.0 / publish_frequency_),
                                            std::bind(&Lanelet2RoutePlanning::publishTimerCallback, this));
   is_publishing_route_ = false;
@@ -178,7 +179,6 @@ void Lanelet2RoutePlanning::setup() {
       "~/ego_data", 1, std::bind(&Lanelet2RoutePlanning::egoDataCallback, this, std::placeholders::_1));
 
   // action server for handling action goal requests
-  // TODO: what is the callback group for?
   action_callback_group_ = this->create_callback_group(rclcpp::CallbackGroupType::MutuallyExclusive);
   action_server_ = rclcpp_action::create_server<route_planning_msgs::action::GlobalManeuver>(
       this, "~/route",
@@ -212,7 +212,6 @@ void Lanelet2RoutePlanning::setupRoutingGraph() {
 }
 
 void Lanelet2RoutePlanning::egoDataCallback(const perception_msgs::msg::EgoData::SharedPtr msg) {
-  // TODO: won't ego_data have to be transformed? are we ensuring same frames somewhere?
   latest_ego_data_ = *msg;
 
   // recompute local route
@@ -306,7 +305,8 @@ void Lanelet2RoutePlanning::actionHandleAccepted(
     action_feedback_->distance_remaining = latest_route_msg_.remaining_route_elements.back().s;
   }
   action_feedback_->time_traveled = rclcpp::Duration::from_seconds(0.0);
-  action_feedback_->time_remaining = rclcpp::Duration::from_seconds(0.0);  // TODO: compute with speed limit along route
+  action_feedback_->time_remaining =
+      rclcpp::Duration::from_seconds(estimateRemainingTime(latest_route_msg_.remaining_route_elements));
   action_result_ = std::make_shared<route_planning_msgs::action::GlobalManeuver::Result>();
   action_result_->distance_traveled = 0.0;
   action_result_->time_traveled = rclcpp::Duration::from_seconds(0.0);
@@ -330,7 +330,6 @@ void Lanelet2RoutePlanning::actionExecute(
     // TODO: check by comparing ego-position to destination with threshold
 
     // update feedback and result
-    // TODO: distance only accurate to RouteElements, but accurate enough?
     if (!latest_route_msg_.traveled_route_elements.empty()) {
       action_feedback_->distance_traveled = latest_route_msg_.traveled_route_elements.back().s;
     }
@@ -340,7 +339,7 @@ void Lanelet2RoutePlanning::actionExecute(
     }
     action_feedback_->time_traveled = this->now() - action_start_time_;
     action_feedback_->time_remaining =
-        rclcpp::Duration::from_seconds(0.0);  // TODO: compute with speed limit along route
+        rclcpp::Duration::from_seconds(estimateRemainingTime(latest_route_msg_.remaining_route_elements));
     action_result_->distance_traveled = action_feedback_->distance_traveled;
     action_result_->time_traveled = action_feedback_->time_traveled;
 
@@ -358,7 +357,6 @@ void Lanelet2RoutePlanning::actionExecute(
 
   // publish result
   if (goal_handle->is_canceling()) {
-    // TODO: reroute to a few meters ahead if canceling? or rather handle the safe stop in simple_planner?
     goal_handle->canceled(action_result_);
     RCLCPP_INFO(this->get_logger(), "Goal canceled");
   } else if (!goal_handle->is_executing()) {
@@ -398,9 +396,14 @@ bool Lanelet2RoutePlanning::planRoute(const geometry_msgs::msg::PointStamped& de
                 (this->now() - latest_ego_data_.header.stamp).seconds(), timeout_ego_data);
   }
   if (latest_ego_data_.header.frame_id != ll2_interface_->map_frame_id_) {
-    RCLCPP_ERROR(this->get_logger(), "Ego data frame '%s' does not match map frame '%s'",
-                 latest_ego_data_.header.frame_id.c_str(), ll2_interface_->map_frame_id_.c_str());
-    return false;
+    // transform ego data to map frame
+    try {
+      latest_ego_data_ = tf_buffer_->transform(latest_ego_data_, ll2_interface_->map_frame_id_);
+    } catch (tf2::TransformException& ex) {
+      RCLCPP_ERROR(this->get_logger(), "Could not transform ego data from frame '%s' to frame '%s': %s",
+                   latest_ego_data_.header.frame_id.c_str(), ll2_interface_->map_frame_id_.c_str(), ex.what());
+      return false;
+    }
   }
 
   // project ego position to lanelet
@@ -425,14 +428,11 @@ bool Lanelet2RoutePlanning::planRoute(const geometry_msgs::msg::PointStamped& de
   Eigen::Vector2d destination_ll_position =
       projectPointToLineString(toEigen2d(destination_map), toEigen(destination_ll.centerline2d().basicLineString()));
 
-  // undershoot/overshoot route endpoints
-  // TODO: still needed?
+  // undershoot/overshoot route endpoints to enable context before start position and behind destination
   lanelet::ConstLanelet undershot_ego_ll =
       followLaneletsAlongRoutingGraph(routing_graph_, ego_ll, ego_ll_position, -std::abs(route_undershoot_distance_));
   lanelet::ConstLanelet overshot_destination_ll = followLaneletsAlongRoutingGraph(
       routing_graph_, destination_ll, destination_ll_position, route_overshoot_distance_);
-
-  // TODO: check that start/end are not the same lanelet (?) (see L314 in global_planner_node.cpp)
 
   // plan route
   const int routing_cost_id = 0;  // RoutingCostDistance
@@ -503,7 +503,6 @@ bool Lanelet2RoutePlanning::buildGlobalRouteMessage() {
   return true;
 }
 
-// TODO: rename this function?
 bool Lanelet2RoutePlanning::buildEnrichedRouteMessage() {
   // join traveled and remaining route elements
   route_planning_msgs::msg::Route route_msg = latest_route_msg_;
@@ -538,12 +537,12 @@ bool Lanelet2RoutePlanning::buildEnrichedRouteMessage() {
     }
 
     // get current, previous and next centerline point
-    // TODO: msg access function to get suggested lane element
-    route_planning_msgs::msg::LaneElement& prev_lane_element_msg =
-        (c > 0) ? route_elements[c - 1].lane_elements[route_elements[c - 1].suggested_lane_idx] : lane_element_msg;
-    route_planning_msgs::msg::LaneElement& next_lane_element_msg =
-        (c < route_elements.size() - 1) ? route_elements[c + 1].lane_elements[route_elements[c + 1].suggested_lane_idx]
-                                        : lane_element_msg;
+    route_planning_msgs::msg::LaneElement prev_lane_element_msg =
+        (c > 0) ? route_planning_msgs::route_access::getSuggestedLaneElement(route_elements[c - 1]) : lane_element_msg;
+    route_planning_msgs::msg::LaneElement next_lane_element_msg =
+        (c < route_elements.size() - 1)
+            ? route_planning_msgs::route_access::getSuggestedLaneElement(route_elements[c + 1])
+            : lane_element_msg;
     const Eigen::Vector2d point = toEigen2d(lane_element_msg.reference_pose.position);
     const Eigen::Vector2d prev_point = toEigen2d(prev_lane_element_msg.reference_pose.position);
     const Eigen::Vector2d next_point = toEigen2d(next_lane_element_msg.reference_pose.position);
