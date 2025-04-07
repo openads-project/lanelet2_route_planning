@@ -162,10 +162,13 @@ rcl_interfaces::msg::SetParametersResult Lanelet2RoutePlanning::parametersCallba
 }
 
 void Lanelet2RoutePlanning::setup() {
-  delayed_setup_timer_.reset();
-
   // build routing graph
-  this->setupRoutingGraph();
+  if (!this->setupRoutingGraph()) {
+    RCLCPP_WARN(this->get_logger(), "Failed to load map, retrying");
+    return;
+  } else {
+    delayed_setup_timer_->cancel();
+  }
 
   // callback for dynamic parameter configuration
   parameters_callback_ = this->add_on_set_parameters_callback(
@@ -195,11 +198,11 @@ void Lanelet2RoutePlanning::setup() {
       rcl_action_server_get_default_options(), action_callback_group_);
 }
 
-void Lanelet2RoutePlanning::setupRoutingGraph() {
+bool Lanelet2RoutePlanning::setupRoutingGraph() {
   if (!ll2_interface_->map_loaded_) {
-    RCLCPP_FATAL(this->get_logger(), "Cannot build routing graph, map not loaded by '%s'",
+    RCLCPP_ERROR(this->get_logger(), "Cannot build routing graph, map not loaded by '%s'",
                  ll2_map_server_name_.c_str());
-    exit(EXIT_FAILURE);
+    return false;
   }
 
   // get map and traffic rules
@@ -216,6 +219,7 @@ void Lanelet2RoutePlanning::setupRoutingGraph() {
     }
     exit(EXIT_FAILURE);
   }
+  return true;
 }
 
 void Lanelet2RoutePlanning::egoDataCallback(const perception_msgs::msg::EgoData::SharedPtr msg) {

@@ -73,7 +73,7 @@ class Lanelet2RoutePlanning : public rclcpp::Node {
   /**
    * @brief Loads the map and sets up the routing graph
    */
-  void setupRoutingGraph();
+  bool setupRoutingGraph();
 
   /**
    * @brief Callback for EgoData
