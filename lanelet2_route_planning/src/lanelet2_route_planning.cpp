@@ -219,6 +219,7 @@ bool Lanelet2RoutePlanning::setupRoutingGraph() {
     }
     exit(EXIT_FAILURE);
   }
+  ll2_interface_->update_pending_ = false;
   return true;
 }
 
@@ -254,6 +255,14 @@ rclcpp_action::GoalResponse Lanelet2RoutePlanning::actionHandleGoal(
   const geometry_msgs::msg::PointStamped& destination = goal->destination;
   RCLCPP_INFO(this->get_logger(), "Received request to plan route to destination (%.3f, %.3f, %.3f) in frame '%s'",
               destination.point.x, destination.point.y, destination.point.z, destination.header.frame_id.c_str());
+
+  // check for map update
+  if (ll2_interface_->update_pending_) {
+    if (!this->setupRoutingGraph()) {
+      RCLCPP_ERROR(this->get_logger(), "Failed to update routing graph with pending map update, rejecting request");
+      return rclcpp_action::GoalResponse::REJECT;
+    }
+  }
 
   // plan route
   RCLCPP_INFO(this->get_logger(), "Planning route to destination ...");
