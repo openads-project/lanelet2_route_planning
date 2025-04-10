@@ -1,5 +1,6 @@
 /**/*:
   ros__parameters:
+    ll2_map_server_name: ll2_map_server
     # waypoints:
     #   - "<LATITUDE>, <LONGITUDE>"
     enable_random_destination: false

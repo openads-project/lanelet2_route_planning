@@ -6,6 +6,7 @@
 #include <vector>
 
 #include <geometry_msgs/msg/pose_stamped.hpp>
+#include <lanelet2_map_interface/lanelet2_map_interface.hpp>
 #include <rclcpp/rclcpp.hpp>
 #include <rclcpp_action/rclcpp_action.hpp>
 #include <route_planning_msgs/action/plan_route.hpp>
@@ -157,6 +158,11 @@ class PlanRouteActionClient : public rclcpp::Node {
   rclcpp::TimerBase::SharedPtr auto_planning_timer_;
 
   /**
+   * @brief Lanelet2 map interface
+   */
+  std::unique_ptr<LL2MapInterface> ll2_interface_;
+
+  /**
    * @brief WGS84 waypoints to endlessly follow
    */
   std::vector<std::pair<double, double>> waypoints_;
@@ -170,6 +176,11 @@ class PlanRouteActionClient : public rclcpp::Node {
    * @brief Whether one goal has been completed (succeeded or failed)
    */
   bool has_completed_one_goal_ = false;
+
+  /**
+   * @brief Name of lanelet2_map_server node (parameter)
+   */
+  std::string ll2_map_server_name_ = "ll2_map_server";
 
   /**
    * @brief WGS84 waypoints to endlessly follow (parameter)

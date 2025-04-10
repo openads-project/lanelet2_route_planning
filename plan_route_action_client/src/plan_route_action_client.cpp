@@ -2,7 +2,11 @@
 #include <functional>
 #include <optional>
 
-#include <plan_route_action_client/plan_route_action_client.hpp>
+#include <lanelet2_core/geometry/LaneletMap.h>
+#include <tf2/LinearMath/Quaternion.h>
+#include <tf2_geometry_msgs/tf2_geometry_msgs.hpp>
+
+#include "plan_route_action_client/plan_route_action_client.hpp"
 
 namespace plan_route_action_client {
 
@@ -28,6 +32,7 @@ std::optional<std::vector<std::pair<double, double>>> parseWaypoints(const std::
 }
 
 PlanRouteActionClient::PlanRouteActionClient() : Node("plan_route_action_client") {
+  this->declareAndLoadParameter("ll2_map_server_name", ll2_map_server_name_, "Name of lanelet2_map_server node", false);
   this->declareAndLoadParameter(
       "waypoints", waypoints_param_,
       "List of WGS84 waypoints to endlessly follow (list of strings with comma-separated '<LATITUDE>,<LONGITUDE>')",
@@ -175,6 +180,9 @@ void PlanRouteActionClient::setup() {
   // action client
   action_client_ = rclcpp_action::create_client<PlanRoute>(this, "/lanelet2_route_planning/plan_route");
 
+  // ll2 map interface
+  ll2_interface_ = std::make_unique<LL2MapInterface>(*this, ll2_map_server_name_);
+
   // parse waypoints
   auto parsed_waypoints = parseWaypoints(waypoints_param_);
   if (parsed_waypoints) {
@@ -232,10 +240,45 @@ void PlanRouteActionClient::planToNextWaypoint() {
 void PlanRouteActionClient::planToRandomDestination() {
   RCLCPP_INFO(this->get_logger(), "Planning route to random destination");
 
-  // cancel auto-planning timer until goal completion
-  auto_planning_timer_->cancel();
+  // check if map is loaded
+  if (!ll2_interface_->map_loaded_) {
+    RCLCPP_ERROR(this->get_logger(), "Map not loaded, cannot generate a random destination");
+    return;
+  }
 
-  // TODO
+  // generate random goal pose by sampling a random lanelet
+  auto goal_pose = std::make_shared<geometry_msgs::msg::PoseStamped>();
+  lanelet::LaneletMapConstPtr map = ll2_interface_->getMapPtr();
+  if (!map->laneletLayer.empty()) {
+    auto random_lanelet = *std::next(map->laneletLayer.begin(), std::rand() % map->laneletLayer.size());
+    auto centerline = random_lanelet.centerline();
+    if (centerline.size() > 0) {
+      auto point = centerline.back();
+      goal_pose->pose.position.x = point.x();
+      goal_pose->pose.position.y = point.y();
+      goal_pose->pose.position.z = point.z();
+      if (centerline.size() > 1) {
+        auto heading = std::atan2(point.y() - centerline[centerline.size() - 2].y(),
+                                  point.x() - centerline[centerline.size() - 2].x());
+        tf2::Quaternion q;
+        q.setRPY(0, 0, heading);
+        goal_pose->pose.orientation = tf2::toMsg(q);
+      }
+      goal_pose->header.frame_id = ll2_interface_->map_frame_id_;
+      goal_pose->header.stamp = this->now();
+    }
+  }
+
+  // send goal
+  if (!goal_pose->header.frame_id.empty()) {
+    RCLCPP_INFO(this->get_logger(), "Generated random goal pose (%.3f, %.3f, %.3f) in frame '%s'",
+                goal_pose->pose.position.x, goal_pose->pose.position.y, goal_pose->pose.position.z,
+                goal_pose->header.frame_id.c_str());
+    auto_planning_timer_->cancel();  // cancel auto-planning timer until goal completion
+    this->sendGoal(goal_pose);
+  } else {
+    RCLCPP_ERROR(this->get_logger(), "Failed to generate random goal pose");
+  }
 }
 
 void PlanRouteActionClient::sendGoal(const geometry_msgs::msg::PoseStamped::SharedPtr msg) {
@@ -245,6 +288,7 @@ void PlanRouteActionClient::sendGoal(const geometry_msgs::msg::PoseStamped::Shar
   // check if action server is available
   if (!action_client_->wait_for_action_server(std::chrono::duration<double>(0.1))) {
     RCLCPP_ERROR(this->get_logger(), "Action server not available, aborting");
+    auto_planning_timer_->reset();  // restart auto-planning timer
     return;
   }
 
@@ -306,8 +350,7 @@ void PlanRouteActionClient::resultCallback(const GoalHandlePlanRoute::WrappedRes
     RCLCPP_ERROR(this->get_logger(), "Goal finished with unknown result code: %d", static_cast<int>(result.code));
   }
 
-  // restart auto-planning timer
-  auto_planning_timer_->reset();
+  auto_planning_timer_->reset();  // restart auto-planning timer
   has_completed_one_goal_ = true;
 }
 
