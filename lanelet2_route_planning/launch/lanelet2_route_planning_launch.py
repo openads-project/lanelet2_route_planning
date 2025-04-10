@@ -14,7 +14,7 @@ def generate_launch_description():
     remappable_topics = [
         DeclareLaunchArgument("ego_data_topic", default_value="~/ego_data"),
         DeclareLaunchArgument("route_topic", default_value="~/route"),
-        DeclareLaunchArgument("route_action", default_value="~/route"),
+        DeclareLaunchArgument("route_action", default_value="/lanelet2_route_planning/plan_route"),
         DeclareLaunchArgument("goal_pose_topic", default_value="/goal_pose"),
     ]
 
@@ -40,11 +40,11 @@ def generate_launch_description():
             emulate_tty=True,
         ),
         Node(
-            package="global_maneuver_action_client",
-            executable="global_maneuver_action_client_node",
+            package="plan_route_action_client",
+            executable="plan_route_action_client",
             namespace=LaunchConfiguration("namespace"),
-            name="global_maneuver_action_client",
-            parameters=[],
+            name="plan_route_action_client",
+            parameters=[LaunchConfiguration("params")],
             arguments=["--ros-args", "--log-level", LaunchConfiguration("log_level")],
             remappings=[(la.default_value[0].text, LaunchConfiguration(la.name)) for la in remappable_topics],
             output="screen",

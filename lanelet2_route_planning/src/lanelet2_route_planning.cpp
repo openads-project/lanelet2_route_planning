@@ -196,7 +196,7 @@ void Lanelet2RoutePlanning::setup() {
   // action server for handling action goal requests
   action_callback_group_ = this->create_callback_group(rclcpp::CallbackGroupType::MutuallyExclusive);
   action_server_ = rclcpp_action::create_server<route_planning_msgs::action::GlobalManeuver>(
-      this, "~/route",
+      this, "~/plan_route",
       std::bind(&Lanelet2RoutePlanning::actionHandleGoal, this, std::placeholders::_1, std::placeholders::_2),
       std::bind(&Lanelet2RoutePlanning::actionHandleCancel, this, std::placeholders::_1),
       std::bind(&Lanelet2RoutePlanning::actionHandleAccepted, this, std::placeholders::_1),
