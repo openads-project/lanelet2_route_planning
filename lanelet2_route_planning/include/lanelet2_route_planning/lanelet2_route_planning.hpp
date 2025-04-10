@@ -71,9 +71,18 @@ class Lanelet2RoutePlanning : public rclcpp::Node {
   void setup();
 
   /**
-   * @brief Loads the map and sets up the routing graph
+   * @brief Checks if map is loaded and updated to react to map updates
+   *
+   * This function is invoked periodically to react to map updates.
    */
-  bool setupRoutingGraph();
+  void checkMap();
+
+  /**
+   * @brief Builds the lanelet2 routing graph based on the current map
+   *
+   * @return whether successful
+   */
+  bool buildRoutingGraph();
 
   /**
    * @brief Callback for EgoData
@@ -176,9 +185,9 @@ class Lanelet2RoutePlanning : public rclcpp::Node {
   OnSetParametersCallbackHandle::SharedPtr parameters_callback_;
 
   /**
-   * @brief Timer for delayed setup required for proper lanelet2_map_server initialization
+   * @brief Timer to periodically check if map is loaded or updated
    */
-  rclcpp::TimerBase::SharedPtr delayed_setup_timer_;
+  rclcpp::TimerBase::SharedPtr check_map_timer_;
 
   /**
    * @brief Subscriber for ego data

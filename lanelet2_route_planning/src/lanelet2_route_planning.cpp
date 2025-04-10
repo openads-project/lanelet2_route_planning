@@ -50,9 +50,9 @@ Lanelet2RoutePlanning::Lanelet2RoutePlanning() : Node("lanelet2_route_planning")
   // initialize lanelet2 interface
   ll2_interface_ = std::make_unique<LL2MapInterface>(*this, ll2_map_server_name_);
 
-  // delay setup to spin to allow to load the map
-  delayed_setup_timer_ =
-      this->create_wall_timer(std::chrono::milliseconds(500), std::bind(&Lanelet2RoutePlanning::setup, this));
+  // periodically check if map is loaded and updated
+  check_map_timer_ =
+      this->create_wall_timer(std::chrono::milliseconds(100), std::bind(&Lanelet2RoutePlanning::checkMap, this));
 }
 
 template <typename T>
@@ -150,10 +150,12 @@ rcl_interfaces::msg::SetParametersResult Lanelet2RoutePlanning::parametersCallba
                                                std::bind(&Lanelet2RoutePlanning::publishTimerCallback, this));
     }
   }
-  if (enrich_route_ahead_ego_distance_ < 0.0)
+  if (enrich_route_ahead_ego_distance_ < 0.0) {
     enrich_route_ahead_ego_distance_ = std::numeric_limits<double>::infinity();
-  if (enrich_route_behind_ego_distance_ < 0.0)
+  }
+  if (enrich_route_behind_ego_distance_ < 0.0) {
     enrich_route_behind_ego_distance_ = std::numeric_limits<double>::infinity();
+  }
 
   rcl_interfaces::msg::SetParametersResult result;
   result.successful = true;
@@ -161,15 +163,16 @@ rcl_interfaces::msg::SetParametersResult Lanelet2RoutePlanning::parametersCallba
   return result;
 }
 
-void Lanelet2RoutePlanning::setup() {
-  // build routing graph
-  if (!this->setupRoutingGraph()) {
-    RCLCPP_WARN(this->get_logger(), "Failed to load map, retrying");
-    return;
-  } else {
-    delayed_setup_timer_->cancel();
+void Lanelet2RoutePlanning::checkMap() {
+  if (ll2_interface_->map_loaded_ && ll2_interface_->update_pending_) {
+    bool success = this->buildRoutingGraph();
+    if (success) {
+      ll2_interface_->update_pending_ = false;
+    }
   }
+}
 
+void Lanelet2RoutePlanning::setup() {
   // callback for dynamic parameter configuration
   parameters_callback_ = this->add_on_set_parameters_callback(
       std::bind(&Lanelet2RoutePlanning::parametersCallback, this, std::placeholders::_1));
@@ -198,7 +201,7 @@ void Lanelet2RoutePlanning::setup() {
       rcl_action_server_get_default_options(), action_callback_group_);
 }
 
-bool Lanelet2RoutePlanning::setupRoutingGraph() {
+bool Lanelet2RoutePlanning::buildRoutingGraph() {
   if (!ll2_interface_->map_loaded_) {
     RCLCPP_ERROR(this->get_logger(), "Cannot build routing graph, map not loaded by '%s'",
                  ll2_map_server_name_.c_str());
@@ -213,17 +216,22 @@ bool Lanelet2RoutePlanning::setupRoutingGraph() {
   routing_graph_ = lanelet::routing::RoutingGraph::build(*map, *traffic_rules);
   lanelet::routing::Route::Errors errors = routing_graph_->checkValidity();
   if (errors.size() > 0) {
-    RCLCPP_FATAL(this->get_logger(), "Failed to build valid routing graph");
+    RCLCPP_ERROR(this->get_logger(), "Failed to build valid routing graph");
     for (size_t i = 0; i < errors.size(); ++i) {
-      RCLCPP_FATAL_STREAM(this->get_logger(), errors[i]);
+      RCLCPP_ERROR_STREAM(this->get_logger(), errors[i]);
     }
-    exit(EXIT_FAILURE);
+    return false;
   }
-  ll2_interface_->update_pending_ = false;
+
+  RCLCPP_INFO(this->get_logger(), "Successfully built routing graph");
   return true;
 }
 
 void Lanelet2RoutePlanning::egoDataCallback(const perception_msgs::msg::EgoData::SharedPtr msg) {
+  if (ll2_interface_->map_loaded_) {
+    return;
+  }
+
   // transform ego data to map frame
   try {
     latest_ego_data_ = tf_buffer_->transform(*msg, ll2_interface_->map_frame_id_);
@@ -256,12 +264,10 @@ rclcpp_action::GoalResponse Lanelet2RoutePlanning::actionHandleGoal(
   RCLCPP_INFO(this->get_logger(), "Received request to plan route to destination (%.3f, %.3f, %.3f) in frame '%s'",
               destination.point.x, destination.point.y, destination.point.z, destination.header.frame_id.c_str());
 
-  // check for map update
-  if (ll2_interface_->update_pending_) {
-    if (!this->setupRoutingGraph()) {
-      RCLCPP_ERROR(this->get_logger(), "Failed to update routing graph with pending map update, rejecting request");
-      return rclcpp_action::GoalResponse::REJECT;
-    }
+  // check if routing graph is built
+  if (!routing_graph_) {
+    RCLCPP_ERROR(this->get_logger(), "Cannot plan route, routing graph is not built");
+    return rclcpp_action::GoalResponse::REJECT;
   }
 
   // plan route
