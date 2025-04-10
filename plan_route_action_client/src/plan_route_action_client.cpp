@@ -173,7 +173,7 @@ void PlanRouteActionClient::setup() {
   RCLCPP_INFO(this->get_logger(), "Subscribed to '%s'", goal_pose_subscriber_->get_topic_name());
 
   // action client
-  action_client_ = rclcpp_action::create_client<GlobalManeuver>(this, "/lanelet2_route_planning/plan_route");
+  action_client_ = rclcpp_action::create_client<PlanRoute>(this, "/lanelet2_route_planning/plan_route");
 
   // parse waypoints
   auto parsed_waypoints = parseWaypoints(waypoints_param_);
@@ -249,13 +249,13 @@ void PlanRouteActionClient::sendGoal(const geometry_msgs::msg::PoseStamped::Shar
   }
 
   // build goal
-  auto goal = GlobalManeuver::Goal();
+  auto goal = PlanRoute::Goal();
   goal.destination = geometry_msgs::msg::PointStamped();
   goal.destination.header = msg->header;
   goal.destination.point = msg->pose.position;
 
   // send goal
-  auto send_goal_options = rclcpp_action::Client<GlobalManeuver>::SendGoalOptions();
+  auto send_goal_options = rclcpp_action::Client<PlanRoute>::SendGoalOptions();
   send_goal_options.goal_response_callback =
       std::bind(&PlanRouteActionClient::goalResponseCallback, this, std::placeholders::_1);
   send_goal_options.feedback_callback =
@@ -265,7 +265,7 @@ void PlanRouteActionClient::sendGoal(const geometry_msgs::msg::PoseStamped::Shar
   RCLCPP_INFO(this->get_logger(), "Goal sent");
 }
 
-void PlanRouteActionClient::goalResponseCallback(const GoalHandleGlobalManeuver::SharedPtr& goal_handle) {
+void PlanRouteActionClient::goalResponseCallback(const GoalHandlePlanRoute::SharedPtr& goal_handle) {
   if (!goal_handle) {
     RCLCPP_ERROR(this->get_logger(), "Goal rejected by action server");
     auto_planning_timer_->reset();  // restart auto-planning timer
@@ -274,8 +274,8 @@ void PlanRouteActionClient::goalResponseCallback(const GoalHandleGlobalManeuver:
   }
 }
 
-void PlanRouteActionClient::feedbackCallback(GoalHandleGlobalManeuver::SharedPtr goal_handle,
-                                             const std::shared_ptr<const GlobalManeuver::Feedback> feedback) {
+void PlanRouteActionClient::feedbackCallback(GoalHandlePlanRoute::SharedPtr goal_handle,
+                                             const std::shared_ptr<const PlanRoute::Feedback> feedback) {
   (void)goal_handle;
 
   const double distance_traveled = feedback->distance_traveled;
@@ -287,7 +287,7 @@ void PlanRouteActionClient::feedbackCallback(GoalHandleGlobalManeuver::SharedPtr
               time_traveled.seconds(), time_total.seconds());
 }
 
-void PlanRouteActionClient::resultCallback(const GoalHandleGlobalManeuver::WrappedResult& result) {
+void PlanRouteActionClient::resultCallback(const GoalHandlePlanRoute::WrappedResult& result) {
   const double distance_traveled = result.result->distance_traveled;
   const builtin_interfaces::msg::Duration& time_traveled = result.result->time_traveled;
   if (result.code == rclcpp_action::ResultCode::SUCCEEDED) {

@@ -8,7 +8,7 @@
 #include <geometry_msgs/msg/pose_stamped.hpp>
 #include <rclcpp/rclcpp.hpp>
 #include <rclcpp_action/rclcpp_action.hpp>
-#include <route_planning_msgs/action/global_maneuver.hpp>  // TODO: rename to PlanRoute.action
+#include <route_planning_msgs/action/plan_route.hpp>
 
 namespace plan_route_action_client {
 
@@ -25,8 +25,8 @@ inline constexpr bool is_vector_v = is_vector<C>::value;
  * @brief Action client node for planning a route
  */
 class PlanRouteActionClient : public rclcpp::Node {
-  using GlobalManeuver = route_planning_msgs::action::GlobalManeuver;
-  using GoalHandleGlobalManeuver = rclcpp_action::ClientGoalHandle<GlobalManeuver>;
+  using PlanRoute = route_planning_msgs::action::PlanRoute;
+  using GoalHandlePlanRoute = rclcpp_action::ClientGoalHandle<PlanRoute>;
 
  public:
   /**
@@ -107,7 +107,7 @@ class PlanRouteActionClient : public rclcpp::Node {
    *
    * @param[in] goal_handle goal handle
    */
-  void goalResponseCallback(const GoalHandleGlobalManeuver::SharedPtr &goal_handle);
+  void goalResponseCallback(const GoalHandlePlanRoute::SharedPtr &goal_handle);
 
   /**
    * @brief Callback for feedback from the action server
@@ -115,15 +115,15 @@ class PlanRouteActionClient : public rclcpp::Node {
    * @param[in] goal_handle goal handle
    * @param[in] feedback action feedback
    */
-  void feedbackCallback(GoalHandleGlobalManeuver::SharedPtr goal_handle,
-                        const std::shared_ptr<const GlobalManeuver::Feedback> feedback);
+  void feedbackCallback(GoalHandlePlanRoute::SharedPtr goal_handle,
+                        const std::shared_ptr<const PlanRoute::Feedback> feedback);
 
   /**
    * @brief Callback for result from the action server
    *
    * @param[in] result action result
    */
-  void resultCallback(const GoalHandleGlobalManeuver::WrappedResult &result);
+  void resultCallback(const GoalHandlePlanRoute::WrappedResult &result);
 
  private:
   /**
@@ -144,12 +144,12 @@ class PlanRouteActionClient : public rclcpp::Node {
   /**
    * @brief Action client
    */
-  rclcpp_action::Client<GlobalManeuver>::SharedPtr action_client_;
+  rclcpp_action::Client<PlanRoute>::SharedPtr action_client_;
 
   /**
    * @brief Goal handle
    */
-  std::shared_future<GoalHandleGlobalManeuver::SharedPtr> goal_handle_future_;
+  std::shared_future<GoalHandlePlanRoute::SharedPtr> goal_handle_future_;
 
   /**
    * @brief Timer to automatically plan route, e.g., if waypoints are given

@@ -195,7 +195,7 @@ void Lanelet2RoutePlanning::setup() {
 
   // action server for handling action goal requests
   action_callback_group_ = this->create_callback_group(rclcpp::CallbackGroupType::MutuallyExclusive);
-  action_server_ = rclcpp_action::create_server<route_planning_msgs::action::GlobalManeuver>(
+  action_server_ = rclcpp_action::create_server<route_planning_msgs::action::PlanRoute>(
       this, "~/plan_route",
       std::bind(&Lanelet2RoutePlanning::actionHandleGoal, this, std::placeholders::_1, std::placeholders::_2),
       std::bind(&Lanelet2RoutePlanning::actionHandleCancel, this, std::placeholders::_1),
@@ -259,7 +259,7 @@ void Lanelet2RoutePlanning::publishTimerCallback() {
 }
 
 rclcpp_action::GoalResponse Lanelet2RoutePlanning::actionHandleGoal(
-    const rclcpp_action::GoalUUID& uuid, route_planning_msgs::action::GlobalManeuver::Goal::ConstSharedPtr goal) {
+    const rclcpp_action::GoalUUID& uuid, route_planning_msgs::action::PlanRoute::Goal::ConstSharedPtr goal) {
   (void)uuid;
   (void)goal;
 
@@ -313,7 +313,7 @@ rclcpp_action::GoalResponse Lanelet2RoutePlanning::actionHandleGoal(
 }
 
 rclcpp_action::CancelResponse Lanelet2RoutePlanning::actionHandleCancel(
-    const std::shared_ptr<rclcpp_action::ServerGoalHandle<route_planning_msgs::action::GlobalManeuver>> goal_handle) {
+    const std::shared_ptr<rclcpp_action::ServerGoalHandle<route_planning_msgs::action::PlanRoute>> goal_handle) {
   (void)goal_handle;
 
   RCLCPP_INFO(this->get_logger(), "Received request to cancel action goal");
@@ -328,12 +328,12 @@ rclcpp_action::CancelResponse Lanelet2RoutePlanning::actionHandleCancel(
  * @param goal_handle action goal handle
  */
 void Lanelet2RoutePlanning::actionHandleAccepted(
-    const std::shared_ptr<rclcpp_action::ServerGoalHandle<route_planning_msgs::action::GlobalManeuver>> goal_handle) {
+    const std::shared_ptr<rclcpp_action::ServerGoalHandle<route_planning_msgs::action::PlanRoute>> goal_handle) {
   action_goal_handle_ = goal_handle;
 
   // initialize feedback and result
   action_start_time_ = this->now();
-  action_feedback_ = std::make_shared<route_planning_msgs::action::GlobalManeuver::Feedback>();
+  action_feedback_ = std::make_shared<route_planning_msgs::action::PlanRoute::Feedback>();
   action_feedback_->distance_traveled = 0.0;
   action_feedback_->distance_remaining = 0.0;
   if (!latest_route_msg_.remaining_route_elements.empty()) {
@@ -342,7 +342,7 @@ void Lanelet2RoutePlanning::actionHandleAccepted(
   action_feedback_->time_traveled = rclcpp::Duration::from_seconds(0.0);
   action_feedback_->time_remaining =
       rclcpp::Duration::from_seconds(estimateRemainingTime(latest_route_msg_.remaining_route_elements));
-  action_result_ = std::make_shared<route_planning_msgs::action::GlobalManeuver::Result>();
+  action_result_ = std::make_shared<route_planning_msgs::action::PlanRoute::Result>();
   action_result_->distance_traveled = 0.0;
   action_result_->time_traveled = rclcpp::Duration::from_seconds(0.0);
   action_result_->destination_reached = false;
@@ -355,7 +355,7 @@ void Lanelet2RoutePlanning::actionHandleAccepted(
 }
 
 void Lanelet2RoutePlanning::actionExecute(
-    const std::shared_ptr<rclcpp_action::ServerGoalHandle<route_planning_msgs::action::GlobalManeuver>> goal_handle) {
+    const std::shared_ptr<rclcpp_action::ServerGoalHandle<route_planning_msgs::action::PlanRoute>> goal_handle) {
   RCLCPP_INFO(this->get_logger(), "Executing action goal");
 
   rclcpp::Rate feedback_rate(action_feedback_frequency_);

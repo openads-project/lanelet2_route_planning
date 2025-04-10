@@ -10,7 +10,7 @@
 #include <lanelet2_map_interface/lanelet2_map_interface.hpp>
 #include <rclcpp/rclcpp.hpp>
 #include <rclcpp_action/rclcpp_action.hpp>
-#include <route_planning_msgs/action/global_maneuver.hpp>
+#include <route_planning_msgs/action/plan_route.hpp>
 #include <route_planning_msgs/msg/route.hpp>
 
 namespace lanelet2_route_planning {
@@ -109,8 +109,7 @@ class Lanelet2RoutePlanning : public rclcpp::Node {
    * @return goal response
    */
   rclcpp_action::GoalResponse actionHandleGoal(
-      const rclcpp_action::GoalUUID &uuid,
-      std::shared_ptr<const route_planning_msgs::action::GlobalManeuver::Goal> goal);
+      const rclcpp_action::GoalUUID &uuid, std::shared_ptr<const route_planning_msgs::action::PlanRoute::Goal> goal);
 
   /**
    * @brief Action cancel callback: cancels a running action
@@ -121,7 +120,7 @@ class Lanelet2RoutePlanning : public rclcpp::Node {
    * @return cancel response
    */
   rclcpp_action::CancelResponse actionHandleCancel(
-      const std::shared_ptr<rclcpp_action::ServerGoalHandle<route_planning_msgs::action::GlobalManeuver>> goal_handle);
+      const std::shared_ptr<rclcpp_action::ServerGoalHandle<route_planning_msgs::action::PlanRoute>> goal_handle);
 
   /**
    * @brief Action accepted callback: starts action execution
@@ -131,7 +130,7 @@ class Lanelet2RoutePlanning : public rclcpp::Node {
    * @param[in] goal_handle action goal handle
    */
   void actionHandleAccepted(
-      const std::shared_ptr<rclcpp_action::ServerGoalHandle<route_planning_msgs::action::GlobalManeuver>> goal_handle);
+      const std::shared_ptr<rclcpp_action::ServerGoalHandle<route_planning_msgs::action::PlanRoute>> goal_handle);
 
   /**
    * @brief Action execution: continually publishes route progress
@@ -142,7 +141,7 @@ class Lanelet2RoutePlanning : public rclcpp::Node {
    * @param[in] goal_handle action goal handle
    */
   void actionExecute(
-      const std::shared_ptr<rclcpp_action::ServerGoalHandle<route_planning_msgs::action::GlobalManeuver>> goal_handle);
+      const std::shared_ptr<rclcpp_action::ServerGoalHandle<route_planning_msgs::action::PlanRoute>> goal_handle);
 
   /**
    * @brief Plans a lanelet route to the destination
@@ -207,22 +206,22 @@ class Lanelet2RoutePlanning : public rclcpp::Node {
   /**
    * @brief Action server
    */
-  rclcpp_action::Server<route_planning_msgs::action::GlobalManeuver>::SharedPtr action_server_;
+  rclcpp_action::Server<route_planning_msgs::action::PlanRoute>::SharedPtr action_server_;
 
   /**
    * @brief Latest action feedback
    */
-  route_planning_msgs::action::GlobalManeuver::Feedback::SharedPtr action_feedback_;
+  route_planning_msgs::action::PlanRoute::Feedback::SharedPtr action_feedback_;
 
   /**
    * @brief Latest action result
    */
-  route_planning_msgs::action::GlobalManeuver::Result::SharedPtr action_result_;
+  route_planning_msgs::action::PlanRoute::Result::SharedPtr action_result_;
 
   /**
    * @brief Latest action goal handle
    */
-  std::shared_ptr<rclcpp_action::ServerGoalHandle<route_planning_msgs::action::GlobalManeuver>> action_goal_handle_;
+  std::shared_ptr<rclcpp_action::ServerGoalHandle<route_planning_msgs::action::PlanRoute>> action_goal_handle_;
 
   /**
    * @brief Callback group for action server
