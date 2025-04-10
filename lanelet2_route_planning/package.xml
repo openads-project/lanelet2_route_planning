@@ -20,7 +20,6 @@
   <depend>lanelet2_utilities</depend>
   <depend>perception_msgs_utils</depend>
   <depend>perception_msgs</depend>
-  <depend>plan_route_action_client</depend>
   <depend>rclcpp_action</depend>
   <depend>rclcpp</depend>
   <depend>route_planning_msgs_utils</depend>
@@ -29,6 +28,7 @@
   <depend>tf2_perception_msgs</depend>
   <depend>tf2_ros</depend>
   <depend>tf2</depend>
+  <exec_depend>plan_route_action_client</exec_depend>
 
   <export>
     <build_type>ament_cmake</build_type>
