@@ -231,7 +231,7 @@ bool Lanelet2RoutePlanning::buildRoutingGraph() {
 }
 
 void Lanelet2RoutePlanning::egoDataCallback(const perception_msgs::msg::EgoData::SharedPtr msg) {
-  if (ll2_interface_->map_loaded_) {
+  if (!ll2_interface_->map_loaded_) {
     return;
   }
 
