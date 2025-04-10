@@ -2,6 +2,7 @@
 
 #include <memory>
 #include <string>
+#include <utility>
 #include <vector>
 
 #include <geometry_msgs/msg/pose_stamped.hpp>
@@ -77,6 +78,24 @@ class PlanRouteActionClient : public rclcpp::Node {
   void goalPoseCallback(const geometry_msgs::msg::PoseStamped::SharedPtr msg);
 
   /**
+   * @brief Callback for automatically planning a route, e.g., if waypoints are given
+   *
+   * Does nothing, if no waypoints are given and random planning is disabled.
+   * Precedence: random planning, waypoints
+   */
+  void autoPlanningTimerCallback();
+
+  /**
+   * @brief Plans to next waypoint
+   */
+  void planToNextWaypoint();
+
+  /**
+   * @brief Plans to a random destination
+   */
+  void planToRandomDestination();
+
+  /**
    * @brief Sends a goal to the action server
    *
    * @param[in] msg goal pose
@@ -133,7 +152,46 @@ class PlanRouteActionClient : public rclcpp::Node {
   std::shared_future<GoalHandleGlobalManeuver::SharedPtr> goal_handle_future_;
 
   /**
-   * @brief Parameter to cancel the route planning action
+   * @brief Timer to automatically plan route, e.g., if waypoints are given
+   */
+  rclcpp::TimerBase::SharedPtr auto_planning_timer_;
+
+  /**
+   * @brief WGS84 waypoints to endlessly follow
+   */
+  std::vector<std::pair<double, double>> waypoints_;
+
+  /**
+   * @brief Index of next waypoint to follow
+   */
+  size_t waypoint_idx_ = 0;
+
+  /**
+   * @brief Whether one goal has been completed (succeeded or failed)
+   */
+  bool has_completed_one_goal_ = false;
+
+  /**
+   * @brief WGS84 waypoints to endlessly follow (parameter)
+   *
+   * list of strings with comma-separated '<LATITUDE>,<LONGITUDE>'
+   */
+  std::vector<std::string> waypoints_param_;
+
+  /**
+   * @brief Whether to plan a route to a random destination (parameter)
+   */
+  bool enable_random_destination_ = false;
+
+  /**
+   * @brief Whether to continuously plan a new route (parameter)
+   *
+   * Either to the next waypoint or to a random destination, if enabled
+   */
+  bool enable_continuous_planning_ = false;
+
+  /**
+   * @brief Flag to cancel the route planning action (parameter)
    */
   bool cancel_route_ = false;
 };

@@ -1,3 +1,7 @@
 /**/*:
   ros__parameters:
+    # waypoints:
+    #   - "<LATITUDE>, <LONGITUDE>"
+    enable_random_destination: false
+    enable_continuous_planning: false
     cancel_route: false

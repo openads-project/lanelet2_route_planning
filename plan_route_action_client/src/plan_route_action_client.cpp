@@ -1,13 +1,44 @@
 #include <chrono>
 #include <functional>
+#include <optional>
 
 #include <plan_route_action_client/plan_route_action_client.hpp>
 
 namespace plan_route_action_client {
 
+std::optional<std::vector<std::pair<double, double>>> parseWaypoints(const std::vector<std::string>& waypoints_param) {
+  std::vector<std::pair<double, double>> waypoints;
+  for (const auto& waypoint : waypoints_param) {
+    size_t comma_pos = waypoint.find(',');
+    if (comma_pos != std::string::npos) {
+      try {
+        double lat = std::stod(waypoint.substr(0, comma_pos));
+        double lon = std::stod(waypoint.substr(comma_pos + 1));
+        waypoints.emplace_back(lat, lon);
+      } catch (const std::invalid_argument& e) {
+        return std::nullopt;
+      } catch (const std::out_of_range& e) {
+        return std::nullopt;
+      }
+    } else {
+      return std::nullopt;
+    }
+  }
+  return waypoints;
+}
+
 PlanRouteActionClient::PlanRouteActionClient() : Node("plan_route_action_client") {
+  this->declareAndLoadParameter(
+      "waypoints", waypoints_param_,
+      "List of WGS84 waypoints to endlessly follow (list of strings with comma-separated '<LATITUDE>,<LONGITUDE>')",
+      true);
+  this->declareAndLoadParameter("enable_random_destination", enable_random_destination_,
+                                "Whether to plan a route to a random destination", true);
+  this->declareAndLoadParameter(
+      "enable_continuous_planning", enable_continuous_planning_,
+      "Whether to continuously plan a new route (either to the next waypoint or to a random destination)", true);
   this->declareAndLoadParameter("cancel_route", cancel_route_,
-                                "Cancel active route planning action (to be set at runtime)", false);
+                                "Cancel active route planning action (to be set at runtime)", true);
   this->setup();
 }
 
@@ -97,9 +128,23 @@ rcl_interfaces::msg::SetParametersResult PlanRouteActionClient::parametersCallba
       }
     }
 
-    // handle cancel_route parameter
+    // handle waypoints
+    if (param.get_name() == "waypoints") {
+      auto parsed_waypoints = parseWaypoints(waypoints_param_);
+      if (parsed_waypoints) {
+        waypoints_ = *parsed_waypoints;
+      } else {
+        std::stringstream ss;
+        ss << "Failed to parse parameter 'waypoints': [";
+        for (const auto& waypoint : waypoints_param_) {
+          ss << waypoint << (&waypoint != &waypoints_param_.back() ? ", " : "]");
+        }
+        RCLCPP_ERROR(this->get_logger(), "%s", ss.str().c_str());
+      }
+    }
+
+    // handle cancel_route
     if (param.get_name() == "cancel_route") {
-      cancel_route_ = param.as_bool();
       if (cancel_route_) {
         if (action_client_->wait_for_action_server(std::chrono::duration<double>(0.1))) {
           RCLCPP_INFO(this->get_logger(), "Cancelling route");
@@ -122,19 +167,75 @@ void PlanRouteActionClient::setup() {
   parameters_callback_ = this->add_on_set_parameters_callback(
       std::bind(&PlanRouteActionClient::parametersCallback, this, std::placeholders::_1));
 
-  // subscriber for goal pose (from rviz)
+  // subscriber for goal pose
   goal_pose_subscriber_ = this->create_subscription<geometry_msgs::msg::PoseStamped>(
       "/goal_pose", 10, std::bind(&PlanRouteActionClient::goalPoseCallback, this, std::placeholders::_1));
   RCLCPP_INFO(this->get_logger(), "Subscribed to '%s'", goal_pose_subscriber_->get_topic_name());
 
   // action client
   action_client_ = rclcpp_action::create_client<GlobalManeuver>(this, "/lanelet2_route_planning/plan_route");
+
+  // parse waypoints
+  auto parsed_waypoints = parseWaypoints(waypoints_param_);
+  if (parsed_waypoints) {
+    waypoints_ = *parsed_waypoints;
+  } else {
+    std::stringstream ss;
+    ss << "Failed to parse parameter 'waypoints': [";
+    for (const auto& waypoint : waypoints_param_) {
+      ss << waypoint << (&waypoint != &waypoints_param_.back() ? ", " : "]");
+    }
+    RCLCPP_ERROR(this->get_logger(), "%s", ss.str().c_str());
+  }
+
+  // set up auto-planning timer
+  auto_planning_timer_ = this->create_wall_timer(std::chrono::milliseconds(100),
+                                                 std::bind(&PlanRouteActionClient::autoPlanningTimerCallback, this));
 }
 
 void PlanRouteActionClient::goalPoseCallback(const geometry_msgs::msg::PoseStamped::SharedPtr msg) {
   RCLCPP_INFO(this->get_logger(), "Received goal pose (%.3f, %.3f, %.3f) in frame '%s'", msg->pose.position.x,
               msg->pose.position.y, msg->pose.position.z, msg->header.frame_id.c_str());
   sendGoal(msg);
+}
+
+void PlanRouteActionClient::autoPlanningTimerCallback() {
+  if (enable_random_destination_ && (enable_continuous_planning_ || !has_completed_one_goal_)) {
+    this->planToRandomDestination();
+  } else if (!waypoints_.empty()) {
+    waypoint_idx_++;
+    if (waypoint_idx_ >= waypoints_.size() && enable_continuous_planning_) {
+      waypoint_idx_ = 0;  // loop waypoints, if continuous planning is enabled
+    }
+    if (waypoint_idx_ < waypoints_.size()) {
+      this->planToNextWaypoint();
+    }
+  } else {
+    RCLCPP_DEBUG(this->get_logger(), "Auto-planning disabled, no goal sent");
+  }
+}
+
+void PlanRouteActionClient::planToNextWaypoint() {
+  RCLCPP_INFO(this->get_logger(), "Planning route to next waypoint");
+  if (waypoint_idx_ >= waypoints_.size()) {
+    RCLCPP_WARN(this->get_logger(), "Waypoint index %ld out of bounds (%ld), skipping", waypoint_idx_,
+                waypoints_.size());
+    return;
+  }
+
+  // cancel auto-planning timer until goal completion
+  auto_planning_timer_->cancel();
+
+  // TODO
+}
+
+void PlanRouteActionClient::planToRandomDestination() {
+  RCLCPP_INFO(this->get_logger(), "Planning route to random destination");
+
+  // cancel auto-planning timer until goal completion
+  auto_planning_timer_->cancel();
+
+  // TODO
 }
 
 void PlanRouteActionClient::sendGoal(const geometry_msgs::msg::PoseStamped::SharedPtr msg) {
@@ -167,6 +268,7 @@ void PlanRouteActionClient::sendGoal(const geometry_msgs::msg::PoseStamped::Shar
 void PlanRouteActionClient::goalResponseCallback(const GoalHandleGlobalManeuver::SharedPtr& goal_handle) {
   if (!goal_handle) {
     RCLCPP_ERROR(this->get_logger(), "Goal rejected by action server");
+    auto_planning_timer_->reset();  // restart auto-planning timer
   } else {
     RCLCPP_INFO(this->get_logger(), "Goal accepted by action server");
   }
@@ -203,6 +305,10 @@ void PlanRouteActionClient::resultCallback(const GoalHandleGlobalManeuver::Wrapp
   } else {
     RCLCPP_ERROR(this->get_logger(), "Goal finished with unknown result code: %d", static_cast<int>(result.code));
   }
+
+  // restart auto-planning timer
+  auto_planning_timer_->reset();
+  has_completed_one_goal_ = true;
 }
 
 }  // namespace plan_route_action_client
