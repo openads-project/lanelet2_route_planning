@@ -6,7 +6,8 @@
 namespace plan_route_action_client {
 
 PlanRouteActionClient::PlanRouteActionClient() : Node("plan_route_action_client") {
-  // this->declareAndLoadParameter("param", param_, "TODO", true, false, false, 0.0, 10.0, 1.0);
+  this->declareAndLoadParameter("cancel_route", cancel_route_,
+                                "Cancel active route planning action (to be set at runtime)", false);
   this->setup();
 }
 
@@ -93,6 +94,19 @@ rcl_interfaces::msg::SetParametersResult PlanRouteActionClient::parametersCallba
         std::get<1>(auto_reconfigurable_param)(param);
         RCLCPP_INFO(this->get_logger(), "Reconfigured parameter '%s'", param.get_name().c_str());
         break;
+      }
+    }
+
+    // handle cancel_route parameter
+    if (param.get_name() == "cancel_route") {
+      cancel_route_ = param.as_bool();
+      if (cancel_route_) {
+        if (action_client_->wait_for_action_server(std::chrono::duration<double>(0.1))) {
+          RCLCPP_INFO(this->get_logger(), "Cancelling route");
+          action_client_->async_cancel_all_goals();
+        } else {
+          RCLCPP_WARN(this->get_logger(), "Action server not available, cannot cancel route");
+        }
       }
     }
   }

@@ -131,6 +131,11 @@ class PlanRouteActionClient : public rclcpp::Node {
    * @brief Goal handle
    */
   std::shared_future<GoalHandleGlobalManeuver::SharedPtr> goal_handle_future_;
+
+  /**
+   * @brief Parameter to cancel the route planning action
+   */
+  bool cancel_route_ = false;
 };
 
 }  // namespace plan_route_action_client
