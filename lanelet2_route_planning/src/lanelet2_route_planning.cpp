@@ -47,12 +47,7 @@ Lanelet2RoutePlanning::Lanelet2RoutePlanning() : Node("lanelet2_route_planning")
   if (enrich_route_behind_ego_distance_ < 0.0)
     enrich_route_behind_ego_distance_ = std::numeric_limits<double>::infinity();
 
-  // initialize lanelet2 interface
-  ll2_interface_ = std::make_unique<LL2MapInterface>(*this, ll2_map_server_name_);
-
-  // periodically check if map is loaded and updated
-  check_map_timer_ =
-      this->create_wall_timer(std::chrono::milliseconds(100), std::bind(&Lanelet2RoutePlanning::checkMap, this));
+  this->setup();
 }
 
 template <typename T>
@@ -173,6 +168,11 @@ void Lanelet2RoutePlanning::checkMap() {
 }
 
 void Lanelet2RoutePlanning::setup() {
+  // periodically check if map is loaded and updated
+  ll2_interface_ = std::make_unique<LL2MapInterface>(*this, ll2_map_server_name_);
+  check_map_timer_ =
+      this->create_wall_timer(std::chrono::milliseconds(100), std::bind(&Lanelet2RoutePlanning::checkMap, this));
+
   // callback for dynamic parameter configuration
   parameters_callback_ = this->add_on_set_parameters_callback(
       std::bind(&Lanelet2RoutePlanning::parametersCallback, this, std::placeholders::_1));
@@ -186,10 +186,12 @@ void Lanelet2RoutePlanning::setup() {
   publish_timer_ = this->create_wall_timer(std::chrono::duration<double>(1.0 / publish_frequency_),
                                            std::bind(&Lanelet2RoutePlanning::publishTimerCallback, this));
   is_publishing_route_ = false;
+  RCLCPP_INFO(this->get_logger(), "Publishing to '%s'", publisher_route_->get_topic_name());
 
   // subscribers
   subscriber_ego_data_ = this->create_subscription<perception_msgs::msg::EgoData>(
       "~/ego_data", 1, std::bind(&Lanelet2RoutePlanning::egoDataCallback, this, std::placeholders::_1));
+  RCLCPP_INFO(this->get_logger(), "Subscribed to '%s'", subscriber_ego_data_->get_topic_name());
 
   // action server for handling action goal requests
   action_callback_group_ = this->create_callback_group(rclcpp::CallbackGroupType::MutuallyExclusive);
@@ -199,6 +201,7 @@ void Lanelet2RoutePlanning::setup() {
       std::bind(&Lanelet2RoutePlanning::actionHandleCancel, this, std::placeholders::_1),
       std::bind(&Lanelet2RoutePlanning::actionHandleAccepted, this, std::placeholders::_1),
       rcl_action_server_get_default_options(), action_callback_group_);
+  RCLCPP_INFO(this->get_logger(), "Action server started");
 }
 
 bool Lanelet2RoutePlanning::buildRoutingGraph() {
