@@ -282,8 +282,8 @@ std::vector<geometry_msgs::msg::Point> regulatoryElementSignPositions(
       regulatory_element->getParameters<lanelet::ConstLineString3d>(lanelet::RoleName::Refers);
   for (const auto& const_sign_line : sign_lines) {
     const std::vector<Eigen::Vector3d> sign_line = const_sign_line.basicLineString();
-    for (const auto& sign_point : sign_line) {
-      sign_positions.push_back(toRos(sign_point));
+    if (!sign_line.empty()) {
+      sign_positions.push_back(toRos(sign_line.front()));
     }
   }
   return sign_positions;
