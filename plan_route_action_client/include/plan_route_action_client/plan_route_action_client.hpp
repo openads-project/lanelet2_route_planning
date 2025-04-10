@@ -170,7 +170,7 @@ class PlanRouteActionClient : public rclcpp::Node {
   /**
    * @brief Index of next waypoint to follow
    */
-  size_t waypoint_idx_ = 0;
+  size_t next_waypoint_idx_ = 0;
 
   /**
    * @brief Whether one goal has been completed (succeeded or failed)

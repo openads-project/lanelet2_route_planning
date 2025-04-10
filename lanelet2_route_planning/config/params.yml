@@ -9,3 +9,10 @@
     enrich_route_behind_ego_distance: 10.0
     route_undershoot_distance: 0.0
     route_overshoot_distance: 0.0
+
+    # --- plan_route_action_client ---
+    # waypoints:
+    #   - "<LATITUDE>, <LONGITUDE>"
+    enable_random_destination: false
+    enable_continuous_planning: false
+    cancel_route: false

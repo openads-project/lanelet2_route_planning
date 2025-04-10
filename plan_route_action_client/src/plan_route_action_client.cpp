@@ -197,7 +197,7 @@ void PlanRouteActionClient::setup() {
   }
 
   // set up auto-planning timer
-  auto_planning_timer_ = this->create_wall_timer(std::chrono::milliseconds(100),
+  auto_planning_timer_ = this->create_wall_timer(std::chrono::milliseconds(1000),
                                                  std::bind(&PlanRouteActionClient::autoPlanningTimerCallback, this));
 }
 
@@ -211,30 +211,59 @@ void PlanRouteActionClient::autoPlanningTimerCallback() {
   if (enable_random_destination_ && (enable_continuous_planning_ || !has_completed_one_goal_)) {
     this->planToRandomDestination();
   } else if (!waypoints_.empty()) {
-    waypoint_idx_++;
-    if (waypoint_idx_ >= waypoints_.size() && enable_continuous_planning_) {
-      waypoint_idx_ = 0;  // loop waypoints, if continuous planning is enabled
+    if (next_waypoint_idx_ >= waypoints_.size() && enable_continuous_planning_) {
+      next_waypoint_idx_ = 0;  // loop waypoints, if continuous planning is enabled
     }
-    if (waypoint_idx_ < waypoints_.size()) {
+    if (next_waypoint_idx_ < waypoints_.size()) {
       this->planToNextWaypoint();
     }
   } else {
-    RCLCPP_DEBUG(this->get_logger(), "Auto-planning disabled, no goal sent");
+    RCLCPP_DEBUG(this->get_logger(), "Nothing to plan, waiting for waypoints or random destination");
   }
 }
 
 void PlanRouteActionClient::planToNextWaypoint() {
-  RCLCPP_INFO(this->get_logger(), "Planning route to next waypoint");
-  if (waypoint_idx_ >= waypoints_.size()) {
-    RCLCPP_WARN(this->get_logger(), "Waypoint index %ld out of bounds (%ld), skipping", waypoint_idx_,
-                waypoints_.size());
+  // check if waypoint is valid
+  if (next_waypoint_idx_ >= waypoints_.size()) {
+    RCLCPP_ERROR(this->get_logger(), "Waypoint index %ld out of bounds (%ld), skipping", next_waypoint_idx_,
+                 waypoints_.size());
+    return;
+  }
+  RCLCPP_INFO(this->get_logger(), "Planning route to next waypoint (%.6f, %.6f)", waypoints_[next_waypoint_idx_].first,
+              waypoints_[next_waypoint_idx_].second);
+
+  // check if map is loaded
+  if (!ll2_interface_->map_loaded_) {
+    RCLCPP_ERROR(this->get_logger(), "Map not loaded, cannot generate waypoint");
     return;
   }
 
-  // cancel auto-planning timer until goal completion
-  auto_planning_timer_->cancel();
+  // generate goal pose from waypoint
+  auto goal_pose = std::make_shared<geometry_msgs::msg::PoseStamped>();
+  auto ll2_projector = ll2_interface_->getProjectorPtr();
+  if (ll2_projector) {
+    lanelet::GPSPoint gps_waypoint;
+    gps_waypoint.lat = waypoints_[next_waypoint_idx_].first;
+    gps_waypoint.lon = waypoints_[next_waypoint_idx_].second;
+    lanelet::BasicPoint3d map_waypoint = ll2_projector->forward(gps_waypoint);
+    goal_pose->pose.position.x = map_waypoint.x();
+    goal_pose->pose.position.y = map_waypoint.y();
+    goal_pose->pose.position.z = 0.0;
+    goal_pose->header.frame_id = ll2_interface_->map_frame_id_;
+    goal_pose->header.stamp = this->now();
+  }
 
-  // TODO
+  // send goal
+  if (!goal_pose->header.frame_id.empty()) {
+    RCLCPP_INFO(this->get_logger(), "Generated waypoint goal pose (%.3f, %.3f, %.3f) in frame '%s'",
+                goal_pose->pose.position.x, goal_pose->pose.position.y, goal_pose->pose.position.z,
+                goal_pose->header.frame_id.c_str());
+    auto_planning_timer_->cancel();  // cancel auto-planning timer until goal completion
+    next_waypoint_idx_++;
+    this->sendGoal(goal_pose);
+  } else {
+    RCLCPP_ERROR(this->get_logger(), "Failed to generate waypoint goal pose");
+  }
 }
 
 void PlanRouteActionClient::planToRandomDestination() {
