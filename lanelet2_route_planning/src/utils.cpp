@@ -99,7 +99,6 @@ int computeFollowingLaneIdxOffset(const lanelet::ConstLanelet& lanelet,
                                   const lanelet::routing::Route& route,
                                   const lanelet::routing::RoutingGraphUPtr& routing_graph) {
   int following_lane_idx_offset = 0;
-  size_t n_adjacent_lanelets_of_next_lanelet;
   if (lanelet_of_next_point.id() != lanelet.id()) {
     // get adjacent lanelets of current lanelet
     std::vector<lanelet::ConstLanelet> adjacent_left_lanelets = adjacentLeftOrRightLanelets(lanelet, route, true);
@@ -116,7 +115,6 @@ int computeFollowingLaneIdxOffset(const lanelet::ConstLanelet& lanelet,
     adjacent_lanelets_of_next_lanelet.insert(adjacent_lanelets_of_next_lanelet.end(),
                                              adjacent_right_lanelets_of_next_lanelet.begin(),
                                              adjacent_right_lanelets_of_next_lanelet.end());
-    n_adjacent_lanelets_of_next_lanelet = adjacent_lanelets_of_next_lanelet.size();
 
     // find following lanelet of current lanelet and adjacent lanelets in adjacent lanelets of next lanelet
     std::vector<std::vector<lanelet::ConstLanelet>> lanelet_groups = {
