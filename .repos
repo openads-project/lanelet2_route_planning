@@ -1,7 +1,7 @@
 repositories:
   planning_interfaces:
     type: git
-    url: https://gitlab.ika.rwth-aachen.de/fb-fi/definitions/planning_interfaces
+    url: https://github.com/ika-rwth-aachen/planning_interfaces
     version: refactor-route-msgs # TODO: change to github/main
   perception_interfaces:
     type: git

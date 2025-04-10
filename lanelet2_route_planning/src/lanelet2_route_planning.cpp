@@ -644,7 +644,7 @@ bool Lanelet2RoutePlanning::buildEnrichedRouteMessage() {
       lane_element_msg.right_boundary.type = laneBoundaryType(adjacent_left_lanelets[a].rightBound2d());
       lane_element_msg.has_right_boundary = true;
       lane_element_msg.speed_limit = speedLimit(adjacent_left_lanelets[a]);
-      lane_element_msg.regulatory_element_idx = {};  // TODO
+      lane_element_msg.regulatory_element_idcs = {};  // TODO
       lane_element_msg.following_lane_idx = route_element_msg.lane_elements.size() + following_lane_idx_offset;
       lane_element_msg.has_following_lane_idx = true;
       route_element_msg.lane_elements.push_back(lane_element_msg);
@@ -661,10 +661,10 @@ bool Lanelet2RoutePlanning::buildEnrichedRouteMessage() {
     centerline_lane_element_msg.right_boundary.type = laneBoundaryType(lanelet.rightBound2d());
     centerline_lane_element_msg.has_right_boundary = true;
     centerline_lane_element_msg.speed_limit = speedLimit(lanelet);
-    centerline_lane_element_msg.regulatory_element_idx.resize(
+    centerline_lane_element_msg.regulatory_element_idcs.resize(
         route_element_msg.regulatory_elements.size());  // TODO: dont assign all RegElems of RouteElem to CenterlineElem
-    std::iota(centerline_lane_element_msg.regulatory_element_idx.begin(),
-              centerline_lane_element_msg.regulatory_element_idx.end(), 0);
+    std::iota(centerline_lane_element_msg.regulatory_element_idcs.begin(),
+              centerline_lane_element_msg.regulatory_element_idcs.end(), 0);
     centerline_lane_element_msg.following_lane_idx = route_element_msg.lane_elements.size() + following_lane_idx_offset;
     centerline_lane_element_msg.has_following_lane_idx = true;
     route_element_msg.lane_elements.push_back(centerline_lane_element_msg);
@@ -681,7 +681,7 @@ bool Lanelet2RoutePlanning::buildEnrichedRouteMessage() {
       lane_element_msg.right_boundary.type = laneBoundaryType(adjacent_right_lanelets[a].rightBound2d());
       lane_element_msg.has_right_boundary = true;
       lane_element_msg.speed_limit = speedLimit(adjacent_right_lanelets[a]);
-      lane_element_msg.regulatory_element_idx = {};  // TODO
+      lane_element_msg.regulatory_element_idcs = {};  // TODO
       lane_element_msg.following_lane_idx = route_element_msg.lane_elements.size() + following_lane_idx_offset;
       lane_element_msg.has_following_lane_idx = true;
       route_element_msg.lane_elements.push_back(lane_element_msg);
