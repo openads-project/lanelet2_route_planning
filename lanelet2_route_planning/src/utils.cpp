@@ -1,4 +1,5 @@
 #include <limits>
+#include <unordered_map>
 
 #include <lanelet2_core/utility/Units.h>
 #include <lanelet2_traffic_rules/TrafficRulesFactory.h>
@@ -214,51 +215,88 @@ route_planning_msgs::msg::RouteElement createMinimalRouteElement(const geometry_
   return route_element_msg;
 }
 
-std::vector<route_planning_msgs::msg::RegulatoryElement> extractRegulatoryElements(const lanelet::ConstLanelet& lanelet,
-                                                                                   const Eigen::Vector2d& point,
-                                                                                   const Eigen::Vector2d& prev_point,
-                                                                                   const Eigen::Vector2d& next_point) {
-  std::vector<route_planning_msgs::msg::RegulatoryElement> regulatory_element_msgs;
-  const auto regulatory_elements = lanelet.regulatoryElements();
-  for (const auto& regulatory_element : regulatory_elements) {
-    // create RegulatoryElement
-    route_planning_msgs::msg::RegulatoryElement regulatory_element_msg;
+ExtractRegulatoryElementsResult extractRegulatoryElements(
+    const lanelet::ConstLanelet& lanelet, const std::vector<lanelet::ConstLanelet>& adjacent_left_lanelets,
+    const std::vector<lanelet::ConstLanelet>& adjacent_right_lanelets, const PointSequence& point_sequence) {
+  ExtractRegulatoryElementsResult result;
+  std::unordered_map<size_t, size_t> regulatory_element_msg_idx_by_id;
 
-    // extract reference line
-    if (auto reference_line = regulatoryElementReferenceLine(regulatory_element)) {
-      regulatory_element_msg.reference_line = *reference_line;
+  // gather lanelets
+  std::vector<lanelet::ConstLanelet> lanelets = {lanelet};
+  lanelets.insert(lanelets.end(), adjacent_left_lanelets.begin(), adjacent_left_lanelets.end());
+  lanelets.insert(lanelets.end(), adjacent_right_lanelets.begin(), adjacent_right_lanelets.end());
 
-      // only consider regulatory element if reference line intersects with centerline, else skip
-      // TODO: check if we are actually filling the msg with 3d values, whenever possible, and only use 2d for checking stuff
-      std::vector<Eigen::Vector2d> reference_line_2d = {toEigen2d(reference_line->at(0)),
-                                                        toEigen2d(reference_line->at(1))};
-      std::vector<Eigen::Vector2d> line_to_next_point = {point, next_point};
-      std::vector<Eigen::Vector2d> line_to_prev_point = {point, prev_point};
-      if (auto result = intersectionOfLines(reference_line_2d, line_to_next_point)) {
-        if (!result->intersects_line2) {
-          if (auto inner_result = intersectionOfLines(reference_line_2d, line_to_prev_point)) {
-            if (!inner_result->intersects_line2) {
-              continue;
+  // loop over lanelets
+  for (size_t l = 0; l < lanelets.size(); ++l) {
+    const auto& current_lanelet = lanelets[l];
+
+    // loop over regulatory elements of lanelet
+    const auto regulatory_elements = current_lanelet.regulatoryElements();
+    for (const auto& regulatory_element : regulatory_elements) {
+      // create RegulatoryElement
+      route_planning_msgs::msg::RegulatoryElement regulatory_element_msg;
+
+      // extract reference line
+      if (auto reference_line = regulatoryElementReferenceLine(regulatory_element)) {
+        regulatory_element_msg.reference_line = *reference_line;
+
+        // only consider regulatory element if reference line intersects with point sequence
+        // TODO: check if we are actually filling the msg with 3d values, whenever possible, and only use 2d for checking stuff
+        std::vector<Eigen::Vector2d> reference_line_2d = {toEigen2d(reference_line->at(0)),
+                                                          toEigen2d(reference_line->at(1))};
+        std::vector<Eigen::Vector2d> line_to_next_point = {point_sequence.current, point_sequence.next};
+        std::vector<Eigen::Vector2d> line_to_prev_point = {point_sequence.current, point_sequence.prev};
+        if (auto result = intersectionOfLines(reference_line_2d, line_to_next_point)) {
+          if (!result->intersects_line2) {
+            if (auto inner_result = intersectionOfLines(reference_line_2d, line_to_prev_point)) {
+              if (!inner_result->intersects_line2) {
+                continue;
+              }
             }
           }
         }
+      } else {
+        RCLCPP_WARN(rclcpp::get_logger("lanelet2_route_planning"),
+                    "Failed to extract reference line of regulatory element '%ld' on lanelet '%ld', ignoring",
+                    regulatory_element->id(), current_lanelet.id());
+        continue;
       }
-    } else {
-      RCLCPP_WARN(rclcpp::get_logger("lanelet2_route_planning"),
-                  "Failed to extract reference line of regulatory element '%ld' on lanelet '%ld', ignoring",
-                  regulatory_element->id(), lanelet.id());
-      continue;
+
+      // extract sign positions and type
+      regulatory_element_msg.positions = regulatoryElementPositions(regulatory_element);
+      std::tie(regulatory_element_msg.type, regulatory_element_msg.meta_value) =
+          regulatoryElementType(regulatory_element);
+
+      // check if regulatory element has already been extracted (by another lanelet)
+      size_t regulatory_element_msg_idx;
+      if (regulatory_element_msg_idx_by_id.count(regulatory_element->id()) > 0) {
+        regulatory_element_msg_idx = regulatory_element_msg_idx_by_id[regulatory_element->id()];
+      } else {
+        // add regulatory element to result
+        regulatory_element_msg_idx = result.regulatory_element_msgs.size();
+        regulatory_element_msg_idx_by_id[regulatory_element->id()] = regulatory_element_msg_idx;
+        result.regulatory_element_msgs.push_back(regulatory_element_msg);
+      }
+
+      // assign regulatory element to respective lanelet in result
+      if (l < adjacent_left_lanelets.size()) {
+        if (l >= result.adjacent_left_regulatory_element_idcs.size()) {
+          result.adjacent_left_regulatory_element_idcs.push_back({});
+        }
+        result.adjacent_left_regulatory_element_idcs[l].push_back(regulatory_element_msg_idx);
+      } else if (l < adjacent_left_lanelets.size() + 1) {
+        result.regulatory_element_idcs.push_back(regulatory_element_msg_idx);
+      } else {
+        size_t l_right = l - adjacent_left_lanelets.size() - 1;
+        if (l_right >= result.adjacent_right_regulatory_element_idcs.size()) {
+          result.adjacent_right_regulatory_element_idcs.push_back({});
+        }
+        result.adjacent_right_regulatory_element_idcs[l_right].push_back(regulatory_element_msg_idx);
+      }
     }
-
-    // extract sign positions and type
-    regulatory_element_msg.positions = regulatoryElementPositions(regulatory_element);
-    std::tie(regulatory_element_msg.type, regulatory_element_msg.meta_value) =
-        regulatoryElementType(regulatory_element);
-
-    regulatory_element_msgs.push_back(regulatory_element_msg);
   }
 
-  return regulatory_element_msgs;
+  return result;
 }
 
 std::optional<std::array<geometry_msgs::msg::Point, 2>> regulatoryElementReferenceLine(

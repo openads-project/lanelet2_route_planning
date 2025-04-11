@@ -123,22 +123,46 @@ route_planning_msgs::msg::RouteElement createMinimalRouteElement(const geometry_
                                                                  uint8_t speed_limit = 0);
 
 /**
+ * @brief Helper type for a sequence of three points.
+ */
+struct PointSequence {
+  Eigen::Vector2d prev;     ///< previous point
+  Eigen::Vector2d current;  ///< current point
+  Eigen::Vector2d next;     ///< next point
+  PointSequence(const Eigen::Vector2d& prev, const Eigen::Vector2d& current, const Eigen::Vector2d& next)
+      : prev(prev), current(current), next(next) {}
+};
+
+/**
+ * @brief Return type of extractRegulatoryElements.
+ */
+struct ExtractRegulatoryElementsResult {
+  std::vector<route_planning_msgs::msg::RegulatoryElement>
+      regulatory_element_msgs;                   ///< regulatory element messages for route element
+  std::vector<uint8_t> regulatory_element_idcs;  ///< indices of regulatory elements belonging to main lane
+  std::vector<std::vector<uint8_t>>
+      adjacent_left_regulatory_element_idcs;  ///< indices of regulatory elements belonging to left adjacent lanes
+  std::vector<std::vector<uint8_t>>
+      adjacent_right_regulatory_element_idcs;  ///< indices of regulatory elements belonging to right adjacent lanes
+};
+
+/**
  * @brief Extracts regulatory element information for a route element.
  *
- * Regulatory elements are queried from the lanelet.
- * They are only considered if their reference line intersects with the line from point to next point or previous point to point.
- * This way, regulatory elements are assignable to the closest route element.
+ * Regulatory elements are queried from a lanelet and its adjacent lanelets. They are only considered if their reference
+ * line intersects with the given point sequence, which should be the centerline of the main lanelet. This way,
+ * regulatory elements are assignable to the closest route element. Note that the assignment to adjacent lanes is also
+ * based on the intersection with the single given point sequence.
  *
  * @param[in] lanelet lanelet
- * @param[in] point point
- * @param[in] prev_point previous point
- * @param[in] next_point next point
- * @return regulatory elements
+ * @param[in] adjacent_left_lanelets left adjacent lanelets
+ * @param[in] adjacent_right_lanelets right adjacent lanelets
+ * @param[in] point_sequence point sequence (should be centerline of main lanelet)
+ * @return regulatory element information
  */
-std::vector<route_planning_msgs::msg::RegulatoryElement> extractRegulatoryElements(const lanelet::ConstLanelet& lanelet,
-                                                                                   const Eigen::Vector2d& point,
-                                                                                   const Eigen::Vector2d& prev_point,
-                                                                                   const Eigen::Vector2d& next_point);
+ExtractRegulatoryElementsResult extractRegulatoryElements(
+    const lanelet::ConstLanelet& lanelet, const std::vector<lanelet::ConstLanelet>& adjacent_left_lanelets,
+    const std::vector<lanelet::ConstLanelet>& adjacent_right_lanelets, const PointSequence& point_sequence);
 
 /**
  * @brief Extracts the reference/effect line of a regulatory element.
@@ -266,7 +290,7 @@ double estimateRemainingTime(const std::vector<route_planning_msgs::msg::RouteEl
  * This includes:
  * - orientation of each lane element's reference pose based on preceding and following points
  *
- * @param[in] route_msg postprocessed route message
+ * @param[in,out] route_msg route message to postprocess
  */
 void postprocessRouteMessage(route_planning_msgs::msg::Route& route_msg);
 
