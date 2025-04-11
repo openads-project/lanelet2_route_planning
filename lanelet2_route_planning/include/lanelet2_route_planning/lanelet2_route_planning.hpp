@@ -71,11 +71,12 @@ class Lanelet2RoutePlanning : public rclcpp::Node {
   void setup();
 
   /**
-   * @brief Checks if map is loaded and updated to react to map updates
+   * @brief Checks if map is loaded and handles map updates
    *
-   * This function is invoked periodically to react to map updates.
+   * @param[in] handle_update whether to handle map update
+   * @return whether map is loaded (and updated, if supposed to handle update)
    */
-  void checkMap();
+  bool checkMap(bool handle_update);
 
   /**
    * @brief Builds the lanelet2 routing graph based on the current map
@@ -182,11 +183,6 @@ class Lanelet2RoutePlanning : public rclcpp::Node {
    * @brief Callback handle for dynamic parameter reconfiguration
    */
   OnSetParametersCallbackHandle::SharedPtr parameters_callback_;
-
-  /**
-   * @brief Timer to periodically check if map is loaded or updated
-   */
-  rclcpp::TimerBase::SharedPtr check_map_timer_;
 
   /**
    * @brief Subscriber for ego data

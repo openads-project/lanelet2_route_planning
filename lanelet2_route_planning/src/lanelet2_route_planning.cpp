@@ -158,20 +158,21 @@ rcl_interfaces::msg::SetParametersResult Lanelet2RoutePlanning::parametersCallba
   return result;
 }
 
-void Lanelet2RoutePlanning::checkMap() {
-  if (ll2_interface_->map_loaded_ && ll2_interface_->update_pending_) {
-    bool success = this->buildRoutingGraph();
-    if (success) {
+bool Lanelet2RoutePlanning::checkMap(bool handle_update) {
+  bool map_status = ll2_interface_->map_loaded_;
+  // update routing graph on map update
+  if (handle_update && ll2_interface_->update_pending_ && ll2_interface_->map_loaded_) {
+    if (this->buildRoutingGraph()) {
       ll2_interface_->update_pending_ = false;
     }
+    map_status = map_status && !ll2_interface_->update_pending_;
   }
+  return map_status;
 }
 
 void Lanelet2RoutePlanning::setup() {
-  // periodically check if map is loaded and updated
+  // map interface
   ll2_interface_ = std::make_unique<LL2MapInterface>(*this, ll2_map_server_name_);
-  check_map_timer_ =
-      this->create_wall_timer(std::chrono::milliseconds(100), std::bind(&Lanelet2RoutePlanning::checkMap, this));
 
   // callback for dynamic parameter configuration
   parameters_callback_ = this->add_on_set_parameters_callback(
@@ -205,7 +206,7 @@ void Lanelet2RoutePlanning::setup() {
 }
 
 bool Lanelet2RoutePlanning::buildRoutingGraph() {
-  if (!ll2_interface_->map_loaded_) {
+  if (!this->checkMap(false)) {
     RCLCPP_ERROR(this->get_logger(), "Cannot build routing graph, map not loaded by '%s'",
                  ll2_map_server_name_.c_str());
     return false;
@@ -231,7 +232,7 @@ bool Lanelet2RoutePlanning::buildRoutingGraph() {
 }
 
 void Lanelet2RoutePlanning::egoDataCallback(const perception_msgs::msg::EgoData::SharedPtr msg) {
-  if (!ll2_interface_->map_loaded_) {
+  if (!this->checkMap(false)) {
     return;
   }
 
@@ -407,7 +408,7 @@ void Lanelet2RoutePlanning::actionExecute(
 }
 
 bool Lanelet2RoutePlanning::planRoute(const geometry_msgs::msg::PointStamped& destination) {
-  if (!ll2_interface_->map_loaded_) {
+  if (!this->checkMap(true)) {
     RCLCPP_ERROR(this->get_logger(), "Cannot plan route, map not loaded by '%s'", ll2_map_server_name_.c_str());
     return false;
   }
