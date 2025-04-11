@@ -224,18 +224,19 @@ std::vector<route_planning_msgs::msg::RegulatoryElement> extractRegulatoryElemen
     // create RegulatoryElement
     route_planning_msgs::msg::RegulatoryElement regulatory_element_msg;
 
-    // extract effect line
-    if (auto effect_line = regulatoryElementEffectLine(regulatory_element)) {
-      regulatory_element_msg.effect_line = *effect_line;
+    // extract reference line
+    if (auto reference_line = regulatoryElementReferenceLine(regulatory_element)) {
+      regulatory_element_msg.reference_line = *reference_line;
 
-      // only consider regulatory element if effect line intersects with centerline, else skip
+      // only consider regulatory element if reference line intersects with centerline, else skip
       // TODO: check if we are actually filling the msg with 3d values, whenever possible, and only use 2d for checking stuff
-      std::vector<Eigen::Vector2d> effect_line_2d = {toEigen2d(effect_line->at(0)), toEigen2d(effect_line->at(1))};
+      std::vector<Eigen::Vector2d> reference_line_2d = {toEigen2d(reference_line->at(0)),
+                                                        toEigen2d(reference_line->at(1))};
       std::vector<Eigen::Vector2d> line_to_next_point = {point, next_point};
       std::vector<Eigen::Vector2d> line_to_prev_point = {point, prev_point};
-      if (auto result = intersectionOfLines(effect_line_2d, line_to_next_point)) {
+      if (auto result = intersectionOfLines(reference_line_2d, line_to_next_point)) {
         if (!result->intersects_line2) {
-          if (auto inner_result = intersectionOfLines(effect_line_2d, line_to_prev_point)) {
+          if (auto inner_result = intersectionOfLines(reference_line_2d, line_to_prev_point)) {
             if (!inner_result->intersects_line2) {
               continue;
             }
@@ -250,7 +251,7 @@ std::vector<route_planning_msgs::msg::RegulatoryElement> extractRegulatoryElemen
     }
 
     // extract sign positions and type
-    regulatory_element_msg.sign_positions = regulatoryElementSignPositions(regulatory_element);
+    regulatory_element_msg.positions = regulatoryElementPositions(regulatory_element);
     std::tie(regulatory_element_msg.type, regulatory_element_msg.meta_value) =
         regulatoryElementType(regulatory_element);
 
@@ -260,33 +261,34 @@ std::vector<route_planning_msgs::msg::RegulatoryElement> extractRegulatoryElemen
   return regulatory_element_msgs;
 }
 
-std::optional<std::array<geometry_msgs::msg::Point, 2>> regulatoryElementEffectLine(
+std::optional<std::array<geometry_msgs::msg::Point, 2>> regulatoryElementReferenceLine(
     const std::shared_ptr<const lanelet::RegulatoryElement>& regulatory_element) {
-  const std::vector<lanelet::ConstLineString3d> effect_lines =
+  const std::vector<lanelet::ConstLineString3d> reference_lines =
       regulatory_element->getParameters<lanelet::ConstLineString3d>(lanelet::RoleName::RefLine);
-  if (effect_lines.empty()) {
+  if (reference_lines.empty()) {
     return std::nullopt;
   }
-  const std::vector<Eigen::Vector3d> effect_line = effect_lines.front().basicLineString();
-  if (effect_line.size() < 2) {
+  const std::vector<Eigen::Vector3d> reference_line = reference_lines.front().basicLineString();
+  if (reference_line.size() < 2) {
     return std::nullopt;
   }
-  std::array<geometry_msgs::msg::Point, 2> effect_line_ros = {toRos(effect_line.front()), toRos(effect_line.back())};
-  return effect_line_ros;
+  std::array<geometry_msgs::msg::Point, 2> reference_line_ros = {toRos(reference_line.front()),
+                                                                 toRos(reference_line.back())};
+  return reference_line_ros;
 }
 
-std::vector<geometry_msgs::msg::Point> regulatoryElementSignPositions(
+std::vector<geometry_msgs::msg::Point> regulatoryElementPositions(
     const std::shared_ptr<const lanelet::RegulatoryElement>& regulatory_element) {
-  std::vector<geometry_msgs::msg::Point> sign_positions;
+  std::vector<geometry_msgs::msg::Point> positions;
   const std::vector<lanelet::ConstLineString3d> sign_lines =
       regulatory_element->getParameters<lanelet::ConstLineString3d>(lanelet::RoleName::Refers);
   for (const auto& const_sign_line : sign_lines) {
     const std::vector<Eigen::Vector3d> sign_line = const_sign_line.basicLineString();
     if (!sign_line.empty()) {
-      sign_positions.push_back(toRos(sign_line.front()));
+      positions.push_back(toRos(sign_line.front()));
     }
   }
-  return sign_positions;
+  return positions;
 }
 
 std::pair<uint8_t, uint8_t> regulatoryElementType(

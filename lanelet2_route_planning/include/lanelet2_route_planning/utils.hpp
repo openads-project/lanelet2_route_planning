@@ -126,7 +126,7 @@ route_planning_msgs::msg::RouteElement createMinimalRouteElement(const geometry_
  * @brief Extracts regulatory element information for a route element.
  *
  * Regulatory elements are queried from the lanelet.
- * They are only considered if their effect line intersects with the line from point to next point or previous point to point.
+ * They are only considered if their reference line intersects with the line from point to next point or previous point to point.
  * This way, regulatory elements are assignable to the closest route element.
  *
  * @param[in] lanelet lanelet
@@ -141,26 +141,26 @@ std::vector<route_planning_msgs::msg::RegulatoryElement> extractRegulatoryElemen
                                                                                    const Eigen::Vector2d& next_point);
 
 /**
- * @brief Extracts the effect line of a regulatory element.
+ * @brief Extracts the reference/effect line of a regulatory element.
  *
  * Only the first reference line of the regulatory element is considered.
  * Only the end points of that reference line are considered.
  *
  * @param[in] regulatory_element
- * @return effect line
+ * @return reference line
  */
-std::optional<std::array<geometry_msgs::msg::Point, 2>> regulatoryElementEffectLine(
+std::optional<std::array<geometry_msgs::msg::Point, 2>> regulatoryElementReferenceLine(
     const std::shared_ptr<const lanelet::RegulatoryElement>& regulatory_element);
 
 /**
- * @brief Extracts the sign positions of a regulatory element.
+ * @brief Extracts the sign/signal positions of a regulatory element.
  *
  * Only the first point of referenced line strings is considered.
  *
  * @param[in] regulatory_element
- * @return sign positions
+ * @return positions
  */
-std::vector<geometry_msgs::msg::Point> regulatoryElementSignPositions(
+std::vector<geometry_msgs::msg::Point> regulatoryElementPositions(
     const std::shared_ptr<const lanelet::RegulatoryElement>& regulatory_element);
 
 /**
