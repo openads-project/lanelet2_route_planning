@@ -268,9 +268,9 @@ rclcpp_action::GoalResponse Lanelet2RoutePlanning::actionHandleGoal(
   RCLCPP_INFO(this->get_logger(), "Received request to plan route to destination (%.3f, %.3f, %.3f) in frame '%s'",
               destination.point.x, destination.point.y, destination.point.z, destination.header.frame_id.c_str());
 
-  // check if routing graph is built
-  if (!routing_graph_) {
-    RCLCPP_ERROR(this->get_logger(), "Cannot plan route, routing graph is not built");
+  // check for and handle map updates
+  if (!this->checkMap(true)) {
+    RCLCPP_ERROR(this->get_logger(), "Cannot plan route, map not loaded by '%s'", ll2_map_server_name_.c_str());
     return rclcpp_action::GoalResponse::REJECT;
   }
 
@@ -408,7 +408,7 @@ void Lanelet2RoutePlanning::actionExecute(
 }
 
 bool Lanelet2RoutePlanning::planRoute(const geometry_msgs::msg::PointStamped& destination) {
-  if (!this->checkMap(true)) {
+  if (!this->checkMap(false)) {
     RCLCPP_ERROR(this->get_logger(), "Cannot plan route, map not loaded by '%s'", ll2_map_server_name_.c_str());
     return false;
   }
