@@ -260,4 +260,14 @@ ResampleCenterlinesAlongPathResult resampleCenterlinesAlongPath(const lanelet::r
 double estimateRemainingTime(const std::vector<route_planning_msgs::msg::RouteElement>& route_elements,
                              const double reference_speed = 50.0 / 3.6);
 
+/**
+ * @brief Postprocesses a route message, filling missing information that can be inferred from other message contents.
+ *
+ * This includes:
+ * - orientation of each lane element's reference pose based on preceding and following points
+ *
+ * @param[in] route_msg postprocessed route message
+ */
+void postprocessRouteMessage(route_planning_msgs::msg::Route& route_msg);
+
 }  // namespace lanelet2_route_planning

@@ -492,4 +492,51 @@ double estimateRemainingTime(const std::vector<route_planning_msgs::msg::RouteEl
   return remaining_time;
 }
 
+void postprocessRouteMessage(route_planning_msgs::msg::Route& route_msg) {
+  // extract all route elements
+  std::vector<route_planning_msgs::msg::RouteElement> route_elements = route_msg.traveled_route_elements;
+  route_elements.insert(route_elements.end(), route_msg.remaining_route_elements.begin(),
+                        route_msg.remaining_route_elements.end());
+
+  // loop over route elements
+  for (size_t r = 0; r < route_elements.size(); ++r) {
+    // get current, previous and next route element
+    auto& route_element = route_elements[r];
+    const auto& prev_route_element = (r > 0) ? route_elements[r - 1] : route_element;
+    const auto& next_route_element = (r < route_elements.size() - 1) ? route_elements[r + 1] : route_element;
+
+    // loop over lane elements of current route element
+    for (size_t l = 0; l < route_element.lane_elements.size(); ++l) {
+      // get current, previous and next lane element
+      auto& lane_element = route_element.lane_elements[l];
+      const auto prev_lane_element_opt =
+          route_planning_msgs::route_access::getPrecedingLaneElement(l, prev_route_element);
+      const auto next_lane_element_opt =
+          route_planning_msgs::route_access::getFollowingLaneElement(lane_element, next_route_element);
+
+      // find current, previous and next points to compute orientation
+      const auto point = toEigen2d(lane_element.reference_pose.position);
+      const bool changes_lane_from_prev_point = prev_route_element.will_change_suggested_lane;
+      const bool changes_lane_to_next_point = next_route_element.will_change_suggested_lane;
+      const auto prev_point_for_orientation = (changes_lane_from_prev_point || !prev_lane_element_opt)
+                                                  ? point
+                                                  : toEigen2d(prev_lane_element_opt->reference_pose.position);
+      const auto next_point_for_orientation = (changes_lane_to_next_point || !next_lane_element_opt)
+                                                  ? point
+                                                  : toEigen2d(next_lane_element_opt->reference_pose.position);
+
+      // compute orientation of current point
+      const auto orientation =
+          tangentOfPointAlongLineString(point, prev_point_for_orientation, next_point_for_orientation);
+      lane_element.reference_pose.orientation = toRosQuaternion(orientation);
+    }
+  }
+
+  // store postprocessed route elements in original route message
+  route_msg.traveled_route_elements = std::vector<route_planning_msgs::msg::RouteElement>(
+      route_elements.begin(), route_elements.begin() + route_msg.traveled_route_elements.size());
+  route_msg.remaining_route_elements = std::vector<route_planning_msgs::msg::RouteElement>(
+      route_elements.begin() + route_msg.traveled_route_elements.size(), route_elements.end());
+}
+
 }  // namespace lanelet2_route_planning

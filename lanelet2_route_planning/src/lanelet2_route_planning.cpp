@@ -593,10 +593,6 @@ bool Lanelet2RoutePlanning::buildEnrichedRouteMessage() {
     Eigen::Vector2d prev_point_for_projection = changes_lane_from_prev_point ? point : prev_point;
     Eigen::Vector2d next_point_for_projection = changes_lane_to_next_point ? point : next_point;
 
-    // compute orientation of centerline point
-    Eigen::Vector2d orientation =
-        tangentOfPointAlongLineString(point, prev_point_for_projection, next_point_for_projection);
-
     // get adjacent lanelets
     std::vector<lanelet::ConstLanelet> adjacent_left_lanelets =
         adjacentLeftOrRightLanelets(lanelet, latest_route_, true);
@@ -646,7 +642,7 @@ bool Lanelet2RoutePlanning::buildEnrichedRouteMessage() {
     for (size_t a = 0; a < adjacent_left_lanelets_projected_points.size(); ++a) {
       route_planning_msgs::msg::LaneElement lane_element_msg;
       lane_element_msg.reference_pose.position = toRos(adjacent_left_lanelets_projected_points[a].centerline_point);
-      lane_element_msg.reference_pose.orientation = geometry_msgs::msg::Quaternion();  // TODO
+      // lane_element_msg.reference_pose.orientation computed in postprocessRouteMessage
       lane_element_msg.left_boundary.point = toRos(adjacent_left_lanelets_projected_points[a].left_bound_point);
       lane_element_msg.left_boundary.type = laneBoundaryType(adjacent_left_lanelets[a].leftBound2d());
       lane_element_msg.has_left_boundary = true;
@@ -663,7 +659,7 @@ bool Lanelet2RoutePlanning::buildEnrichedRouteMessage() {
     // create LaneElement for centerline lane
     route_planning_msgs::msg::LaneElement centerline_lane_element_msg;
     centerline_lane_element_msg.reference_pose.position = toRos(point);
-    centerline_lane_element_msg.reference_pose.orientation = toRosQuaternion(orientation);
+    // centerline_lane_element_msg.reference_pose.orientation computed in postprocessRouteMessage
     centerline_lane_element_msg.left_boundary.point = toRos(lanelet_projected_points.left_bound_point);
     centerline_lane_element_msg.left_boundary.type = laneBoundaryType(lanelet.leftBound2d());
     centerline_lane_element_msg.has_left_boundary = true;
@@ -683,7 +679,7 @@ bool Lanelet2RoutePlanning::buildEnrichedRouteMessage() {
     for (size_t a = 0; a < adjacent_right_lanelets_projected_points.size(); ++a) {
       route_planning_msgs::msg::LaneElement lane_element_msg;
       lane_element_msg.reference_pose.position = toRos(adjacent_right_lanelets_projected_points[a].centerline_point);
-      lane_element_msg.reference_pose.orientation = geometry_msgs::msg::Quaternion();  // TODO
+      // lane_element_msg.reference_pose.orientation computed in postprocessRouteMessage
       lane_element_msg.left_boundary.point = toRos(adjacent_right_lanelets_projected_points[a].left_bound_point);
       lane_element_msg.left_boundary.type = laneBoundaryType(adjacent_right_lanelets[a].leftBound2d());
       lane_element_msg.has_left_boundary = true;
@@ -707,6 +703,9 @@ bool Lanelet2RoutePlanning::buildEnrichedRouteMessage() {
                                             route_elements.begin() + c_min_distance_ego_to_route + 1,
                                             route_elements.end());
   route_msg.header.stamp = latest_ego_data_.header.stamp;
+
+  // postprocess route message
+  postprocessRouteMessage(route_msg);
 
   // save as latest route message
   latest_route_msg_ = route_msg;
