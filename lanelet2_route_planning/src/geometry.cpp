@@ -1,3 +1,4 @@
+#include <cmath>
 #include <limits>
 
 #include <lanelet2_core/geometry/LineString.h>
@@ -7,6 +8,20 @@
 #include "lanelet2_route_planning/geometry.hpp"
 
 namespace lanelet2_route_planning {
+
+double wrapAngle(const double angle) {
+  double wrapped_angle = angle;
+  while (wrapped_angle > M_PI) wrapped_angle -= 2 * M_PI;
+  while (wrapped_angle < -M_PI) wrapped_angle += 2 * M_PI;
+  return wrapped_angle;
+}
+
+double angleBetweenVectors(const Eigen::Vector2d& v1, const Eigen::Vector2d& v2) {
+  double dot_product = v1.dot(v2);
+  double determinant = v1.x() * v2.y() - v1.y() * v2.x();
+  double angle = std::atan2(determinant, dot_product);
+  return wrapAngle(angle);
+}
 
 std::optional<IntersectionOfLinesResult> intersectionOfLines(const std::vector<Eigen::Vector2d>& line1,
                                                              const std::vector<Eigen::Vector2d>& line2) {

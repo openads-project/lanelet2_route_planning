@@ -1,6 +1,8 @@
 #include <limits>
 #include <unordered_map>
+#include <unordered_set>
 
+#include <lanelet2_core/geometry/LaneletMap.h>
 #include <lanelet2_core/utility/Units.h>
 #include <lanelet2_traffic_rules/TrafficRulesFactory.h>
 #include <lanelet2_utilities/lanelet2_utils.hpp>
@@ -213,6 +215,105 @@ route_planning_msgs::msg::RouteElement createMinimalRouteElement(const geometry_
   route_element_msg.lane_elements.push_back(lane_element_msg);
 
   return route_element_msg;
+}
+
+std::pair<Eigen::Vector2d, Eigen::Vector2d> extractDrivableSpace(const lanelet::LineStringLayer& line_string_layer,
+                                                                 const PointSequence& point_sequence,
+                                                                 const double max_distance) {
+  // find all line strings within max_distance
+  const lanelet::BasicLineString2d line_to_search_around = {point_sequence.current, point_sequence.next};
+  std::vector<std::pair<double, lanelet::ConstLineString3d>> line_strings_and_distances =
+      lanelet::geometry::findWithin2d(line_string_layer, line_to_search_around, max_distance);
+
+  // project current point to all line strings
+  std::vector<std::pair<Eigen::Vector2d, size_t>> projected_points_and_line_string_idcs;
+  for (size_t l = 0; l < line_strings_and_distances.size(); ++l) {
+    const auto& line_string = line_strings_and_distances[l].second;
+    auto result = projectPointToLineStringAlongNormal(point_sequence.current, point_sequence.prev, point_sequence.next,
+                                                      to2d(toEigen(line_string.basicLineString())));
+    if (result && result->found_intersection_with_line_segment) {
+      projected_points_and_line_string_idcs.emplace_back(result->projected_point, l);
+    }
+  }
+
+  // sort projected points by distance to current point
+  std::sort(projected_points_and_line_string_idcs.begin(), projected_points_and_line_string_idcs.end(),
+            [&point_sequence](const auto& a, const auto& b) {
+              return (a.first - point_sequence.current).norm() < (b.first - point_sequence.current).norm();
+            });
+
+  // split projected points into those left and those right of current point
+  const Eigen::Vector2d tangent =
+      tangentOfPointAlongLineString(point_sequence.current, point_sequence.prev, point_sequence.next);
+  std::vector<std::pair<Eigen::Vector2d, size_t>> left_projected_points_and_line_string_idcs,
+      right_projected_points_and_line_string_idcs;
+  for (const auto& projected_point_and_line_string_idx : projected_points_and_line_string_idcs) {
+    // determine left/right based on angle between tangent and vector to projected point
+    const Eigen::Vector2d point_to_projected_point = projected_point_and_line_string_idx.first - point_sequence.current;
+    const double angle = angleBetweenVectors(tangent, point_to_projected_point);
+    if (angle > 0) {
+      left_projected_points_and_line_string_idcs.emplace_back(projected_point_and_line_string_idx);
+    } else {
+      right_projected_points_and_line_string_idcs.emplace_back(projected_point_and_line_string_idx);
+    }
+  }
+
+  // find drivable space bounds by following projected points until corresponding line string is not passable anymore
+  Eigen::Vector2d drivable_space_left, drivable_space_right;
+  bool is_drivable_space_left_limited_by_line_strings, is_drivable_space_right_limited_by_line_strings;
+  for (const auto& projected_point_and_line_string_idx : left_projected_points_and_line_string_idcs) {
+    const auto& line_string = line_strings_and_distances[projected_point_and_line_string_idx.second].second;
+    if (!isLineStringDrivable(line_string)) {
+      drivable_space_left = projected_point_and_line_string_idx.first;
+      is_drivable_space_left_limited_by_line_strings = true;
+      break;
+    }
+  }
+  for (const auto& projected_point_and_line_string_idx : right_projected_points_and_line_string_idcs) {
+    const auto& line_string = line_strings_and_distances[projected_point_and_line_string_idx.second].second;
+    if (!isLineStringDrivable(line_string)) {
+      drivable_space_right = projected_point_and_line_string_idx.first;
+      is_drivable_space_right_limited_by_line_strings = true;
+      break;
+    }
+  }
+
+  // if drivable space is not limited by line strings, use maximum distance
+  const Eigen::Vector2d normal =
+      normalOfPointAlongLineString(point_sequence.current, point_sequence.prev, point_sequence.next);
+  if (!is_drivable_space_left_limited_by_line_strings) {
+    drivable_space_left = point_sequence.current + normal * max_distance;
+  }
+  if (!is_drivable_space_right_limited_by_line_strings) {
+    drivable_space_right = point_sequence.current - normal * max_distance;
+  }
+
+  return {drivable_space_left, drivable_space_right};
+}
+
+bool isLineStringDrivable(const lanelet::ConstLineString3d& line_string) {
+  const std::unordered_set<std::string> drivable_types = {
+      "line_thin", "line_thick",    "virtual",   "zebra_marking", "bike_marking", "pedestrian_marking",
+      "stop_line", "traffic_light", "curbstone", "roadpainting",  "lane_center",  "centerline"};
+  if (line_string.hasAttribute("type")) {
+    std::string type = line_string.attribute("type").value();
+    if (drivable_types.count(type) > 0) {
+      if (type == "curbstone") {
+        if (!line_string.hasAttribute("subtype") || line_string.attribute("subtype").value() != "low") {
+          return false;
+        }
+      }
+      return true;
+    } else {
+      if (line_string.hasAttribute("HoldingLine")) {
+        return true;
+      } else {
+        return false;
+      }
+    }
+  } else {
+    return false;
+  }
 }
 
 ExtractRegulatoryElementsResult extractRegulatoryElements(

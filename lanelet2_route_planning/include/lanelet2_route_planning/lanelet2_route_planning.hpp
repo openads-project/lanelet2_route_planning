@@ -326,6 +326,11 @@ class Lanelet2RoutePlanning : public rclcpp::Node {
    * @brief Overshoot route by this distance behind destination [m] (parameter)
    */
   double route_overshoot_distance_ = 0.0;
+
+  /**
+   * @brief Maximum distance to left/right drivable space bounds, if not otherwise restricted [m] (parameter)
+   */
+  double max_drivable_space_radius_ = 50.0;
 };
 
 }  // namespace lanelet2_route_planning

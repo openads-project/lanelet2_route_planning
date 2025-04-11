@@ -134,6 +134,49 @@ struct PointSequence {
 };
 
 /**
+ * @brief Extracts drivable space boundaries for a route element.
+ *
+ * Drivable space is defined as the area around the current point that is physically drivable.
+ * To extract it, the intersection of the normal to the current point with all existing map line strings is computed.
+ * The outermost intersection point that is not drivable anymore is considered the boundary.
+ * If no such point is found, the maximum distance is used.
+ *
+ * @param[in] line_string_layer map line string layer
+ * @param[in] point_sequence point sequence (should be centerline of main lanelet)
+ * @param[in] max_distance maximum distance to left/right drivable space bounds, if not otherwise restricted
+ * @return left and right drivable space bounds
+ */
+std::pair<Eigen::Vector2d, Eigen::Vector2d> extractDrivableSpace(const lanelet::LineStringLayer& line_string_layer,
+                                                                 const PointSequence& point_sequence,
+                                                                 const double max_distance);
+
+/**
+ * @brief Checks if lanelet line string has a type that is considered drivable.
+ *
+ * Drivable in the sense of being able to physically cross it, not whether it is allowed to cross it.
+ *
+ * The following types are considered drivable:
+ * - line_thin
+ * - line_thick
+ * - virtual
+ * - zebra_marking
+ * - bike_marking
+ * - pedestrian_marking
+ * - stop_line
+ * - traffic_light
+ * - curbstone (only if subtype is 'low')
+ * - roadpainting
+ * - lane_center
+ * - centerline
+ *
+ * Additionally, the extra attribute 'HoldingLine' is considered drivable.
+ *
+ * @param[in] line_string line string
+ * @return whether line string is drivable
+ */
+bool isLineStringDrivable(const lanelet::ConstLineString3d& line_string);
+
+/**
  * @brief Return type of extractRegulatoryElements.
  */
 struct ExtractRegulatoryElementsResult {

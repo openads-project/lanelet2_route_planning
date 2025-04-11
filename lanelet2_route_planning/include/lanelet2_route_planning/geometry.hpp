@@ -8,6 +8,25 @@
 namespace lanelet2_route_planning {
 
 /**
+ * @brief Wraps an angle to the range [-π, π].
+ *
+ * @param[in] angle angle to wrap
+ * @return wrapped angle [radians]
+ */
+double wrapAngle(const double angle);
+
+/**
+ * @brief Computes the angle between two 2D vectors.
+ *
+ * Angle is in the range [-π, π].
+ *
+ * @param[in] v1 vector 1
+ * @param[in] v2 vector 2
+ * @return angle between vectors [radians]
+ */
+double angleBetweenVectors(const Eigen::Vector2d& v1, const Eigen::Vector2d& v2);
+
+/**
  * @brief Return type of intersectionOfLines.
  */
 struct IntersectionOfLinesResult {
@@ -77,7 +96,7 @@ Eigen::Vector2d projectPointToLineString(const Eigen::Vector2d& point, const std
  */
 struct ProjectPointToLineStringAlongAxisResult {
   Eigen::Vector2d projected_point;            ///< intersection point
-  bool found_intersection_with_line_segment;  ///< whether intersection is on first line segment
+  bool found_intersection_with_line_segment;  ///< whether intersection is on line segment
 };
 
 /**

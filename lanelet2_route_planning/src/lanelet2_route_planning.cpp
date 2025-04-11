@@ -42,6 +42,9 @@ Lanelet2RoutePlanning::Lanelet2RoutePlanning() : Node("lanelet2_route_planning")
                                 "Undershoot route by this distance before ego position [m]", true, false, false);
   this->declareAndLoadParameter("route_overshoot_distance", route_overshoot_distance_,
                                 "Overshoot route by this distance behind destination [m]", true, false, false);
+  this->declareAndLoadParameter("max_drivable_space_radius", max_drivable_space_radius_,
+                                "Maximum distance to left/right drivable space bounds, if not otherwise restricted [m]",
+                                true, false, false, 3.0, 100.0, 1.0);
   if (enrich_route_ahead_ego_distance_ < 0.0)
     enrich_route_ahead_ego_distance_ = std::numeric_limits<double>::infinity();
   if (enrich_route_behind_ego_distance_ < 0.0)
@@ -616,13 +619,10 @@ bool Lanelet2RoutePlanning::buildEnrichedRouteMessage() {
         computeFollowingLaneIdxOffset(lanelet, lanelet_of_next_point, latest_route_, routing_graph_);
 
     // extract drivable space
-    // TODO: extract actual drivable space by shooting
-    Eigen::Vector2d drivable_space_left = adjacent_left_lanelets_projected_points.empty()
-                                              ? lanelet_projected_points.left_bound_point
-                                              : adjacent_left_lanelets_projected_points.front().left_bound_point;
-    Eigen::Vector2d drivable_space_right = adjacent_right_lanelets_projected_points.empty()
-                                               ? lanelet_projected_points.right_bound_point
-                                               : adjacent_right_lanelets_projected_points.back().right_bound_point;
+    Eigen::Vector2d drivable_space_left, drivable_space_right;
+    std::tie(drivable_space_left, drivable_space_right) =
+        extractDrivableSpace(ll2_interface_->getMapPtr()->lineStringLayer,
+                             {prev_point_for_projection, point, next_point_for_projection}, max_drivable_space_radius_);
 
     // extract regulatory elements
     auto regulatory_element_extraction = extractRegulatoryElements(

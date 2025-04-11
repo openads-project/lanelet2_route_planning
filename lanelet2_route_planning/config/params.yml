@@ -9,6 +9,7 @@
     enrich_route_behind_ego_distance: 10.0
     route_undershoot_distance: 0.0
     route_overshoot_distance: 0.0
+    max_drivable_space_radius: 50.0
 
     # --- plan_route_action_client ---
     # waypoints:
