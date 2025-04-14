@@ -21,7 +21,7 @@ Lanelet2RoutePlanning::Lanelet2RoutePlanning() : Node("lanelet2_route_planning")
   this->declareAndLoadParameter("ll2_map_server_name", ll2_map_server_name_, "Name of lanelet2_map_server node", false,
                                 false, true);
   this->declareAndLoadParameter("publish_frequency", publish_frequency_, "Frequency of route publication [Hz]", true,
-                                false, false, 0.1, 10.0, 0.1);
+                                false, false, 0.1, 20.0, 0.1);
   this->declareAndLoadParameter("action_feedback_frequency", action_feedback_frequency_,
                                 "Frequency of action feedback publication [Hz]", false, false, false, 0.1, 10.0, 0.1);
   this->declareAndLoadParameter("sampling_distance", sampling_distance_,
