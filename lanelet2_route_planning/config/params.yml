@@ -1,11 +1,11 @@
 /**/*:
   ros__parameters:
     ll2_map_server_name: ll2_map_server
-    publish_frequency: 1.0
+    publish_frequency: 10.0
     action_feedback_frequency: 1.0
-    sampling_distance: 0.5
+    sampling_distance: 1.0
     destination_distance_threshold: 1.0
-    enrich_route_ahead_ego_distance: 30.0
+    enrich_route_ahead_ego_distance: 100.0
     enrich_route_behind_ego_distance: 10.0
     route_undershoot_distance: 0.0
     route_overshoot_distance: 0.0

@@ -290,7 +290,7 @@ class Lanelet2RoutePlanning : public rclcpp::Node {
   /**
    * @brief Frequency of route publication [Hz] (parameter)
    */
-  double publish_frequency_ = 1.0;
+  double publish_frequency_ = 10.0;
 
   /**
    * @brief Frequency of action feedback publication [Hz] (parameter)
@@ -300,7 +300,7 @@ class Lanelet2RoutePlanning : public rclcpp::Node {
   /**
    * @brief Distance between resampled points along route [m] (parameter)
    */
-  double sampling_distance_ = 0.5;
+  double sampling_distance_ = 1.0;
 
   /**
    * @brief Distance to destination where destination is considered reached [m] (parameter)
@@ -310,7 +310,7 @@ class Lanelet2RoutePlanning : public rclcpp::Node {
   /**
    * @brief Distance ahead of ego position where global route is enriched with more information [m] (negative=unlimited) (parameter)
    */
-  double enrich_route_ahead_ego_distance_ = 30.0;
+  double enrich_route_ahead_ego_distance_ = 100.0;
 
   /**
    * @brief Distance behind ego position where global route is enriched with more information [m] (negative=unlimited) (parameter)

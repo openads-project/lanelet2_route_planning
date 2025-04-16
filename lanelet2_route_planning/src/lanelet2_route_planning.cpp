@@ -23,25 +23,27 @@ Lanelet2RoutePlanning::Lanelet2RoutePlanning() : Node("lanelet2_route_planning")
   this->declareAndLoadParameter("publish_frequency", publish_frequency_, "Frequency of route publication [Hz]", true,
                                 false, false, 0.1, 20.0, 0.1);
   this->declareAndLoadParameter("action_feedback_frequency", action_feedback_frequency_,
-                                "Frequency of action feedback publication [Hz]", false, false, false, 0.1, 10.0, 0.1);
+                                "Frequency of action feedback publication [Hz]", true, false, false, 0.1, 20.0, 0.1);
   this->declareAndLoadParameter("sampling_distance", sampling_distance_,
-                                "Distance between resampled points along route [m]", true, false, false, 0.01, 10.0,
-                                0.01);
+                                "Distance between resampled points along route [m]", true, false, false, 0.1, 3.0, 0.1);
   this->declareAndLoadParameter("destination_distance_threshold", destination_distance_threshold_,
                                 "Distance to destination where destination is considered reached [m]", true, false,
                                 false, 0.1, 10.0, 0.1);
   this->declareAndLoadParameter(
       "enrich_route_ahead_ego_distance", enrich_route_ahead_ego_distance_,
       "Distance ahead of ego position where global route is enriched with more information [m] (negative=unlimited)",
-      true, false, false, -1.0, 1000.0, 0.1);
+      true, false, false, -1.0, 1000.0, 1.0);
+  // TODO: -1 crashing laut Jan
   this->declareAndLoadParameter(
       "enrich_route_behind_ego_distance", enrich_route_behind_ego_distance_,
       "Distance behind ego position where global route is enriched with more information [m] (negative=unlimited)",
-      true, false, false, -1.0, 1000.0, 0.1);
+      true, false, false, -1.0, 1000.0, 1.0);
   this->declareAndLoadParameter("route_undershoot_distance", route_undershoot_distance_,
-                                "Undershoot route by this distance before ego position [m]", true, false, false);
+                                "Undershoot route by this distance before ego position [m]", true, false, false, 0.0,
+                                50.0, 1.0);
   this->declareAndLoadParameter("route_overshoot_distance", route_overshoot_distance_,
-                                "Overshoot route by this distance behind destination [m]", true, false, false);
+                                "Overshoot route by this distance behind destination [m]", true, false, false, 0.0,
+                                100.0, 1.0);
   this->declareAndLoadParameter("max_drivable_space_radius", max_drivable_space_radius_,
                                 "Maximum distance to left/right drivable space bounds, if not otherwise restricted [m]",
                                 true, false, false, 3.0, 100.0, 1.0);
@@ -370,6 +372,7 @@ void Lanelet2RoutePlanning::actionExecute(
     has_reached_destination = (distance_to_destination <= destination_distance_threshold_);
 
     // update feedback and result
+    // TODO: route progress distance seems to be off a little bit
     if (!latest_route_msg_.traveled_route_elements.empty()) {
       action_feedback_->distance_traveled = latest_route_msg_.traveled_route_elements.back().s;
     }
@@ -444,6 +447,8 @@ bool Lanelet2RoutePlanning::planRoute(const geometry_msgs::msg::PointStamped& de
   }
 
   // project ego position to lanelet
+  // TODO: scheint manchmal nicht das zu machen, was man erwarten würde; das erste remainingRouteElement sollte immer HINTER dem baselink liegen!
+  // TODO: threshold für closest lanelet bei Routenplanung parametrisieren?
   lanelet::ConstLanelet ego_ll;
   if (auto result = laneletAtPoint(toEigen2d(egoPosition(latest_ego_data_)), map)) {
     ego_ll = *result;
@@ -466,6 +471,7 @@ bool Lanelet2RoutePlanning::planRoute(const geometry_msgs::msg::PointStamped& de
       projectPointToLineString(toEigen2d(destination_map), toEigen(destination_ll.centerline2d().basicLineString()));
 
   // undershoot/overshoot route endpoints to enable context before start position and behind destination
+  // TODO: route_overshoot: scheint nur für max 1 nächstes lanelet zu funktionieren
   lanelet::ConstLanelet undershot_ego_ll =
       followLaneletsAlongRoutingGraph(routing_graph_, ego_ll, ego_ll_position, -std::abs(route_undershoot_distance_));
   lanelet::ConstLanelet overshot_destination_ll = followLaneletsAlongRoutingGraph(
