@@ -319,15 +319,19 @@ bool isLineStringDrivable(const lanelet::ConstLineString3d& line_string) {
 ExtractRegulatoryElementsResult extractRegulatoryElements(
     const lanelet::ConstLanelet& lanelet, const std::vector<lanelet::ConstLanelet>& adjacent_left_lanelets,
     const std::vector<lanelet::ConstLanelet>& adjacent_right_lanelets, const PointSequence& point_sequence) {
-  ExtractRegulatoryElementsResult result;
-  std::unordered_map<size_t, size_t> regulatory_element_msg_idx_by_id;
 
-  // gather lanelets
-  std::vector<lanelet::ConstLanelet> lanelets = {lanelet};
-  lanelets.insert(lanelets.end(), adjacent_left_lanelets.begin(), adjacent_left_lanelets.end());
+  // init result
+  ExtractRegulatoryElementsResult result;
+  result.adjacent_left_regulatory_element_idcs.resize(adjacent_left_lanelets.size());
+  result.adjacent_right_regulatory_element_idcs.resize(adjacent_right_lanelets.size());
+
+  // gather lanelets in single vector (left adjacent, current, right adjacent)
+  std::vector<lanelet::ConstLanelet> lanelets = adjacent_left_lanelets;
+  lanelets.push_back(lanelet);
   lanelets.insert(lanelets.end(), adjacent_right_lanelets.begin(), adjacent_right_lanelets.end());
 
   // loop over lanelets
+  std::unordered_map<size_t, size_t> regulatory_element_msg_idx_by_id;
   for (size_t l = 0; l < lanelets.size(); ++l) {
     const auto& current_lanelet = lanelets[l];
 
@@ -357,7 +361,8 @@ ExtractRegulatoryElementsResult extractRegulatoryElements(
           }
         }
       } else {
-        RCLCPP_WARN(rclcpp::get_logger("lanelet2_route_planning"),
+        // TODO: warn or debug? this hits a million times for certain routes on atc map
+        RCLCPP_DEBUG(rclcpp::get_logger("lanelet2_route_planning"),
                     "Failed to extract reference line of regulatory element '%ld' on lanelet '%ld', ignoring",
                     regulatory_element->id(), current_lanelet.id());
         continue;
@@ -381,17 +386,11 @@ ExtractRegulatoryElementsResult extractRegulatoryElements(
 
       // assign regulatory element to respective lanelet in result
       if (l < adjacent_left_lanelets.size()) {
-        if (l >= result.adjacent_left_regulatory_element_idcs.size()) {
-          result.adjacent_left_regulatory_element_idcs.push_back({});
-        }
         result.adjacent_left_regulatory_element_idcs[l].push_back(regulatory_element_msg_idx);
       } else if (l < adjacent_left_lanelets.size() + 1) {
         result.regulatory_element_idcs.push_back(regulatory_element_msg_idx);
       } else {
         size_t l_right = l - adjacent_left_lanelets.size() - 1;
-        if (l_right >= result.adjacent_right_regulatory_element_idcs.size()) {
-          result.adjacent_right_regulatory_element_idcs.push_back({});
-        }
         result.adjacent_right_regulatory_element_idcs[l_right].push_back(regulatory_element_msg_idx);
       }
     }
