@@ -282,10 +282,10 @@ std::pair<Eigen::Vector2d, Eigen::Vector2d> extractDrivableSpace(const lanelet::
   const Eigen::Vector2d normal =
       normalOfPointAlongLineString(point_sequence.current, point_sequence.prev, point_sequence.next);
   if (!is_drivable_space_left_limited_by_line_strings) {
-    drivable_space_left = point_sequence.current + normal * max_distance;
+    drivable_space_left = point_sequence.current - normal * max_distance;
   }
   if (!is_drivable_space_right_limited_by_line_strings) {
-    drivable_space_right = point_sequence.current - normal * max_distance;
+    drivable_space_right = point_sequence.current + normal * max_distance;
   }
 
   return {drivable_space_left, drivable_space_right};
