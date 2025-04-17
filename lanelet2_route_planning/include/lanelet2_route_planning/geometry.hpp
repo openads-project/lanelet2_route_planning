@@ -50,6 +50,9 @@ std::optional<IntersectionOfLinesResult> intersectionOfLines(const std::vector<E
  *
  * The tangent is pointing in the average direction of previous to current and current to next point directions.
  *
+ * If two points are equal, the tangent is pointing in the direction from/to the third.
+ * If three points are equal, the tangent is undefined and returns (0,0).
+ *
  * @param[in] point point along line string
  * @param[in] prev_point previous point along line string
  * @param[in] next_point next point along line string

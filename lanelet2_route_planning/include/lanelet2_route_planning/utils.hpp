@@ -13,6 +13,7 @@
 #include <Eigen/Core>
 #include <geometry_msgs/msg/point.hpp>
 #include <geometry_msgs/msg/quaternion.hpp>
+#include <rclcpp/rclcpp.hpp>
 #include <route_planning_msgs/msg/route_element.hpp>
 
 namespace lanelet2_route_planning {
@@ -72,12 +73,13 @@ struct ProjectedLaneletPoints {
  * @param[in] prev_point previous point
  * @param[in] next_point next point
  * @param[in] lanelets lanelets
+ * @param[in] logger logger (for error logging)
  * @return projected points
  */
-std::vector<ProjectedLaneletPoints> projectPointToLaneletLines(const Eigen::Vector2d& point,
-                                                               const Eigen::Vector2d& prev_point,
-                                                               const Eigen::Vector2d& next_point,
-                                                               const std::vector<lanelet::ConstLanelet>& lanelets);
+std::vector<ProjectedLaneletPoints> projectPointToLaneletLines(
+    const Eigen::Vector2d& point, const Eigen::Vector2d& prev_point, const Eigen::Vector2d& next_point,
+    const std::vector<lanelet::ConstLanelet>& lanelets,
+    const rclcpp::Logger& logger = rclcpp::get_logger("lanelet2_route_planning"));
 
 /**
  * @brief Computes the offset of lane element indices from current to next route element.
@@ -99,10 +101,10 @@ std::vector<ProjectedLaneletPoints> projectPointToLaneletLines(const Eigen::Vect
  * @param[in] routing_graph routing graph
  * @return following lane index offset
  */
-int computeFollowingLaneIdxOffset(const lanelet::ConstLanelet& lanelet,
-                                  const lanelet::ConstLanelet& lanelet_of_next_point,
-                                  const lanelet::routing::Route& route,
-                                  const lanelet::routing::RoutingGraphUPtr& routing_graph);
+std::optional<int> computeFollowingLaneIdxOffset(const lanelet::ConstLanelet& lanelet,
+                                                 const lanelet::ConstLanelet& lanelet_of_next_point,
+                                                 const lanelet::routing::Route& route,
+                                                 const lanelet::routing::RoutingGraphUPtr& routing_graph);
 
 /**
  * @brief Create a minimal route element message.

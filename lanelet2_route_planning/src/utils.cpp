@@ -6,7 +6,6 @@
 #include <lanelet2_core/utility/Units.h>
 #include <lanelet2_traffic_rules/TrafficRulesFactory.h>
 #include <lanelet2_utilities/lanelet2_utils.hpp>
-#include <rclcpp/rclcpp.hpp>
 #include <route_planning_msgs_utils/route_access.hpp>
 
 #include "lanelet2_route_planning/conversions.hpp"
@@ -53,7 +52,8 @@ std::vector<lanelet::ConstLanelet> adjacentLeftOrRightLanelets(const lanelet::Co
 std::vector<ProjectedLaneletPoints> projectPointToLaneletLines(const Eigen::Vector2d& point,
                                                                const Eigen::Vector2d& prev_point,
                                                                const Eigen::Vector2d& next_point,
-                                                               const std::vector<lanelet::ConstLanelet>& lanelets) {
+                                                               const std::vector<lanelet::ConstLanelet>& lanelets,
+                                                               const rclcpp::Logger& logger) {
   std::vector<ProjectedLaneletPoints> projected_points_per_lanelet;
 
   // loop over lanelets
@@ -65,9 +65,7 @@ std::vector<ProjectedLaneletPoints> projectPointToLaneletLines(const Eigen::Vect
                                                           toEigen(lanelet.leftBound2d().basicLineString()))) {
       projected_points.left_bound_point = result->projected_point;
     } else {
-      // TODO: how to handle logs here?
-      RCLCPP_WARN(rclcpp::get_logger("lanelet2_route_planning"),
-                  "Failed to project point (%.3f, %.3f) to left bounds of lanelet %ld", point.x(), point.y(),
+      RCLCPP_WARN(logger, "Failed to project point (%.3f, %.3f) to left bounds of lanelet %ld", point.x(), point.y(),
                   lanelet.id());
     }
 
@@ -76,8 +74,7 @@ std::vector<ProjectedLaneletPoints> projectPointToLaneletLines(const Eigen::Vect
                                                           toEigen(lanelet.centerline2d().basicLineString()))) {
       projected_points.centerline_point = result->projected_point;
     } else {
-      RCLCPP_WARN(rclcpp::get_logger("lanelet2_route_planning"),
-                  "Failed to project point (%.3f, %.3f) to centerline of lanelet %ld", point.x(), point.y(),
+      RCLCPP_WARN(logger, "Failed to project point (%.3f, %.3f) to centerline of lanelet %ld", point.x(), point.y(),
                   lanelet.id());
     }
 
@@ -86,8 +83,7 @@ std::vector<ProjectedLaneletPoints> projectPointToLaneletLines(const Eigen::Vect
                                                           toEigen(lanelet.rightBound2d().basicLineString()))) {
       projected_points.right_bound_point = result->projected_point;
     } else {
-      RCLCPP_WARN(rclcpp::get_logger("lanelet2_route_planning"),
-                  "Failed to project point (%.3f, %.3f) to right bounds of lanelet %ld", point.x(), point.y(),
+      RCLCPP_WARN(logger, "Failed to project point (%.3f, %.3f) to right bounds of lanelet %ld", point.x(), point.y(),
                   lanelet.id());
     }
 
@@ -97,10 +93,10 @@ std::vector<ProjectedLaneletPoints> projectPointToLaneletLines(const Eigen::Vect
   return projected_points_per_lanelet;
 }
 
-int computeFollowingLaneIdxOffset(const lanelet::ConstLanelet& lanelet,
-                                  const lanelet::ConstLanelet& lanelet_of_next_point,
-                                  const lanelet::routing::Route& route,
-                                  const lanelet::routing::RoutingGraphUPtr& routing_graph) {
+std::optional<int> computeFollowingLaneIdxOffset(const lanelet::ConstLanelet& lanelet,
+                                                 const lanelet::ConstLanelet& lanelet_of_next_point,
+                                                 const lanelet::routing::Route& route,
+                                                 const lanelet::routing::RoutingGraphUPtr& routing_graph) {
   int following_lane_idx_offset = 0;
   if (lanelet_of_next_point.id() != lanelet.id()) {
     // get adjacent lanelets of current lanelet
@@ -177,8 +173,8 @@ int computeFollowingLaneIdxOffset(const lanelet::ConstLanelet& lanelet,
     }
 
     if (following_lane_idx_offset == std::numeric_limits<int>::max()) {
-      RCLCPP_ERROR(rclcpp::get_logger("lanelet2_route_planning"),
-                   "Could not match following lanelets to adjacent lanelets of lanelet of next point");
+      // could not match following lanelets to adjacent lanelets of lanelet of next point
+      return std::nullopt;
     }
   }
 
@@ -207,8 +203,6 @@ route_planning_msgs::msg::RouteElement createMinimalRouteElement(const geometry_
   // lane_element_msg.right_boundary not set in global route
   lane_element_msg.has_right_boundary = false;
   lane_element_msg.speed_limit = speed_limit;
-  // TODO: rename to regulatory_element_idcs?
-  // TODO: has_regulatory_elements not needed?
   // lane_element_msg.regulatory_element_idcs not set in global route
   lane_element_msg.following_lane_idx = 0;
   lane_element_msg.has_following_lane_idx = true;
@@ -319,7 +313,6 @@ bool isLineStringDrivable(const lanelet::ConstLineString3d& line_string) {
 ExtractRegulatoryElementsResult extractRegulatoryElements(
     const lanelet::ConstLanelet& lanelet, const std::vector<lanelet::ConstLanelet>& adjacent_left_lanelets,
     const std::vector<lanelet::ConstLanelet>& adjacent_right_lanelets, const PointSequence& point_sequence) {
-
   // init result
   ExtractRegulatoryElementsResult result;
   result.adjacent_left_regulatory_element_idcs.resize(adjacent_left_lanelets.size());
@@ -361,10 +354,6 @@ ExtractRegulatoryElementsResult extractRegulatoryElements(
           }
         }
       } else {
-        // TODO: warn or debug? this hits a million times for certain routes on atc map
-        RCLCPP_DEBUG(rclcpp::get_logger("lanelet2_route_planning"),
-                    "Failed to extract reference line of regulatory element '%ld' on lanelet '%ld', ignoring",
-                    regulatory_element->id(), current_lanelet.id());
         continue;
       }
 
@@ -511,7 +500,7 @@ std::optional<lanelet::ConstLanelet> laneletAtPoint(
     const std::optional<lanelet::traffic_rules::TrafficRulesPtr> traffic_rules) {
   // parameters for lanelet matching
   const unsigned int k_nearest_lanelets = 5;
-  const double max_distance_lanelet_matching = 10.0;
+  const double max_distance_lanelet_matching = 5.0;
 
   // find nearest lanelets
   std::vector<std::pair<double, lanelet::ConstLanelet>> nearest_lanelets =
@@ -532,9 +521,6 @@ std::optional<lanelet::ConstLanelet> laneletAtPoint(
     }
   }
 
-  RCLCPP_ERROR(rclcpp::get_logger("lanelet2_route_planning"),
-               "No passable lanelet within %.3fm of given point (%.3f, %.3f)", max_distance_lanelet_matching, point.x(),
-               point.y());
   return std::nullopt;
 }
 

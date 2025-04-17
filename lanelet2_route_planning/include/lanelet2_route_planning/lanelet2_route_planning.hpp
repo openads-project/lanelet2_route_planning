@@ -158,20 +158,16 @@ class Lanelet2RoutePlanning : public rclcpp::Node {
    * @brief Builds a global ROS route message from the latest planned lanelet route
    *
    * The global route message only contains a global reference line along a single lane of the shortest path of the route.
-   *
-   * @return whether successful
    */
-  bool buildGlobalRouteMessage();
+  void buildGlobalRouteMessage();
 
   /**
    * @brief Builds an enriched ROS route message from the latest planned lanelet route
    *
    * The enriched route message is locally enriched around the ego position.
    * The enriched part contains adjacent lanes, drivable space, and regulatory elements.
-   *
-   * @return whether successful
    */
-  bool buildEnrichedRouteMessage();
+  void buildEnrichedRouteMessage();
 
  private:
   /**

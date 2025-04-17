@@ -29,10 +29,6 @@ std::optional<IntersectionOfLinesResult> intersectionOfLines(const std::vector<E
 
   // check if lines are valid
   if (line1.size() < 2 || line2.size() < 2) {
-    // TODO: how to handle logging in helper functions?
-    RCLCPP_ERROR(rclcpp::get_logger("lanelet2_route_planning"),
-                 "Lines must have no more or less than two points, found %lu and %lu points", line1.size(),
-                 line2.size());
     return std::nullopt;
   }
 
@@ -72,7 +68,7 @@ Eigen::Vector2d tangentOfPointAlongLineString(const Eigen::Vector2d& point, cons
   } else if (point != prev_point && point == next_point) {  // single line segment
     tangent = (point - prev_point).normalized();
   } else if (point == prev_point && point == next_point) {  // single point
-    RCLCPP_WARN(rclcpp::get_logger("lanelet2_route_planning"), "Tangent of single point is undefined");
+    // TODO: find out if this ever hits and if it is a problem to return (0,0)
     tangent = Eigen::Vector2d(0.0, 0.0);
   } else {  // proper two line segments with previous and next point
     const Eigen::Vector2d prev_to_point_unit = (point - prev_point).normalized();

@@ -251,10 +251,11 @@ void Lanelet2RoutePlanning::egoDataCallback(const perception_msgs::msg::EgoData:
 
   // recompute local route
   if (is_publishing_route_) {
-    bool success = this->buildEnrichedRouteMessage();
-    if (!success) {
-      RCLCPP_ERROR(this->get_logger(), "Failed to compute local route");
-    }
+    auto t0 = std::chrono::steady_clock::now();
+    this->buildEnrichedRouteMessage();
+    auto t1 = std::chrono::steady_clock::now();
+    auto dt = std::chrono::duration_cast<std::chrono::duration<double>>(t1 - t0).count();
+    RCLCPP_INFO(this->get_logger(), "Recomputed route (%.3fs)", dt);
   }
 }
 
@@ -280,7 +281,6 @@ rclcpp_action::GoalResponse Lanelet2RoutePlanning::actionHandleGoal(
   }
 
   // plan route
-  RCLCPP_INFO(this->get_logger(), "Planning route to destination ...");
   auto t0 = std::chrono::steady_clock::now();
   bool success = this->planRoute(destination);
   auto t1 = std::chrono::steady_clock::now();
@@ -288,23 +288,11 @@ rclcpp_action::GoalResponse Lanelet2RoutePlanning::actionHandleGoal(
   if (!success) {
     RCLCPP_ERROR(this->get_logger(), "Failed to plan route to destination, rejecting request");
     return rclcpp_action::GoalResponse::REJECT;
-  } else {
-    // TODO: change some prints to DEBUG; improve all logs in general
-    RCLCPP_INFO(this->get_logger(), "Successfully planned route to destination (%.3fs)", dt);
   }
 
   // convert route to ROS message
-  RCLCPP_INFO(this->get_logger(), "Converting route to ROS message ...");
-  t0 = std::chrono::steady_clock::now();
-  success = this->buildGlobalRouteMessage();
-  t1 = std::chrono::steady_clock::now();
-  dt = std::chrono::duration_cast<std::chrono::duration<double>>(t1 - t0).count();
-  if (!success) {
-    RCLCPP_ERROR(this->get_logger(), "Failed to convert route to ROS message, rejecting request");
-    return rclcpp_action::GoalResponse::REJECT;
-  } else {
-    RCLCPP_INFO(this->get_logger(), "Successfully converted route to ROS message (%.3fs)", dt);
-  }
+  this->buildGlobalRouteMessage();
+  RCLCPP_INFO(this->get_logger(), "Successfully planned route to destination (%.3fs)", dt);
 
   // abort current action if running
   if (action_goal_handle_ && action_goal_handle_->is_active()) {
@@ -491,7 +479,7 @@ bool Lanelet2RoutePlanning::planRoute(const geometry_msgs::msg::PointStamped& de
   }
 }
 
-bool Lanelet2RoutePlanning::buildGlobalRouteMessage() {
+void Lanelet2RoutePlanning::buildGlobalRouteMessage() {
   // create Route message
   route_planning_msgs::msg::Route route_msg;
   route_msg.header.stamp = this->now();
@@ -543,10 +531,9 @@ bool Lanelet2RoutePlanning::buildGlobalRouteMessage() {
   }
 
   latest_route_msg_ = route_msg;
-  return true;
 }
 
-bool Lanelet2RoutePlanning::buildEnrichedRouteMessage() {
+void Lanelet2RoutePlanning::buildEnrichedRouteMessage() {
   // join traveled and remaining route elements
   route_planning_msgs::msg::Route route_msg = latest_route_msg_;
   std::vector<route_planning_msgs::msg::RouteElement> route_elements = route_msg.traveled_route_elements;
@@ -610,19 +597,28 @@ bool Lanelet2RoutePlanning::buildEnrichedRouteMessage() {
     int suggested_lane_idx = adjacent_left_lanelets.size();
 
     // project centerline point to lanelet and adjacent lanelet centerlines and bounds
-    auto lanelet_projected_points = projectPointToLaneletLines(
-        point, prev_point_for_projection, next_point_for_projection, std::vector<lanelet::ConstLanelet>{lanelet})[0];
-    auto adjacent_left_lanelets_projected_points =
-        projectPointToLaneletLines(point, prev_point_for_projection, next_point_for_projection, adjacent_left_lanelets);
+    auto lanelet_projected_points =
+        projectPointToLaneletLines(point, prev_point_for_projection, next_point_for_projection,
+                                   std::vector<lanelet::ConstLanelet>{lanelet}, this->get_logger())[0];
+    auto adjacent_left_lanelets_projected_points = projectPointToLaneletLines(
+        point, prev_point_for_projection, next_point_for_projection, adjacent_left_lanelets, this->get_logger());
     auto adjacent_right_lanelets_projected_points = projectPointToLaneletLines(
-        point, prev_point_for_projection, next_point_for_projection, adjacent_right_lanelets);
+        point, prev_point_for_projection, next_point_for_projection, adjacent_right_lanelets, this->get_logger());
 
     // compute offset of lane element indices from current to next route element
     const lanelet::ConstLanelet& lanelet_of_next_point =
         (c < route_elements.size() - 1) ? shortest_path[latest_lanelet_idx_by_reference_line_point_idx_[c + 1]]
                                         : lanelet;
-    int following_lane_idx_offset =
-        computeFollowingLaneIdxOffset(lanelet, lanelet_of_next_point, latest_route_, routing_graph_);
+    int following_lane_idx_offset;
+    if (auto result = computeFollowingLaneIdxOffset(lanelet, lanelet_of_next_point, latest_route_, routing_graph_)) {
+      following_lane_idx_offset = *result;
+    } else {
+      RCLCPP_ERROR(
+          this->get_logger(),
+          "Failed to find following lane index offset for route element %ld on lanelet %ld, assuming no offset", c,
+          lanelet.id());
+      following_lane_idx_offset = 0;
+    }
 
     // extract drivable space
     Eigen::Vector2d drivable_space_left, drivable_space_right;
@@ -711,7 +707,6 @@ bool Lanelet2RoutePlanning::buildEnrichedRouteMessage() {
 
   // save as latest route message
   latest_route_msg_ = route_msg;
-  return true;
 }
 
 }  // namespace lanelet2_route_planning
