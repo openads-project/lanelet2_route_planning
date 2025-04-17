@@ -1,4 +1,5 @@
 #include <perception_msgs_utils/object_access.hpp>
+#include <route_planning_msgs_utils/route_access.hpp>
 
 #include "lanelet2_route_planning/conversions.hpp"
 
