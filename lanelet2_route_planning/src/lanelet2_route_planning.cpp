@@ -555,7 +555,7 @@ bool Lanelet2RoutePlanning::buildEnrichedRouteMessage() {
 
   // find point of global reference line closest to ego position
   const Eigen::Vector2d ego_position = toEigen2d(egoPosition(latest_ego_data_));
-  const std::vector<Eigen::Vector2d> reference_line = to2d(suggestedReferenceLineToEigen(route_msg));
+  const std::vector<Eigen::Vector2d> reference_line = to2d(suggestedReferenceLineToEigen(route_elements));
   size_t c_min_distance_ego_to_route = indexOfLineStringPointClosestToPoint(reference_line, ego_position);
 
   // loop over global reference line

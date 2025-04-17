@@ -151,11 +151,11 @@ lanelet::BasicLineString2d toLanelet(const std::vector<Eigen::Vector2d>& line_st
 geometry_msgs::msg::Quaternion toRosQuaternion(const Eigen::Vector2d& vector);
 
 /**
- * @brief Extracts the reference line along the suggested lane from a Route message.
+ * @brief Extracts the reference line along the suggested lane from a list of RouteElements.
  *
- * @param[in] route_msg route message
+ * @param[in] route_elements list of RouteElements
  * @return reference line
  */
-std::vector<Eigen::Vector3d> suggestedReferenceLineToEigen(const route_planning_msgs::msg::Route& route_msg);
+std::vector<Eigen::Vector3d> suggestedReferenceLineToEigen(const std::vector<route_planning_msgs::msg::RouteElement>& route_elements);
 
 }  // namespace lanelet2_route_planning

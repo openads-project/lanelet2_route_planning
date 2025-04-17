@@ -82,17 +82,11 @@ geometry_msgs::msg::Quaternion toRosQuaternion(const Eigen::Vector2d &vector) {
   return ros_quaternion;
 }
 
-std::vector<Eigen::Vector3d> suggestedReferenceLineToEigen(const route_planning_msgs::msg::Route &route_msg) {
+std::vector<Eigen::Vector3d> suggestedReferenceLineToEigen(const std::vector<route_planning_msgs::msg::RouteElement>& route_elements) {
   std::vector<Eigen::Vector3d> reference_line;
-  for (const auto &route_element : route_msg.traveled_route_elements) {
-    for (const auto &lane_element : route_element.lane_elements) {
-      reference_line.push_back(toEigen(lane_element.reference_pose.position));
-    }
-  }
-  for (const auto &route_element : route_msg.remaining_route_elements) {
-    for (const auto &lane_element : route_element.lane_elements) {
-      reference_line.push_back(toEigen(lane_element.reference_pose.position));
-    }
+  for (const auto &route_element : route_elements) {
+    const auto &lane_element = route_planning_msgs::route_access::getSuggestedLaneElement(route_element);
+    reference_line.push_back(toEigen(lane_element.reference_pose.position));
   }
   return reference_line;
 }
