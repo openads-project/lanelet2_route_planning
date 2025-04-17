@@ -156,6 +156,7 @@ geometry_msgs::msg::Quaternion toRosQuaternion(const Eigen::Vector2d& vector);
  * @param[in] route_elements list of RouteElements
  * @return reference line
  */
-std::vector<Eigen::Vector3d> suggestedReferenceLineToEigen(const std::vector<route_planning_msgs::msg::RouteElement>& route_elements);
+std::vector<Eigen::Vector3d> suggestedReferenceLineToEigen(
+    const std::vector<route_planning_msgs::msg::RouteElement>& route_elements);
 
 }  // namespace lanelet2_route_planning

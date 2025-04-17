@@ -703,8 +703,7 @@ bool Lanelet2RoutePlanning::buildEnrichedRouteMessage() {
   route_msg.traveled_route_elements.insert(route_msg.traveled_route_elements.end(), route_elements.begin(),
                                            route_elements.begin() + c_min_distance_ego_to_route);
   route_msg.remaining_route_elements.insert(route_msg.remaining_route_elements.end(),
-                                            route_elements.begin() + c_min_distance_ego_to_route,
-                                            route_elements.end());
+                                            route_elements.begin() + c_min_distance_ego_to_route, route_elements.end());
   route_msg.header.stamp = latest_ego_data_.header.stamp;
 
   // postprocess route message
