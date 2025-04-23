@@ -204,7 +204,7 @@ route_planning_msgs::msg::RouteElement createMinimalRouteElement(const geometry_
   lane_element_msg.speed_limit = speed_limit;
   // lane_element_msg.regulatory_element_idcs not set in global route
   lane_element_msg.following_lane_idx = 0;
-  lane_element_msg.has_following_lane_idx = true;  // TODO: not always true; rather rely on will_change_suggested_lane
+  lane_element_msg.has_following_lane_idx = !will_change_suggested_lane;
   route_element_msg.lane_elements.push_back(lane_element_msg);
 
   return route_element_msg;
