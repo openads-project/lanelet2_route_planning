@@ -187,25 +187,24 @@ route_planning_msgs::msg::RouteElement createMinimalRouteElement(const geometry_
                                                                  uint8_t speed_limit) {
   // create RouteElement
   route_planning_msgs::msg::RouteElement route_element_msg;
-  // route_element_msg.left_boundary not set in global route
-  // route_element_msg.right_boundary not set in global route
-  // route_element_msg.regulatory_elements not set in global route
   route_element_msg.suggested_lane_idx = 0;
   route_element_msg.will_change_suggested_lane = will_change_suggested_lane;
   route_element_msg.s = s;
+  route_element_msg.is_enriched = false;
+  // route_element_msg.left_boundary not set in global route
+  // route_element_msg.right_boundary not set in global route
+  // route_element_msg.regulatory_elements not set in global route
 
   // create LaneElement
   route_planning_msgs::msg::LaneElement lane_element_msg;
   lane_element_msg.reference_pose.position = position;
   lane_element_msg.reference_pose.orientation = orientation;
   // lane_element_msg.left_boundary not set in global route
-  lane_element_msg.has_left_boundary = false;
   // lane_element_msg.right_boundary not set in global route
-  lane_element_msg.has_right_boundary = false;
   lane_element_msg.speed_limit = speed_limit;
   // lane_element_msg.regulatory_element_idcs not set in global route
   lane_element_msg.following_lane_idx = 0;
-  lane_element_msg.has_following_lane_idx = true; // TODO: not always true; rather rely on will_change_suggested_lane
+  lane_element_msg.has_following_lane_idx = true;  // TODO: not always true; rather rely on will_change_suggested_lane
   route_element_msg.lane_elements.push_back(lane_element_msg);
 
   return route_element_msg;

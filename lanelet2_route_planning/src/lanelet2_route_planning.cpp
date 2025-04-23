@@ -562,8 +562,7 @@ void Lanelet2RoutePlanning::buildEnrichedRouteMessage() {
     }
 
     // skip recomputation of local route if already enriched
-    // TODO: use is_enriched (https://github.com/ika-rwth-aachen/planning_interfaces/pull/2#discussion_r2056482830)
-    if (lane_element_msg.has_left_boundary) {
+    if (route_element_msg.is_enriched) {
       continue;
     }
 
@@ -633,6 +632,7 @@ void Lanelet2RoutePlanning::buildEnrichedRouteMessage() {
 
     // enrich RouteElement with local route information
     route_element_msg.lane_elements = {};
+    route_element_msg.is_enriched = true;
     route_element_msg.left_boundary = toRos(drivable_space_left);
     route_element_msg.right_boundary = toRos(drivable_space_right);
     route_element_msg.regulatory_elements = regulatory_element_extraction.regulatory_element_msgs;
@@ -647,10 +647,8 @@ void Lanelet2RoutePlanning::buildEnrichedRouteMessage() {
       // lane_element_msg.reference_pose.orientation computed in postprocessRouteMessage
       lane_element_msg.left_boundary.point = toRos(adjacent_left_lanelets_projected_points[a].left_bound_point);
       lane_element_msg.left_boundary.type = laneBoundaryType(adjacent_left_lanelets[a].leftBound2d());
-      lane_element_msg.has_left_boundary = true;
       lane_element_msg.right_boundary.point = toRos(adjacent_left_lanelets_projected_points[a].right_bound_point);
       lane_element_msg.right_boundary.type = laneBoundaryType(adjacent_left_lanelets[a].rightBound2d());
-      lane_element_msg.has_right_boundary = true;
       lane_element_msg.speed_limit = speedLimit(adjacent_left_lanelets[a]);
       lane_element_msg.regulatory_element_idcs = regulatory_element_extraction.adjacent_left_regulatory_element_idcs[a];
       lane_element_msg.following_lane_idx = route_element_msg.lane_elements.size() + following_lane_idx_offset;
@@ -664,10 +662,8 @@ void Lanelet2RoutePlanning::buildEnrichedRouteMessage() {
     // centerline_lane_element_msg.reference_pose.orientation computed in postprocessRouteMessage
     centerline_lane_element_msg.left_boundary.point = toRos(lanelet_projected_points.left_bound_point);
     centerline_lane_element_msg.left_boundary.type = laneBoundaryType(lanelet.leftBound2d());
-    centerline_lane_element_msg.has_left_boundary = true;
     centerline_lane_element_msg.right_boundary.point = toRos(lanelet_projected_points.right_bound_point);
     centerline_lane_element_msg.right_boundary.type = laneBoundaryType(lanelet.rightBound2d());
-    centerline_lane_element_msg.has_right_boundary = true;
     centerline_lane_element_msg.speed_limit = speedLimit(lanelet);
     centerline_lane_element_msg.regulatory_element_idcs = regulatory_element_extraction.regulatory_element_idcs;
     centerline_lane_element_msg.following_lane_idx = route_element_msg.lane_elements.size() + following_lane_idx_offset;
@@ -681,10 +677,8 @@ void Lanelet2RoutePlanning::buildEnrichedRouteMessage() {
       // lane_element_msg.reference_pose.orientation computed in postprocessRouteMessage
       lane_element_msg.left_boundary.point = toRos(adjacent_right_lanelets_projected_points[a].left_bound_point);
       lane_element_msg.left_boundary.type = laneBoundaryType(adjacent_right_lanelets[a].leftBound2d());
-      lane_element_msg.has_left_boundary = true;
       lane_element_msg.right_boundary.point = toRos(adjacent_right_lanelets_projected_points[a].right_bound_point);
       lane_element_msg.right_boundary.type = laneBoundaryType(adjacent_right_lanelets[a].rightBound2d());
-      lane_element_msg.has_right_boundary = true;
       lane_element_msg.speed_limit = speedLimit(adjacent_right_lanelets[a]);
       lane_element_msg.regulatory_element_idcs =
           regulatory_element_extraction.adjacent_right_regulatory_element_idcs[a];
