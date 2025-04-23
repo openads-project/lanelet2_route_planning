@@ -435,8 +435,6 @@ bool Lanelet2RoutePlanning::planRoute(const geometry_msgs::msg::PointStamped& de
   }
 
   // project ego position to lanelet
-  // TODO: scheint manchmal nicht das zu machen, was man erwarten würde; das erste remainingRouteElement sollte immer HINTER dem baselink liegen!
-  // TODO: threshold für closest lanelet bei Routenplanung parametrisieren?
   lanelet::ConstLanelet ego_ll;
   if (auto result = laneletAtPoint(toEigen2d(egoPosition(latest_ego_data_)), map)) {
     ego_ll = *result;
@@ -525,6 +523,7 @@ void Lanelet2RoutePlanning::buildGlobalRouteMessage() {
     accumulated_distance += (point - prev_point).norm();
 
     // create RouteElement
+    // TODO: make sure that the very first global route is never published; invalid, all elements are in remaining route (event though there could be undershoot)
     route_planning_msgs::msg::RouteElement route_element_msg = createMinimalRouteElement(
         toRos(point), toRosQuaternion(orientation), accumulated_distance, changes_lane_to_next_point, speed_limit);
     route_msg.remaining_route_elements.push_back(route_element_msg);
@@ -563,6 +562,7 @@ void Lanelet2RoutePlanning::buildEnrichedRouteMessage() {
     }
 
     // skip recomputation of local route if already enriched
+    // TODO: use is_enriched (https://github.com/ika-rwth-aachen/planning_interfaces/pull/2#discussion_r2056482830)
     if (lane_element_msg.has_left_boundary) {
       continue;
     }

@@ -205,7 +205,7 @@ route_planning_msgs::msg::RouteElement createMinimalRouteElement(const geometry_
   lane_element_msg.speed_limit = speed_limit;
   // lane_element_msg.regulatory_element_idcs not set in global route
   lane_element_msg.following_lane_idx = 0;
-  lane_element_msg.has_following_lane_idx = true;
+  lane_element_msg.has_following_lane_idx = true; // TODO: not always true; rather rely on will_change_suggested_lane
   route_element_msg.lane_elements.push_back(lane_element_msg);
 
   return route_element_msg;
@@ -429,6 +429,8 @@ std::pair<uint8_t, uint8_t> regulatoryElementType(
     } else if (subtype == "speed_limit") {
       type = route_planning_msgs::msg::RegulatoryElement::TYPE_SPEED_LIMIT;
       // meta_value = // TODO
+      // https://gitlab.ika.rwth-aachen.de/fb-fi/its-modules/planning/lanelet2_route_planning/-/blob/main/lanelet2_route_planning/src/utils.cpp?ref_type=heads#L273
+      // https://github.com/fzi-forschungszentrum-informatik/Lanelet2/blob/master/lanelet2_core/doc/RegulatoryElementTagging.md#speed-limit
     } else if (subtype == "right_of_way") {
       type = route_planning_msgs::msg::RegulatoryElement::TYPE_YIELD;
     } else if (subtype == "all_way_stop") {
@@ -479,15 +481,17 @@ uint8_t laneBoundaryType(const lanelet::ConstLineString2d& line) {
 uint8_t speedLimit(const lanelet::ConstLanelet& lanelet) {
   lanelet::traffic_rules::TrafficRulesPtr traffic_rules = getTrafficRules();
   lanelet::traffic_rules::SpeedLimitInformation speed_limit_info = traffic_rules->speedLimit(lanelet);
-  if (speed_limit_info.isMandatory) {  // TODO: include this fact in RouteMsg?
+  // TODO: check if urban 50kmh is set in ATC maps = filled in LaneElement.msg
+  if (speed_limit_info.isMandatory) {
     return std::round(lanelet::units::KmHQuantity(speed_limit_info.speedLimit).value());
   } else {
+    // TODO: 255 = unlimited; 0 = unknown
     return 0;
   }
 }
 
 lanelet::traffic_rules::TrafficRulesPtr getTrafficRules() {
-  // TODO: what is the ika postfix? move to constant?
+  // TODO: what is the ika postfix? move to constant? -> GKU?
   // TODO: make Germany a param?
   // TODO: make vehicle type a param?
   auto location = lanelet::Locations::Germany;
