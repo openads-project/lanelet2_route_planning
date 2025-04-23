@@ -523,12 +523,12 @@ void Lanelet2RoutePlanning::buildGlobalRouteMessage() {
     accumulated_distance += (point - prev_point).norm();
 
     // create RouteElement
-    // TODO: make sure that the very first global route is never published; invalid, all elements are in remaining route (event though there could be undershoot)
     route_planning_msgs::msg::RouteElement route_element_msg = createMinimalRouteElement(
         toRos(point), toRosQuaternion(orientation), accumulated_distance, changes_lane_to_next_point, speed_limit);
     route_msg.remaining_route_elements.push_back(route_element_msg);
   }
 
+  has_enriched_route_ = false;
   latest_route_msg_ = route_msg;
 }
 
@@ -702,6 +702,7 @@ void Lanelet2RoutePlanning::buildEnrichedRouteMessage() {
 
   // save as latest route message
   latest_route_msg_ = route_msg;
+  has_enriched_route_ = true;
 }
 
 }  // namespace lanelet2_route_planning

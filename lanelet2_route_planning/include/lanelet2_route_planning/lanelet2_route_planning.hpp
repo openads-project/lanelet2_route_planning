@@ -261,6 +261,13 @@ class Lanelet2RoutePlanning : public rclcpp::Node {
   lanelet::routing::Route latest_route_;
 
   /**
+   * @brief Flag indicating that route has been enriched at least once
+   *
+   * Useful because the initial non-enriched global route is invalid as traveled and remaining route are not yet split.
+   */
+  bool has_enriched_route_ = false;
+
+  /**
    * @brief Controlling flag for route publication
    */
   bool is_publishing_route_;
