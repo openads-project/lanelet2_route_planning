@@ -215,7 +215,7 @@ ExtractRegulatoryElementsResult extractRegulatoryElements(
  * Only the first reference line of the regulatory element is considered.
  * Only the end points of that reference line are considered.
  *
- * @param[in] regulatory_element
+ * @param[in] regulatory_element regulatory element
  * @return reference line
  */
 std::optional<std::array<geometry_msgs::msg::Point, 2>> regulatoryElementReferenceLine(
@@ -226,7 +226,7 @@ std::optional<std::array<geometry_msgs::msg::Point, 2>> regulatoryElementReferen
  *
  * Only the first point of referenced line strings is considered.
  *
- * @param[in] regulatory_element
+ * @param[in] regulatory_element regulatory element
  * @return positions
  */
 std::vector<geometry_msgs::msg::Point> regulatoryElementPositions(
@@ -235,20 +235,32 @@ std::vector<geometry_msgs::msg::Point> regulatoryElementPositions(
 /**
  * @brief Extracts the type and meta value of a regulatory element.
  *
+ * https://github.com/fzi-forschungszentrum-informatik/Lanelet2/blob/master/lanelet2_core/doc/RegulatoryElementTagging.md
+ *
  * Type and meta value as in route_planning_msgs::msg::RegulatoryElement.
  *
- * @param[in] regulatory_element
+ * @param[in] regulatory_element regulatory element
  * @return type and meta value
  */
 std::pair<uint8_t, uint8_t> regulatoryElementType(
     const std::shared_ptr<const lanelet::RegulatoryElement>& regulatory_element);
 
 /**
+ * @brief Extracts the speed limit of a regulatory element of subtype 'speed_limit'.
+ *
+ * As defined in route_planning_msgs::msg::RegulatoryElement.
+ *
+ * @param[in] regulatory_element regulatory element
+ * @return speed limit [km/h]
+ */
+uint8_t regulatoryElementSpeedLimit(const std::shared_ptr<const lanelet::RegulatoryElement>& regulatory_element);
+
+/**
  * @brief Extracts the lane boundary type of a lanelet line.
  *
  * Lane boundary type as in route_planning_msgs::msg::LaneBoundary.
  *
- * @param[in] line
+ * @param[in] line lanelet line
  * @return lane boundary type
  */
 uint8_t laneBoundaryType(const lanelet::ConstLineString2d& line);
@@ -256,9 +268,9 @@ uint8_t laneBoundaryType(const lanelet::ConstLineString2d& line);
 /**
  * @brief Extracts the speed limit of a lanelet.
  *
- * Returns 0 if no speed limit is set or speed limit is not mandatory.
+ * As defined in route_planning_msgs::msg::RegulatoryElement.
  *
- * @param[in] lanelet
+ * @param[in] lanelet lanelet
  * @return speed limit [km/h]
  */
 uint8_t speedLimit(const lanelet::ConstLanelet& lanelet);

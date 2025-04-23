@@ -1,4 +1,5 @@
 #include <limits>
+#include <regex>
 #include <unordered_map>
 #include <unordered_set>
 
@@ -421,15 +422,15 @@ std::pair<uint8_t, uint8_t> regulatoryElementType(
     const std::shared_ptr<const lanelet::RegulatoryElement>& regulatory_element) {
   uint8_t type = route_planning_msgs::msg::RegulatoryElement::TYPE_UNKNOWN;
   uint8_t meta_value = 0;
+
+  // https://github.com/fzi-forschungszentrum-informatik/Lanelet2/blob/master/lanelet2_core/doc/RegulatoryElementTagging.md
   if (regulatory_element->hasAttribute("subtype")) {
     std::string subtype = regulatory_element->attribute("subtype").value();
     if (subtype == "traffic_light") {
       type = route_planning_msgs::msg::RegulatoryElement::TYPE_TRAFFIC_LIGHT;
     } else if (subtype == "speed_limit") {
       type = route_planning_msgs::msg::RegulatoryElement::TYPE_SPEED_LIMIT;
-      // meta_value = // TODO
-      // https://gitlab.ika.rwth-aachen.de/fb-fi/its-modules/planning/lanelet2_route_planning/-/blob/main/lanelet2_route_planning/src/utils.cpp?ref_type=heads#L273
-      // https://github.com/fzi-forschungszentrum-informatik/Lanelet2/blob/master/lanelet2_core/doc/RegulatoryElementTagging.md#speed-limit
+      meta_value = regulatoryElementSpeedLimit(regulatory_element);
     } else if (subtype == "right_of_way") {
       type = route_planning_msgs::msg::RegulatoryElement::TYPE_YIELD;
     } else if (subtype == "all_way_stop") {
@@ -437,6 +438,41 @@ std::pair<uint8_t, uint8_t> regulatoryElementType(
     }
   }
   return {type, meta_value};
+}
+
+uint8_t regulatoryElementSpeedLimit(const std::shared_ptr<const lanelet::RegulatoryElement>& regulatory_element) {
+  uint8_t speed_limit = route_planning_msgs::msg::RegulatoryElement::META_VALUE_SPEED_UNKNOWN;
+
+  // https://github.com/fzi-forschungszentrum-informatik/Lanelet2/blob/master/lanelet2_core/doc/RegulatoryElementTagging.md#speed-limit
+  if (regulatory_element->hasAttribute("subtype")) {
+    std::string subtype = regulatory_element->attribute("subtype").value();
+    if (subtype == "speed_limit") {
+      if (regulatory_element->hasAttribute("sign_type")) {
+        std::string sign_type = regulatory_element->attribute("sign_type").value();
+        std::smatch match;
+        std::regex regex("(\\d+)\\s*(km/h|mph|mps)");
+        if (std::regex_search(sign_type, match, regex)) {
+          int speed = std::stoi(match.str(1));
+          if (match.str(2) == "mph") {
+            speed = static_cast<int>(speed * 1.60934);  // mph to km/h
+          } else if (match.str(2) == "mps") {
+            speed = static_cast<int>(speed * 3.6);  // mps to km/h
+          }
+          speed_limit = static_cast<uint8_t>(speed);
+        } else {
+          std::regex regex("(\\d+)");  // assume km/h if no unit is specified
+          if (std::regex_search(sign_type, match, regex)) {
+            speed_limit = static_cast<uint8_t>(std::stoi(match.str(1)));
+          }
+        }
+      }
+    }
+  }
+
+  uint8_t unlimited = route_planning_msgs::msg::RegulatoryElement::META_VALUE_SPEED_UNLIMITED;
+  speed_limit = std::max(std::min(speed_limit, unlimited), static_cast<uint8_t>(0));  // clamp to [0, unlimited]
+
+  return speed_limit;
 }
 
 uint8_t laneBoundaryType(const lanelet::ConstLineString2d& line) {
@@ -481,11 +517,13 @@ uint8_t speedLimit(const lanelet::ConstLanelet& lanelet) {
   lanelet::traffic_rules::TrafficRulesPtr traffic_rules = getTrafficRules();
   lanelet::traffic_rules::SpeedLimitInformation speed_limit_info = traffic_rules->speedLimit(lanelet);
   // TODO: check if urban 50kmh is set in ATC maps = filled in LaneElement.msg
+  uint8_t unlimited = route_planning_msgs::msg::RegulatoryElement::META_VALUE_SPEED_UNLIMITED;
   if (speed_limit_info.isMandatory) {
-    return std::round(lanelet::units::KmHQuantity(speed_limit_info.speedLimit).value());
+    int speed_limit = std::round(lanelet::units::KmHQuantity(speed_limit_info.speedLimit).value());
+    speed_limit = std::max(std::min(speed_limit, static_cast<int>(unlimited)), 0);  // clamp to [0, unlimited]
+    return static_cast<uint8_t>(speed_limit);
   } else {
-    // TODO: 255 = unlimited; 0 = unknown
-    return 0;
+    return unlimited;
   }
 }
 
