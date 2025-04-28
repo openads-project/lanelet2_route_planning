@@ -540,10 +540,11 @@ void Lanelet2RoutePlanning::buildEnrichedRouteMessage() {
                         route_msg.remaining_route_elements.end());
 
   // find point of global reference line closest to ego position
-  // TODO: avoid matching to traveled route elements that may be crossed by remaingin route
   const Eigen::Vector2d ego_position = toEigen2d(egoPosition(latest_ego_data_));
   const std::vector<Eigen::Vector2d> reference_line = to2d(suggestedReferenceLineToEigen(route_elements));
-  size_t c_min_distance_ego_to_route = indexOfLineStringPointClosestToPoint(reference_line, ego_position);
+  size_t c_closest_point =
+      matchPointToLineString(reference_line, ego_position, latest_closest_reference_line_point_idx_);
+  latest_closest_reference_line_point_idx__ = c_closest_point;
 
   // loop over global reference line
   for (size_t c = 0; c < route_elements.size(); ++c) {
@@ -552,7 +553,7 @@ void Lanelet2RoutePlanning::buildEnrichedRouteMessage() {
         route_element_msg.lane_elements[route_element_msg.suggested_lane_idx];
 
     // only consider route elements within enrich_route_behind_ego_distance_ and enrich_route_ahead_ego_distance_ for local route
-    double distance_ahead = route_element_msg.s - route_elements[c_min_distance_ego_to_route].s;
+    double distance_ahead = route_element_msg.s - route_elements[c_closest_point].s;
     if (distance_ahead > enrich_route_ahead_ego_distance_ || distance_ahead < -enrich_route_behind_ego_distance_) {
       // clear local route enriched information, if existing
       route_element_msg = createMinimalRouteElement(
@@ -692,9 +693,9 @@ void Lanelet2RoutePlanning::buildEnrichedRouteMessage() {
   route_msg.traveled_route_elements = {};
   route_msg.remaining_route_elements = {};
   route_msg.traveled_route_elements.insert(route_msg.traveled_route_elements.end(), route_elements.begin(),
-                                           route_elements.begin() + c_min_distance_ego_to_route);
+                                           route_elements.begin() + c_closest_point);
   route_msg.remaining_route_elements.insert(route_msg.remaining_route_elements.end(),
-                                            route_elements.begin() + c_min_distance_ego_to_route, route_elements.end());
+                                            route_elements.begin() + c_closest_point, route_elements.end());
   route_msg.header.stamp = latest_ego_data_.header.stamp;
 
   // postprocess route message

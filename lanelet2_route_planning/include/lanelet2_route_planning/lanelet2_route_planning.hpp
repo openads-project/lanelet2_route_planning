@@ -286,6 +286,11 @@ class Lanelet2RoutePlanning : public rclcpp::Node {
   std::vector<size_t> latest_lanelet_idx_by_reference_line_point_idx_;
 
   /**
+   * @brief Latest index of the reference line point closest to the ego position.
+   */
+  size_t latest_closest_reference_line_point_idx_;
+
+  /**
    * @brief Name of lanelet2_map_server node (parameter)
    */
   std::string ll2_map_server_name_ = "ll2_map_server";

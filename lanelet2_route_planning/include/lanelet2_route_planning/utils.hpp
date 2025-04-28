@@ -19,7 +19,7 @@
 namespace lanelet2_route_planning {
 
 /**
- * @brief Find index of point in line string that is closest to another point.
+ * @brief Finds the index of a point in a line string that is closest to another point.
  *
  * @param[in] line_string line string
  * @param[in] point other point
@@ -27,6 +27,24 @@ namespace lanelet2_route_planning {
  */
 size_t indexOfLineStringPointClosestToPoint(const std::vector<Eigen::Vector2d>& line_string,
                                             const Eigen::Vector2d& point);
+
+/**
+ * @brief Finds the index of a point in a line string that is locally closest to another point.
+ *
+ * The purpose of this function is not to find the globally closest point, but the locally closest one.
+ * By locally, what is meant is that points closer in order to `idx_indication` are preferred over points that may
+ * actually be closer in distance.
+ *
+ * The range of points 10m before and after `idx_indication` is considered.
+ * A maximum distance of 10m is used to match to this range of points, otherwise globally closer ones are preferred.
+ *
+ * @param[in] line_string line string
+ * @param[in] point other point
+ * @param[in] idx_indication index of point in line string to indicate the range of points to be considered
+ * @return index of locally closest point
+ */
+size_t matchPointToLineString(const std::vector<Eigen::Vector2d>& line_string, const Eigen::Vector2d& point,
+                              const size_t idx_indication);
 
 /**
  * @brief Identifies a lane change based on the distance between two reference line points.

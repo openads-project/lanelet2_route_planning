@@ -29,6 +29,56 @@ size_t indexOfLineStringPointClosestToPoint(const std::vector<Eigen::Vector2d>& 
   return idx_closest;
 }
 
+/**
+ * @brief Finds the index of a point in a line string that is locally closest to another point.
+ *
+ * The purpose of this function is not to find the globally closest point, but the locally closest one.
+ * By locally, what is meant is that points closer in order to `idx_indication` are preferred over points that may
+ * actually be closer in distance.
+ *
+ * The range of points 10m before and after `idx_indication` is considered.
+ * A maximum distance of 10m is used to match to this range of points, otherwise globally closer ones are preferred.
+ *
+ * @param[in] line_string line string
+ * @param[in] point other point
+ * @param[in] idx_indication index of point in line string to indicate the range of points to be considered
+ * @return index of locally closest point
+ */
+size_t matchPointToLineString(const std::vector<Eigen::Vector2d>& line_string, const Eigen::Vector2d& point,
+                              const size_t idx_indication) {
+  // constants
+  const max_delta_s = 10.0;
+  const max_local_distance = 10.0;
+
+  size_t idx_closest = 0;
+  double min_distance = std::numeric_limits<double>::infinity();
+  const size_t start_idx = std::min(idx_indication, line_string.size() - 1);
+
+  // loop over points in front of and behind the given index
+  for (int direction : {1, -1}) {
+    double delta_s = 0.0;
+    size_t idx = start_idx;
+    // only check points within the local range of max_delta_s
+    while (delta_s <= max_delta_s && idx > 0 && idx < line_string.size()) {
+      double distance = (line_string[idx] - point).norm();
+      if (distance < min_distance) {
+        min_distance = distance;
+        idx_closest = idx;
+      }
+      delta_s += (direction == 1 ? (line_string[idx + 1] - line_string[idx]).norm()
+                                 : (line_string[idx] - line_string[idx - 1]).norm());
+      idx += direction;
+    }
+  }
+
+  // check if closest local point is within max distance, else find globally closest point
+  if (min_distance > max_local_distance) {
+    idx_closest = indexOfLineStringPointClosestToPoint(line_string, point);
+  }
+
+  return idx_closest;
+}
+
 bool changesLaneFromPointToPoint(const Eigen::Vector2d& point, const Eigen::Vector2d& next_point,
                                  const double sampling_distance) {
   const double epsilon = 1e-6;
