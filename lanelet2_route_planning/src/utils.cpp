@@ -32,8 +32,8 @@ size_t indexOfLineStringPointClosestToPoint(const std::vector<Eigen::Vector2d>& 
 size_t matchPointToLineString(const std::vector<Eigen::Vector2d>& line_string, const Eigen::Vector2d& point,
                               const size_t idx_indication) {
   // constants
-  const max_delta_s = 10.0;
-  const max_local_distance = 10.0;
+  const double max_delta_s = 10.0;
+  const double max_local_distance = 10.0;
 
   size_t idx_closest = 0;
   double min_distance = std::numeric_limits<double>::infinity();

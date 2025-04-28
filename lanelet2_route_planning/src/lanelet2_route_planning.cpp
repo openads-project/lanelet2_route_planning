@@ -552,7 +552,7 @@ void Lanelet2RoutePlanning::buildEnrichedRouteMessage() {
   const std::vector<Eigen::Vector2d> reference_line = to2d(suggestedReferenceLineToEigen(route_elements));
   size_t c_closest_point =
       matchPointToLineString(reference_line, ego_position, latest_closest_reference_line_point_idx_);
-  latest_closest_reference_line_point_idx__ = c_closest_point;
+  latest_closest_reference_line_point_idx_ = c_closest_point;
 
   // loop over global reference line
   for (size_t c = 0; c < route_elements.size(); ++c) {
