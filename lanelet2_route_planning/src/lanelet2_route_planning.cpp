@@ -26,6 +26,8 @@ Lanelet2RoutePlanning::Lanelet2RoutePlanning() : Node("lanelet2_route_planning")
                                 "Frequency of action feedback publication [Hz]", true, false, false, 0.1, 20.0, 0.1);
   this->declareAndLoadParameter("sampling_distance", sampling_distance_,
                                 "Distance between resampled points along route [m]", true, false, false, 0.1, 3.0, 0.1);
+  this->declareAndLoadParameter("project_destination_to_reference_line", project_destination_to_reference_line_,
+                                "Whether to project destination to reference line", true, false, false);
   this->declareAndLoadParameter("destination_distance_threshold", destination_distance_threshold_,
                                 "Distance to destination where destination is considered reached [m]", true, false,
                                 false, 0.1, 10.0, 0.1);
@@ -526,6 +528,12 @@ void Lanelet2RoutePlanning::buildGlobalRouteMessage() {
     route_planning_msgs::msg::RouteElement route_element_msg = createMinimalRouteElement(
         toRos(point), toRosQuaternion(orientation), accumulated_distance, changes_lane_to_next_point, speed_limit);
     route_msg.remaining_route_elements.push_back(route_element_msg);
+  }
+
+  // project destination to reference line, if enabled
+  if (project_destination_to_reference_line_) {
+    route_msg.destination = toRos(projectPointToLineString(toEigen2d(destination_), shortest_path_centerline));
+    destination_ = route_msg.destination;
   }
 
   has_enriched_route_ = false;

@@ -252,6 +252,8 @@ class Lanelet2RoutePlanning : public rclcpp::Node {
 
   /**
    * @brief Destination point in map frame
+   *
+   * This is affected by `project_destination_to_reference_line_`.
    */
   geometry_msgs::msg::Point destination_;
 
@@ -309,6 +311,11 @@ class Lanelet2RoutePlanning : public rclcpp::Node {
    * @brief Distance between resampled points along route [m] (parameter)
    */
   double sampling_distance_ = 1.0;
+
+  /**
+   * @brief Whether to project destination to reference line (parameter)
+   */
+  bool project_destination_to_reference_line_ = true;
 
   /**
    * @brief Distance to destination where destination is considered reached [m] (parameter)
