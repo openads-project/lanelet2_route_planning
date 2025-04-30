@@ -332,12 +332,14 @@ void Lanelet2RoutePlanning::actionHandleAccepted(
   action_feedback_ = std::make_shared<route_planning_msgs::action::PlanRoute::Feedback>();
   action_feedback_->distance_traveled = 0.0;
   action_feedback_->distance_remaining = 0.0;
-  if (!latest_route_msg_.remaining_route_elements.empty()) {
-    action_feedback_->distance_remaining = latest_route_msg_.remaining_route_elements.back().s;
+  if (!latest_route_msg_.route_elements.empty() &&
+      latest_route_msg_.destination_route_element_idx < latest_route_msg_.route_elements.size()) {
+    action_feedback_->distance_remaining =
+        latest_route_msg_.route_elements[latest_route_msg_.destination_route_element_idx].s;
   }
   action_feedback_->time_traveled = rclcpp::Duration::from_seconds(0.0);
-  action_feedback_->time_remaining =
-      rclcpp::Duration::from_seconds(estimateRemainingTime(latest_route_msg_.remaining_route_elements));
+  action_feedback_->time_remaining = rclcpp::Duration::from_seconds(
+      estimateRemainingTime(route_planning_msgs::route_access::getRemainingRouteElements(latest_route_msg_, true)));
   action_result_ = std::make_shared<route_planning_msgs::action::PlanRoute::Result>();
   action_result_->distance_traveled = 0.0;
   action_result_->time_traveled = rclcpp::Duration::from_seconds(0.0);
@@ -362,17 +364,22 @@ void Lanelet2RoutePlanning::actionExecute(
     has_reached_destination = (distance_to_destination <= destination_distance_threshold_);
 
     // update feedback and result
+    // TODO: refactor time and distance estimation into functions
     // TODO: route progress distance seems to be off a little bit
-    if (!latest_route_msg_.traveled_route_elements.empty()) {
-      action_feedback_->distance_traveled = latest_route_msg_.traveled_route_elements.back().s;
+    if (!latest_route_msg_.route_elements.empty() &&
+        latest_route_msg_.current_route_element_idx - 1 < latest_route_msg_.route_elements.size()) {
+      action_feedback_->distance_traveled =
+          latest_route_msg_.route_elements[latest_route_msg_.current_route_element_idx - 1].s;
     }
-    if (!latest_route_msg_.remaining_route_elements.empty()) {
+    if (!latest_route_msg_.route_elements.empty() &&
+        latest_route_msg_.destination_route_element_idx < latest_route_msg_.route_elements.size()) {
       action_feedback_->distance_remaining =
-          latest_route_msg_.remaining_route_elements.back().s - action_feedback_->distance_traveled;
+          latest_route_msg_.route_elements[latest_route_msg_.destination_route_element_idx].s -
+          action_feedback_->distance_traveled;
     }
     action_feedback_->time_traveled = this->now() - action_start_time_;
-    action_feedback_->time_remaining =
-        rclcpp::Duration::from_seconds(estimateRemainingTime(latest_route_msg_.remaining_route_elements));
+    action_feedback_->time_remaining = rclcpp::Duration::from_seconds(
+        estimateRemainingTime(route_planning_msgs::route_access::getRemainingRouteElements(latest_route_msg_, true)));
     action_result_->distance_traveled = action_feedback_->distance_traveled;
     action_result_->time_traveled = action_feedback_->time_traveled;
 
@@ -384,8 +391,10 @@ void Lanelet2RoutePlanning::actionExecute(
   }
 
   // prepare result
-  if (!latest_route_msg_.traveled_route_elements.empty()) {
-    action_result_->distance_traveled = latest_route_msg_.traveled_route_elements.back().s;
+  if (!latest_route_msg_.route_elements.empty() &&
+      latest_route_msg_.destination_route_element_idx < latest_route_msg_.route_elements.size()) {
+    action_result_->distance_traveled =
+        latest_route_msg_.route_elements[latest_route_msg_.destination_route_element_idx].s;
   }
   action_result_->time_traveled = this->now() - action_start_time_;
   action_result_->destination_reached = has_reached_destination;
@@ -485,8 +494,7 @@ void Lanelet2RoutePlanning::buildGlobalRouteMessage() {
   route_msg.header.stamp = this->now();
   route_msg.header.frame_id = ll2_interface_->map_frame_id_;
   route_msg.destination = destination_;
-  route_msg.traveled_route_elements = {};
-  route_msg.remaining_route_elements = {};
+  route_msg.route_elements = {};
 
   // get shortest path
   lanelet::routing::LaneletPath shortest_path = latest_route_.shortestPath();
@@ -527,8 +535,14 @@ void Lanelet2RoutePlanning::buildGlobalRouteMessage() {
     // create RouteElement
     route_planning_msgs::msg::RouteElement route_element_msg = createMinimalRouteElement(
         toRos(point), toRosQuaternion(orientation), accumulated_distance, changes_lane_to_next_point, speed_limit);
-    route_msg.remaining_route_elements.push_back(route_element_msg);
+    route_msg.route_elements.push_back(route_element_msg);
   }
+
+  // split route into traveled and remaining route elements
+  // TODO: already correctly set these here or in enrichment?
+  route_msg.starting_route_element_idx = 0;
+  route_msg.current_route_element_idx = 0;
+  route_msg.destination_route_element_idx = route_msg.route_elements.size() - 1;
 
   // project destination to reference line, if enabled
   if (project_destination_to_reference_line_) {
@@ -541,11 +555,8 @@ void Lanelet2RoutePlanning::buildGlobalRouteMessage() {
 }
 
 void Lanelet2RoutePlanning::buildEnrichedRouteMessage() {
-  // join traveled and remaining route elements
   route_planning_msgs::msg::Route route_msg = latest_route_msg_;
-  std::vector<route_planning_msgs::msg::RouteElement> route_elements = route_msg.traveled_route_elements;
-  route_elements.insert(route_elements.end(), route_msg.remaining_route_elements.begin(),
-                        route_msg.remaining_route_elements.end());
+  std::vector<route_planning_msgs::msg::RouteElement>& route_elements = route_msg.route_elements;
 
   // find point of global reference line closest to ego position
   const Eigen::Vector2d ego_position = toEigen2d(egoPosition(latest_ego_data_));
@@ -698,12 +709,10 @@ void Lanelet2RoutePlanning::buildEnrichedRouteMessage() {
   }
 
   // split in traveled and remaining route elements
-  route_msg.traveled_route_elements = {};
-  route_msg.remaining_route_elements = {};
-  route_msg.traveled_route_elements.insert(route_msg.traveled_route_elements.end(), route_elements.begin(),
-                                           route_elements.begin() + c_closest_point);
-  route_msg.remaining_route_elements.insert(route_msg.remaining_route_elements.end(),
-                                            route_elements.begin() + c_closest_point, route_elements.end());
+  // TODO: correctly set starting/destination idx
+  route_msg.starting_route_element_idx = 0;
+  route_msg.current_route_element_idx = c_closest_point;
+  route_msg.destination_route_element_idx = route_elements.size() - 1;
   route_msg.header.stamp = latest_ego_data_.header.stamp;
 
   // postprocess route message

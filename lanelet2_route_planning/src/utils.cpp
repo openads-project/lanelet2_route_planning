@@ -695,12 +695,8 @@ double estimateRemainingTime(const std::vector<route_planning_msgs::msg::RouteEl
 }
 
 void postprocessRouteMessage(route_planning_msgs::msg::Route& route_msg) {
-  // extract all route elements
-  std::vector<route_planning_msgs::msg::RouteElement> route_elements = route_msg.traveled_route_elements;
-  route_elements.insert(route_elements.end(), route_msg.remaining_route_elements.begin(),
-                        route_msg.remaining_route_elements.end());
-
   // loop over route elements
+  std::vector<route_planning_msgs::msg::RouteElement>& route_elements = route_msg.route_elements;
   for (size_t r = 0; r < route_elements.size(); ++r) {
     // get current, previous and next route element
     auto& route_element = route_elements[r];
@@ -733,12 +729,6 @@ void postprocessRouteMessage(route_planning_msgs::msg::Route& route_msg) {
       lane_element.reference_pose.orientation = toRosQuaternion(orientation);
     }
   }
-
-  // store postprocessed route elements in original route message
-  route_msg.traveled_route_elements = std::vector<route_planning_msgs::msg::RouteElement>(
-      route_elements.begin(), route_elements.begin() + route_msg.traveled_route_elements.size());
-  route_msg.remaining_route_elements = std::vector<route_planning_msgs::msg::RouteElement>(
-      route_elements.begin() + route_msg.traveled_route_elements.size(), route_elements.end());
 }
 
 }  // namespace lanelet2_route_planning
