@@ -262,7 +262,7 @@ void Lanelet2RoutePlanning::egoDataCallback(const perception_msgs::msg::EgoData:
 }
 
 void Lanelet2RoutePlanning::publishTimerCallback() {
-  if (is_publishing_route_) {
+  if (is_publishing_route_ && has_enriched_route_) {
     publisher_route_->publish(latest_route_msg_);
   }
 }
