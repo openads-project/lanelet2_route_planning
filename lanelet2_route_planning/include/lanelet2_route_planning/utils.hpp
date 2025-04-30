@@ -21,12 +21,17 @@ namespace lanelet2_route_planning {
 /**
  * @brief Finds the index of a point in a line string that is closest to another point.
  *
+ * If `consider_order`, then only the points behind or ahead of the projection of the given point are considered.
+ *
  * @param[in] line_string line string
  * @param[in] point other point
+ * @param[in] consider_order whether to consider the order of points in the line string
+ * @param[in] behind whether to consider points behind (or ahead of) the given point
  * @return index of closest point
  */
 size_t indexOfLineStringPointClosestToPoint(const std::vector<Eigen::Vector2d>& line_string,
-                                            const Eigen::Vector2d& point);
+                                            const Eigen::Vector2d& point, const bool consider_order = false,
+                                            const bool behind = true);
 
 /**
  * @brief Finds the index of a point in a line string that is locally closest to another point.
@@ -38,13 +43,33 @@ size_t indexOfLineStringPointClosestToPoint(const std::vector<Eigen::Vector2d>& 
  * The range of points 10m before and after `idx_indication` is considered.
  * A maximum distance of 10m is used to match to this range of points, otherwise globally closer ones are preferred.
  *
+ * If `consider_order`, then only the points behind or ahead of the projection of the given point are considered.
+ *
  * @param[in] line_string line string
  * @param[in] point other point
  * @param[in] idx_indication index of point in line string to indicate the range of points to be considered
+ * @param[in] consider_order whether to consider the order of points in the line string
+ * @param[in] behind whether to consider points behind (or ahead of) the given point
  * @return index of locally closest point
  */
 size_t matchPointToLineString(const std::vector<Eigen::Vector2d>& line_string, const Eigen::Vector2d& point,
-                              const size_t idx_indication);
+                              const size_t idx_indication, const bool consider_order = false, const bool behind = true);
+
+/**
+ * @brief Takes a closest point in a line string and guarantees that it is behind or ahead of the given point.
+ *
+ * Behind/ahead is meant physically, not in the order of the line string.
+ * The point behind a point at index i is at index i-1.
+ *
+ * @param[in] line_string line string
+ * @param[in] point other point
+ * @param[in] idx_closest index of closest point in line string
+ * @param[in] behind whether to consider points behind (or ahead of) the given point
+ * @return
+ */
+size_t considerOrderForPointMatchedToLineString(const std::vector<Eigen::Vector2d>& line_string,
+                                                const Eigen::Vector2d& point, const size_t idx_closest,
+                                                const bool behind);
 
 /**
  * @brief Identifies a lane change based on the distance between two reference line points.

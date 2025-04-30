@@ -251,6 +251,13 @@ class Lanelet2RoutePlanning : public rclcpp::Node {
   lanelet::routing::RoutingGraphUPtr routing_graph_;
 
   /**
+   * @brief Starting point in map frame
+   *
+   * This is affected by `project_destination_to_reference_line_`.
+   */
+  geometry_msgs::msg::Point starting_point_;
+
+  /**
    * @brief Destination point in map frame
    *
    * This is affected by `project_destination_to_reference_line_`.
@@ -286,11 +293,6 @@ class Lanelet2RoutePlanning : public rclcpp::Node {
    * Indexes into latest_route_.shortestPath().
    */
   std::vector<size_t> latest_lanelet_idx_by_reference_line_point_idx_;
-
-  /**
-   * @brief Latest index of the reference line point closest to the ego position.
-   */
-  size_t latest_closest_reference_line_point_idx_;
 
   /**
    * @brief Name of lanelet2_map_server node (parameter)

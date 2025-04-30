@@ -478,6 +478,7 @@ bool Lanelet2RoutePlanning::planRoute(const geometry_msgs::msg::PointStamped& de
   const int routing_cost_id = 0;  // RoutingCostDistance
   auto planned_route = routing_graph_->getRoute(undershot_ego_ll, overshot_destination_ll, routing_cost_id);
   if (planned_route) {
+    starting_point_ = egoPosition(latest_ego_data_);
     destination_ = destination_map;
     latest_route_ = std::move(*planned_route);
     return true;
@@ -538,17 +539,20 @@ void Lanelet2RoutePlanning::buildGlobalRouteMessage() {
     route_msg.route_elements.push_back(route_element_msg);
   }
 
-  // split route into traveled and remaining route elements
-  // TODO: already correctly set these here or in enrichment?
-  route_msg.starting_route_element_idx = 0;
-  route_msg.current_route_element_idx = 0;
-  route_msg.destination_route_element_idx = route_msg.route_elements.size() - 1;
-
-  // project destination to reference line, if enabled
+  // project starting point and destination to reference line, if enabled
   if (project_destination_to_reference_line_) {
-    route_msg.destination = toRos(projectPointToLineString(toEigen2d(destination_), shortest_path_centerline));
-    destination_ = route_msg.destination;
+    starting_point_ = toRos(projectPointToLineString(toEigen2d(starting_point_), shortest_path_centerline));
+    destination_ = toRos(projectPointToLineString(toEigen2d(destination_), shortest_path_centerline));
+    route_msg.destination = destination_;
   }
+
+  // determine starting/current/destination indices in route elements
+  route_msg.starting_route_element_idx =
+      indexOfLineStringPointClosestToPoint(shortest_path_centerline, toEigen2d(starting_point_), true, true);
+  route_msg.current_route_element_idx = indexOfLineStringPointClosestToPoint(
+      shortest_path_centerline, toEigen2d(egoPosition(latest_ego_data_)), true, true);
+  route_msg.destination_route_element_idx =
+      indexOfLineStringPointClosestToPoint(shortest_path_centerline, toEigen2d(destination_), true, false);
 
   has_enriched_route_ = false;
   latest_route_msg_ = route_msg;
@@ -558,12 +562,11 @@ void Lanelet2RoutePlanning::buildEnrichedRouteMessage() {
   route_planning_msgs::msg::Route route_msg = latest_route_msg_;
   std::vector<route_planning_msgs::msg::RouteElement>& route_elements = route_msg.route_elements;
 
-  // find point of global reference line closest to ego position
+  // find point of global reference line closest to and behind of ego position
   const Eigen::Vector2d ego_position = toEigen2d(egoPosition(latest_ego_data_));
   const std::vector<Eigen::Vector2d> reference_line = to2d(suggestedReferenceLineToEigen(route_elements));
   size_t c_closest_point =
-      matchPointToLineString(reference_line, ego_position, latest_closest_reference_line_point_idx_);
-  latest_closest_reference_line_point_idx_ = c_closest_point;
+      matchPointToLineString(reference_line, ego_position, route_msg.current_route_element_idx, true, true);
 
   // loop over global reference line
   for (size_t c = 0; c < route_elements.size(); ++c) {
@@ -709,10 +712,7 @@ void Lanelet2RoutePlanning::buildEnrichedRouteMessage() {
   }
 
   // split in traveled and remaining route elements
-  // TODO: correctly set starting/destination idx
-  route_msg.starting_route_element_idx = 0;
   route_msg.current_route_element_idx = c_closest_point;
-  route_msg.destination_route_element_idx = route_elements.size() - 1;
   route_msg.header.stamp = latest_ego_data_.header.stamp;
 
   // postprocess route message

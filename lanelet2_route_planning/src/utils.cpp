@@ -1,3 +1,5 @@
+#include <algorithm>
+#include <cmath>
 #include <limits>
 #include <regex>
 #include <unordered_map>
@@ -16,7 +18,9 @@
 namespace lanelet2_route_planning {
 
 size_t indexOfLineStringPointClosestToPoint(const std::vector<Eigen::Vector2d>& line_string,
-                                            const Eigen::Vector2d& point) {
+                                            const Eigen::Vector2d& point, const bool consider_order,
+                                            const bool behind) {
+  // loop over all points in line string to find closest one to given point
   size_t idx_closest = 0;
   double min_distance = std::numeric_limits<double>::infinity();
   for (size_t i = 0; i < line_string.size(); ++i) {
@@ -26,11 +30,17 @@ size_t indexOfLineStringPointClosestToPoint(const std::vector<Eigen::Vector2d>& 
       idx_closest = i;
     }
   }
+
+  // if considering order, make sure to return the point behind or ahead of the given point
+  if (consider_order) {
+    idx_closest = considerOrderForPointMatchedToLineString(line_string, point, idx_closest, behind);
+  }
+
   return idx_closest;
 }
 
 size_t matchPointToLineString(const std::vector<Eigen::Vector2d>& line_string, const Eigen::Vector2d& point,
-                              const size_t idx_indication) {
+                              const size_t idx_indication, const bool consider_order, const bool behind) {
   // constants
   const double max_delta_s = 10.0;
   const double max_local_distance = 10.0;
@@ -58,10 +68,41 @@ size_t matchPointToLineString(const std::vector<Eigen::Vector2d>& line_string, c
 
   // check if closest local point is within max distance, else find globally closest point
   if (min_distance > max_local_distance) {
-    idx_closest = indexOfLineStringPointClosestToPoint(line_string, point);
+    idx_closest = indexOfLineStringPointClosestToPoint(line_string, point, consider_order, behind);
+  } else if (consider_order) {
+    // if considering order, make sure to return the point behind or ahead of the given point
+    idx_closest = considerOrderForPointMatchedToLineString(line_string, point, idx_closest, behind);
   }
 
   return idx_closest;
+}
+
+size_t considerOrderForPointMatchedToLineString(const std::vector<Eigen::Vector2d>& line_string,
+                                                const Eigen::Vector2d& point, const size_t idx_closest,
+                                                const bool behind) {
+  size_t new_idx_closest;
+  Eigen::Vector2d closest_point_to_next;
+  const Eigen::Vector2d closest_point_to_point = point - line_string[idx_closest];
+  if (idx_closest + 1 < line_string.size()) {
+    closest_point_to_next = line_string[idx_closest + 1] - line_string[idx_closest];
+  } else if (idx_closest > 0) {
+    closest_point_to_next = line_string[idx_closest] - line_string[idx_closest - 1];
+  } else {
+    return idx_closest;
+  }
+
+  // use angle to check if closest point is behind or ahead of the given point
+  const double angle = angleBetweenVectors(closest_point_to_point, closest_point_to_next);
+  if (behind && std::abs(angle) > M_PI_2) {
+    new_idx_closest = idx_closest + 1;
+  } else if (!behind && std::abs(angle) < M_PI_2) {
+    new_idx_closest = idx_closest - 1;
+  } else {
+    new_idx_closest = idx_closest;
+  }
+  new_idx_closest = std::clamp(new_idx_closest, 0lu, line_string.size() - 1);
+
+  return new_idx_closest;
 }
 
 bool changesLaneFromPointToPoint(const Eigen::Vector2d& point, const Eigen::Vector2d& next_point,
@@ -505,7 +546,7 @@ uint8_t regulatoryElementSpeedLimit(const std::shared_ptr<const lanelet::Regulat
   }
 
   uint8_t unlimited = route_planning_msgs::msg::RegulatoryElement::META_VALUE_SPEED_UNLIMITED;
-  speed_limit = std::max(std::min(speed_limit, unlimited), static_cast<uint8_t>(0));  // clamp to [0, unlimited]
+  speed_limit = std::clamp(speed_limit, static_cast<uint8_t>(0), unlimited);
 
   return speed_limit;
 }
@@ -555,7 +596,7 @@ uint8_t speedLimit(const lanelet::ConstLanelet& lanelet) {
   uint8_t unlimited = route_planning_msgs::msg::RegulatoryElement::META_VALUE_SPEED_UNLIMITED;
   if (speed_limit_info.isMandatory) {
     int speed_limit = std::round(lanelet::units::KmHQuantity(speed_limit_info.speedLimit).value());
-    speed_limit = std::max(std::min(speed_limit, static_cast<int>(unlimited)), 0);  // clamp to [0, unlimited]
+    speed_limit = std::clamp(speed_limit, 0, static_cast<int>(unlimited));
     return static_cast<uint8_t>(speed_limit);
   } else {
     return unlimited;
