@@ -375,14 +375,35 @@ ResampleCenterlinesAlongPathResult resampleCenterlinesAlongPath(const lanelet::r
                                                                 const double delta_s, bool monotonically);
 
 /**
+ * @brief Computes the traveled distance along the route.
+ *
+ * Accurate to the level of route elements.
+ * Ignores route undershoot.
+ *
+ * @param[in] route route
+ * @return traveled distance [m]
+ */
+double distanceTraveled(const route_planning_msgs::msg::Route& route);
+
+/**
+ * @brief Computes the remaining distance along the route.
+ *
+ * Accurate to the level of route elements.
+ * Ignores route overshoot.
+ *
+ * @param[in] route route
+ * @return remaining distance [m]
+ */
+double distanceRemaining(const route_planning_msgs::msg::Route& route);
+
+/**
  * @brief Estimate remaining time for a route based on speed limits.
  *
- * @param[in] route_elements route elements
+ * @param[in] route route
  * @param[in] reference_speed reference speed if speed limit is not set [m/s]
  * @return estimated remaining time [s]
  */
-double estimateRemainingTime(const std::vector<route_planning_msgs::msg::RouteElement>& route_elements,
-                             const double reference_speed = 50.0 / 3.6);
+double estimateRemainingTime(const route_planning_msgs::msg::Route& route, const double reference_speed = 50.0 / 3.6);
 
 /**
  * @brief Postprocesses a route message, filling missing information that can be inferred from other message contents.

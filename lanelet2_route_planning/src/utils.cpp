@@ -718,12 +718,33 @@ ResampleCenterlinesAlongPathResult resampleCenterlinesAlongPath(const lanelet::r
   return result;
 }
 
-double estimateRemainingTime(const std::vector<route_planning_msgs::msg::RouteElement>& route_elements,
-                             const double reference_speed) {
+double distanceTraveled(const route_planning_msgs::msg::Route& route) {
+  if (route.current_route_element_idx >= route.route_elements.size() ||
+      route.starting_route_element_idx >= route.route_elements.size()) {
+    return 0.0;
+  }
+  double to_current = route.route_elements[route.current_route_element_idx].s;
+  double ahead_of_starting_point = route.route_elements[route.starting_route_element_idx].s;
+  double traveled = to_current - ahead_of_starting_point;
+  return traveled;
+}
+
+double distanceRemaining(const route_planning_msgs::msg::Route& route) {
+  if (route.current_route_element_idx >= route.route_elements.size() ||
+      route.destination_route_element_idx >= route.route_elements.size()) {
+    return 0.0;
+  }
+  double to_current = route.route_elements[route.current_route_element_idx].s;
+  double to_destination = route.route_elements[route.destination_route_element_idx].s;
+  double remaining = to_destination - to_current;
+  return remaining;
+}
+
+double estimateRemainingTime(const route_planning_msgs::msg::Route& route, const double reference_speed) {
   double remaining_time = 0.0;
-  for (size_t r = 0; r < route_elements.size() - 1; ++r) {
-    const auto& route_element = route_elements[r];
-    const auto& next_route_element = route_elements[r + 1];
+  for (size_t r = route.current_route_element_idx; r < route.route_elements.size() - 1; ++r) {
+    const auto& route_element = route.route_elements[r];
+    const auto& next_route_element = route.route_elements[r + 1];
     double speed_limit = route_planning_msgs::route_access::getSuggestedLaneElement(route_element).speed_limit;
     if (speed_limit == 0) {
       speed_limit = reference_speed;

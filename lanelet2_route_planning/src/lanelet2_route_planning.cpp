@@ -332,14 +332,9 @@ void Lanelet2RoutePlanning::actionHandleAccepted(
   action_feedback_ = std::make_shared<route_planning_msgs::action::PlanRoute::Feedback>();
   action_feedback_->distance_traveled = 0.0;
   action_feedback_->distance_remaining = 0.0;
-  if (!latest_route_msg_.route_elements.empty() &&
-      latest_route_msg_.destination_route_element_idx < latest_route_msg_.route_elements.size()) {
-    action_feedback_->distance_remaining =
-        latest_route_msg_.route_elements[latest_route_msg_.destination_route_element_idx].s;
-  }
+  action_feedback_->distance_remaining = distanceRemaining(latest_route_msg_);
   action_feedback_->time_traveled = rclcpp::Duration::from_seconds(0.0);
-  action_feedback_->time_remaining = rclcpp::Duration::from_seconds(
-      estimateRemainingTime(route_planning_msgs::route_access::getRemainingRouteElements(latest_route_msg_, true)));
+  action_feedback_->time_remaining = rclcpp::Duration::from_seconds(estimateRemainingTime(latest_route_msg_));
   action_result_ = std::make_shared<route_planning_msgs::action::PlanRoute::Result>();
   action_result_->distance_traveled = 0.0;
   action_result_->time_traveled = rclcpp::Duration::from_seconds(0.0);
@@ -364,22 +359,11 @@ void Lanelet2RoutePlanning::actionExecute(
     has_reached_destination = (distance_to_destination <= destination_distance_threshold_);
 
     // update feedback and result
-    // TODO: refactor time and distance estimation into functions
     // TODO: route progress distance seems to be off a little bit
-    if (!latest_route_msg_.route_elements.empty() &&
-        latest_route_msg_.current_route_element_idx - 1 < latest_route_msg_.route_elements.size()) {
-      action_feedback_->distance_traveled =
-          latest_route_msg_.route_elements[latest_route_msg_.current_route_element_idx - 1].s;
-    }
-    if (!latest_route_msg_.route_elements.empty() &&
-        latest_route_msg_.destination_route_element_idx < latest_route_msg_.route_elements.size()) {
-      action_feedback_->distance_remaining =
-          latest_route_msg_.route_elements[latest_route_msg_.destination_route_element_idx].s -
-          action_feedback_->distance_traveled;
-    }
+    action_feedback_->distance_traveled = distanceTraveled(latest_route_msg_);
+    action_feedback_->distance_remaining = distanceRemaining(latest_route_msg_);
     action_feedback_->time_traveled = this->now() - action_start_time_;
-    action_feedback_->time_remaining = rclcpp::Duration::from_seconds(
-        estimateRemainingTime(route_planning_msgs::route_access::getRemainingRouteElements(latest_route_msg_, true)));
+    action_feedback_->time_remaining = rclcpp::Duration::from_seconds(estimateRemainingTime(latest_route_msg_));
     action_result_->distance_traveled = action_feedback_->distance_traveled;
     action_result_->time_traveled = action_feedback_->time_traveled;
 
