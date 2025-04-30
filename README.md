@@ -1,125 +1,77 @@
-# Lanelet2 Route Planning
+# lanelet2_route_planning
+
+The `lanelet2_route_planning` node plans a route to a destination based on Lanelet2 map. It runs an action server that accepts a destination, plans a route, and continuously publishes feedback on the route progress to the action client. The `plan_route_action_client` node can be used alongside as a standard action client, e.g., by listening to goal poses published from RViz.
+
+- [Container Images](#container-images)
+- [lanelet2_route_planning](#lanelet2_route_planning)
+- [plan_route_action_client](#plan_route_action_client)
 
 
-The [`lanelet2_route_planning`](.) contains two C++ nodes: [`global_planner_node`](lanelet2_route_planning/src/global_planner_node.cpp) and  [`global_maneuver_action_client`](global_maneuver_action_client/src/global_maneuver_action_client_node.cpp) for route planning based on the Lanelet2 framework. While the global_planner ist responsible for the planning task, the global_maneuver_action_client node, converts a stamped point (e.g. through RViz's *2D Goal Pose*) to a maneuver action request.
+### Container Images
 
-It has the following functionalities:
+| Description | Image:Tag | Default Command |
+| --- | --- | -- |
+| latest | `gitlab.ika.rwth-aachen.de:5050/fb-fi/its-modules/planning/lanelet2_route_planning:latest` | `ros2 launch lanelet2_route_planning lanelet2_route_planning_launch.py` |
 
-- [Lanelet2 Route Planning](#lanelet2-route-planning)
-    - [lanelet2\_route\_planning/global\_planner\_node](#lanelet2_route_planningglobal_planner_node)
-      - [Subscribed Topics](#subscribed-topics)
-      - [Published Topics](#published-topics)
-      - [Actions](#actions)
-      - [Parameters](#parameters)
-    - [global_maneuver_action_client/global_maneuver_action_client_node](#global_maneuver_action_clientglobal_maneuver_action_client)
-      - [Subscribed Topics](#subscribed-topics)
-      - [Published Topics](#published-topics)
-      - [Actions](#actions)
-      - [Parameters](#parameters)
-  - [Usage of docker-ros Images](#usage-of-docker-ros-images)
-    - [Available Images](#available-images)
-    - [Default Command](#default-command)
-    - [Launch Files](#launch-files)
-    - [Configuration Files](#configuration-files)
-    - [Additional Remarks](#additional-remarks)
 
-### lanelet2_route_planning/global_planner_node
+## `lanelet2_route_planning`
 
-#### Subscribed Topics
+The `lanelet2_route_planning` node computes a shortest path route from a current ego position to a destination based on a Lanelet2 map. Progress along the route is continuously tracked and published as action feedback via the integrated action server, which is accepting a destination in the first place. The route is published at a constant frequency, allowing downstream planning tasks to incorporate knowledge about the road topology. For this purpose, the published route not only contains a suggested reference line, but also information about adjacent lanes, regulatory elements, and drivable space. For the sake of computation and data efficiency, the route is only locally enriched with this additional information. More information on the outgoing `route_planning_msgs/msg/Route` format is found in [`planning_interfaces`](https://github.com/ika-rwth-aachen/planning_interfaces).
+
+### Subscribed Topics
 
 | Topic | Type | Description |
 | --- | --- | --- |
-| `/carla_its_converter/ego_vehicle/ego_data` | `perception_msgs/msg/EgoData` | EgoData-Message of the vehicle --> should be changed to `/carla_its_adapter/...` soon! |
+| `~/ego_data` | `perception_msgs/msg/EgoData` | ego data |
 
-#### Published Topics
+### Published Topics
 
 | Topic | Type | Description |
 | --- | --- | --- |
-| `~/global/driveable_space` | `route_planning_msgs/msg/DriveableSpace` | Publish a `route_planning_msgs::msg::DriveableSpace` in the frame of the Lanelet2 map everytime a new global route is planned |
-| `~/driveable_space` | `route_planning_msgs/msg/DriveableSpace` | Publish a `route_planning_msgs::msg::DriveableSpace` in the local vehicle frame and environment with a frequency defined by the parameter `local_path_extraction_rate` |
-| `~/route` | `route_planning_msgs/msg/Route` | Publish a `route_planning_msgs::msg::Route` in the local vehicle frame and environment with a frequency defined by the parameter `local_path_extraction_rate` |
+| `~/route` | `route_planning_msgs/msg/Route` | route |
 
-#### Actions
+### Actions
 
 | Action | Type | Description |
 | --- | --- | --- |
-| `~/execute_global_maneuver` | `route_planning_msgs/action/GlobalManeuver` | Plan and execute a global maneuver |
+| `~/plan_route` | `route_planning_msgs/action/PlanRoute` | plan route to destination |
 
-#### Parameters
+### Parameters
 
-| Parameter | Type | Description |
-| --- | --- | --- |
-| `vehicle_frame_id` | `string` | Frame ID of the vehicle (for local map extraction) |
-| `ego_data_timeout` | `double` | Time-delta for which a EgoData message is classified as to old [s] |
-| `map_server_name` | `string` | Name of the Lanelet2 Map Server Node |
-| `route_sample_distance` | `double` | Sample distance of the generated route [m] |
-| `route_smoothing_factor` | `double` | Parameter to influence the smoothing of the route |
-| `lateral_driveable_space_width` | `double` | Maximum width of the generated driveable space [m] |
-| `target_reached_thr` | `double` | Distance to the target-position to reach the destination [m] |
-| `require_standstill` | `bool` |Bool indicating if it's necessary for the vehicle to stand still at the target-position |
-| `vel_threshold_target` | `double` | Velocity threshold to define if the target is reached if `require_standstill` is true [m/s] |
-| `offset_behind_distance` | `double` | distance behind current position where the route should start [m] |
-| `offset_ahead_distance` | `double` | distance ahead of target position where the route should end [m] |
-| `cancel_distance_ahead` | `double` | distance ahead of ego along route re-defining the destination if route is canceled [m] |
-| `local_path_extraction_rate` | `double` | Rate to extract and publish the local path / route / driveable space [Hz] |
-| `look_ahead_time` | `double` | Look ahead time for extracting the local path [s]; limited by offset_ahead_distance |
-| `look_ahead_distance_min` | `double` | Minimum Look-Ahead distance for the local path extraction [m]; limited by offset_ahead_distance |
-| `look_behind_distance` | `double` | Look-Behind distance for the local path extraction [m]; limited by offset_behind_distance |
+| Parameter | Type | Default | Description |
+| --- | --- | --- | --- |
+| `ll2_map_server_name` | `string` | `ll2_map_server` | Name of lanelet2_map_server node |
+| `publish_frequency` | `float` | `10.0` | Frequency of route publication [Hz] |
+| `action_feedback_frequency` | `float` | `1.0` | Frequency of action feedback publication [Hz] |
+| `sampling_distance` | `float` | `1.0` | Distance between resampled points along route [m] |
+| `project_destination_to_reference_line` | `bool` | `true` | Whether to project destination to reference line |
+| `destination_distance_threshold` | `float` | `1.0` | Distance to destination where destination is considered reached [m] |
+| `enrich_route_ahead_ego_distance` | `float` | `100.0` | Distance ahead of ego position where global route is enriched with more information [m] (negative=unlimited) |
+| `enrich_route_behind_ego_distance` | `float` | `10.0` | Distance behind ego position where global route is enriched with more information [m] (negative=unlimited) |
+| `route_undershoot_distance` | `float` | `0.0` | Undershoot route by this distance before ego position [m] |
+| `route_overshoot_distance` | `float` | `0.0` | Overshoot route by this distance behind destination [m] |
+| `max_drivable_space_radius` | `float` | `50.0` | Maximum distance to left/right drivable space bounds, if not otherwise restricted [m] |
 
-### global_maneuver_action_client/global_maneuver_action_client
 
-#### Subscribed Topics
+## `plan_route_action_client`
+
+The `plan_route_action_client` node is an action client interacting with the `lanelet2_route_planning` action server, allowing to plan a route based on clicked RViz poses or other inputs. It primarily offers three different modes of route planning:
+1. goal pose subscriber: plans a route to a `/goal_pose` published by RViz's goal pose plugin
+1. waypoints: plans routes to pre-defined waypoints, one after the other
+1. random: plans a route to a random destination on the map
+
+### Subscribed Topics
 
 | Topic | Type | Description |
 | --- | --- | --- |
-| `/goal_pose` | `geometry_msgs/msg/PoseStamped` | destination position for global maneuver; supports RViz's *2D Goal Pose* functionality |
+| `/goal_pose` | `geometry_msgs/msg/PoseStamped` | destination to navigate to |
 
-#### Published Topics
+### Parameters
 
-| Topic | Type | Description |
-| --- | --- | --- |
-| --- | --- | --- |
-
-#### Actions
-
-| Action | Type | Description |
-| --- | --- | --- |
-| `~/execute_global_maneuver` | `route_planning_msgs/action/GlobalManeuver` | Plan and execute a global maneuver |
-
-#### Parameters
-
-| Parameter | Type | Description |
-| --- | --- | --- |
-| --- | --- | --- |
-
-## Usage of docker-ros Images
-
-### Available Images
-
-| Tag | Description |
-| --- | --- |
-| `latest` | latest version |
-| `latest-dev` | latest dev version |
-
-### Default Command
-
-```bash
-ros2 launch lanelet2_route_planning ll2_route_planning.launch.py
-```
-
-### Launch Files
-
-| Package | File | Path | Description |
+| Parameter | Type | Default | Description |
 | --- | --- | --- | --- |
-| `lanelet2_route_planning` | `ll2_route_planning.launch.py` | `/docker-ros/ws/install/share/lanelet2_route_planning/launch` | Default launch file starting the global_planner_node |
-
-
-### Configuration Files
-
-| Package | File | Path | Description |
-| --- | --- | --- | --- |
-| `lanelet2_route_planning` | `params.yml` | `/docker-ros/ws/install/share/lanelet2_route_planning/config` | Parameters for launch file |
-
-### Additional Remarks
-
-- ...
+| `ll2_map_server_name` | `string` | `ll2_map_server` | Name of lanelet2_map_server node |
+| `waypoints` | `string[]` | `[]` | List of WGS84 waypoints to endlessly follow (list of strings with comma-separated '<LATITUDE>,<LONGITUDE>') |
+| `enable_random_destination` | `bool` | `false` | Whether to plan a route to a random destination |
+| `enable_continuous_planning` | `bool` | `false` | Whether to continuously plan a new route (either to the next waypoint or to a random destination) |
+| `cancel_route` | `bool` | `false` | Cancel active route planning action (to be set at runtime) |
