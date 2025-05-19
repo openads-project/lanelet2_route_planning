@@ -3,6 +3,7 @@
 #include <utility>
 
 #include <lanelet2_routing/RoutingGraph.h>
+#include <omp.h>
 #include <geometry_msgs/msg/point_stamped.hpp>
 #include <perception_msgs/msg/ego_data.hpp>
 #include <perception_msgs_utils/object_access.hpp>
@@ -49,10 +50,19 @@ Lanelet2RoutePlanning::Lanelet2RoutePlanning() : Node("lanelet2_route_planning")
   this->declareAndLoadParameter("max_drivable_space_radius", max_drivable_space_radius_,
                                 "Maximum distance to left/right drivable space bounds, if not otherwise restricted [m]",
                                 true, false, false, 3.0, 100.0, 1.0);
-  if (enrich_route_ahead_ego_distance_ < 0.0)
+  this->declareAndLoadParameter("max_num_threads", max_num_threads_,
+                                "Maximum number of threads for parallel processing (negative=max available)", true,
+                                false, false, -1, omp_get_max_threads(), 1);
+  if (enrich_route_ahead_ego_distance_ < 0.0) {
     enrich_route_ahead_ego_distance_ = std::numeric_limits<double>::infinity();
-  if (enrich_route_behind_ego_distance_ < 0.0)
+  }
+  if (enrich_route_behind_ego_distance_ < 0.0) {
     enrich_route_behind_ego_distance_ = std::numeric_limits<double>::infinity();
+  }
+  if (max_num_threads_ < 0) {
+    max_num_threads_ = omp_get_max_threads();
+    omp_set_num_threads(max_num_threads_);
+  }
 
   this->setup();
 }
@@ -158,6 +168,10 @@ rcl_interfaces::msg::SetParametersResult Lanelet2RoutePlanning::parametersCallba
   if (enrich_route_behind_ego_distance_ < 0.0) {
     enrich_route_behind_ego_distance_ = std::numeric_limits<double>::infinity();
   }
+  if (max_num_threads_ < 0) {
+    max_num_threads_ = omp_get_max_threads();
+  }
+  omp_set_num_threads(max_num_threads_);
 
   rcl_interfaces::msg::SetParametersResult result;
   result.successful = true;
@@ -552,7 +566,8 @@ void Lanelet2RoutePlanning::buildEnrichedRouteMessage() {
   size_t c_closest_point =
       matchPointToLineString(reference_line, ego_position, route_msg.current_route_element_idx, true, true);
 
-  // loop over global reference line
+// loop over global reference line in parallel
+#pragma omp parallel for
   for (size_t c = 0; c < route_elements.size(); ++c) {
     route_planning_msgs::msg::RouteElement& route_element_msg = route_elements[c];
     route_planning_msgs::msg::LaneElement& lane_element_msg =

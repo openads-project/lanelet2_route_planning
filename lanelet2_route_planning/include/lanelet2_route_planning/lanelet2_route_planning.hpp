@@ -348,6 +348,11 @@ class Lanelet2RoutePlanning : public rclcpp::Node {
    * @brief Maximum distance to left/right drivable space bounds, if not otherwise restricted [m] (parameter)
    */
   double max_drivable_space_radius_ = 50.0;
+
+  /**
+   * @brief Maximum number of threads for parallel processing (negative=max available) (parameter)
+   */
+  int max_num_threads_ = -1;
 };
 
 }  // namespace lanelet2_route_planning

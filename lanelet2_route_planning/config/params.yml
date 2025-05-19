@@ -11,6 +11,7 @@
     route_undershoot_distance: 0.0
     route_overshoot_distance: 0.0
     max_drivable_space_radius: 50.0
+    max_num_threads: -1
 
     # --- plan_route_action_client ---
     # waypoints:
