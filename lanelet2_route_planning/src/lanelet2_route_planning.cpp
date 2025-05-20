@@ -466,7 +466,6 @@ bool Lanelet2RoutePlanning::planRoute(const geometry_msgs::msg::PointStamped& de
       projectPointToLineString(toEigen2d(destination_map), toEigen(destination_ll.centerline2d().basicLineString()));
 
   // undershoot/overshoot route endpoints to enable context before start position and behind destination
-  // TODO: route_overshoot: scheint nur für max 1 nächstes lanelet zu funktionieren
   lanelet::ConstLanelet undershot_ego_ll =
       followLaneletsAlongRoutingGraph(routing_graph_, ego_ll, ego_ll_position, -std::abs(route_undershoot_distance_));
   lanelet::ConstLanelet overshot_destination_ll = followLaneletsAlongRoutingGraph(

@@ -654,9 +654,9 @@ lanelet::ConstLanelet followLaneletsAlongRoutingGraph(const lanelet::routing::Ro
   while (remaining_distance > remaining_length) {
     lanelet::ConstLanelets next_lanelets;
     if (distance > 0) {
-      next_lanelets = routing_graph->following(lanelet, false);
+      next_lanelets = routing_graph->following(followed_lanelet, false);
     } else {
-      next_lanelets = routing_graph->previous(lanelet);
+      next_lanelets = routing_graph->previous(followed_lanelet);
     }
     if (next_lanelets.empty()) {
       break;
