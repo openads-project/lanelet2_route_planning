@@ -610,6 +610,7 @@ void Lanelet2RoutePlanning::buildEnrichedRouteMessage() {
     std::vector<lanelet::ConstLanelet> adjacent_right_lanelets =
         adjacentLeftOrRightLanelets(lanelet, latest_route_, false);
     int suggested_lane_idx = adjacent_left_lanelets.size();
+    int n_lanes = adjacent_left_lanelets.size() + 1 + adjacent_right_lanelets.size();
 
     // project centerline point to lanelet and adjacent lanelet centerlines and bounds
     auto lanelet_projected_points =
@@ -666,8 +667,12 @@ void Lanelet2RoutePlanning::buildEnrichedRouteMessage() {
       lane_element_msg.right_boundary.type = laneBoundaryType(adjacent_left_lanelets[a].rightBound2d());
       lane_element_msg.speed_limit = speedLimit(adjacent_left_lanelets[a]);
       lane_element_msg.regulatory_element_idcs = regulatory_element_extraction.adjacent_left_regulatory_element_idcs[a];
-      lane_element_msg.following_lane_idx = route_element_msg.lane_elements.size() + following_lane_idx_offset;
-      lane_element_msg.has_following_lane_idx = true;
+      int computed_following_lane_idx = route_element_msg.lane_elements.size() + following_lane_idx_offset;
+      lane_element_msg.has_following_lane_idx =
+          (computed_following_lane_idx >= 0 && computed_following_lane_idx < n_lanes);
+      if (lane_element_msg.has_following_lane_idx) {
+        lane_element_msg.following_lane_idx = computed_following_lane_idx;
+      }
       route_element_msg.lane_elements.push_back(lane_element_msg);
     }
 
@@ -681,8 +686,12 @@ void Lanelet2RoutePlanning::buildEnrichedRouteMessage() {
     centerline_lane_element_msg.right_boundary.type = laneBoundaryType(lanelet.rightBound2d());
     centerline_lane_element_msg.speed_limit = speedLimit(lanelet);
     centerline_lane_element_msg.regulatory_element_idcs = regulatory_element_extraction.regulatory_element_idcs;
-    centerline_lane_element_msg.following_lane_idx = route_element_msg.lane_elements.size() + following_lane_idx_offset;
-    centerline_lane_element_msg.has_following_lane_idx = true;
+    int computed_following_lane_idx = route_element_msg.lane_elements.size() + following_lane_idx_offset;
+    centerline_lane_element_msg.has_following_lane_idx =
+        (computed_following_lane_idx >= 0 && computed_following_lane_idx < n_lanes);
+    if (centerline_lane_element_msg.has_following_lane_idx) {
+      centerline_lane_element_msg.following_lane_idx = computed_following_lane_idx;
+    }
     route_element_msg.lane_elements.push_back(centerline_lane_element_msg);
 
     // create LaneElements for right adjacent lanes
@@ -697,8 +706,12 @@ void Lanelet2RoutePlanning::buildEnrichedRouteMessage() {
       lane_element_msg.speed_limit = speedLimit(adjacent_right_lanelets[a]);
       lane_element_msg.regulatory_element_idcs =
           regulatory_element_extraction.adjacent_right_regulatory_element_idcs[a];
-      lane_element_msg.following_lane_idx = route_element_msg.lane_elements.size() + following_lane_idx_offset;
-      lane_element_msg.has_following_lane_idx = true;
+      int computed_following_lane_idx = route_element_msg.lane_elements.size() + following_lane_idx_offset;
+      lane_element_msg.has_following_lane_idx =
+          (computed_following_lane_idx >= 0 && computed_following_lane_idx < n_lanes);
+      if (lane_element_msg.has_following_lane_idx) {
+        lane_element_msg.following_lane_idx = computed_following_lane_idx;
+      }
       route_element_msg.lane_elements.push_back(lane_element_msg);
     }
   }
