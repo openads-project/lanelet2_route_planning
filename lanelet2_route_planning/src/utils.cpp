@@ -604,11 +604,8 @@ uint8_t speedLimit(const lanelet::ConstLanelet& lanelet) {
 }
 
 lanelet::traffic_rules::TrafficRulesPtr getTrafficRules() {
-  // TODO: what is the ika postfix? move to constant? -> GKU?
-  // TODO: make Germany a param?
-  // TODO: make vehicle type a param?
   auto location = lanelet::Locations::Germany;
-  std::string vehicle_type = std::string(lanelet::Participants::Vehicle) + ":ika";
+  auto vehicle_type = std::string(lanelet::Participants::Vehicle);
   return lanelet::traffic_rules::TrafficRulesFactory::create(location, vehicle_type);
 }
 
