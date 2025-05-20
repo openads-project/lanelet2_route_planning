@@ -68,8 +68,7 @@ Eigen::Vector2d tangentOfPointAlongLineString(const Eigen::Vector2d& point, cons
   } else if (point != prev_point && point == next_point) {  // single line segment
     tangent = (point - prev_point).normalized();
   } else if (point == prev_point && point == next_point) {  // single point
-    // TODO: find out if this ever hits and if it is a problem to return (0,0)
-    tangent = Eigen::Vector2d(0.0, 0.0);
+    throw std::invalid_argument("tangentOfPointAlongLineString: cannot compute tangent for single point");
   } else {  // proper two line segments with previous and next point
     const Eigen::Vector2d prev_to_point_unit = (point - prev_point).normalized();
     const Eigen::Vector2d point_to_next_unit = (next_point - point).normalized();

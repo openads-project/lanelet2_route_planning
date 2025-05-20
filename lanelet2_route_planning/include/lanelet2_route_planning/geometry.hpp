@@ -56,6 +56,7 @@ std::optional<IntersectionOfLinesResult> intersectionOfLines(const std::vector<E
  * @param[in] point point along line string
  * @param[in] prev_point previous point along line string
  * @param[in] next_point next point along line string
+ * @throws std::invalid_argument if point is equal to prev_point and next_point
  * @return unit tangential vector
  */
 Eigen::Vector2d tangentOfPointAlongLineString(const Eigen::Vector2d& point, const Eigen::Vector2d& prev_point,
