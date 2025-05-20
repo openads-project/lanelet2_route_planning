@@ -373,7 +373,6 @@ void Lanelet2RoutePlanning::actionExecute(
     has_reached_destination = (distance_to_destination <= destination_distance_threshold_);
 
     // update feedback and result
-    // TODO: route progress distance seems to be off a little bit
     action_feedback_->distance_traveled = distanceTraveled(latest_route_msg_);
     action_feedback_->distance_remaining = distanceRemaining(latest_route_msg_);
     action_feedback_->time_traveled = this->now() - action_start_time_;
@@ -389,11 +388,7 @@ void Lanelet2RoutePlanning::actionExecute(
   }
 
   // prepare result
-  if (!latest_route_msg_.route_elements.empty() &&
-      latest_route_msg_.destination_route_element_idx < latest_route_msg_.route_elements.size()) {
-    action_result_->distance_traveled =
-        latest_route_msg_.route_elements[latest_route_msg_.destination_route_element_idx].s;
-  }
+  action_result_->distance_traveled = action_feedback_->distance_traveled + action_feedback_->distance_remaining;
   action_result_->time_traveled = this->now() - action_start_time_;
   action_result_->destination_reached = has_reached_destination;
 
