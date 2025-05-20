@@ -415,7 +415,6 @@ ExtractRegulatoryElementsResult extractRegulatoryElements(
         regulatory_element_msg.reference_line = *reference_line;
 
         // only consider regulatory element if reference line intersects with point sequence
-        // TODO: check if we are actually filling the msg with 3d values, whenever possible, and only use 2d for checking stuff
         std::vector<Eigen::Vector2d> reference_line_2d = {toEigen2d(reference_line->at(0)),
                                                           toEigen2d(reference_line->at(1))};
         std::vector<Eigen::Vector2d> line_to_next_point = {point_sequence.current, point_sequence.next};
@@ -592,7 +591,6 @@ uint8_t laneBoundaryType(const lanelet::ConstLineString2d& line) {
 uint8_t speedLimit(const lanelet::ConstLanelet& lanelet) {
   lanelet::traffic_rules::TrafficRulesPtr traffic_rules = getTrafficRules();
   lanelet::traffic_rules::SpeedLimitInformation speed_limit_info = traffic_rules->speedLimit(lanelet);
-  // TODO: check if urban 50kmh is set in ATC maps = filled in LaneElement.msg
   uint8_t unlimited = route_planning_msgs::msg::RegulatoryElement::META_VALUE_SPEED_UNLIMITED;
   if (speed_limit_info.isMandatory) {
     int speed_limit = std::round(lanelet::units::KmHQuantity(speed_limit_info.speedLimit).value());

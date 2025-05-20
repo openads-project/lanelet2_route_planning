@@ -36,7 +36,6 @@ Lanelet2RoutePlanning::Lanelet2RoutePlanning() : Node("lanelet2_route_planning")
       "enrich_route_ahead_ego_distance", enrich_route_ahead_ego_distance_,
       "Distance ahead of ego position where global route is enriched with more information [m] (negative=unlimited)",
       true, false, false, -1.0, 1000.0, 1.0);
-  // TODO: -1 crashing laut Jan
   this->declareAndLoadParameter(
       "enrich_route_behind_ego_distance", enrich_route_behind_ego_distance_,
       "Distance behind ego position where global route is enriched with more information [m] (negative=unlimited)",
@@ -271,7 +270,7 @@ void Lanelet2RoutePlanning::egoDataCallback(const perception_msgs::msg::EgoData:
     this->buildEnrichedRouteMessage();
     auto t1 = std::chrono::steady_clock::now();
     auto dt = std::chrono::duration_cast<std::chrono::duration<double>>(t1 - t0).count();
-    RCLCPP_INFO(this->get_logger(), "Recomputed route (%.3fs)", dt);
+    RCLCPP_DEBUG(this->get_logger(), "Recomputed route (%.3fs)", dt);
   }
 }
 
