@@ -350,9 +350,9 @@ class Lanelet2RoutePlanning : public rclcpp::Node {
   double max_drivable_space_radius_ = 50.0;
 
   /**
-   * @brief Maximum number of threads for parallel processing (negative=max available) (parameter)
+   * @brief Maximum number of threads for parallel processing (0=max available) (parameter)
    */
-  int max_num_threads_ = -1;
+  int max_num_threads_ = 0;
 };
 
 }  // namespace lanelet2_route_planning
