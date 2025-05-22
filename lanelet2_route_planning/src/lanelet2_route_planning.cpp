@@ -50,8 +50,8 @@ Lanelet2RoutePlanning::Lanelet2RoutePlanning() : Node("lanelet2_route_planning")
                                 "Maximum distance to left/right drivable space bounds, if not otherwise restricted [m]",
                                 true, false, false, 3.0, 100.0, 1.0);
   this->declareAndLoadParameter("max_num_threads", max_num_threads_,
-                                "Maximum number of threads for parallel processing (0=max available)", true,
-                                false, false, 0, omp_get_max_threads(), 1);
+                                "Maximum number of threads for parallel processing (0=max available)", true, false,
+                                false, 0, omp_get_max_threads(), 1);
   if (enrich_route_ahead_ego_distance_ < 0.0) {
     enrich_route_ahead_ego_distance_ = std::numeric_limits<double>::infinity();
   }
