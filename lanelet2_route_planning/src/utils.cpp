@@ -94,9 +94,9 @@ size_t considerOrderForPointMatchedToLineString(const std::vector<Eigen::Vector2
   // use angle to check if closest point is behind or ahead of the given point
   const double angle = angleBetweenVectors(closest_point_to_point, closest_point_to_next);
   if (behind && std::abs(angle) > M_PI_2) {
-    new_idx_closest = idx_closest + 1;
-  } else if (!behind && std::abs(angle) < M_PI_2) {
     new_idx_closest = idx_closest - 1;
+  } else if (!behind && std::abs(angle) < M_PI_2) {
+    new_idx_closest = idx_closest + 1;
   } else {
     new_idx_closest = idx_closest;
   }
