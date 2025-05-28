@@ -606,9 +606,9 @@ void Lanelet2RoutePlanning::buildEnrichedRouteMessage() {
 
     // get adjacent lanelets
     std::vector<lanelet::ConstLanelet> adjacent_left_lanelets =
-        adjacentLeftOrRightLanelets(lanelet, latest_route_, true);
+        adjacentLeftOrRightLanelets(lanelet, routing_graph_, true);
     std::vector<lanelet::ConstLanelet> adjacent_right_lanelets =
-        adjacentLeftOrRightLanelets(lanelet, latest_route_, false);
+        adjacentLeftOrRightLanelets(lanelet, routing_graph_, false);
     int suggested_lane_idx = adjacent_left_lanelets.size();
     int n_lanes = adjacent_left_lanelets.size() + 1 + adjacent_right_lanelets.size();
 
@@ -626,7 +626,7 @@ void Lanelet2RoutePlanning::buildEnrichedRouteMessage() {
         (c < route_elements.size() - 1) ? shortest_path[latest_lanelet_idx_by_reference_line_point_idx_[c + 1]]
                                         : lanelet;
     int following_lane_idx_offset;
-    if (auto result = computeFollowingLaneIdxOffset(lanelet, lanelet_of_next_point, latest_route_, routing_graph_)) {
+    if (auto result = computeFollowingLaneIdxOffset(lanelet, lanelet_of_next_point, routing_graph_)) {
       following_lane_idx_offset = *result;
     } else {
       RCLCPP_ERROR(

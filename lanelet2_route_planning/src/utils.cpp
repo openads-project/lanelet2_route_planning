@@ -112,9 +112,12 @@ bool changesLaneFromPointToPoint(const Eigen::Vector2d& point, const Eigen::Vect
 }
 
 std::vector<lanelet::ConstLanelet> adjacentLeftOrRightLanelets(const lanelet::ConstLanelet& lanelet,
-                                                               const lanelet::routing::Route& route, bool left) {
+                                                               const lanelet::routing::RoutingGraphUPtr& routing_graph,
+                                                               bool left) {
   std::vector<lanelet::ConstLanelet> adjacent_lanelets;
-  lanelet::routing::LaneletRelations relations = left ? route.leftRelations(lanelet) : route.rightRelations(lanelet);
+  const int routing_cost_id = 0;  // RoutingCostDistance
+  lanelet::routing::LaneletRelations relations = left ? routing_graph->leftRelations(lanelet, routing_cost_id)
+                                                      : routing_graph->rightRelations(lanelet, routing_cost_id);
   for (const auto& relation : relations) {
     if ((left && (relation.relationType == lanelet::routing::RelationType::Left ||
                   relation.relationType == lanelet::routing::RelationType::AdjacentLeft)) ||
@@ -172,20 +175,21 @@ std::vector<ProjectedLaneletPoints> projectPointToLaneletLines(const Eigen::Vect
 
 std::optional<int> computeFollowingLaneIdxOffset(const lanelet::ConstLanelet& lanelet,
                                                  const lanelet::ConstLanelet& lanelet_of_next_point,
-                                                 const lanelet::routing::Route& route,
                                                  const lanelet::routing::RoutingGraphUPtr& routing_graph) {
   int following_lane_idx_offset = 0;
   if (lanelet_of_next_point.id() != lanelet.id()) {
     // get adjacent lanelets of current lanelet
-    std::vector<lanelet::ConstLanelet> adjacent_left_lanelets = adjacentLeftOrRightLanelets(lanelet, route, true);
-    std::vector<lanelet::ConstLanelet> adjacent_right_lanelets = adjacentLeftOrRightLanelets(lanelet, route, false);
+    std::vector<lanelet::ConstLanelet> adjacent_left_lanelets =
+        adjacentLeftOrRightLanelets(lanelet, routing_graph, true);
+    std::vector<lanelet::ConstLanelet> adjacent_right_lanelets =
+        adjacentLeftOrRightLanelets(lanelet, routing_graph, false);
     int suggested_lane_idx = adjacent_left_lanelets.size();
 
     // get adjacent lanelets of next lanelet (lanelet of next point)
     std::vector<lanelet::ConstLanelet> adjacent_left_lanelets_of_next_lanelet =
-        adjacentLeftOrRightLanelets(lanelet_of_next_point, route, true);
+        adjacentLeftOrRightLanelets(lanelet_of_next_point, routing_graph, true);
     std::vector<lanelet::ConstLanelet> adjacent_right_lanelets_of_next_lanelet =
-        adjacentLeftOrRightLanelets(lanelet_of_next_point, route, false);
+        adjacentLeftOrRightLanelets(lanelet_of_next_point, routing_graph, false);
     std::vector<lanelet::ConstLanelet> adjacent_lanelets_of_next_lanelet = adjacent_left_lanelets_of_next_lanelet;
     adjacent_lanelets_of_next_lanelet.push_back(lanelet_of_next_point);
     adjacent_lanelets_of_next_lanelet.insert(adjacent_lanelets_of_next_lanelet.end(),

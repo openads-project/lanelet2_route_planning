@@ -91,12 +91,13 @@ bool changesLaneFromPointToPoint(const Eigen::Vector2d& point, const Eigen::Vect
  * RelationType::Left and RelationType::AdjacentLeft are used for left adjacent lanelets, right vice versa.
  *
  * @param[in] lanelet lanelet
- * @param[in] route route
+ * @param[in] routing_graph routing graph
  * @param[in] left whether to find left or right adjacent lanelets
  * @return adjacent lanelets
  */
 std::vector<lanelet::ConstLanelet> adjacentLeftOrRightLanelets(const lanelet::ConstLanelet& lanelet,
-                                                               const lanelet::routing::Route& route, bool left);
+                                                               const lanelet::routing::RoutingGraphUPtr& routing_graph,
+                                                               bool left);
 
 /**
  * @brief Projected lanelet points.
@@ -140,13 +141,11 @@ std::vector<ProjectedLaneletPoints> projectPointToLaneletLines(
  *
  * @param[in] lanelet current lanelet
  * @param[in] lanelet_of_next_point lanelet of next point (on next route element)
- * @param[in] route route
  * @param[in] routing_graph routing graph
  * @return following lane index offset
  */
 std::optional<int> computeFollowingLaneIdxOffset(const lanelet::ConstLanelet& lanelet,
                                                  const lanelet::ConstLanelet& lanelet_of_next_point,
-                                                 const lanelet::routing::Route& route,
                                                  const lanelet::routing::RoutingGraphUPtr& routing_graph);
 
 /**
