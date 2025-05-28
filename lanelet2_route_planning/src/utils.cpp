@@ -766,8 +766,16 @@ void postprocessRouteMessage(route_planning_msgs::msg::Route& route_msg) {
   for (size_t r = 0; r < route_elements.size(); ++r) {
     // get current, previous and next route element
     auto& route_element = route_elements[r];
-    const auto& prev_route_element = (r > 0) ? route_elements[r - 1] : route_element;
+    auto& prev_route_element = (r > 0) ? route_elements[r - 1] : route_element;
     const auto& next_route_element = (r < route_elements.size() - 1) ? route_elements[r + 1] : route_element;
+
+    // fix following lane index at the last non-enriched route element before route elements are enriched
+    if (r > 0) {
+      if (!prev_route_element.is_enriched) {
+        prev_route_element.lane_elements[0].has_following_lane_idx = true;
+        prev_route_element.lane_elements[0].following_lane_idx = route_element.suggested_lane_idx;
+      }
+    }
 
     // loop over lane elements of current route element
     for (size_t l = 0; l < route_element.lane_elements.size(); ++l) {
