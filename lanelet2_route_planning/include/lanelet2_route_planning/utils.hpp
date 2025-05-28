@@ -93,11 +93,12 @@ bool changesLaneFromPointToPoint(const Eigen::Vector2d& point, const Eigen::Vect
  * @param[in] lanelet lanelet
  * @param[in] routing_graph routing graph
  * @param[in] left whether to find left or right adjacent lanelets
+ * @param[in] sort_from_left whether to sort from left to right (true) or right to left (false)
  * @return adjacent lanelets
  */
 std::vector<lanelet::ConstLanelet> adjacentLeftOrRightLanelets(const lanelet::ConstLanelet& lanelet,
                                                                const lanelet::routing::RoutingGraphUPtr& routing_graph,
-                                                               bool left);
+                                                               bool left, bool sort_from_left = true);
 
 /**
  * @brief Projected lanelet points.

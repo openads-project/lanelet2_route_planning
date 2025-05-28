@@ -113,7 +113,7 @@ bool changesLaneFromPointToPoint(const Eigen::Vector2d& point, const Eigen::Vect
 
 std::vector<lanelet::ConstLanelet> adjacentLeftOrRightLanelets(const lanelet::ConstLanelet& lanelet,
                                                                const lanelet::routing::RoutingGraphUPtr& routing_graph,
-                                                               bool left) {
+                                                               bool left, bool sort_from_left) {
   std::vector<lanelet::ConstLanelet> adjacent_lanelets;
   const int routing_cost_id = 0;  // RoutingCostDistance
   lanelet::routing::LaneletRelations relations = left ? routing_graph->leftRelations(lanelet, routing_cost_id)
@@ -126,6 +126,11 @@ std::vector<lanelet::ConstLanelet> adjacentLeftOrRightLanelets(const lanelet::Co
       adjacent_lanelets.push_back(relation.lanelet);
     }
   }
+
+  if ((left && sort_from_left) || (!left && !sort_from_left)) {
+    std::reverse(adjacent_lanelets.begin(), adjacent_lanelets.end());
+  }
+
   return adjacent_lanelets;
 }
 
