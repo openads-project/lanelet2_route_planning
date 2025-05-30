@@ -257,12 +257,14 @@ void Lanelet2RoutePlanning::egoDataCallback(const perception_msgs::msg::EgoData:
   }
 
   // transform ego data to map frame
-  try {
-    latest_ego_data_ = tf_buffer_->transform(*msg, ll2_interface_->map_frame_id_);
-  } catch (tf2::TransformException& ex) {
-    RCLCPP_ERROR(this->get_logger(), "Could not transform ego data from frame '%s' to frame '%s': %s",
-                 msg->header.frame_id.c_str(), ll2_interface_->map_frame_id_.c_str(), ex.what());
-  }
+  // try {
+  //   latest_ego_data_ = tf_buffer_->transform(*msg, ll2_interface_->map_frame_id_);
+  // } catch (tf2::TransformException& ex) {
+  //   RCLCPP_ERROR(this->get_logger(), "Could not transform ego data from frame '%s' to frame '%s': %s",
+  //                msg->header.frame_id.c_str(), ll2_interface_->map_frame_id_.c_str(), ex.what());
+  // }
+  // TODO: transform failed in karl: Could not transform ego data from frame 'map' to frame 'map': Invalid argument "" passed to lookupTransform argument source_frame - in tf2 frame_ids cannot be empty
+  latest_ego_data_ = *msg;
 
   // recompute local route
   if (is_publishing_route_) {

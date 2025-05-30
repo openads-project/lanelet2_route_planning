@@ -4,6 +4,6 @@ include:
 variables:
   BASE_IMAGE: rwthika/ros2:jazzy
   COMMAND: ros2 launch lanelet2_route_planning lanelet2_route_planning_launch.py
-  TARGET: dev,run
-  PLATFORM: amd64,arm64
+  TARGET: run # TODO: re-add dev
+  PLATFORM: amd64 # TODO: re-add arm64
   RMW_IMPLEMENTATION: rmw_zenoh_cpp
