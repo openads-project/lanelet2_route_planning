@@ -339,7 +339,8 @@ std::pair<Eigen::Vector2d, Eigen::Vector2d> extractDrivableSpace(const lanelet::
 
   // find drivable space bounds by following projected points until corresponding line string is not passable anymore
   Eigen::Vector2d drivable_space_left, drivable_space_right;
-  bool is_drivable_space_left_limited_by_line_strings, is_drivable_space_right_limited_by_line_strings;
+  bool is_drivable_space_left_limited_by_line_strings = false;
+  bool is_drivable_space_right_limited_by_line_strings = false;
   for (const auto& projected_point_and_line_string_idx : left_projected_points_and_line_string_idcs) {
     const auto& line_string = line_strings_and_distances[projected_point_and_line_string_idx.second].second;
     if (!isLineStringDrivable(line_string)) {
