@@ -582,12 +582,16 @@ void Lanelet2RoutePlanning::buildEnrichedRouteMessage() {
     }
 
     // get current, previous and next centerline point
-    route_planning_msgs::msg::LaneElement prev_lane_element_msg =
-        (c > 0) ? route_planning_msgs::route_access::getSuggestedLaneElement(route_elements[c - 1]) : lane_element_msg;
-    route_planning_msgs::msg::LaneElement next_lane_element_msg =
-        (c < route_elements.size() - 1)
-            ? route_planning_msgs::route_access::getSuggestedLaneElement(route_elements[c + 1])
-            : lane_element_msg;
+    route_planning_msgs::msg::LaneElement prev_lane_element_msg, next_lane_element_msg;
+#pragma omp critical  // prevent race condition when accessing prev/next suggested lane element set by other threads
+    {
+      prev_lane_element_msg = (c > 0)
+                                  ? route_planning_msgs::route_access::getSuggestedLaneElement(route_elements[c - 1])
+                                  : lane_element_msg;
+      next_lane_element_msg = (c < route_elements.size() - 1)
+                                  ? route_planning_msgs::route_access::getSuggestedLaneElement(route_elements[c + 1])
+                                  : lane_element_msg;
+    }
     const Eigen::Vector2d point = toEigen2d(lane_element_msg.reference_pose.position);
     const Eigen::Vector2d prev_point = toEigen2d(prev_lane_element_msg.reference_pose.position);
     const Eigen::Vector2d next_point = toEigen2d(next_lane_element_msg.reference_pose.position);
@@ -646,73 +650,77 @@ void Lanelet2RoutePlanning::buildEnrichedRouteMessage() {
     auto regulatory_element_extraction = extractRegulatoryElements(
         lanelet, adjacent_left_lanelets, adjacent_right_lanelets, {prev_point, point, next_point});
 
-    // enrich RouteElement with local route information
-    route_element_msg.lane_elements = {};
-    route_element_msg.is_enriched = true;
-    route_element_msg.left_boundary = toRos(drivable_space_left);
-    route_element_msg.right_boundary = toRos(drivable_space_right);
-    route_element_msg.regulatory_elements = regulatory_element_extraction.regulatory_element_msgs;
-    route_element_msg.suggested_lane_idx = suggested_lane_idx;
-    route_element_msg.will_change_suggested_lane = changes_lane_to_next_point;
-    // route_element_msg.s already set in global route
+// enrich RouteElement with local route information
+#pragma omp critical  // prevent race condition when accessing prev/next suggested lane element set by other threads
+    {
+      route_element_msg.lane_elements = {};
+      route_element_msg.is_enriched = true;
+      route_element_msg.left_boundary = toRos(drivable_space_left);
+      route_element_msg.right_boundary = toRos(drivable_space_right);
+      route_element_msg.regulatory_elements = regulatory_element_extraction.regulatory_element_msgs;
+      route_element_msg.suggested_lane_idx = suggested_lane_idx;
+      route_element_msg.will_change_suggested_lane = changes_lane_to_next_point;
+      // route_element_msg.s already set in global route
 
-    // create LaneElements for left adjacent lanes
-    for (size_t a = 0; a < adjacent_left_lanelets_projected_points.size(); ++a) {
-      route_planning_msgs::msg::LaneElement lane_element_msg;
-      lane_element_msg.reference_pose.position = toRos(adjacent_left_lanelets_projected_points[a].centerline_point);
-      // lane_element_msg.reference_pose.orientation computed in postprocessRouteMessage
-      lane_element_msg.left_boundary.point = toRos(adjacent_left_lanelets_projected_points[a].left_bound_point);
-      lane_element_msg.left_boundary.type = laneBoundaryType(adjacent_left_lanelets[a].leftBound2d());
-      lane_element_msg.right_boundary.point = toRos(adjacent_left_lanelets_projected_points[a].right_bound_point);
-      lane_element_msg.right_boundary.type = laneBoundaryType(adjacent_left_lanelets[a].rightBound2d());
-      lane_element_msg.speed_limit = speedLimit(adjacent_left_lanelets[a]);
-      lane_element_msg.regulatory_element_idcs = regulatory_element_extraction.adjacent_left_regulatory_element_idcs[a];
-      int computed_following_lane_idx = route_element_msg.lane_elements.size() + following_lane_idx_offset;
-      lane_element_msg.has_following_lane_idx =
-          (computed_following_lane_idx >= 0 && computed_following_lane_idx < n_lanes);
-      if (lane_element_msg.has_following_lane_idx) {
-        lane_element_msg.following_lane_idx = computed_following_lane_idx;
+      // create LaneElements for left adjacent lanes
+      for (size_t a = 0; a < adjacent_left_lanelets_projected_points.size(); ++a) {
+        route_planning_msgs::msg::LaneElement lane_element_msg;
+        lane_element_msg.reference_pose.position = toRos(adjacent_left_lanelets_projected_points[a].centerline_point);
+        // lane_element_msg.reference_pose.orientation computed in postprocessRouteMessage
+        lane_element_msg.left_boundary.point = toRos(adjacent_left_lanelets_projected_points[a].left_bound_point);
+        lane_element_msg.left_boundary.type = laneBoundaryType(adjacent_left_lanelets[a].leftBound2d());
+        lane_element_msg.right_boundary.point = toRos(adjacent_left_lanelets_projected_points[a].right_bound_point);
+        lane_element_msg.right_boundary.type = laneBoundaryType(adjacent_left_lanelets[a].rightBound2d());
+        lane_element_msg.speed_limit = speedLimit(adjacent_left_lanelets[a]);
+        lane_element_msg.regulatory_element_idcs =
+            regulatory_element_extraction.adjacent_left_regulatory_element_idcs[a];
+        int computed_following_lane_idx = route_element_msg.lane_elements.size() + following_lane_idx_offset;
+        lane_element_msg.has_following_lane_idx =
+            (computed_following_lane_idx >= 0 && computed_following_lane_idx < n_lanes);
+        if (lane_element_msg.has_following_lane_idx) {
+          lane_element_msg.following_lane_idx = computed_following_lane_idx;
+        }
+        route_element_msg.lane_elements.push_back(lane_element_msg);
       }
-      route_element_msg.lane_elements.push_back(lane_element_msg);
-    }
 
-    // create LaneElement for centerline lane
-    route_planning_msgs::msg::LaneElement centerline_lane_element_msg;
-    centerline_lane_element_msg.reference_pose.position = toRos(point);
-    // centerline_lane_element_msg.reference_pose.orientation computed in postprocessRouteMessage
-    centerline_lane_element_msg.left_boundary.point = toRos(lanelet_projected_points.left_bound_point);
-    centerline_lane_element_msg.left_boundary.type = laneBoundaryType(lanelet.leftBound2d());
-    centerline_lane_element_msg.right_boundary.point = toRos(lanelet_projected_points.right_bound_point);
-    centerline_lane_element_msg.right_boundary.type = laneBoundaryType(lanelet.rightBound2d());
-    centerline_lane_element_msg.speed_limit = speedLimit(lanelet);
-    centerline_lane_element_msg.regulatory_element_idcs = regulatory_element_extraction.regulatory_element_idcs;
-    int computed_following_lane_idx = route_element_msg.lane_elements.size() + following_lane_idx_offset;
-    centerline_lane_element_msg.has_following_lane_idx =
-        (computed_following_lane_idx >= 0 && computed_following_lane_idx < n_lanes);
-    if (centerline_lane_element_msg.has_following_lane_idx) {
-      centerline_lane_element_msg.following_lane_idx = computed_following_lane_idx;
-    }
-    route_element_msg.lane_elements.push_back(centerline_lane_element_msg);
-
-    // create LaneElements for right adjacent lanes
-    for (size_t a = 0; a < adjacent_right_lanelets_projected_points.size(); ++a) {
-      route_planning_msgs::msg::LaneElement lane_element_msg;
-      lane_element_msg.reference_pose.position = toRos(adjacent_right_lanelets_projected_points[a].centerline_point);
-      // lane_element_msg.reference_pose.orientation computed in postprocessRouteMessage
-      lane_element_msg.left_boundary.point = toRos(adjacent_right_lanelets_projected_points[a].left_bound_point);
-      lane_element_msg.left_boundary.type = laneBoundaryType(adjacent_right_lanelets[a].leftBound2d());
-      lane_element_msg.right_boundary.point = toRos(adjacent_right_lanelets_projected_points[a].right_bound_point);
-      lane_element_msg.right_boundary.type = laneBoundaryType(adjacent_right_lanelets[a].rightBound2d());
-      lane_element_msg.speed_limit = speedLimit(adjacent_right_lanelets[a]);
-      lane_element_msg.regulatory_element_idcs =
-          regulatory_element_extraction.adjacent_right_regulatory_element_idcs[a];
+      // create LaneElement for centerline lane
+      route_planning_msgs::msg::LaneElement centerline_lane_element_msg;
+      centerline_lane_element_msg.reference_pose.position = toRos(point);
+      // centerline_lane_element_msg.reference_pose.orientation computed in postprocessRouteMessage
+      centerline_lane_element_msg.left_boundary.point = toRos(lanelet_projected_points.left_bound_point);
+      centerline_lane_element_msg.left_boundary.type = laneBoundaryType(lanelet.leftBound2d());
+      centerline_lane_element_msg.right_boundary.point = toRos(lanelet_projected_points.right_bound_point);
+      centerline_lane_element_msg.right_boundary.type = laneBoundaryType(lanelet.rightBound2d());
+      centerline_lane_element_msg.speed_limit = speedLimit(lanelet);
+      centerline_lane_element_msg.regulatory_element_idcs = regulatory_element_extraction.regulatory_element_idcs;
       int computed_following_lane_idx = route_element_msg.lane_elements.size() + following_lane_idx_offset;
-      lane_element_msg.has_following_lane_idx =
+      centerline_lane_element_msg.has_following_lane_idx =
           (computed_following_lane_idx >= 0 && computed_following_lane_idx < n_lanes);
-      if (lane_element_msg.has_following_lane_idx) {
-        lane_element_msg.following_lane_idx = computed_following_lane_idx;
+      if (centerline_lane_element_msg.has_following_lane_idx) {
+        centerline_lane_element_msg.following_lane_idx = computed_following_lane_idx;
       }
-      route_element_msg.lane_elements.push_back(lane_element_msg);
+      route_element_msg.lane_elements.push_back(centerline_lane_element_msg);
+
+      // create LaneElements for right adjacent lanes
+      for (size_t a = 0; a < adjacent_right_lanelets_projected_points.size(); ++a) {
+        route_planning_msgs::msg::LaneElement lane_element_msg;
+        lane_element_msg.reference_pose.position = toRos(adjacent_right_lanelets_projected_points[a].centerline_point);
+        // lane_element_msg.reference_pose.orientation computed in postprocessRouteMessage
+        lane_element_msg.left_boundary.point = toRos(adjacent_right_lanelets_projected_points[a].left_bound_point);
+        lane_element_msg.left_boundary.type = laneBoundaryType(adjacent_right_lanelets[a].leftBound2d());
+        lane_element_msg.right_boundary.point = toRos(adjacent_right_lanelets_projected_points[a].right_bound_point);
+        lane_element_msg.right_boundary.type = laneBoundaryType(adjacent_right_lanelets[a].rightBound2d());
+        lane_element_msg.speed_limit = speedLimit(adjacent_right_lanelets[a]);
+        lane_element_msg.regulatory_element_idcs =
+            regulatory_element_extraction.adjacent_right_regulatory_element_idcs[a];
+        int computed_following_lane_idx = route_element_msg.lane_elements.size() + following_lane_idx_offset;
+        lane_element_msg.has_following_lane_idx =
+            (computed_following_lane_idx >= 0 && computed_following_lane_idx < n_lanes);
+        if (lane_element_msg.has_following_lane_idx) {
+          lane_element_msg.following_lane_idx = computed_following_lane_idx;
+        }
+        route_element_msg.lane_elements.push_back(lane_element_msg);
+      }
     }
   }
 
