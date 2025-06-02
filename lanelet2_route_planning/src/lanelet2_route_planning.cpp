@@ -52,6 +52,9 @@ Lanelet2RoutePlanning::Lanelet2RoutePlanning() : Node("lanelet2_route_planning")
   this->declareAndLoadParameter("max_num_threads", max_num_threads_,
                                 "Maximum number of threads for parallel processing (0=max available)", true, false,
                                 false, 0, omp_get_max_threads(), 1);
+  this->declareAndLoadParameter("transform_timeout", transform_timeout_,
+                                "How long to wait for a transform to be available [s]", true, false, false, 0.0, 1.0,
+                                0.001);
   if (enrich_route_ahead_ego_distance_ < 0.0) {
     enrich_route_ahead_ego_distance_ = std::numeric_limits<double>::infinity();
   }
@@ -257,13 +260,13 @@ void Lanelet2RoutePlanning::egoDataCallback(const perception_msgs::msg::EgoData:
   }
 
   // transform ego data to map frame
-  // try {
-  //   latest_ego_data_ = tf_buffer_->transform(*msg, ll2_interface_->map_frame_id_);
-  // } catch (tf2::TransformException& ex) {
-  //   RCLCPP_ERROR(this->get_logger(), "Could not transform ego data from frame '%s' to frame '%s': %s",
-  //                msg->header.frame_id.c_str(), ll2_interface_->map_frame_id_.c_str(), ex.what());
-  // }
-  // TODO: transform failed in karl: Could not transform ego data from frame 'map' to frame 'map': Invalid argument "" passed to lookupTransform argument source_frame - in tf2 frame_ids cannot be empty
+  try {
+    latest_ego_data_ =
+        tf_buffer_->transform(*msg, ll2_interface_->map_frame_id_, tf2::durationFromSec(transform_timeout_));
+  } catch (tf2::TransformException& ex) {
+    RCLCPP_ERROR(this->get_logger(), "Could not transform ego data from frame '%s' to frame '%s': %s",
+                 msg->header.frame_id.c_str(), ll2_interface_->map_frame_id_.c_str(), ex.what());
+  }
   latest_ego_data_ = *msg;
 
   // recompute local route
@@ -415,7 +418,8 @@ bool Lanelet2RoutePlanning::planRoute(const geometry_msgs::msg::PointStamped& de
   // transform destination to map frame
   geometry_msgs::msg::PointStamped destination_map_stamped;
   try {
-    destination_map_stamped = tf_buffer_->transform(destination, ll2_interface_->map_frame_id_);
+    destination_map_stamped =
+        tf_buffer_->transform(destination, ll2_interface_->map_frame_id_, tf2::durationFromSec(transform_timeout_));
   } catch (tf2::TransformException& ex) {
     RCLCPP_ERROR(this->get_logger(), "Could not transform destination from frame '%s' to frame '%s': %s",
                  destination.header.frame_id.c_str(), ll2_interface_->map_frame_id_.c_str(), ex.what());

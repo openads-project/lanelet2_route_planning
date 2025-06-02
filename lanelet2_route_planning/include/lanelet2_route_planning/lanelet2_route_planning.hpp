@@ -353,6 +353,11 @@ class Lanelet2RoutePlanning : public rclcpp::Node {
    * @brief Maximum number of threads for parallel processing (0=max available) (parameter)
    */
   int max_num_threads_ = 0;
+
+  /**
+   * @brief How long to wait for a transform to be available [s] (parameter)
+   */
+  double transform_timeout_ = 0.02;
 };
 
 }  // namespace lanelet2_route_planning

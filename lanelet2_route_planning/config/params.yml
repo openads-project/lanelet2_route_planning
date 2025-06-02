@@ -12,6 +12,7 @@
     route_overshoot_distance: 0.0
     max_drivable_space_radius: 50.0
     max_num_threads: 0
+    transform_timeout: 0.02
 
     # --- plan_route_action_client ---
     # waypoints:

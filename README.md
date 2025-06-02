@@ -51,7 +51,8 @@ The `lanelet2_route_planning` node computes a shortest path route from a current
 | `route_undershoot_distance` | `float` | `0.0` | Undershoot route by this distance before ego position [m] |
 | `route_overshoot_distance` | `float` | `0.0` | Overshoot route by this distance behind destination [m] |
 | `max_drivable_space_radius` | `float` | `50.0` | Maximum distance to left/right drivable space bounds, if not otherwise restricted [m] |
-| `max_num_threads` | `int` | `0` | Maximum number of threads for parallel processing (0=max available) (parameter) |
+| `max_num_threads` | `int` | `0` | Maximum number of threads for parallel processing (0=max available) |
+| `transform_timeout` | `float` | `0.02` | How long to wait for a transform to be available [s] |
 
 
 ## `plan_route_action_client`
