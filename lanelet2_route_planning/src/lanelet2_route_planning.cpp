@@ -485,7 +485,7 @@ bool Lanelet2RoutePlanning::planRoute(const geometry_msgs::msg::PointStamped& de
 void Lanelet2RoutePlanning::buildGlobalRouteMessage() {
   // create Route message
   route_planning_msgs::msg::Route route_msg;
-  route_msg.header.stamp = this->now();
+  route_msg.header.stamp = latest_ego_data_.header.stamp;
   route_msg.header.frame_id = ll2_interface_->map_frame_id_;
   route_msg.destination = destination_;
   route_msg.route_elements = {};
@@ -728,7 +728,6 @@ void Lanelet2RoutePlanning::buildEnrichedRouteMessage() {
 
   // split in traveled and remaining route elements
   route_msg.current_route_element_idx = c_closest_point;
-  route_msg.header.stamp = latest_ego_data_.header.stamp;
 
   // postprocess route message
   postprocessRouteMessage(route_msg);
