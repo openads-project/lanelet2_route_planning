@@ -419,6 +419,8 @@ ExtractRegulatoryElementsResult extractRegulatoryElements(
     for (const auto& regulatory_element : regulatory_elements) {
       // create RegulatoryElement
       route_planning_msgs::msg::RegulatoryElement regulatory_element_msg;
+      regulatory_element_msg.has_validity_stamp = false;
+      regulatory_element_msg.validity_stamp = builtin_interfaces::msg::Time();
 
       // extract reference line
       if (auto reference_line = regulatoryElementReferenceLine(regulatory_element)) {
