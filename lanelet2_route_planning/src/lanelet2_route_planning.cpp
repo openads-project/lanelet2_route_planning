@@ -732,6 +732,7 @@ void Lanelet2RoutePlanning::buildEnrichedRouteMessage() {
 
   // split in traveled and remaining route elements
   route_msg.current_route_element_idx = c_closest_point;
+  route_msg.header.stamp = latest_ego_data_.header.stamp;
 
   // postprocess route message
   postprocessRouteMessage(route_msg);
