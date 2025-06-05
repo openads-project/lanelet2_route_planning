@@ -1,9 +1,8 @@
-include: # TODO: revert to https://raw.githubusercontent.com/ika-rwth-aachen/docker-ros/main/.gitlab-ci/docker-ros.yml
-  - remote: https://raw.githubusercontent.com/ika-rwth-aachen/docker-ros/refs/heads/deprecate-ros1/.gitlab-ci/docker-ros.yml
+include:
+  - remote: https://raw.githubusercontent.com/ika-rwth-aachen/docker-ros/main/.gitlab-ci/docker-ros.yml
 
 variables:
   BASE_IMAGE: rwthika/ros2:jazzy
-  DOCKER_ROS_GIT_REF: deprecate-ros1 # TODO: remove
   COMMAND: ros2 launch lanelet2_route_planning lanelet2_route_planning_launch.py
   TARGET: dev,run
   PLATFORM: amd64,arm64
