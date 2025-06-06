@@ -215,6 +215,9 @@ std::optional<int> computeFollowingLaneIdxOffset(const lanelet::ConstLanelet& la
       // loop over all lanelets in group
       for (size_t a = 0; a < lanelet_group.size(); ++a) {
         auto following_lanelets = routing_graph->following(lanelet_group[a], false);
+        if (following_lanelets.empty()) {
+          continue;
+        }
         auto following_lanelet = following_lanelets.front();
         size_t following_lanelet_idx = 0;
         size_t follow_further_idx =
@@ -243,6 +246,9 @@ std::optional<int> computeFollowingLaneIdxOffset(const lanelet::ConstLanelet& la
             following_lanelet = following_lanelets[following_lanelet_idx];
           } else {
             following_lanelets = routing_graph->following(following_lanelet, false);
+            if (following_lanelets.empty()) {
+              continue;
+            }
             following_lanelet = following_lanelets.front();
             following_lanelet_idx = 0;
           }
