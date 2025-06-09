@@ -2,9 +2,9 @@
 <?xml-model href="http://download.ros.org/schema/package_format3.xsd" schematypens="http://www.w3.org/2001/XMLSchema"?>
 <package format="3">
 
-  <name>lanelet2_route_planning</name>
+  <name>plan_route_action_client</name>
   <version>0.0.0</version>
-  <description>Plans a route on a Lanelet2 map</description>
+  <description>Action client to plan a route_planning_msgs/action/Route based on clicked RViz poses or other inputs</description>
 
   <maintainer email="lennart.reiher@ika.rwth-aachen.de">Lennart Reiher</maintainer>
   <author email="lennart.reiher@ika.rwth-aachen.de">Lennart Reiher</author>
@@ -13,22 +13,13 @@
 
   <buildtool_depend>ament_cmake</buildtool_depend>
 
-  <depend>lanelet2_core</depend>
+  <depend>geometry_msgs</depend>
   <depend>lanelet2_map_interface</depend>
-  <depend>lanelet2_routing</depend>
-  <depend>lanelet2_traffic_rules</depend>
-  <depend>lanelet2_utilities</depend>
-  <depend>perception_msgs_utils</depend>
-  <depend>perception_msgs</depend>
   <depend>rclcpp_action</depend>
   <depend>rclcpp</depend>
-  <depend>route_planning_msgs_utils</depend>
   <depend>route_planning_msgs</depend>
   <depend>tf2_geometry_msgs</depend>
-  <depend>tf2_perception_msgs</depend>
-  <depend>tf2_ros</depend>
   <depend>tf2</depend>
-  <exec_depend>plan_route_action_client</exec_depend>
 
   <export>
     <build_type>ament_cmake</build_type>

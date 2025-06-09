@@ -1,424 +1,824 @@
-#include "lanelet2_route_planning/global_planner_node.hpp"
+#include <algorithm>
+#include <cmath>
+#include <limits>
+#include <regex>
+#include <unordered_map>
+#include <unordered_set>
 
-#include <boost/algorithm/string.hpp>
+#include <lanelet2_core/geometry/LaneletMap.h>
+#include <lanelet2_core/utility/Units.h>
+#include <lanelet2_traffic_rules/TrafficRulesFactory.h>
+#include <lanelet2_utilities/lanelet2_utils.hpp>
+#include <route_planning_msgs_utils/route_access.hpp>
 
+#include "lanelet2_route_planning/conversions.hpp"
+#include "lanelet2_route_planning/geometry.hpp"
+#include "lanelet2_route_planning/utils.hpp"
 
-// Convert to linestring, smooth and visualize
-std::vector<geometry_msgs::msg::Point> GlobalPlanner::processLineString(lanelet::BasicLineString2d &line_string) {
-  // to Linestring
-  std::vector<geometry_msgs::msg::Point> points = Lanelet2Utilities::convertLaneletLine2Linestring(line_string);
-  // Smooth
-  line_string = Lanelet2Utilities::smoothByQuadraticBezierCurve(line_string, smooth_factor_);
-  // to Linestring
-  points = Lanelet2Utilities::convertLaneletLine2Linestring(line_string);
-  return points;
-}
+namespace lanelet2_route_planning {
 
-route_planning_msgs::msg::DriveableSpace GlobalPlanner::sampleDriveableSpace(
-    const lanelet::BasicLineString2d &centerline) {
-  route_planning_msgs::msg::DriveableSpace driveable_space;
-  driveable_space.boundaries.left = sampleLinestring(centerline, lateral_driv_space_width_ / 2.0, false);
-  driveable_space.boundaries.right = sampleLinestring(centerline, lateral_driv_space_width_ / 2.0, true);
-  return driveable_space;
-}
-
-std::vector<geometry_msgs::msg::Point> GlobalPlanner::sampleLinestring(const lanelet::BasicLineString2d &centerline,
-                                                                       const double test_dis, const bool b_right) {
-  double test_dis_left_right = test_dis;
-  double factor_left_right = 1.0;
-  if (b_right) {
-    test_dis_left_right *= -1.;
-    factor_left_right *= -1.;
+size_t indexOfLineStringPointClosestToPoint(const std::vector<Eigen::Vector2d>& line_string,
+                                            const Eigen::Vector2d& point, const bool consider_order,
+                                            const bool behind) {
+  // loop over all points in line string to find closest one to given point
+  size_t idx_closest = 0;
+  double min_distance = std::numeric_limits<double>::infinity();
+  for (size_t i = 0; i < line_string.size(); ++i) {
+    double distance = (line_string[i] - point).norm();
+    if (distance < min_distance) {
+      min_distance = distance;
+      idx_closest = i;
+    }
   }
 
-  std::deque<std::pair<lanelet::BasicLineString2d, size_t>>
-      last_test_lines;                            // Test line till drivable space sample, full length test line, index
-  lanelet::BasicLineString2d previous_test_line;  // Full length
-  const std::pair<lanelet::BasicLineString2d, size_t> *last_intersection_free_test_line = nullptr;
-  lanelet::BasicLineString2d ll_bound;
+  // if considering order, make sure to return the point behind or ahead of the given point
+  if (consider_order) {
+    idx_closest = considerOrderForPointMatchedToLineString(line_string, point, idx_closest, behind);
+  }
 
-  // Process route
-  for (uint idx = 0; idx < centerline.size(); idx++) {
-    const lanelet::BasicPoint2d &base_p = centerline.at(idx);
-    const lanelet::BasicPoint2d test_p =
-        lanelet::geometry::internal::lateralShiftPointAtIndex(centerline, idx, test_dis_left_right);
-    const lanelet::BasicLineString2d test_line({base_p, test_p});
+  return idx_closest;
+}
 
-    // Get all intersecting points
-    std::vector<std::tuple<double, lanelet::BasicPoint2d, long>> all_interpoints;  // signed distance, point, id of line
-    lanelet::LaneletMapConstPtr llmap = ll2if_->getMapPtr();
-    std::vector<std::pair<double, lanelet::ConstLineString3d>> near_lines =
-        lanelet::geometry::findWithin2d(llmap->lineStringLayer, test_line, 5.0);
-    for (const auto &line_to_test : near_lines) {
-      lanelet::BasicPoints2d interpoints;
-      boost::geometry::intersection(utils::to2D(line_to_test.second).basicLineString(), test_line, interpoints);
+size_t matchPointToLineString(const std::vector<Eigen::Vector2d>& line_string, const Eigen::Vector2d& point,
+                              const size_t idx_indication, const bool consider_order, const bool behind) {
+  // constants
+  const double max_delta_s = 10.0;
+  const double max_local_distance = 10.0;
 
-      for (const lanelet::BasicPoint2d &poi : interpoints) {
-        all_interpoints.emplace_back(lanelet::geometry::distance(base_p, poi), poi, line_to_test.second.id());
+  size_t idx_closest = 0;
+  double min_distance = std::numeric_limits<double>::infinity();
+  const size_t start_idx = std::min(idx_indication, line_string.size() - 1);
+
+  // loop over points in front of and behind the given index
+  for (int direction : {1, -1}) {
+    double delta_s = 0.0;
+    size_t idx = start_idx;
+    // only check points within the local range of max_delta_s
+    while (delta_s <= max_delta_s && idx > 0 && idx < line_string.size()) {
+      double distance = (line_string[idx] - point).norm();
+      if (distance < min_distance) {
+        min_distance = distance;
+        idx_closest = idx;
       }
+      delta_s += (direction == 1 ? (line_string[idx + 1] - line_string[idx]).norm()
+                                 : (line_string[idx] - line_string[idx - 1]).norm());
+      idx += direction;
+    }
+  }
+
+  // check if closest local point is within max distance, else find globally closest point
+  if (min_distance > max_local_distance) {
+    idx_closest = indexOfLineStringPointClosestToPoint(line_string, point, consider_order, behind);
+  } else if (consider_order) {
+    // if considering order, make sure to return the point behind or ahead of the given point
+    idx_closest = considerOrderForPointMatchedToLineString(line_string, point, idx_closest, behind);
+  }
+
+  return idx_closest;
+}
+
+size_t considerOrderForPointMatchedToLineString(const std::vector<Eigen::Vector2d>& line_string,
+                                                const Eigen::Vector2d& point, const size_t idx_closest,
+                                                const bool behind) {
+  size_t new_idx_closest;
+  Eigen::Vector2d closest_point_to_next;
+  const Eigen::Vector2d closest_point_to_point = point - line_string[idx_closest];
+  if (idx_closest + 1 < line_string.size()) {
+    closest_point_to_next = line_string[idx_closest + 1] - line_string[idx_closest];
+  } else if (idx_closest > 0) {
+    closest_point_to_next = line_string[idx_closest] - line_string[idx_closest - 1];
+  } else {
+    return idx_closest;
+  }
+
+  // use angle to check if closest point is behind or ahead of the given point
+  const double angle = angleBetweenVectors(closest_point_to_point, closest_point_to_next);
+  if (behind && std::abs(angle) > M_PI_2) {
+    new_idx_closest = idx_closest - 1;
+  } else if (!behind && std::abs(angle) < M_PI_2) {
+    new_idx_closest = idx_closest + 1;
+  } else {
+    new_idx_closest = idx_closest;
+  }
+  new_idx_closest = std::clamp(new_idx_closest, 0lu, line_string.size() - 1);
+
+  return new_idx_closest;
+}
+
+bool changesLaneFromPointToPoint(const Eigen::Vector2d& point, const Eigen::Vector2d& next_point,
+                                 const double sampling_distance) {
+  const double epsilon = 1e-6;
+  return ((next_point - point).norm() > (sampling_distance + epsilon));
+}
+
+std::vector<lanelet::ConstLanelet> adjacentLeftOrRightLanelets(const lanelet::ConstLanelet& lanelet,
+                                                               const lanelet::routing::RoutingGraphUPtr& routing_graph,
+                                                               bool left, bool sort_from_left) {
+  std::vector<lanelet::ConstLanelet> adjacent_lanelets;
+  const int routing_cost_id = 0;  // RoutingCostDistance
+  lanelet::routing::LaneletRelations relations = left ? routing_graph->leftRelations(lanelet, routing_cost_id)
+                                                      : routing_graph->rightRelations(lanelet, routing_cost_id);
+  for (const auto& relation : relations) {
+    if ((left && (relation.relationType == lanelet::routing::RelationType::Left ||
+                  relation.relationType == lanelet::routing::RelationType::AdjacentLeft)) ||
+        (!left && (relation.relationType == lanelet::routing::RelationType::Right ||
+                   relation.relationType == lanelet::routing::RelationType::AdjacentRight))) {
+      adjacent_lanelets.push_back(relation.lanelet);
+    }
+  }
+
+  if ((left && sort_from_left) || (!left && !sort_from_left)) {
+    std::reverse(adjacent_lanelets.begin(), adjacent_lanelets.end());
+  }
+
+  return adjacent_lanelets;
+}
+
+std::vector<ProjectedLaneletPoints> projectPointToLaneletLines(const Eigen::Vector2d& point,
+                                                               const Eigen::Vector2d& prev_point,
+                                                               const Eigen::Vector2d& next_point,
+                                                               const std::vector<lanelet::ConstLanelet>& lanelets,
+                                                               const rclcpp::Logger& logger) {
+  std::vector<ProjectedLaneletPoints> projected_points_per_lanelet;
+
+  // loop over lanelets
+  for (const auto& lanelet : lanelets) {
+    ProjectedLaneletPoints projected_points;
+
+    // project point to left bounds
+    if (auto result = projectPointToLineStringAlongNormal(point, prev_point, next_point,
+                                                          toEigen(lanelet.leftBound2d().basicLineString()))) {
+      projected_points.left_bound_point = result->projected_point;
+    } else {
+      RCLCPP_WARN(logger, "Failed to project point (%.3f, %.3f) to left bounds of lanelet %ld", point.x(), point.y(),
+                  lanelet.id());
     }
 
-    // Sort according to distance
-    std::sort(all_interpoints.begin(), all_interpoints.end(),
-              [](auto const &t1, auto const &t2) { return std::get<0>(t1) < std::get<0>(t2); });
+    // project point to centerline
+    if (auto result = projectPointToLineStringAlongNormal(point, prev_point, next_point,
+                                                          toEigen(lanelet.centerline2d().basicLineString()))) {
+      projected_points.centerline_point = result->projected_point;
+    } else {
+      RCLCPP_WARN(logger, "Failed to project point (%.3f, %.3f) to centerline of lanelet %ld", point.x(), point.y(),
+                  lanelet.id());
+    }
 
-    // check intersecting points for drivability
-    lanelet::BasicPoint2d best_point = test_p;
-    for (uint i = 0; i < all_interpoints.size(); i++) {
-      // Intersection with non-drivable line?
-      const lanelet::ConstLineString3d &line = llmap->lineStringLayer.get(std::get<2>(all_interpoints.at(i)));
-      if (checkLineDrivability(line) == false) {
-        best_point = std::get<1>(all_interpoints.at(i));
+    // project point to right bounds
+    if (auto result = projectPointToLineStringAlongNormal(point, prev_point, next_point,
+                                                          toEigen(lanelet.rightBound2d().basicLineString()))) {
+      projected_points.right_bound_point = result->projected_point;
+    } else {
+      RCLCPP_WARN(logger, "Failed to project point (%.3f, %.3f) to right bounds of lanelet %ld", point.x(), point.y(),
+                  lanelet.id());
+    }
+
+    projected_points_per_lanelet.push_back(projected_points);
+  }
+
+  return projected_points_per_lanelet;
+}
+
+std::optional<int> computeFollowingLaneIdxOffset(const lanelet::ConstLanelet& lanelet,
+                                                 const lanelet::ConstLanelet& lanelet_of_next_point,
+                                                 const lanelet::routing::RoutingGraphUPtr& routing_graph) {
+  int following_lane_idx_offset = 0;
+  if (lanelet_of_next_point.id() != lanelet.id()) {
+    // get adjacent lanelets of current lanelet
+    std::vector<lanelet::ConstLanelet> adjacent_left_lanelets =
+        adjacentLeftOrRightLanelets(lanelet, routing_graph, true);
+    std::vector<lanelet::ConstLanelet> adjacent_right_lanelets =
+        adjacentLeftOrRightLanelets(lanelet, routing_graph, false);
+    int suggested_lane_idx = adjacent_left_lanelets.size();
+
+    // get adjacent lanelets of next lanelet (lanelet of next point)
+    std::vector<lanelet::ConstLanelet> adjacent_left_lanelets_of_next_lanelet =
+        adjacentLeftOrRightLanelets(lanelet_of_next_point, routing_graph, true);
+    std::vector<lanelet::ConstLanelet> adjacent_right_lanelets_of_next_lanelet =
+        adjacentLeftOrRightLanelets(lanelet_of_next_point, routing_graph, false);
+    std::vector<lanelet::ConstLanelet> adjacent_lanelets_of_next_lanelet = adjacent_left_lanelets_of_next_lanelet;
+    adjacent_lanelets_of_next_lanelet.push_back(lanelet_of_next_point);
+    adjacent_lanelets_of_next_lanelet.insert(adjacent_lanelets_of_next_lanelet.end(),
+                                             adjacent_right_lanelets_of_next_lanelet.begin(),
+                                             adjacent_right_lanelets_of_next_lanelet.end());
+
+    // find following lanelet of current lanelet and adjacent lanelets in adjacent lanelets of next lanelet
+    std::vector<std::vector<lanelet::ConstLanelet>> lanelet_groups = {
+        {lanelet}, adjacent_left_lanelets, adjacent_right_lanelets};
+    std::vector<int> lanelet_group_offset_factors = {0, 1, -1};
+    following_lane_idx_offset = std::numeric_limits<int>::max();
+
+    // first try to match following lanelet of current lanelet, then of adjacent left lanelets, then of adjacent right lanelets
+    for (size_t group_idx = 0; group_idx < lanelet_groups.size(); ++group_idx) {
+      const auto& lanelet_group = lanelet_groups[group_idx];
+      int group_offset_factor = lanelet_group_offset_factors[group_idx];
+
+      // loop over all lanelets in group
+      for (size_t a = 0; a < lanelet_group.size(); ++a) {
+        auto following_lanelets = routing_graph->following(lanelet_group[a], false);
+        if (following_lanelets.empty()) {
+          continue;
+        }
+        auto following_lanelet = following_lanelets.front();
+        size_t following_lanelet_idx = 0;
+        size_t follow_further_idx =
+            0;  // counter for following lanelets more than once (e.g., if sampling skipped short lanelets)
+        size_t max_follow_further_iterations = 3;  // maximum number of following lanelets to check
+
+        // loop until following lanelet is found in adjacent lanelets of next lanelet
+        while (following_lane_idx_offset == std::numeric_limits<int>::max()) {
+          // check all adjacent lanelets of next lanelet
+          for (size_t l = 0; l < adjacent_lanelets_of_next_lanelet.size(); ++l) {
+            if (following_lanelet.id() == adjacent_lanelets_of_next_lanelet[l].id()) {
+              following_lane_idx_offset = l - suggested_lane_idx + group_offset_factor * (a + 1);  // gottesformel
+              break;
+            }
+          }
+
+          // check abort conditions
+          follow_further_idx++;
+          if (follow_further_idx >= max_follow_further_iterations) {
+            break;
+          }
+
+          // get next following lanelet
+          following_lanelet_idx++;
+          if (following_lanelet_idx < following_lanelets.size()) {
+            following_lanelet = following_lanelets[following_lanelet_idx];
+          } else {
+            following_lanelets = routing_graph->following(following_lanelet, false);
+            if (following_lanelets.empty()) {
+              continue;
+            }
+            following_lanelet = following_lanelets.front();
+            following_lanelet_idx = 0;
+          }
+        }
+
+        if (following_lane_idx_offset != std::numeric_limits<int>::max()) {
+          break;
+        }
+      }
+
+      if (following_lane_idx_offset != std::numeric_limits<int>::max()) {
         break;
       }
     }
 
-    // Special handling for inward corners
-    if (!handleInwardCorner(base_p, best_point, last_intersection_free_test_line, previous_test_line, idx,
-                            last_test_lines, ll_bound)) {
-      continue;
+    if (following_lane_idx_offset == std::numeric_limits<int>::max()) {
+      // could not match following lanelets to adjacent lanelets of lanelet of next point
+      return std::nullopt;
     }
-
-    // Add final point to samples
-    ll_bound.push_back(best_point);
   }
-  // Convert to std::vector<geometry_msgs::msg::Point>
-  std::vector<geometry_msgs::msg::Point> bound = Lanelet2Utilities::convertLaneletLine2Linestring(ll_bound);
-  return bound;
+
+  return following_lane_idx_offset;
 }
 
-void GlobalPlanner::sampleRouteBoundary(const lanelet::routing::Route &route,
-                                        const lanelet::routing::LaneletPath &shortest_path,
-                                        std::vector<geometry_msgs::msg::Point> &bound_left,
-                                        std::vector<geometry_msgs::msg::Point> &bound_right) {
-  //for current and flowing lanelets
-  for (size_t i = 0; i < shortest_path.size(); i++) {
-    lanelet::ConstLanelet cur_ll = shortest_path[i];
-    lanelet::ConstLanelet outer_left_ll = cur_ll;
-    lanelet::ConstLanelet outer_right_ll = cur_ll;
+route_planning_msgs::msg::RouteElement createMinimalRouteElement(const geometry_msgs::msg::Point& position,
+                                                                 const geometry_msgs::msg::Quaternion& orientation,
+                                                                 double s, bool will_change_suggested_lane,
+                                                                 uint8_t speed_limit) {
+  // create RouteElement
+  route_planning_msgs::msg::RouteElement route_element_msg;
+  route_element_msg.suggested_lane_idx = 0;
+  route_element_msg.will_change_suggested_lane = will_change_suggested_lane;
+  route_element_msg.s = s;
+  route_element_msg.is_enriched = false;
+  // route_element_msg.left_boundary not set in global route
+  // route_element_msg.right_boundary not set in global route
+  // route_element_msg.regulatory_elements not set in global route
 
-    bool left_is_present = true;
-    bool right_is_present = true;
-    lanelet::LaneletMapConstPtr llmap = ll2if_->getMapPtr();
-    routing::RoutingGraphUPtr routingGraph = routing::RoutingGraph::build(*llmap, *trafficRules_);
+  // create LaneElement
+  route_planning_msgs::msg::LaneElement lane_element_msg;
+  lane_element_msg.reference_pose.position = position;
+  lane_element_msg.reference_pose.orientation = orientation;
+  // lane_element_msg.left_boundary not set in global route
+  // lane_element_msg.right_boundary not set in global route
+  lane_element_msg.speed_limit = speed_limit;
+  // lane_element_msg.regulatory_element_idcs not set in global route
+  lane_element_msg.following_lane_idx = 0;
+  lane_element_msg.has_following_lane_idx = !will_change_suggested_lane;
+  route_element_msg.lane_elements.push_back(lane_element_msg);
 
-    // check for routable lane on left-hand side
-    while (left_is_present) {
-      Optional<lanelet::ConstLanelet> left{
-          routingGraph->left(outer_left_ll)};  // Get routable left lanelet if it exists
-      left_is_present = left.has_value();
-      if (left_is_present) {
-        outer_left_ll = left.get();  //get outer left lanelet
-      }
-    }
-
-    // check for routable lane on right-hand side
-    while (right_is_present) {
-      Optional<lanelet::ConstLanelet> right{
-          routingGraph->right(outer_right_ll)};  // Get routable right lanelet if it exists
-      right_is_present = right.has_value();
-      if (right_is_present) {
-        outer_right_ll = right.get();  //get outer right lanelet
-      }
-    }
-
-    //get boundaries of outer lanelet
-    lanelet::ConstLineString2d outer_left_bound_ll = outer_left_ll.leftBound2d();
-    lanelet::ConstLineString2d outer_right_bound_ll = outer_right_ll.rightBound2d();
-
-    //Convert to std::vector<geometry_msgs::msg::Point>
-    std::vector<geometry_msgs::msg::Point> bound_left_ls =
-        Lanelet2Utilities::convertLaneletLine2Linestring(outer_left_bound_ll.basicLineString());
-    std::vector<geometry_msgs::msg::Point> bound_right_ls =
-        Lanelet2Utilities::convertLaneletLine2Linestring(outer_right_bound_ll.basicLineString());
-
-    //add boundaries to boundary linestring
-    bound_left.insert(bound_left.end(), bound_left_ls.begin(), bound_left_ls.end());
-    bound_right.insert(bound_right.end(), bound_right_ls.begin(), bound_right_ls.end());
-  }
+  return route_element_msg;
 }
 
-bool GlobalPlanner::handleInwardCorner(
-    const lanelet::BasicPoint2d &base_p, lanelet::BasicPoint2d &best_point,
-    const std::pair<lanelet::BasicLineString2d, size_t> *&last_intersection_free_test_line,
-    lanelet::BasicLineString2d &previous_test_line, const uint &idx,
-    std::deque<std::pair<lanelet::BasicLineString2d, size_t>> &last_test_lines, lanelet::BasicLineString2d &bound) {
-  const size_t max_queue_size = 30;
+std::pair<Eigen::Vector2d, Eigen::Vector2d> extractDrivableSpace(const lanelet::LineStringLayer& line_string_layer,
+                                                                 const PointSequence& point_sequence,
+                                                                 const double max_distance) {
+  // find all line strings within max_distance
+  const lanelet::BasicLineString2d line_to_search_around = {point_sequence.current, point_sequence.next};
+  std::vector<std::pair<double, lanelet::ConstLineString3d>> line_strings_and_distances =
+      lanelet::geometry::findWithin2d(line_string_layer, line_to_search_around, max_distance);
 
-  lanelet::BasicLineString2d test_line_cut({base_p, best_point});
-  if (last_intersection_free_test_line) {
-    // Check if this line still intersects the last intersection free test line
-    if (boost::geometry::intersects(test_line_cut, last_intersection_free_test_line->first)) {
-      // It does, don't add anything.
-      previous_test_line = test_line_cut;
-      return false;
+  // project current point to all line strings
+  std::vector<std::pair<Eigen::Vector2d, size_t>> projected_points_and_line_string_idcs;
+  for (size_t l = 0; l < line_strings_and_distances.size(); ++l) {
+    const auto& line_string = line_strings_and_distances[l].second;
+    auto result = projectPointToLineStringAlongNormal(point_sequence.current, point_sequence.prev, point_sequence.next,
+                                                      to2d(toEigen(line_string.basicLineString())));
+    if (result && result->found_intersection_with_line_segment) {
+      projected_points_and_line_string_idcs.emplace_back(result->projected_point, l);
+    }
+  }
+
+  // sort projected points by distance to current point
+  std::sort(projected_points_and_line_string_idcs.begin(), projected_points_and_line_string_idcs.end(),
+            [&point_sequence](const auto& a, const auto& b) {
+              return (a.first - point_sequence.current).norm() < (b.first - point_sequence.current).norm();
+            });
+
+  // split projected points into those left and those right of current point
+  const Eigen::Vector2d tangent =
+      tangentOfPointAlongLineString(point_sequence.current, point_sequence.prev, point_sequence.next);
+  std::vector<std::pair<Eigen::Vector2d, size_t>> left_projected_points_and_line_string_idcs,
+      right_projected_points_and_line_string_idcs;
+  for (const auto& projected_point_and_line_string_idx : projected_points_and_line_string_idcs) {
+    // determine left/right based on angle between tangent and vector to projected point
+    const Eigen::Vector2d point_to_projected_point = projected_point_and_line_string_idx.first - point_sequence.current;
+    const double angle = angleBetweenVectors(tangent, point_to_projected_point);
+    if (angle > 0) {
+      left_projected_points_and_line_string_idcs.emplace_back(projected_point_and_line_string_idx);
     } else {
-      // It does not; now check if the previous test line intersects any of the buffered ones (find start of curve)
-      if (idx > 0) {
-        for (auto &last_test_line : last_test_lines) {
-          if (boost::geometry::intersects(previous_test_line, last_test_line.first))  // Check full length
-          {
-            // Oh yeah; this is the boundary sample of the start of the curve
-            // Delete the samples we have added since then
-            const int amount_to_delete = last_intersection_free_test_line->second - last_test_line.second + 1;
-            if (amount_to_delete > 0 && static_cast<int>(bound.size()) >= amount_to_delete) {
-              bound.resize(bound.size() - amount_to_delete);
+      right_projected_points_and_line_string_idcs.emplace_back(projected_point_and_line_string_idx);
+    }
+  }
+
+  // find drivable space bounds by following projected points until corresponding line string is not passable anymore
+  Eigen::Vector2d drivable_space_left, drivable_space_right;
+  bool is_drivable_space_left_limited_by_line_strings = false;
+  bool is_drivable_space_right_limited_by_line_strings = false;
+  for (const auto& projected_point_and_line_string_idx : left_projected_points_and_line_string_idcs) {
+    const auto& line_string = line_strings_and_distances[projected_point_and_line_string_idx.second].second;
+    if (!isLineStringDrivable(line_string)) {
+      drivable_space_left = projected_point_and_line_string_idx.first;
+      is_drivable_space_left_limited_by_line_strings = true;
+      break;
+    }
+  }
+  for (const auto& projected_point_and_line_string_idx : right_projected_points_and_line_string_idcs) {
+    const auto& line_string = line_strings_and_distances[projected_point_and_line_string_idx.second].second;
+    if (!isLineStringDrivable(line_string)) {
+      drivable_space_right = projected_point_and_line_string_idx.first;
+      is_drivable_space_right_limited_by_line_strings = true;
+      break;
+    }
+  }
+
+  // if drivable space is not limited by line strings, use maximum distance
+  const Eigen::Vector2d normal =
+      normalOfPointAlongLineString(point_sequence.current, point_sequence.prev, point_sequence.next);
+  if (!is_drivable_space_left_limited_by_line_strings) {
+    drivable_space_left = point_sequence.current - normal * max_distance;
+  }
+  if (!is_drivable_space_right_limited_by_line_strings) {
+    drivable_space_right = point_sequence.current + normal * max_distance;
+  }
+
+  return {drivable_space_left, drivable_space_right};
+}
+
+bool isLineStringDrivable(const lanelet::ConstLineString3d& line_string) {
+  const std::unordered_set<std::string> drivable_types = {
+      "line_thin", "line_thick",    "virtual",   "zebra_marking", "bike_marking", "pedestrian_marking",
+      "stop_line", "traffic_light", "curbstone", "roadpainting",  "lane_center",  "centerline"};
+  if (line_string.hasAttribute("type")) {
+    std::string type = line_string.attribute("type").value();
+    if (drivable_types.count(type) > 0) {
+      if (type == "curbstone") {
+        if (!line_string.hasAttribute("subtype") || line_string.attribute("subtype").value() != "low") {
+          return false;
+        }
+      }
+      return true;
+    } else {
+      if (line_string.hasAttribute("HoldingLine")) {
+        return true;
+      } else {
+        return false;
+      }
+    }
+  } else {
+    return false;
+  }
+}
+
+ExtractRegulatoryElementsResult extractRegulatoryElements(
+    const lanelet::ConstLanelet& lanelet, const std::vector<lanelet::ConstLanelet>& adjacent_left_lanelets,
+    const std::vector<lanelet::ConstLanelet>& adjacent_right_lanelets, const PointSequence& point_sequence) {
+  // init result
+  ExtractRegulatoryElementsResult result;
+  result.adjacent_left_regulatory_element_idcs.resize(adjacent_left_lanelets.size());
+  result.adjacent_right_regulatory_element_idcs.resize(adjacent_right_lanelets.size());
+
+  // gather lanelets in single vector (left adjacent, current, right adjacent)
+  std::vector<lanelet::ConstLanelet> lanelets = adjacent_left_lanelets;
+  lanelets.push_back(lanelet);
+  lanelets.insert(lanelets.end(), adjacent_right_lanelets.begin(), adjacent_right_lanelets.end());
+
+  // loop over lanelets
+  std::unordered_map<size_t, size_t> regulatory_element_msg_idx_by_id;
+  for (size_t l = 0; l < lanelets.size(); ++l) {
+    const auto& current_lanelet = lanelets[l];
+
+    // loop over regulatory elements of lanelet
+    const auto regulatory_elements = current_lanelet.regulatoryElements();
+    for (const auto& regulatory_element : regulatory_elements) {
+      // create RegulatoryElement
+      route_planning_msgs::msg::RegulatoryElement regulatory_element_msg;
+      regulatory_element_msg.has_validity_stamp = false;
+      regulatory_element_msg.validity_stamp = builtin_interfaces::msg::Time();
+
+      // extract reference line
+      if (auto reference_line = regulatoryElementReferenceLine(regulatory_element)) {
+        regulatory_element_msg.reference_line = *reference_line;
+
+        // only consider regulatory element if reference line intersects with point sequence
+        std::vector<Eigen::Vector2d> reference_line_2d = {toEigen2d(reference_line->at(0)),
+                                                          toEigen2d(reference_line->at(1))};
+        std::vector<Eigen::Vector2d> line_to_next_point = {point_sequence.current, point_sequence.next};
+        std::vector<Eigen::Vector2d> line_to_prev_point = {point_sequence.current, point_sequence.prev};
+        if (auto result = intersectionOfLines(reference_line_2d, line_to_next_point)) {
+          if (!result->intersects_line2) {
+            if (auto inner_result = intersectionOfLines(reference_line_2d, line_to_prev_point)) {
+              if (!inner_result->intersects_line2) {
+                continue;
+              }
             }
-            break;
+          }
+        }
+      } else {
+        continue;
+      }
+
+      // extract sign positions and type
+      regulatory_element_msg.positions = regulatoryElementPositions(regulatory_element);
+      std::tie(regulatory_element_msg.type, regulatory_element_msg.meta_value) =
+          regulatoryElementType(regulatory_element);
+
+      // flatten regulatory element to z=0 (2D)
+      for (auto& position : regulatory_element_msg.positions) {
+        position.z -= (regulatory_element_msg.reference_line[0].z + regulatory_element_msg.reference_line[1].z) / 2.0;
+      }
+      regulatory_element_msg.reference_line[0].z = 0.0;
+      regulatory_element_msg.reference_line[1].z = 0.0;
+
+      // check if regulatory element has already been extracted (by another lanelet)
+      size_t regulatory_element_msg_idx;
+      if (regulatory_element_msg_idx_by_id.count(regulatory_element->id()) > 0) {
+        regulatory_element_msg_idx = regulatory_element_msg_idx_by_id[regulatory_element->id()];
+      } else {
+        // add regulatory element to result
+        regulatory_element_msg_idx = result.regulatory_element_msgs.size();
+        regulatory_element_msg_idx_by_id[regulatory_element->id()] = regulatory_element_msg_idx;
+        result.regulatory_element_msgs.push_back(regulatory_element_msg);
+      }
+
+      // assign regulatory element to respective lanelet in result
+      if (l < adjacent_left_lanelets.size()) {
+        result.adjacent_left_regulatory_element_idcs[l].push_back(regulatory_element_msg_idx);
+      } else if (l < adjacent_left_lanelets.size() + 1) {
+        result.regulatory_element_idcs.push_back(regulatory_element_msg_idx);
+      } else {
+        size_t l_right = l - adjacent_left_lanelets.size() - 1;
+        result.adjacent_right_regulatory_element_idcs[l_right].push_back(regulatory_element_msg_idx);
+      }
+    }
+  }
+
+  return result;
+}
+
+std::optional<std::array<geometry_msgs::msg::Point, 2>> regulatoryElementReferenceLine(
+    const std::shared_ptr<const lanelet::RegulatoryElement>& regulatory_element) {
+  const std::vector<lanelet::ConstLineString3d> reference_lines =
+      regulatory_element->getParameters<lanelet::ConstLineString3d>(lanelet::RoleName::RefLine);
+  if (reference_lines.empty()) {
+    return std::nullopt;
+  }
+  const std::vector<Eigen::Vector3d> reference_line = reference_lines.front().basicLineString();
+  if (reference_line.size() < 2) {
+    return std::nullopt;
+  }
+  std::array<geometry_msgs::msg::Point, 2> reference_line_ros = {toRos(reference_line.front()),
+                                                                 toRos(reference_line.back())};
+  return reference_line_ros;
+}
+
+std::vector<geometry_msgs::msg::Point> regulatoryElementPositions(
+    const std::shared_ptr<const lanelet::RegulatoryElement>& regulatory_element) {
+  std::vector<geometry_msgs::msg::Point> positions;
+  const std::vector<lanelet::ConstLineString3d> sign_lines =
+      regulatory_element->getParameters<lanelet::ConstLineString3d>(lanelet::RoleName::Refers);
+  for (const auto& const_sign_line : sign_lines) {
+    const std::vector<Eigen::Vector3d> sign_line = const_sign_line.basicLineString();
+    if (!sign_line.empty()) {
+      positions.push_back(toRos(sign_line.front()));
+    }
+  }
+  return positions;
+}
+
+std::pair<uint8_t, uint8_t> regulatoryElementType(
+    const std::shared_ptr<const lanelet::RegulatoryElement>& regulatory_element) {
+  uint8_t type = route_planning_msgs::msg::RegulatoryElement::TYPE_UNKNOWN;
+  uint8_t meta_value = 0;
+
+  // https://github.com/fzi-forschungszentrum-informatik/Lanelet2/blob/master/lanelet2_core/doc/RegulatoryElementTagging.md
+  if (regulatory_element->hasAttribute("subtype")) {
+    std::string subtype = regulatory_element->attribute("subtype").value();
+    if (subtype == "traffic_light") {
+      type = route_planning_msgs::msg::RegulatoryElement::TYPE_TRAFFIC_LIGHT;
+    } else if (subtype == "speed_limit") {
+      type = route_planning_msgs::msg::RegulatoryElement::TYPE_SPEED_LIMIT;
+      meta_value = regulatoryElementSpeedLimit(regulatory_element);
+    } else if (subtype == "right_of_way") {
+      type = route_planning_msgs::msg::RegulatoryElement::TYPE_YIELD;
+    } else if (subtype == "all_way_stop") {
+      type = route_planning_msgs::msg::RegulatoryElement::TYPE_STOP;
+    }
+  }
+  return {type, meta_value};
+}
+
+uint8_t regulatoryElementSpeedLimit(const std::shared_ptr<const lanelet::RegulatoryElement>& regulatory_element) {
+  uint8_t speed_limit = route_planning_msgs::msg::RegulatoryElement::META_VALUE_SPEED_UNKNOWN;
+
+  // https://github.com/fzi-forschungszentrum-informatik/Lanelet2/blob/master/lanelet2_core/doc/RegulatoryElementTagging.md#speed-limit
+  if (regulatory_element->hasAttribute("subtype")) {
+    std::string subtype = regulatory_element->attribute("subtype").value();
+    if (subtype == "speed_limit") {
+      if (regulatory_element->hasAttribute("sign_type")) {
+        std::string sign_type = regulatory_element->attribute("sign_type").value();
+        std::smatch match;
+        std::regex regex("(\\d+)\\s*(km/h|mph|mps)");
+        if (std::regex_search(sign_type, match, regex)) {
+          int speed = std::stoi(match.str(1));
+          if (match.str(2) == "mph") {
+            speed = static_cast<int>(speed * 1.60934);  // mph to km/h
+          } else if (match.str(2) == "mps") {
+            speed = static_cast<int>(speed * 3.6);  // mps to km/h
+          }
+          speed_limit = static_cast<uint8_t>(speed);
+        } else {
+          std::regex regex("(\\d+)");  // assume km/h if no unit is specified
+          if (std::regex_search(sign_type, match, regex)) {
+            speed_limit = static_cast<uint8_t>(std::stoi(match.str(1)));
           }
         }
       }
-
-      // Continue normally, this is the boundary sample at the end of the curve
-      last_intersection_free_test_line = nullptr;
-      last_test_lines.clear();
-    }
-  } else if (last_test_lines.size() > 0) {
-    // Check if this test line is intersecting the last buffered one
-    const auto &last_test_line = last_test_lines.back();
-    if (boost::geometry::intersects(test_line_cut, last_test_line.first)) {
-      // It does; save last valid one and continue
-      last_intersection_free_test_line = &last_test_line;
-      previous_test_line = last_test_line.first;
-      return false;
     }
   }
 
-  // Valid test line, add to buffer
-  last_test_lines.push_back(std::make_pair(test_line_cut, idx));
-  if (last_test_lines.size() > max_queue_size) last_test_lines.pop_front();
+  uint8_t unlimited = route_planning_msgs::msg::RegulatoryElement::META_VALUE_SPEED_UNLIMITED;
+  speed_limit = std::clamp(speed_limit, static_cast<uint8_t>(0), unlimited);
 
-  return true;
+  return speed_limit;
 }
 
-bool GlobalPlanner::checkLineDrivability(const lanelet::ConstLineString3d &lineToCheck) {
-  lanelet::Attribute type_str;
-  lanelet::Attribute subtype_str;
-  if (lineToCheck.hasAttribute("type") == false) {
-    return false;  // no type detectable, therefore for safety reasons don't look any further this direction
-  }
-  if (lineToCheck.hasAttribute("subtype") == false) {
-    subtype_str = Attribute("high");  // no subtype detectable, therefore for safety reasons set to "high"
+uint8_t laneBoundaryType(const lanelet::ConstLineString2d& line) {
+  uint8_t lane_boundary_type = route_planning_msgs::msg::LaneBoundary::TYPE_UNKNOWN;
+
+  // get type attribute
+  lanelet::Attribute type;
+  if (line.hasAttribute("type")) {
+    type = line.attribute("type");
   } else {
-    subtype_str = lineToCheck.attribute("subtype");
+    lane_boundary_type = route_planning_msgs::msg::LaneBoundary::TYPE_UNKNOWN;
+    return lane_boundary_type;
   }
 
-  type_str = lineToCheck.attribute("type");
-
-  // the following types are considered drivable
-  if (type_str == "line_thin" || type_str == "line_thick" || type_str == "virtual" || type_str == "zebra_marking" ||
-      type_str == "bike_marking" || type_str == "pedestrian_marking" || type_str == "stop_line" ||
-      type_str == "traffic_light" || type_str == "roadpainting" ||  //Atlatec Maps
-      type_str == "lane_center" ||                                  //Atlatec Maps
-      type_str == "centerline" ||                                   //Atlatec Maps
-      (type_str == "curbstone" && subtype_str == "low")) {
-    return true;
-  }
-
-  // the following keys are considered drivable
-  if (lineToCheck.hasAttribute("HoldingLine")) {
-    return true;
-  }
-
-  return false;
-}
-
-route_planning_msgs::msg::LaneSeparator GlobalPlanner::deriveLaneSeparator(
-    const lanelet::ConstLineString2d &linestring) {
-  route_planning_msgs::msg::LaneSeparator lane_sep;
-  lanelet::Attribute type_str;
-  if (!linestring.hasAttribute("type")) {
-    RCLCPP_WARN_STREAM(get_logger(),
-                       "Linestring with id=" << linestring.id() << " does not have the required attribute 'type'!");
-    // We're not considering linestrings without type --> line is empty
-    lane_sep.type = route_planning_msgs::msg::LaneSeparator::TYPE_UNKNOWN;
-    return lane_sep;
+  // map lanelet type to lane boundary type
+  if (type == "road_boarder" || type == "barrier") {
+    lane_boundary_type = route_planning_msgs::msg::LaneBoundary::TYPE_CROSSING_RESTRICTED;
+  } else if (type == "line_thin" || type == "line_thick") {
+    lane_boundary_type = route_planning_msgs::msg::LaneBoundary::TYPE_UNKNOWN;
+    if (line.hasAttribute("subtype")) {
+      lanelet::Attribute subtype = line.attribute("subtype");
+      if (subtype == "solid" || subtype == "solid_solid") {
+        lane_boundary_type = route_planning_msgs::msg::LaneBoundary::TYPE_CROSSING_RESTRICTED;
+      } else if (subtype == "dashed") {
+        lane_boundary_type = route_planning_msgs::msg::LaneBoundary::TYPE_CROSSING_ALLOWED;
+      } else if (subtype == "dashed_solid") {
+        lane_boundary_type = route_planning_msgs::msg::LaneBoundary::TYPE_CROSSING_ALLOWED_FROM_LEFT;
+      } else if (subtype == "solid_dashed") {
+        lane_boundary_type = route_planning_msgs::msg::LaneBoundary::TYPE_CROSSING_ALLOWED_FROM_RIGHT;
+      }
+    }
+  } else if (type == "virtual") {
+    lane_boundary_type = route_planning_msgs::msg::LaneBoundary::TYPE_UNKNOWN;
   } else {
-    type_str = linestring.attribute("type");
+    lane_boundary_type = route_planning_msgs::msg::LaneBoundary::TYPE_UNKNOWN;
   }
-  if (type_str == "road_boarder" || type_str == "barrier") {
-    lane_sep.type = route_planning_msgs::msg::LaneSeparator::TYPE_CROSSING_RESTRICTED;
-    lane_sep.line = Lanelet2Utilities::convertLaneletLine2Linestring(linestring.basicLineString());
-    return lane_sep;
+
+  return lane_boundary_type;
+}
+
+uint8_t speedLimit(const lanelet::ConstLanelet& lanelet) {
+  lanelet::traffic_rules::TrafficRulesPtr traffic_rules = getTrafficRules();
+  lanelet::traffic_rules::SpeedLimitInformation speed_limit_info = traffic_rules->speedLimit(lanelet);
+  uint8_t unlimited = route_planning_msgs::msg::RegulatoryElement::META_VALUE_SPEED_UNLIMITED;
+  if (speed_limit_info.isMandatory) {
+    int speed_limit = std::round(lanelet::units::KmHQuantity(speed_limit_info.speedLimit).value());
+    speed_limit = std::clamp(speed_limit, 0, static_cast<int>(unlimited));
+    return static_cast<uint8_t>(speed_limit);
+  } else {
+    return unlimited;
   }
-  if (type_str == "virtual") {
-    // We're not considering linestrings with type virtual --> line is empty
-    lane_sep.type = route_planning_msgs::msg::LaneSeparator::TYPE_UNKNOWN;
-    return lane_sep;
+}
+
+lanelet::traffic_rules::TrafficRulesPtr getTrafficRules() {
+  auto location = lanelet::Locations::Germany;
+  auto vehicle_type = std::string(lanelet::Participants::Vehicle);
+  return lanelet::traffic_rules::TrafficRulesFactory::create(location, vehicle_type);
+}
+
+std::optional<lanelet::ConstLanelet> laneletAtPoint(
+    const Eigen::Vector2d& point, const lanelet::LaneletMapConstPtr& map,
+    const std::optional<lanelet::traffic_rules::TrafficRulesPtr> traffic_rules) {
+  // parameters for lanelet matching
+  const unsigned int k_nearest_lanelets = 5;
+  const double max_distance_lanelet_matching = 5.0;
+
+  // find nearest lanelets
+  std::vector<std::pair<double, lanelet::ConstLanelet>> nearest_lanelets =
+      lanelet::geometry::findNearest(map->laneletLayer, point, k_nearest_lanelets);
+
+  // find best matching lanelet
+  if (traffic_rules) {
+    std::ignore = Lanelet2Utilities::laneletSorting(point, nearest_lanelets, {}, traffic_rules.value(), {});
+    for (const auto& ll : nearest_lanelets) {
+      if (ll.first <= max_distance_lanelet_matching && traffic_rules.value()->canPass(ll.second)) {
+        return ll.second;
+      }
+    }
+  } else if (!nearest_lanelets.empty()) {
+    std::ignore = Lanelet2Utilities::laneletSorting(point, nearest_lanelets, {}, {}, {});
+    if (nearest_lanelets[0].first <= max_distance_lanelet_matching) {
+      return nearest_lanelets[0].second;
+    }
   }
-  if (type_str == "line_thin" || type_str == "line_thick") {
-    lane_sep.line = Lanelet2Utilities::convertLaneletLine2Linestring(linestring.basicLineString());
-    lane_sep.type = route_planning_msgs::msg::LaneSeparator::TYPE_UNKNOWN;
-    if (linestring.hasAttribute("subtype")) {
-      lanelet::Attribute subtype_str = linestring.attribute("subtype");
-      if (subtype_str == "solid" || subtype_str == "solid_solid")
-        lane_sep.type = route_planning_msgs::msg::LaneSeparator::TYPE_CROSSING_RESTRICTED;
-      if (subtype_str == "dashed") lane_sep.type = route_planning_msgs::msg::LaneSeparator::TYPE_CROSSING_ALLOWED;
-      if (subtype_str == "dashed_solid")
-        lane_sep.type = route_planning_msgs::msg::LaneSeparator::TYPE_CROSSING_ALLOWED_FROM_LEFT;
-      if (subtype_str == "solid_dashed")
-        lane_sep.type = route_planning_msgs::msg::LaneSeparator::TYPE_CROSSING_ALLOWED_FROM_RIGHT;
+
+  return std::nullopt;
+}
+
+lanelet::ConstLanelet followLaneletsAlongRoutingGraph(const lanelet::routing::RoutingGraphUPtr& routing_graph,
+                                                      const lanelet::ConstLanelet& lanelet,
+                                                      const Eigen::Vector2d& position, const double distance) {
+  lanelet::ConstLanelet followed_lanelet = lanelet;
+  double remaining_length;
+  if (distance > 0) {
+    remaining_length = lanelet::geometry::length(lanelet.centerline2d()) -
+                       lanelet::geometry::toArcCoordinates(lanelet.centerline2d(), position).length;
+  } else {
+    remaining_length = lanelet::geometry::toArcCoordinates(lanelet.centerline2d(), position).length;
+  }
+  double remaining_distance = std::abs(distance);
+
+  while (remaining_distance > remaining_length) {
+    lanelet::ConstLanelets next_lanelets;
+    if (distance > 0) {
+      next_lanelets = routing_graph->following(followed_lanelet, false);
     } else {
-      RCLCPP_WARN_STREAM(get_logger(), "Linestring with type 'line_thin' or 'line_thick' with id="
-                                           << linestring.id() << " does not have the required attribute 'subtype'!");
+      next_lanelets = routing_graph->previous(followed_lanelet);
     }
-    return lane_sep;
+    if (next_lanelets.empty()) {
+      break;
+    }
+    followed_lanelet = next_lanelets.front();
+    remaining_distance -= remaining_length;
+    remaining_length = lanelet::geometry::length(followed_lanelet.centerline2d());
   }
 
-  // Unknown type_str --> line keeps empty
-  lane_sep.type = route_planning_msgs::msg::LaneSeparator::TYPE_UNKNOWN;
-  return lane_sep;
+  return followed_lanelet;
 }
 
-uint8_t GlobalPlanner::deriveValueForSpeedLimitType(const std::shared_ptr<const lanelet::RegulatoryElement> regelem,
-                                                    const std::vector<lanelet::ConstLineString3d> refering_elems) {
-  if (regelem->hasAttribute("sign_type")) {
-    if (refering_elems.size() == 0) {
-      RCLCPP_WARN(get_logger(), "No refering elements found for speed limit sign!");
-      return route_planning_msgs::msg::RegulatoryElement::STATE_UNKNOWN;
-    }
-    std::string tsign_val = refering_elems[0].attribute("sign_type").value();
-    boost::algorithm::erase_all(tsign_val, " ");
-    boost::algorithm::to_lower(tsign_val);
-    if (tsign_val.find("km/h") != std::string::npos) {
-      boost::algorithm::erase_all(tsign_val, "km/h");
-      int val = std::stoi(tsign_val);
-      if (val == 30)
-        return route_planning_msgs::msg::RegulatoryElement::SPEED_30;
-      else if (val == 50)
-        return route_planning_msgs::msg::RegulatoryElement::SPEED_50;
-      else if (val == 70)
-        return route_planning_msgs::msg::RegulatoryElement::SPEED_70;
-      else {
-        RCLCPP_WARN_STREAM(get_logger(), "Unknown sign type for Speed-Limit: " << val);
-        return route_planning_msgs::msg::RegulatoryElement::STATE_UNKNOWN;
-      }
-    } else if (tsign_val.find("mps") != std::string::npos) {
-      boost::algorithm::erase_all(tsign_val, "mps");
-      int val = (int)std::round(std::stod(tsign_val) * 3.6);
-      if (val < 33 && val > 27)
-        return route_planning_msgs::msg::RegulatoryElement::SPEED_30;
-      else if (val < 53 && val > 47)
-        return route_planning_msgs::msg::RegulatoryElement::SPEED_50;
-      else if (val < 73 && val > 67)
-        return route_planning_msgs::msg::RegulatoryElement::SPEED_70;
-      else {
-        RCLCPP_WARN_STREAM(get_logger(), "Unknown sign type for Speed-Limit: " << val);
-        return route_planning_msgs::msg::RegulatoryElement::STATE_UNKNOWN;
-      }
+ResampleCenterlinesAlongPathResult resampleCenterlinesAlongPath(const lanelet::routing::LaneletPath& path,
+                                                                const double delta_s, bool monotonically) {
+  // init variables
+  ResampleCenterlinesAlongPathResult result;
+  double resampling_offset = 0.0;
+  Eigen::Vector2d prev_sampled_point = Eigen::Vector2d(0.0, 0.0);
+  Eigen::Vector2d prev_sampled_point_orientation = Eigen::Vector2d(0.0, 0.0);
 
-    } else if (tsign_val.find("mph") != std::string::npos) {
-      boost::algorithm::erase_all(tsign_val, "mph");
-      int val = (int)std::round(std::stod(tsign_val) * 1.60934);
-      if (val < 33 && val > 27)
-        return route_planning_msgs::msg::RegulatoryElement::SPEED_30;
-      else if (val < 53 && val > 47)
-        return route_planning_msgs::msg::RegulatoryElement::SPEED_50;
-      else if (val < 73 && val > 67)
-        return route_planning_msgs::msg::RegulatoryElement::SPEED_70;
-      else {
-        RCLCPP_WARN_STREAM(get_logger(), "Unknown sign type for Speed-Limit: " << val);
-        return route_planning_msgs::msg::RegulatoryElement::STATE_UNKNOWN;
-      }
-    } else {
-      // Interpret as km/h according to documentation
-      int val = std::stoi(tsign_val);
-      if (val == 30)
-        return route_planning_msgs::msg::RegulatoryElement::SPEED_30;
-      else if (val == 50)
-        return route_planning_msgs::msg::RegulatoryElement::SPEED_50;
-      else if (val == 70)
-        return route_planning_msgs::msg::RegulatoryElement::SPEED_70;
-      else {
-        RCLCPP_WARN_STREAM(get_logger(), "Unknown sign type for Speed-Limit: " << val);
-        return route_planning_msgs::msg::RegulatoryElement::STATE_UNKNOWN;
+  // loop over lanelets in path
+  for (size_t l = 0; l < path.size(); ++l) {
+    // get centerline
+    const lanelet::ConstLanelet& lanelet = path[l];
+    lanelet::BasicLineString2d centerline = lanelet.centerline2d().basicLineString();
+
+    // skip point if behind previous sampled point, e.g., if on adjacent lanelet in shortest path due to lane change
+    if (monotonically && !result.centerline.empty()) {
+      for (auto cit = centerline.begin(); cit != centerline.end();) {
+        auto& centerline_point = *cit;
+        if ((centerline_point - prev_sampled_point).dot(prev_sampled_point_orientation) < 0) {  // angle > 90deg
+          cit = centerline.erase(cit);
+        } else {
+          break;
+        }
       }
     }
-  } else if (refering_elems.size() && refering_elems[0].hasAttribute("type") &&
-             refering_elems[0].attribute("type").value() == "traffic_sign" &&
-             refering_elems[0].hasAttribute("subtype")) {
-    std::string tsign_code = refering_elems[0].attribute("subtype").value();
-    return trafficSignCode2Type(tsign_code);
-  }
-}
 
-uint8_t GlobalPlanner::trafficSignCode2Type(const std::string tsign_code) {
-  if (tsign_code == "de274-30")
-    return route_planning_msgs::msg::RegulatoryElement::SPEED_30;
-  else if (tsign_code == "de274-50")
-    return route_planning_msgs::msg::RegulatoryElement::SPEED_50;
-  else if (tsign_code == "de274-70")
-    return route_planning_msgs::msg::RegulatoryElement::SPEED_70;
-  else {
-    RCLCPP_WARN_STREAM(get_logger(), "Unknown sign code for Traffic-Sign: " << tsign_code);
-    return route_planning_msgs::msg::RegulatoryElement::STATE_UNKNOWN;
-  }
-}
+    // resample lanelet centerline
+    std::vector<Eigen::Vector2d> resampled_centerline =
+        resampleLineString(toEigen(centerline), delta_s, resampling_offset);
+    result.centerline.insert(result.centerline.end(), resampled_centerline.begin(), resampled_centerline.end());
+    result.lanelet_idx_by_point.insert(result.lanelet_idx_by_point.end(), resampled_centerline.size(), l);
 
-bool GlobalPlanner::calcIntersection(const geometry_msgs::msg::Point p1, const geometry_msgs::msg::Point p2,
-                                         const geometry_msgs::msg::Point p3, const geometry_msgs::msg::Point p4,
-                                         double& lambda) {
-  // problem description:
-  // Line 1: (x,y)=(x1,y1)+t1​⋅(x2−x1,y2−y1)
-  // Line 2: (x,y)=(x3,y3)+t2​⋅(x4−x3,y4−y3)
-  // solve for t1 and t2, where lines are equal --> (x1+t1​(x2−x1),y1+t1​(y2−y1))=(x3+t2​(x4−x3),y3+t2​(y4−y3)) 
-  // two linear equations: x1+t1​(x2−x1)=x3+t2​(x4−x3) and y1+t1​(y2−y1)=y3+t2​(y4−y3)
-  
-  // direction vectors of the lines
-  double d1x = p2.x - p1.x;
-  double d1y = p2.y - p1.y;
-  double d2x = p4.x - p3.x;
-  double d2y = p4.y - p3.y;
-
-  // determinant
-  double det = d1x * d2y - d1y * d2x;
-  if (det == 0) return false; // lines are parallel or collinear
-
-  // Calculate parameters t1 and t2
-  double t1 = ((p3.x - p1.x) * d2y - (p3.y - p1.y) * d2x) / det;
-  double t2 = ((p3.x - p1.x) * d1y - (p3.y - p1.y) * d1x) / det;
-
-  if (t1 >= 0 && t1 <= 1 && t2 >= 0 && t2 <= 1) {
-      // There is an intersection within the segments
-      double x = p1.x + t1 * d1x;
-      double y = p1.y + t1 * d1y;
-      lambda = t1;
-      return true;
-  }
-
-  return false;
-}
-
-void GlobalPlanner::setEffectLineS(route_planning_msgs::msg::Route& route) {
-  for (size_t i = 0; i < route.remaining_route.size() - 1; ++i) {
-    geometry_msgs::msg::Point p1 = route.remaining_route[i];
-    geometry_msgs::msg::Point p2 = route.remaining_route[i + 1];
-    for (size_t j = 0; j < route.regulatory_elements.size(); ++j) {
-      geometry_msgs::msg::Point p3 = route.regulatory_elements[j].effect_line[0];
-      geometry_msgs::msg::Point p4 = route.regulatory_elements[j].effect_line[1];
-      double lambda;
-      if (calcIntersection(p1, p2, p3, p4, lambda)) {
-        double intersection_s = p1.z + lambda * (p2.z - p1.z);
-        route.regulatory_elements[j].effect_line[0].z = intersection_s;
-        route.regulatory_elements[j].effect_line[1].z = intersection_s;
+    // update information for monotonicity check
+    if (monotonically && !resampled_centerline.empty()) {
+      if (resampled_centerline.size() > 1) {
+        prev_sampled_point = resampled_centerline[resampled_centerline.size() - 2];
       }
+      prev_sampled_point_orientation =
+          tangentOfPointAlongLineString(resampled_centerline.back(), prev_sampled_point, resampled_centerline.back());
+      prev_sampled_point = resampled_centerline.back();
+    }
+  }
+
+  return result;
+}
+
+double distanceTraveled(const route_planning_msgs::msg::Route& route) {
+  if (route.current_route_element_idx >= route.route_elements.size() ||
+      route.starting_route_element_idx >= route.route_elements.size()) {
+    return 0.0;
+  }
+  double to_current = route.route_elements[route.current_route_element_idx].s;
+  double ahead_of_starting_point = route.route_elements[route.starting_route_element_idx].s;
+  double traveled = to_current - ahead_of_starting_point;
+  return traveled;
+}
+
+double distanceRemaining(const route_planning_msgs::msg::Route& route) {
+  if (route.current_route_element_idx >= route.route_elements.size() ||
+      route.destination_route_element_idx >= route.route_elements.size()) {
+    return 0.0;
+  }
+  double to_current = route.route_elements[route.current_route_element_idx].s;
+  double to_destination = route.route_elements[route.destination_route_element_idx].s;
+  double remaining = to_destination - to_current;
+  return remaining;
+}
+
+double estimateRemainingTime(const route_planning_msgs::msg::Route& route, const double reference_speed) {
+  double remaining_time = 0.0;
+  for (size_t r = route.current_route_element_idx; r < route.route_elements.size() - 1; ++r) {
+    const auto& route_element = route.route_elements[r];
+    const auto& next_route_element = route.route_elements[r + 1];
+    double speed_limit = route_planning_msgs::route_access::getSuggestedLaneElement(route_element).speed_limit;
+    if (speed_limit == 0) {
+      speed_limit = reference_speed;
+    }
+    if (speed_limit > 0) {
+      remaining_time += (next_route_element.s - route_element.s) / speed_limit;
+    }
+  }
+  return remaining_time;
+}
+
+void postprocessRouteMessage(route_planning_msgs::msg::Route& route_msg) {
+  // loop over route elements
+  std::vector<route_planning_msgs::msg::RouteElement>& route_elements = route_msg.route_elements;
+  for (size_t r = 0; r < route_elements.size(); ++r) {
+    // get current, previous and next route element
+    auto& route_element = route_elements[r];
+    auto& prev_route_element = (r > 0) ? route_elements[r - 1] : route_element;
+    const auto& next_route_element = (r < route_elements.size() - 1) ? route_elements[r + 1] : route_element;
+
+    // fix following lane index at the last non-enriched route element before route elements are enriched
+    if (r > 0) {
+      if (!prev_route_element.is_enriched) {
+        prev_route_element.lane_elements[0].has_following_lane_idx = true;
+        prev_route_element.lane_elements[0].following_lane_idx = route_element.suggested_lane_idx;
+      }
+    }
+
+    // loop over lane elements of current route element
+    for (size_t l = 0; l < route_element.lane_elements.size(); ++l) {
+      // get current, previous and next lane element
+      auto& lane_element = route_element.lane_elements[l];
+      const auto prev_lane_element_opt =
+          route_planning_msgs::route_access::getPrecedingLaneElement(l, prev_route_element);
+      const auto next_lane_element_opt =
+          route_planning_msgs::route_access::getFollowingLaneElement(lane_element, next_route_element);
+
+      // find current, previous and next points to compute orientation
+      const auto point = toEigen2d(lane_element.reference_pose.position);
+      const bool changes_lane_from_prev_point = prev_route_element.will_change_suggested_lane;
+      const bool changes_lane_to_next_point = next_route_element.will_change_suggested_lane;
+      const auto prev_point_for_orientation = (changes_lane_from_prev_point || !prev_lane_element_opt)
+                                                  ? point
+                                                  : toEigen2d(prev_lane_element_opt->reference_pose.position);
+      const auto next_point_for_orientation = (changes_lane_to_next_point || !next_lane_element_opt)
+                                                  ? point
+                                                  : toEigen2d(next_lane_element_opt->reference_pose.position);
+
+      // compute orientation of current point
+      const auto orientation =
+          tangentOfPointAlongLineString(point, prev_point_for_orientation, next_point_for_orientation);
+      lane_element.reference_pose.orientation = toRosQuaternion(orientation);
     }
   }
 }
 
-/**
- * @brief Accumulates the distance along a 2D line path, storing it as the z-coordinate of the points
- *
- * @param path 2D path to accumulate distance along, z-coordinate will be overwritten with distance
- * @param initial_distance initial distance to start accumulating from
- */
-void GlobalPlanner::accumulateDistanceAlong2DPath(std::vector<geometry_msgs::msg::Point> &path,
-                                                  const double initial_distance) {
-  if (path.empty()) return;
-  double accumulated_distance = initial_distance;
-  path[0].z = initial_distance;
-  for (size_t i = 1; i < path.size(); i++) {
-    accumulated_distance += this->distance(path[i - 1], path[i]);
-    path[i].z = accumulated_distance;
-  }
-}
+}  // namespace lanelet2_route_planning
