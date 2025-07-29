@@ -473,11 +473,43 @@ bool Lanelet2RoutePlanning::planRoute(const geometry_msgs::msg::PointStamped& de
 
   // plan route
   const int routing_cost_id = 0;  // RoutingCostDistance
-  auto planned_route = routing_graph_->getRoute(undershot_ego_ll, overshot_destination_ll, routing_cost_id);
-  if (planned_route) {
+  auto route1 = routing_graph_->getRoute(undershot_ego_ll, overshot_destination_ll, routing_cost_id);
+  auto route2 = routing_graph_->getRoute(undershot_ego_ll.invert(), overshot_destination_ll, routing_cost_id);
+  auto route3 = routing_graph_->getRoute(undershot_ego_ll, overshot_destination_ll.invert(), routing_cost_id);
+  auto route4 = routing_graph_->getRoute(undershot_ego_ll.invert(), overshot_destination_ll.invert(), routing_cost_id);
+  
+  if (route1 || route2 || route3 || route4) {
+    double min_length = std::numeric_limits<double>::max();
+    if (route1) {
+      double length = route1->length2d();
+      if (length < min_length) {
+        min_length = length;
+        latest_route_ = std::move(*route1);
+      }
+    }
+    if (route2) {
+      double length = route2->length2d();
+      if (length < min_length) {
+        min_length = length;
+        latest_route_ = std::move(*route2);
+      }
+    }
+    if (route3) {
+      double length = route3->length2d();
+      if (length < min_length) {
+        min_length = length;
+        latest_route_ = std::move(*route3);
+      }
+    }
+    if (route4) {
+      double length = route4->length2d();
+      if (length < min_length) {
+        min_length = length;
+        latest_route_ = std::move(*route4);
+      }
+    }
     starting_point_ = egoPosition(latest_ego_data_);
     destination_ = destination_map;
-    latest_route_ = std::move(*planned_route);
     return true;
   } else {
     RCLCPP_ERROR(this->get_logger(), "Failed to plan route from lanelet %ld to lanelet %ld", ego_ll.id(),
