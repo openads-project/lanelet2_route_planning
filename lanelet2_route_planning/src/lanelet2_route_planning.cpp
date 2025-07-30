@@ -260,14 +260,17 @@ void Lanelet2RoutePlanning::egoDataCallback(const perception_msgs::msg::EgoData:
   }
 
   // transform ego data to map frame
-  try {
-    latest_ego_data_ =
-        tf_buffer_->transform(*msg, ll2_interface_->map_frame_id_, tf2::durationFromSec(transform_timeout_));
-  } catch (tf2::TransformException& ex) {
-    RCLCPP_ERROR(this->get_logger(), "Could not transform ego data from frame '%s' to frame '%s': %s",
-                 msg->header.frame_id.c_str(), ll2_interface_->map_frame_id_.c_str(), ex.what());
+  if (msg->header.frame_id != ll2_interface_->map_frame_id_) {
+    try {
+      latest_ego_data_ =
+          tf_buffer_->transform(*msg, ll2_interface_->map_frame_id_, tf2::durationFromSec(transform_timeout_));
+    } catch (tf2::TransformException& ex) {
+      RCLCPP_ERROR(this->get_logger(), "Could not transform ego data from frame '%s' to frame '%s': %s",
+                  msg->header.frame_id.c_str(), ll2_interface_->map_frame_id_.c_str(), ex.what());
+    }
+  } else {
+    latest_ego_data_ = *msg;
   }
-  latest_ego_data_ = *msg;
 
   // recompute local route
   if (is_publishing_route_) {
@@ -417,13 +420,17 @@ bool Lanelet2RoutePlanning::planRoute(const geometry_msgs::msg::PointStamped& de
 
   // transform destination to map frame
   geometry_msgs::msg::PointStamped destination_map_stamped;
-  try {
-    destination_map_stamped =
-        tf_buffer_->transform(destination, ll2_interface_->map_frame_id_, tf2::durationFromSec(transform_timeout_));
-  } catch (tf2::TransformException& ex) {
-    RCLCPP_ERROR(this->get_logger(), "Could not transform destination from frame '%s' to frame '%s': %s",
-                 destination.header.frame_id.c_str(), ll2_interface_->map_frame_id_.c_str(), ex.what());
-    return false;
+  if (destination.header.frame_id != ll2_interface_->map_frame_id_) {
+    try {
+      destination_map_stamped =
+          tf_buffer_->transform(destination, ll2_interface_->map_frame_id_, tf2::durationFromSec(transform_timeout_));
+    } catch (tf2::TransformException& ex) {
+      RCLCPP_ERROR(this->get_logger(), "Could not transform destination from frame '%s' to frame '%s': %s",
+                  destination.header.frame_id.c_str(), ll2_interface_->map_frame_id_.c_str(), ex.what());
+      return false;
+    }
+  } else {
+    destination_map_stamped = destination;
   }
   geometry_msgs::msg::Point& destination_map = destination_map_stamped.point;
 
