@@ -513,22 +513,17 @@ bool Lanelet2RoutePlanning::planRoute(const geometry_msgs::msg::PointStamped& de
       followLaneletsAlongRoutingGraph(routing_graph_, ego_ll, ego_ll_position, -std::abs(route_undershoot_distance_));
   lanelet::ConstLanelet overshot_destination_ll = followLaneletsAlongRoutingGraph(
       routing_graph_, destination_ll, destination_ll_position, route_overshoot_distance_);
-      
+
   // plan route
   const int routing_cost_id = 0;  // RoutingCostDistance
-  std::optional<lanelet::routing::Route> route;
-  if(intermediate_lls.size() > 0) {
-    route = getShortestRouteFromVariants(getRouteViaVariants(undershot_ego_ll, intermediate_lls, overshot_destination_ll, routing_cost_id));
-  }
-  else {
-    route = getShortestRouteFromVariants(getRouteVariants(undershot_ego_ll, overshot_destination_ll, routing_cost_id));
-  }
+  std::optional<lanelet::routing::Route> planned_route;
+  planned_route = getShortestRouteFromVariants(getRouteVariants(undershot_ego_ll, intermediate_lls, overshot_destination_ll, routing_cost_id));
 
-  if(route) {
+  if(planned_route) {
     starting_point_ = egoPosition(latest_ego_data_);
     destination_ = destination_map;
     intermediates_ = intermediates_on_route;
-    latest_route_ = std::move(*route);
+    latest_route_ = std::move(*planned_route);
     return true;
   } else {
     RCLCPP_ERROR(this->get_logger(), "Failed to plan route from lanelet %ld to lanelet %ld", ego_ll.id(),
@@ -538,30 +533,24 @@ bool Lanelet2RoutePlanning::planRoute(const geometry_msgs::msg::PointStamped& de
 }
 
 std::vector<lanelet::routing::Route> Lanelet2RoutePlanning::getRouteVariants(lanelet::ConstLanelet start_lanelet,
+                                                              const std::vector<lanelet::ConstLanelet>& intermediate_lanelets,
                                                               lanelet::ConstLanelet destination_lanelet,
                                                               const int routing_cost_id) {
   std::vector<lanelet::routing::Route> routes;
-  auto route1 = routing_graph_->getRoute(start_lanelet, destination_lanelet, routing_cost_id);
-  auto route2 = routing_graph_->getRoute(start_lanelet.invert(), destination_lanelet, routing_cost_id);
-  auto route3 = routing_graph_->getRoute(start_lanelet, destination_lanelet.invert(), routing_cost_id);
-  auto route4 = routing_graph_->getRoute(start_lanelet.invert(), destination_lanelet.invert(), routing_cost_id);
-
-  if (route1) routes.push_back(std::move(*route1));
-  if (route2) routes.push_back(std::move(*route2));
-  if (route3) routes.push_back(std::move(*route3));
-  if (route4) routes.push_back(std::move(*route4));
-
-  return routes;
-}
-
-std::vector<lanelet::routing::Route> Lanelet2RoutePlanning::getRouteViaVariants(lanelet::ConstLanelet start_lanelet,
-                                                              const std::vector<lanelet::ConstLanelet>& intermediate_lanelets,
-                                                              lanelet::ConstLanelet destination_lanelet, const int routing_cost_id) {
-  std::vector<lanelet::routing::Route> routes;
-  auto route1 = routing_graph_->getRouteVia(start_lanelet, intermediate_lanelets, destination_lanelet, routing_cost_id);
-  auto route2 = routing_graph_->getRouteVia(start_lanelet.invert(), intermediate_lanelets, destination_lanelet, routing_cost_id);
-  auto route3 = routing_graph_->getRouteVia(start_lanelet, intermediate_lanelets, destination_lanelet.invert(), routing_cost_id);
-  auto route4 = routing_graph_->getRouteVia(start_lanelet.invert(), intermediate_lanelets, destination_lanelet.invert(), routing_cost_id);
+  lanelet::Optional<lanelet::routing::Route> route1, route2, route3, route4;
+  if (intermediate_lanelets.empty()) {
+    // no intermediates, use lanelets "getRoute" function
+    route1 = routing_graph_->getRoute(start_lanelet, destination_lanelet, routing_cost_id);
+    route2 = routing_graph_->getRoute(start_lanelet.invert(), destination_lanelet, routing_cost_id);
+    route3 = routing_graph_->getRoute(start_lanelet, destination_lanelet.invert(), routing_cost_id);
+    route4 = routing_graph_->getRoute(start_lanelet.invert(), destination_lanelet.invert(), routing_cost_id);
+  } else {
+    // use lanelets "getRouteVia" function
+    route1 = routing_graph_->getRouteVia(start_lanelet, intermediate_lanelets, destination_lanelet, routing_cost_id);
+    route2 = routing_graph_->getRouteVia(start_lanelet.invert(), intermediate_lanelets, destination_lanelet, routing_cost_id);
+    route3 = routing_graph_->getRouteVia(start_lanelet, intermediate_lanelets, destination_lanelet.invert(), routing_cost_id);
+    route4 = routing_graph_->getRouteVia(start_lanelet.invert(), intermediate_lanelets, destination_lanelet.invert(), routing_cost_id);
+  }
 
   if (route1) routes.push_back(std::move(*route1));
   if (route2) routes.push_back(std::move(*route2));
@@ -572,21 +561,21 @@ std::vector<lanelet::routing::Route> Lanelet2RoutePlanning::getRouteViaVariants(
 }
 
 std::optional<lanelet::routing::Route> Lanelet2RoutePlanning::getShortestRouteFromVariants(std::vector<lanelet::routing::Route> routes) {
-  lanelet::routing::Route shortest_route;
   if (routes.empty()) {
     RCLCPP_ERROR(this->get_logger(), "No route variants found");
     return std::nullopt;
   }
   double min_length = std::numeric_limits<double>::max();
-  for (const auto& route : routes) {
-    double length = route.length2d();
+  size_t shortest_idx = 0;
+  for (size_t i = 0; i < routes.size(); ++i) {
+    double length = routes[i].length2d();
     if (length < min_length) {
       min_length = length;
-      shortest_route = std::move(route);
+      shortest_idx = i;
     }
   }
 
-  return shortest_route;
+  return std::move(routes[shortest_idx]);
 }
 
 void Lanelet2RoutePlanning::buildGlobalRouteMessage() {

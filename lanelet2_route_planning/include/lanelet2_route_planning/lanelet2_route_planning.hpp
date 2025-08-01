@@ -160,26 +160,15 @@ class Lanelet2RoutePlanning : public rclcpp::Node {
    * @brief Get the Route Variants object
    * 
    * @param start_lanelet the starting lanelet
-   * @param destination_lanelet the destination lanelet
-   * @param routing_cost_id the routing cost ID
-   * @return std::vector<lanelet::routing::Route> vector of route variants
-   */
-  std::vector<lanelet::routing::Route> getRouteVariants(lanelet::ConstLanelet start_lanelet,
-                                                        lanelet::ConstLanelet destination_lanelet,
-                                                        const int routing_cost_id);
-
-  /**
-   * @brief Get the Route-Via Variants
-   * 
-   * @param start_lanelet the starting lanelet
    * @param intermediate_lanelets the intermediate lanelets
    * @param destination_lanelet the destination lanelet
    * @param routing_cost_id the routing cost ID
    * @return std::vector<lanelet::routing::Route> vector of route variants
    */
-  std::vector<lanelet::routing::Route> getRouteViaVariants(lanelet::ConstLanelet start_lanelet,
-                                                            const std::vector<lanelet::ConstLanelet>& intermediate_lanelets,
-                                                            lanelet::ConstLanelet destination_lanelet, const int routing_cost_id);
+  std::vector<lanelet::routing::Route> getRouteVariants(lanelet::ConstLanelet start_lanelet,
+                                                        const std::vector<lanelet::ConstLanelet>& intermediate_lanelets,
+                                                        lanelet::ConstLanelet destination_lanelet,
+                                                        const int routing_cost_id);
 
   /**
    * @brief Get the Shortest Route from the four planned Variants (to handle bidirectional lanelets) 
