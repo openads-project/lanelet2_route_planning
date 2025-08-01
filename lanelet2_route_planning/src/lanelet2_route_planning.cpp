@@ -437,7 +437,7 @@ bool Lanelet2RoutePlanning::planRoute(const geometry_msgs::msg::PointStamped& de
   geometry_msgs::msg::Point& destination_map = destination_map_stamped.point;
 
   // transform intermediates to map frame
-  std::vector<geometry_msgs::msg::PointStamped> intermediates_map;
+  std::vector<geometry_msgs::msg::Point> intermediates_map;
   for (const auto& intermediate : intermediates) {
     geometry_msgs::msg::PointStamped intermediate_map_stamped;
     if (intermediate.header.frame_id != ll2_interface_->map_frame_id_) {
@@ -495,10 +495,12 @@ bool Lanelet2RoutePlanning::planRoute(const geometry_msgs::msg::PointStamped& de
 
   // project intermediates to lanelets
   std::vector<lanelet::ConstLanelet> intermediate_lls;
+  std::vector<geometry_msgs::msg::Point> intermediates_on_route;
   for (const auto& intermediate : intermediates_map) {
     lanelet::ConstLanelet intermediate_ll;
     if (auto result = laneletAtPoint(toEigen2d(intermediate), map)) {
       intermediate_lls.push_back(*result);
+      intermediates_on_route.push_back(intermediate);
     } else {
       RCLCPP_WARN(this->get_logger(), "Failed to find lanelet at intermediate point (%.3f, %.3f). Skipping...",
                    intermediate.x, intermediate.y);
@@ -525,6 +527,7 @@ bool Lanelet2RoutePlanning::planRoute(const geometry_msgs::msg::PointStamped& de
   if(route) {
     starting_point_ = egoPosition(latest_ego_data_);
     destination_ = destination_map;
+    intermediates_ = intermediates_on_route;
     latest_route_ = std::move(*route);
     return true;
   } else {
@@ -592,6 +595,7 @@ void Lanelet2RoutePlanning::buildGlobalRouteMessage() {
   route_msg.header.stamp = latest_ego_data_.header.stamp;
   route_msg.header.frame_id = ll2_interface_->map_frame_id_;
   route_msg.destination = destination_;
+  route_msg.intermediates = intermediates_;
   route_msg.route_elements = {};
 
   // get shortest path

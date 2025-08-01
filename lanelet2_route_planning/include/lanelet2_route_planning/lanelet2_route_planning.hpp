@@ -300,6 +300,13 @@ class Lanelet2RoutePlanning : public rclcpp::Node {
   geometry_msgs::msg::Point destination_;
 
   /**
+   * @brief Intermediate points in map frame
+   *
+   * Used for route planning with intermediate waypoints.
+   */
+  std::vector<geometry_msgs::msg::Point> intermediates_;
+
+  /**
    * @brief Latest planned lanelet route
    */
   lanelet::routing::Route latest_route_;
