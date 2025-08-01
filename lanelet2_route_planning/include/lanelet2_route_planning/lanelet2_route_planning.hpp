@@ -152,7 +152,42 @@ class Lanelet2RoutePlanning : public rclcpp::Node {
    * @param[in] destination destination
    * @return whether route planning was successful
    */
-  bool planRoute(const geometry_msgs::msg::PointStamped &destination);
+  bool planRoute(const geometry_msgs::msg::PointStamped &destination, 
+                 const std::vector<geometry_msgs::msg::PointStamped> &intermediates = {});
+
+
+  /**
+   * @brief Get the Route Variants object
+   * 
+   * @param start_lanelet the starting lanelet
+   * @param destination_lanelet the destination lanelet
+   * @param routing_cost_id the routing cost ID
+   * @return std::vector<lanelet::routing::Route> vector of route variants
+   */
+  std::vector<lanelet::routing::Route> getRouteVariants(lanelet::ConstLanelet start_lanelet,
+                                                        lanelet::ConstLanelet destination_lanelet,
+                                                        const int routing_cost_id);
+
+  /**
+   * @brief Get the Route-Via Variants
+   * 
+   * @param start_lanelet the starting lanelet
+   * @param intermediate_lanelets the intermediate lanelets
+   * @param destination_lanelet the destination lanelet
+   * @param routing_cost_id the routing cost ID
+   * @return std::vector<lanelet::routing::Route> vector of route variants
+   */
+  std::vector<lanelet::routing::Route> getRouteViaVariants(lanelet::ConstLanelet start_lanelet,
+                                                            const std::vector<lanelet::ConstLanelet>& intermediate_lanelets,
+                                                            lanelet::ConstLanelet destination_lanelet, const int routing_cost_id);
+
+  /**
+   * @brief Get the Shortest Route from the four planned Variants (to handle bidirectional lanelets) 
+   * 
+   * @param routes 
+   * @return std::optional<lanelet::routing::Route> 
+   */
+  std::optional<lanelet::routing::Route> getShortestRouteFromVariants(std::vector<lanelet::routing::Route> routes);
 
   /**
    * @brief Builds a global ROS route message from the latest planned lanelet route
