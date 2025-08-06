@@ -1,6 +1,6 @@
 # lanelet2_route_planning
 
-The `lanelet2_route_planning` node plans a route to a destination based on Lanelet2 map. It runs an action server that accepts a destination, plans a route, and continuously publishes feedback on the route progress to the action client. The `plan_route_action_client` node can be used alongside as a standard action client, e.g., by listening to goal poses published from RViz.
+The `lanelet2_route_planning` node plans a route to a destination based on Lanelet2 map. It runs an action server that accepts a destination, plans a route, and continuously publishes feedback on the route progress to the action client. The `plan_route_action_client` node can be used alongside as a standard action client, e.g., by listening to goal poses published from RViz. The suggested way of interactively planning routes is to use the [`route_planning_msgs_rviz_plugins::tools::PlanRouteTool`](https://github.com/ika-rwth-aachen/planning_interfaces) RViz tool plugin.
 
 - [Container Images](#container-images)
 - [lanelet2_route_planning](#lanelet2_route_planning)
