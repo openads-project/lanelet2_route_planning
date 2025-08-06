@@ -31,7 +31,7 @@ Lanelet2RoutePlanning::Lanelet2RoutePlanning() : Node("lanelet2_route_planning")
                                 "Whether to project destination to reference line", true, false, false);
   this->declareAndLoadParameter("destination_distance_threshold", destination_distance_threshold_,
                                 "Distance to destination where destination is considered reached [m]", true, false,
-                                false, 0.1, 250.0, 0.1);
+                                false, 0.1, 10.0, 0.1);
   this->declareAndLoadParameter(
       "enrich_route_ahead_ego_distance", enrich_route_ahead_ego_distance_,
       "Distance ahead of ego position where global route is enriched with more information [m] (negative=unlimited)",
@@ -266,7 +266,7 @@ void Lanelet2RoutePlanning::egoDataCallback(const perception_msgs::msg::EgoData:
           tf_buffer_->transform(*msg, ll2_interface_->map_frame_id_, tf2::durationFromSec(transform_timeout_));
     } catch (tf2::TransformException& ex) {
       RCLCPP_ERROR(this->get_logger(), "Could not transform ego data from frame '%s' to frame '%s': %s",
-                  msg->header.frame_id.c_str(), ll2_interface_->map_frame_id_.c_str(), ex.what());
+                   msg->header.frame_id.c_str(), ll2_interface_->map_frame_id_.c_str(), ex.what());
     }
   } else {
     latest_ego_data_ = *msg;
@@ -413,7 +413,7 @@ void Lanelet2RoutePlanning::actionExecute(
   }
 }
 
-bool Lanelet2RoutePlanning::planRoute(const geometry_msgs::msg::PointStamped& destination, 
+bool Lanelet2RoutePlanning::planRoute(const geometry_msgs::msg::PointStamped& destination,
                                       const std::vector<geometry_msgs::msg::PointStamped>& intermediate_destinations) {
   if (!this->checkMap(false)) {
     RCLCPP_ERROR(this->get_logger(), "Cannot plan route, map not loaded by '%s'", ll2_map_server_name_.c_str());
@@ -428,7 +428,7 @@ bool Lanelet2RoutePlanning::planRoute(const geometry_msgs::msg::PointStamped& de
           tf_buffer_->transform(destination, ll2_interface_->map_frame_id_, tf2::durationFromSec(transform_timeout_));
     } catch (tf2::TransformException& ex) {
       RCLCPP_ERROR(this->get_logger(), "Could not transform destination from frame '%s' to frame '%s': %s",
-                  destination.header.frame_id.c_str(), ll2_interface_->map_frame_id_.c_str(), ex.what());
+                   destination.header.frame_id.c_str(), ll2_interface_->map_frame_id_.c_str(), ex.what());
       return false;
     }
   } else {
@@ -436,17 +436,17 @@ bool Lanelet2RoutePlanning::planRoute(const geometry_msgs::msg::PointStamped& de
   }
   geometry_msgs::msg::Point& destination_map = destination_map_stamped.point;
 
-  // transform intermediate_destinations to map frame
+  // transform intermediate destinations to map frame
   std::vector<geometry_msgs::msg::Point> intermediate_destinations_map;
   for (const auto& intermediate : intermediate_destinations) {
     geometry_msgs::msg::PointStamped intermediate_map_stamped;
     if (intermediate.header.frame_id != ll2_interface_->map_frame_id_) {
       try {
-        intermediate_map_stamped = tf_buffer_->transform(
-            intermediate, ll2_interface_->map_frame_id_, tf2::durationFromSec(transform_timeout_));
+        intermediate_map_stamped = tf_buffer_->transform(intermediate, ll2_interface_->map_frame_id_,
+                                                         tf2::durationFromSec(transform_timeout_));
       } catch (tf2::TransformException& ex) {
         RCLCPP_ERROR(this->get_logger(), "Could not transform intermediate from frame '%s' to frame '%s': %s",
-                    intermediate.header.frame_id.c_str(), ll2_interface_->map_frame_id_.c_str(), ex.what());
+                     intermediate.header.frame_id.c_str(), ll2_interface_->map_frame_id_.c_str(), ex.what());
         return false;
       }
       intermediate_destinations_map.push_back(intermediate_map_stamped.point);
@@ -493,17 +493,17 @@ bool Lanelet2RoutePlanning::planRoute(const geometry_msgs::msg::PointStamped& de
   Eigen::Vector2d destination_ll_position =
       projectPointToLineString(toEigen2d(destination_map), toEigen(destination_ll.centerline2d().basicLineString()));
 
-  // project intermediate_destinations to lanelets
-  std::vector<lanelet::ConstLanelet> intermediate_lls;
+  // project intermediate destinations to lanelets
+  std::vector<lanelet::ConstLanelet> intermediate_destination_lls;
   std::vector<geometry_msgs::msg::Point> intermediate_destinations_on_route;
   for (const auto& intermediate : intermediate_destinations_map) {
     lanelet::ConstLanelet intermediate_ll;
     if (auto result = laneletAtPoint(toEigen2d(intermediate), map)) {
-      intermediate_lls.push_back(*result);
+      intermediate_destination_lls.push_back(*result);
       intermediate_destinations_on_route.push_back(intermediate);
     } else {
       RCLCPP_WARN(this->get_logger(), "Failed to find lanelet at intermediate point (%.3f, %.3f). Skipping...",
-                   intermediate.x, intermediate.y);
+                  intermediate.x, intermediate.y);
       continue;  // skip this intermediate if no lanelet found
     }
   }
@@ -514,12 +514,13 @@ bool Lanelet2RoutePlanning::planRoute(const geometry_msgs::msg::PointStamped& de
   lanelet::ConstLanelet overshot_destination_ll = followLaneletsAlongRoutingGraph(
       routing_graph_, destination_ll, destination_ll_position, route_overshoot_distance_);
 
-  // plan route
-  const int routing_cost_id = 0;  // RoutingCostDistance
-  std::optional<lanelet::routing::Route> planned_route;
-  planned_route = getShortestRouteFromVariants(getRouteVariants(undershot_ego_ll, intermediate_lls, overshot_destination_ll, routing_cost_id));
+  // compute route from start to destination along intermediate destinations
+  std::vector<lanelet::ConstLanelet> route_lanelets = {undershot_ego_ll};
+  route_lanelets.insert(route_lanelets.end(), intermediate_destination_lls.begin(), intermediate_destination_lls.end());
+  route_lanelets.push_back(overshot_destination_ll);
+  std::optional<lanelet::routing::Route> planned_route = getRoute(routing_graph_, route_lanelets);
 
-  if(planned_route) {
+  if (planned_route) {
     starting_point_ = egoPosition(latest_ego_data_);
     destination_ = destination_map;
     intermediate_destinations_ = intermediate_destinations_on_route;
@@ -530,52 +531,6 @@ bool Lanelet2RoutePlanning::planRoute(const geometry_msgs::msg::PointStamped& de
                  destination_ll.id());
     return false;
   }
-}
-
-std::vector<lanelet::routing::Route> Lanelet2RoutePlanning::getRouteVariants(lanelet::ConstLanelet start_lanelet,
-                                                              const std::vector<lanelet::ConstLanelet>& intermediate_lanelets,
-                                                              lanelet::ConstLanelet destination_lanelet,
-                                                              const int routing_cost_id) {
-  std::vector<lanelet::routing::Route> routes;
-  lanelet::Optional<lanelet::routing::Route> route1, route2, route3, route4;
-  if (intermediate_lanelets.empty()) {
-    // no intermediate_destinations, use lanelets "getRoute" function
-    route1 = routing_graph_->getRoute(start_lanelet, destination_lanelet, routing_cost_id);
-    route2 = routing_graph_->getRoute(start_lanelet.invert(), destination_lanelet, routing_cost_id);
-    route3 = routing_graph_->getRoute(start_lanelet, destination_lanelet.invert(), routing_cost_id);
-    route4 = routing_graph_->getRoute(start_lanelet.invert(), destination_lanelet.invert(), routing_cost_id);
-  } else {
-    // use lanelets "getRouteVia" function
-    route1 = routing_graph_->getRouteVia(start_lanelet, intermediate_lanelets, destination_lanelet, routing_cost_id);
-    route2 = routing_graph_->getRouteVia(start_lanelet.invert(), intermediate_lanelets, destination_lanelet, routing_cost_id);
-    route3 = routing_graph_->getRouteVia(start_lanelet, intermediate_lanelets, destination_lanelet.invert(), routing_cost_id);
-    route4 = routing_graph_->getRouteVia(start_lanelet.invert(), intermediate_lanelets, destination_lanelet.invert(), routing_cost_id);
-  }
-
-  if (route1) routes.push_back(std::move(*route1));
-  if (route2) routes.push_back(std::move(*route2));
-  if (route3) routes.push_back(std::move(*route3));
-  if (route4) routes.push_back(std::move(*route4));
-
-  return routes;
-}
-
-std::optional<lanelet::routing::Route> Lanelet2RoutePlanning::getShortestRouteFromVariants(std::vector<lanelet::routing::Route> routes) {
-  if (routes.empty()) {
-    RCLCPP_ERROR(this->get_logger(), "No route variants found");
-    return std::nullopt;
-  }
-  double min_length = std::numeric_limits<double>::max();
-  size_t shortest_idx = 0;
-  for (size_t i = 0; i < routes.size(); ++i) {
-    double length = routes[i].length2d();
-    if (length < min_length) {
-      min_length = length;
-      shortest_idx = i;
-    }
-  }
-
-  return std::move(routes[shortest_idx]);
 }
 
 void Lanelet2RoutePlanning::buildGlobalRouteMessage() {
