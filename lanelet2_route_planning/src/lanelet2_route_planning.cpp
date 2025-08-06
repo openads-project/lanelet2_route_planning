@@ -584,11 +584,15 @@ void Lanelet2RoutePlanning::buildGlobalRouteMessage() {
     route_msg.route_elements.push_back(route_element_msg);
   }
 
-  // project starting point and destination to reference line, if enabled
+  // project starting point and destinations to reference line, if enabled
   if (project_destination_to_reference_line_) {
     starting_point_ = toRos(projectPointToLineString(toEigen2d(starting_point_), shortest_path_centerline));
+    for (auto& destination : intermediate_destinations_) {
+      destination = toRos(projectPointToLineString(toEigen2d(destination), shortest_path_centerline));
+    }
     destination_ = toRos(projectPointToLineString(toEigen2d(destination_), shortest_path_centerline));
     route_msg.destination = destination_;
+    route_msg.intermediate_destinations = intermediate_destinations_;
   }
 
   // determine starting/current/destination indices in route elements

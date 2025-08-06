@@ -269,6 +269,7 @@ class Lanelet2RoutePlanning : public rclcpp::Node {
    * @brief Intermediate points in map frame
    *
    * Used for route planning with intermediate waypoints.
+   * These are affected by `project_destination_to_reference_line_`.
    */
   std::vector<geometry_msgs::msg::Point> intermediate_destinations_;
 
