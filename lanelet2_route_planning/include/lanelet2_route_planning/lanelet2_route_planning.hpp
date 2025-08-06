@@ -153,7 +153,7 @@ class Lanelet2RoutePlanning : public rclcpp::Node {
    * @return whether route planning was successful
    */
   bool planRoute(const geometry_msgs::msg::PointStamped &destination, 
-                 const std::vector<geometry_msgs::msg::PointStamped> &intermediates = {});
+                 const std::vector<geometry_msgs::msg::PointStamped> &intermediate_destinations = {});
 
 
   /**
@@ -293,7 +293,7 @@ class Lanelet2RoutePlanning : public rclcpp::Node {
    *
    * Used for route planning with intermediate waypoints.
    */
-  std::vector<geometry_msgs::msg::Point> intermediates_;
+  std::vector<geometry_msgs::msg::Point> intermediate_destinations_;
 
   /**
    * @brief Latest planned lanelet route
