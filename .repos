@@ -2,7 +2,7 @@ repositories:
   planning_interfaces:
     type: git
     url: https://github.com/ika-rwth-aachen/planning_interfaces
-    version: improvement/route-action
+    version: main
   perception_interfaces:
     type: git
     url: https://github.com/ika-rwth-aachen/perception_interfaces
