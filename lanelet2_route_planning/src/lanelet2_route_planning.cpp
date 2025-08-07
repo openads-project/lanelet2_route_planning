@@ -260,14 +260,17 @@ void Lanelet2RoutePlanning::egoDataCallback(const perception_msgs::msg::EgoData:
   }
 
   // transform ego data to map frame
-  try {
-    latest_ego_data_ =
-        tf_buffer_->transform(*msg, ll2_interface_->map_frame_id_, tf2::durationFromSec(transform_timeout_));
-  } catch (tf2::TransformException& ex) {
-    RCLCPP_ERROR(this->get_logger(), "Could not transform ego data from frame '%s' to frame '%s': %s",
-                 msg->header.frame_id.c_str(), ll2_interface_->map_frame_id_.c_str(), ex.what());
+  if (msg->header.frame_id != ll2_interface_->map_frame_id_) {
+    try {
+      latest_ego_data_ =
+          tf_buffer_->transform(*msg, ll2_interface_->map_frame_id_, tf2::durationFromSec(transform_timeout_));
+    } catch (tf2::TransformException& ex) {
+      RCLCPP_ERROR(this->get_logger(), "Could not transform ego data from frame '%s' to frame '%s': %s",
+                   msg->header.frame_id.c_str(), ll2_interface_->map_frame_id_.c_str(), ex.what());
+    }
+  } else {
+    latest_ego_data_ = *msg;
   }
-  latest_ego_data_ = *msg;
 
   // recompute local route
   if (is_publishing_route_) {
@@ -291,6 +294,7 @@ rclcpp_action::GoalResponse Lanelet2RoutePlanning::actionHandleGoal(
   (void)goal;
 
   const geometry_msgs::msg::PointStamped& destination = goal->destination;
+  const std::vector<geometry_msgs::msg::PointStamped>& intermediate_destinations = goal->intermediate_destinations;
   RCLCPP_INFO(this->get_logger(), "Received request to plan route to destination (%.3f, %.3f, %.3f) in frame '%s'",
               destination.point.x, destination.point.y, destination.point.z, destination.header.frame_id.c_str());
 
@@ -302,7 +306,7 @@ rclcpp_action::GoalResponse Lanelet2RoutePlanning::actionHandleGoal(
 
   // plan route
   auto t0 = std::chrono::steady_clock::now();
-  bool success = this->planRoute(destination);
+  bool success = this->planRoute(destination, intermediate_destinations);
   auto t1 = std::chrono::steady_clock::now();
   auto dt = std::chrono::duration_cast<std::chrono::duration<double>>(t1 - t0).count();
   if (!success) {
@@ -409,7 +413,8 @@ void Lanelet2RoutePlanning::actionExecute(
   }
 }
 
-bool Lanelet2RoutePlanning::planRoute(const geometry_msgs::msg::PointStamped& destination) {
+bool Lanelet2RoutePlanning::planRoute(const geometry_msgs::msg::PointStamped& destination,
+                                      const std::vector<geometry_msgs::msg::PointStamped>& intermediate_destinations) {
   if (!this->checkMap(false)) {
     RCLCPP_ERROR(this->get_logger(), "Cannot plan route, map not loaded by '%s'", ll2_map_server_name_.c_str());
     return false;
@@ -417,15 +422,38 @@ bool Lanelet2RoutePlanning::planRoute(const geometry_msgs::msg::PointStamped& de
 
   // transform destination to map frame
   geometry_msgs::msg::PointStamped destination_map_stamped;
-  try {
-    destination_map_stamped =
-        tf_buffer_->transform(destination, ll2_interface_->map_frame_id_, tf2::durationFromSec(transform_timeout_));
-  } catch (tf2::TransformException& ex) {
-    RCLCPP_ERROR(this->get_logger(), "Could not transform destination from frame '%s' to frame '%s': %s",
-                 destination.header.frame_id.c_str(), ll2_interface_->map_frame_id_.c_str(), ex.what());
-    return false;
+  if (destination.header.frame_id != ll2_interface_->map_frame_id_) {
+    try {
+      destination_map_stamped =
+          tf_buffer_->transform(destination, ll2_interface_->map_frame_id_, tf2::durationFromSec(transform_timeout_));
+    } catch (tf2::TransformException& ex) {
+      RCLCPP_ERROR(this->get_logger(), "Could not transform destination from frame '%s' to frame '%s': %s",
+                   destination.header.frame_id.c_str(), ll2_interface_->map_frame_id_.c_str(), ex.what());
+      return false;
+    }
+  } else {
+    destination_map_stamped = destination;
   }
   geometry_msgs::msg::Point& destination_map = destination_map_stamped.point;
+
+  // transform intermediate destinations to map frame
+  std::vector<geometry_msgs::msg::Point> intermediate_destinations_map;
+  for (const auto& intermediate : intermediate_destinations) {
+    geometry_msgs::msg::PointStamped intermediate_map_stamped;
+    if (intermediate.header.frame_id != ll2_interface_->map_frame_id_) {
+      try {
+        intermediate_map_stamped = tf_buffer_->transform(intermediate, ll2_interface_->map_frame_id_,
+                                                         tf2::durationFromSec(transform_timeout_));
+      } catch (tf2::TransformException& ex) {
+        RCLCPP_ERROR(this->get_logger(), "Could not transform intermediate from frame '%s' to frame '%s': %s",
+                     intermediate.header.frame_id.c_str(), ll2_interface_->map_frame_id_.c_str(), ex.what());
+        return false;
+      }
+      intermediate_destinations_map.push_back(intermediate_map_stamped.point);
+    } else {
+      intermediate_destinations_map.push_back(intermediate.point);
+    }
+  }
 
   // get map and traffic rules
   lanelet::LaneletMapConstPtr map = ll2_interface_->getMapPtr();
@@ -465,18 +493,37 @@ bool Lanelet2RoutePlanning::planRoute(const geometry_msgs::msg::PointStamped& de
   Eigen::Vector2d destination_ll_position =
       projectPointToLineString(toEigen2d(destination_map), toEigen(destination_ll.centerline2d().basicLineString()));
 
+  // project intermediate destinations to lanelets
+  std::vector<lanelet::ConstLanelet> intermediate_destination_lls;
+  std::vector<geometry_msgs::msg::Point> intermediate_destinations_on_route;
+  for (const auto& intermediate : intermediate_destinations_map) {
+    lanelet::ConstLanelet intermediate_ll;
+    if (auto result = laneletAtPoint(toEigen2d(intermediate), map)) {
+      intermediate_destination_lls.push_back(*result);
+      intermediate_destinations_on_route.push_back(intermediate);
+    } else {
+      RCLCPP_WARN(this->get_logger(), "Failed to find lanelet at intermediate point (%.3f, %.3f). Skipping...",
+                  intermediate.x, intermediate.y);
+      continue;  // skip this intermediate if no lanelet found
+    }
+  }
+
   // undershoot/overshoot route endpoints to enable context before start position and behind destination
   lanelet::ConstLanelet undershot_ego_ll =
       followLaneletsAlongRoutingGraph(routing_graph_, ego_ll, ego_ll_position, -std::abs(route_undershoot_distance_));
   lanelet::ConstLanelet overshot_destination_ll = followLaneletsAlongRoutingGraph(
       routing_graph_, destination_ll, destination_ll_position, route_overshoot_distance_);
 
-  // plan route
-  const int routing_cost_id = 0;  // RoutingCostDistance
-  auto planned_route = routing_graph_->getRoute(undershot_ego_ll, overshot_destination_ll, routing_cost_id);
+  // compute route from start to destination along intermediate destinations
+  std::vector<lanelet::ConstLanelet> route_lanelets = {undershot_ego_ll};
+  route_lanelets.insert(route_lanelets.end(), intermediate_destination_lls.begin(), intermediate_destination_lls.end());
+  route_lanelets.push_back(overshot_destination_ll);
+  std::optional<lanelet::routing::Route> planned_route = getRoute(routing_graph_, route_lanelets);
+
   if (planned_route) {
     starting_point_ = egoPosition(latest_ego_data_);
     destination_ = destination_map;
+    intermediate_destinations_ = intermediate_destinations_on_route;
     latest_route_ = std::move(*planned_route);
     return true;
   } else {
@@ -492,6 +539,7 @@ void Lanelet2RoutePlanning::buildGlobalRouteMessage() {
   route_msg.header.stamp = latest_ego_data_.header.stamp;
   route_msg.header.frame_id = ll2_interface_->map_frame_id_;
   route_msg.destination = destination_;
+  route_msg.intermediate_destinations = intermediate_destinations_;
   route_msg.route_elements = {};
 
   // get shortest path
@@ -536,11 +584,15 @@ void Lanelet2RoutePlanning::buildGlobalRouteMessage() {
     route_msg.route_elements.push_back(route_element_msg);
   }
 
-  // project starting point and destination to reference line, if enabled
+  // project starting point and destinations to reference line, if enabled
   if (project_destination_to_reference_line_) {
     starting_point_ = toRos(projectPointToLineString(toEigen2d(starting_point_), shortest_path_centerline));
+    for (auto& destination : intermediate_destinations_) {
+      destination = toRos(projectPointToLineString(toEigen2d(destination), shortest_path_centerline));
+    }
     destination_ = toRos(projectPointToLineString(toEigen2d(destination_), shortest_path_centerline));
     route_msg.destination = destination_;
+    route_msg.intermediate_destinations = intermediate_destinations_;
   }
 
   // determine starting/current/destination indices in route elements

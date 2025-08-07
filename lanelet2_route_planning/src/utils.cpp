@@ -17,6 +17,47 @@
 
 namespace lanelet2_route_planning {
 
+std::optional<lanelet::routing::Route> getRoute(const lanelet::routing::RoutingGraphUPtr& routing_graph,
+                                                const std::vector<lanelet::ConstLanelet>& route_lanelets) {
+  if (route_lanelets.empty()) {
+    return std::nullopt;
+  }
+
+  const lanelet::ConstLanelet& start_lanelet = route_lanelets.front();
+  std::vector<lanelet::ConstLanelet> intermediate_lanelets(route_lanelets.begin() + 1, route_lanelets.end() - 1);
+  const lanelet::ConstLanelet& destination_lanelet = route_lanelets.back();
+
+  // compute default route
+  const int routing_cost_id = 0;  // RoutingCostDistance
+  const bool with_lane_changes = true;
+  auto route = routing_graph->getRouteVia(start_lanelet, intermediate_lanelets, destination_lanelet, routing_cost_id,
+                                          with_lane_changes);
+
+  // compute route alternatives with inverted start/destination lanelets (useful, if they are bidirectional)
+  auto route_alternative1 =
+      routing_graph->getRouteVia(start_lanelet.invert(), intermediate_lanelets, destination_lanelet, routing_cost_id);
+  auto route_alternative2 =
+      routing_graph->getRouteVia(start_lanelet, intermediate_lanelets, destination_lanelet.invert(), routing_cost_id);
+  auto route_alternative3 = routing_graph->getRouteVia(start_lanelet.invert(), intermediate_lanelets,
+                                                       destination_lanelet.invert(), routing_cost_id);
+  std::vector<lanelet::routing::Route> route_alternatives;
+  if (route) route_alternatives.push_back(std::move(*route));
+  if (route_alternative1) route_alternatives.push_back(std::move(*route_alternative1));
+  if (route_alternative2) route_alternatives.push_back(std::move(*route_alternative2));
+  if (route_alternative3) route_alternatives.push_back(std::move(*route_alternative3));
+
+  // select shortest route
+  auto shortest_route_ptr = std::min_element(
+      route_alternatives.begin(), route_alternatives.end(),
+      [](const lanelet::routing::Route& a, const lanelet::routing::Route& b) { return a.length2d() < b.length2d(); });
+
+  if (shortest_route_ptr == route_alternatives.end()) {
+    return std::nullopt;
+  }
+  auto shortest_route = std::optional<lanelet::routing::Route>(std::move(*shortest_route_ptr));
+  return shortest_route;
+}
+
 size_t indexOfLineStringPointClosestToPoint(const std::vector<Eigen::Vector2d>& line_string,
                                             const Eigen::Vector2d& point, const bool consider_order,
                                             const bool behind) {

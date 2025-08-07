@@ -19,6 +19,16 @@
 namespace lanelet2_route_planning {
 
 /**
+ * @brief Computes a route from start to destination along intermediate destinations.
+ *
+ * @param[in] routing_graph routing graph
+ * @param[in] route_lanelets lanelets to plan along, starting with start lanelet, ending with destination lanelet
+ * @return route if found, otherwise std::nullopt
+ */
+std::optional<lanelet::routing::Route> getRoute(const lanelet::routing::RoutingGraphUPtr& routing_graph,
+                                                const std::vector<lanelet::ConstLanelet>& route_lanelets);
+
+/**
  * @brief Finds the index of a point in a line string that is closest to another point.
  *
  * If `consider_order`, then only the points behind or ahead of the projection of the given point are considered.

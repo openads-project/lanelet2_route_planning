@@ -152,7 +152,8 @@ class Lanelet2RoutePlanning : public rclcpp::Node {
    * @param[in] destination destination
    * @return whether route planning was successful
    */
-  bool planRoute(const geometry_msgs::msg::PointStamped &destination);
+  bool planRoute(const geometry_msgs::msg::PointStamped &destination,
+                 const std::vector<geometry_msgs::msg::PointStamped> &intermediate_destinations = {});
 
   /**
    * @brief Builds a global ROS route message from the latest planned lanelet route
@@ -263,6 +264,14 @@ class Lanelet2RoutePlanning : public rclcpp::Node {
    * This is affected by `project_destination_to_reference_line_`.
    */
   geometry_msgs::msg::Point destination_;
+
+  /**
+   * @brief Intermediate points in map frame
+   *
+   * Used for route planning with intermediate waypoints.
+   * These are affected by `project_destination_to_reference_line_`.
+   */
+  std::vector<geometry_msgs::msg::Point> intermediate_destinations_;
 
   /**
    * @brief Latest planned lanelet route
