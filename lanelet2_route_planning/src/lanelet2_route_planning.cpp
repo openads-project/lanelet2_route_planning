@@ -18,48 +18,46 @@
 
 namespace lanelet2_route_planning {
 
-// TODO: allow not specifying steps
 Lanelet2RoutePlanning::Lanelet2RoutePlanning() : Node("lanelet2_route_planning") {
   this->declareAndLoadParameter("ll2_map_server_name", ll2_map_server_name_, "Name of lanelet2_map_server node", false,
                                 false, true);
   this->declareAndLoadParameter("publish_frequency", publish_frequency_, "Frequency of route publication [Hz]", true,
-                                false, false, 0.1, 20.0, 0.1);
+                                false, false, 0.1, 20.0);
   this->declareAndLoadParameter("action_feedback_frequency", action_feedback_frequency_,
-                                "Frequency of action feedback publication [Hz]", true, false, false, 0.1, 20.0, 0.1);
+                                "Frequency of action feedback publication [Hz]", true, false, false, 0.1, 20.0);
   this->declareAndLoadParameter("sampling_distance", sampling_distance_,
-                                "Distance between resampled points along route [m]", true, false, false, 0.1, 3.0, 0.1);
+                                "Distance between resampled points along route [m]", true, false, false, 0.1, 3.0);
   this->declareAndLoadParameter("project_destination_to_reference_line", project_destination_to_reference_line_,
                                 "Whether to project destination to reference line", true, false, false);
   this->declareAndLoadParameter("destination_distance_threshold", destination_distance_threshold_,
                                 "Distance to destination where destination is considered reached [m]", true, false,
-                                false, 0.1, 10.0, 0.1);
+                                false, 0.1, 10.0);
   this->declareAndLoadParameter(
       "required_traveled_distance_percentage", required_traveled_distance_percentage_,
       "Proportion of route length that must have been traveled before considering destination reached [0..1]", true,
-      false, false, 0.0, 1.0, 0.05);
+      false, false, 0.0, 1.0);
   this->declareAndLoadParameter(
       "enrich_route_ahead_ego_distance", enrich_route_ahead_ego_distance_,
       "Distance ahead of ego position where global route is enriched with more information [m] (negative=unlimited)",
-      true, false, false, -1.0, 1000.0, 1.0);
+      true, false, false, -1.0, 1000.0);
   this->declareAndLoadParameter(
       "enrich_route_behind_ego_distance", enrich_route_behind_ego_distance_,
       "Distance behind ego position where global route is enriched with more information [m] (negative=unlimited)",
-      true, false, false, -1.0, 1000.0, 1.0);
+      true, false, false, -1.0, 1000.0);
   this->declareAndLoadParameter("route_undershoot_distance", route_undershoot_distance_,
                                 "Undershoot route by this distance before ego position [m]", true, false, false, 0.0,
-                                50.0, 1.0);
+                                50.0);
   this->declareAndLoadParameter("route_overshoot_distance", route_overshoot_distance_,
                                 "Overshoot route by this distance behind destination [m]", true, false, false, 0.0,
-                                100.0, 1.0);
+                                100.0);
   this->declareAndLoadParameter("max_drivable_space_radius", max_drivable_space_radius_,
                                 "Maximum distance to left/right drivable space bounds, if not otherwise restricted [m]",
-                                true, false, false, 3.0, 100.0, 1.0);
+                                true, false, false, 3.0, 100.0);
   this->declareAndLoadParameter("max_num_threads", max_num_threads_,
                                 "Maximum number of threads for parallel processing (0=max available)", true, false,
                                 false, 0, omp_get_max_threads(), 1);
   this->declareAndLoadParameter("transform_timeout", transform_timeout_,
-                                "How long to wait for a transform to be available [s]", true, false, false, 0.0, 1.0,
-                                0.001);
+                                "How long to wait for a transform to be available [s]", true, false, false, 0.0, 1.0);
   if (enrich_route_ahead_ego_distance_ < 0.0) {
     enrich_route_ahead_ego_distance_ = std::numeric_limits<double>::infinity();
   }
@@ -75,13 +73,12 @@ Lanelet2RoutePlanning::Lanelet2RoutePlanning() : Node("lanelet2_route_planning")
 }
 
 template <typename T>
-void Lanelet2RoutePlanning::declareAndLoadParameter(const std::string& name, T& param, const std::string& description,
-                                                    const bool add_to_auto_reconfigurable_params,
-                                                    const bool is_required, const bool read_only,
-                                                    const std::optional<double>& from_value,
-                                                    const std::optional<double>& to_value,
-                                                    const std::optional<double>& step_value,
-                                                    const std::string& additional_constraints) {
+void Ros2CppNode::declareAndLoadParameter(const std::string& name, T& param, const std::string& description,
+                                          const bool add_to_auto_reconfigurable_params, const bool is_required,
+                                          const bool read_only, const std::optional<double>& from_value,
+                                          const std::optional<double>& to_value,
+                                          const std::optional<double>& step_value,
+                                          const std::string& additional_constraints) {
   rcl_interfaces::msg::ParameterDescriptor param_desc;
   param_desc.description = description;
   param_desc.additional_constraints = additional_constraints;
@@ -92,17 +89,13 @@ void Lanelet2RoutePlanning::declareAndLoadParameter(const std::string& name, T& 
   if (from_value.has_value() && to_value.has_value()) {
     if constexpr (std::is_integral_v<T>) {
       rcl_interfaces::msg::IntegerRange range;
-      T step = static_cast<T>(step_value.has_value() ? step_value.value() : 1);
-      range.set__from_value(static_cast<T>(from_value.value()))
-          .set__to_value(static_cast<T>(to_value.value()))
-          .set__step(step);
+      range.set__from_value(static_cast<T>(from_value.value())).set__to_value(static_cast<T>(to_value.value()));
+      if (step_value.has_value()) range.set__step(static_cast<T>(step_value.value()));
       param_desc.integer_range = {range};
     } else if constexpr (std::is_floating_point_v<T>) {
       rcl_interfaces::msg::FloatingPointRange range;
-      T step = static_cast<T>(step_value.has_value() ? step_value.value() : 1.0);
-      range.set__from_value(static_cast<T>(from_value.value()))
-          .set__to_value(static_cast<T>(to_value.value()))
-          .set__step(step);
+      range.set__from_value(static_cast<T>(from_value.value())).set__to_value(static_cast<T>(to_value.value()));
+      if (step_value.has_value()) range.set__step(static_cast<T>(step_value.value()));
       param_desc.floating_point_range = {range};
     } else {
       RCLCPP_WARN(this->get_logger(), "Parameter type of parameter '%s' does not support specifying a range",
@@ -118,7 +111,8 @@ void Lanelet2RoutePlanning::declareAndLoadParameter(const std::string& name, T& 
     ss << "Loaded parameter '" << name << "': ";
     if constexpr (is_vector_v<T>) {
       ss << "[";
-      for (const auto& element : param) ss << element << (&element != &param.back() ? ", " : "]");
+      for (const auto& element : param) ss << element << (&element != &param.back() ? ", " : "");
+      ss << "]";
     } else {
       ss << param;
     }
@@ -132,7 +126,8 @@ void Lanelet2RoutePlanning::declareAndLoadParameter(const std::string& name, T& 
       ss << "Missing parameter '" << name << "', using default value: ";
       if constexpr (is_vector_v<T>) {
         ss << "[";
-        for (const auto& element : param) ss << element << (&element != &param.back() ? ", " : "]");
+        for (const auto& element : param) ss << element << (&element != &param.back() ? ", " : "");
+        ss << "]";
       } else {
         ss << param;
       }
