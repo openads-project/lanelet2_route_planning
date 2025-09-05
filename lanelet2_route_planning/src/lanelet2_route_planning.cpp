@@ -18,6 +18,7 @@
 
 namespace lanelet2_route_planning {
 
+// TODO: allow not specifying steps
 Lanelet2RoutePlanning::Lanelet2RoutePlanning() : Node("lanelet2_route_planning") {
   this->declareAndLoadParameter("ll2_map_server_name", ll2_map_server_name_, "Name of lanelet2_map_server node", false,
                                 false, true);
@@ -32,6 +33,10 @@ Lanelet2RoutePlanning::Lanelet2RoutePlanning() : Node("lanelet2_route_planning")
   this->declareAndLoadParameter("destination_distance_threshold", destination_distance_threshold_,
                                 "Distance to destination where destination is considered reached [m]", true, false,
                                 false, 0.1, 10.0, 0.1);
+  this->declareAndLoadParameter(
+      "required_traveled_distance_percentage", required_traveled_distance_percentage_,
+      "Proportion of route length that must have been traveled before considering destination reached [0..1]", true,
+      false, false, 0.0, 1.0, 0.05);
   this->declareAndLoadParameter(
       "enrich_route_ahead_ego_distance", enrich_route_ahead_ego_distance_,
       "Distance ahead of ego position where global route is enriched with more information [m] (negative=unlimited)",
@@ -376,10 +381,6 @@ void Lanelet2RoutePlanning::actionExecute(
   rclcpp::Rate feedback_rate(action_feedback_frequency_);
   bool has_reached_destination = false;
   while (goal_handle->is_executing() && !goal_handle->is_canceling() && !has_reached_destination) {
-    // check if destination reached
-    double distance_to_destination = (toEigen2d(egoPosition(latest_ego_data_)) - toEigen2d(destination_)).norm();
-    has_reached_destination = (distance_to_destination <= destination_distance_threshold_);
-
     // update feedback and result
     action_feedback_->distance_traveled = distanceTraveled(latest_route_msg_);
     action_feedback_->distance_remaining = distanceRemaining(latest_route_msg_);
@@ -387,6 +388,14 @@ void Lanelet2RoutePlanning::actionExecute(
     action_feedback_->time_remaining = rclcpp::Duration::from_seconds(estimateRemainingTime(latest_route_msg_));
     action_result_->distance_traveled = action_feedback_->distance_traveled;
     action_result_->time_traveled = action_feedback_->time_traveled;
+
+    // check if destination reached (criteria: close to destination and some distance traveled)
+    double distance_to_destination = (toEigen2d(egoPosition(latest_ego_data_)) - toEigen2d(destination_)).norm();
+    double total_route_distance = action_feedback_->distance_traveled + action_feedback_->distance_remaining;
+    bool is_close_to_destination = (distance_to_destination <= destination_distance_threshold_);
+    bool has_traveled_sufficient_distance =
+        (action_feedback_->distance_traveled >= required_traveled_distance_percentage_ * total_route_distance);
+    has_reached_destination = (is_close_to_destination && has_traveled_sufficient_distance);
 
     // publish feedback
     goal_handle->publish_feedback(action_feedback_);
