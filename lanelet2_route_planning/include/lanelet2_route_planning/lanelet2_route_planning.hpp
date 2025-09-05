@@ -336,7 +336,7 @@ class Lanelet2RoutePlanning : public rclcpp::Node {
   /**
    * @brief Proportion of route length that must have been traveled before considering destination reached [0..1] (parameter)
    */
-  double required_traveled_distance_percentage_ = 0.5;
+  double required_traveled_distance_proportion_ = 0.5;
 
   /**
    * @brief Distance ahead of ego position where global route is enriched with more information [m] (negative=unlimited) (parameter)

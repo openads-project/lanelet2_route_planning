@@ -33,7 +33,7 @@ Lanelet2RoutePlanning::Lanelet2RoutePlanning() : Node("lanelet2_route_planning")
                                 "Distance to destination where destination is considered reached [m]", true, false,
                                 false, 0.1, 10.0);
   this->declareAndLoadParameter(
-      "required_traveled_distance_percentage", required_traveled_distance_percentage_,
+      "required_traveled_distance_proportion", required_traveled_distance_proportion_,
       "Proportion of route length that must have been traveled before considering destination reached [0..1]", true,
       false, false, 0.0, 1.0);
   this->declareAndLoadParameter(
@@ -389,7 +389,7 @@ void Lanelet2RoutePlanning::actionExecute(
     double total_route_distance = action_feedback_->distance_traveled + action_feedback_->distance_remaining;
     bool is_close_to_destination = (distance_to_destination <= destination_distance_threshold_);
     bool has_traveled_sufficient_distance =
-        (action_feedback_->distance_traveled >= required_traveled_distance_percentage_ * total_route_distance);
+        (action_feedback_->distance_traveled >= required_traveled_distance_proportion_ * total_route_distance);
     has_reached_destination = (is_close_to_destination && has_traveled_sufficient_distance);
 
     // publish feedback

@@ -46,6 +46,7 @@ The `lanelet2_route_planning` node computes a shortest path route from a current
 | `sampling_distance` | `float` | `1.0` | Distance between resampled points along route [m] |
 | `project_destination_to_reference_line` | `bool` | `true` | Whether to project destination to reference line |
 | `destination_distance_threshold` | `float` | `1.0` | Distance to destination where destination is considered reached [m] |
+| `required_traveled_distance_proportion` | `float` | `0.5` | Proportion of route length that must have been traveled before considering destination reached [0..1] |
 | `enrich_route_ahead_ego_distance` | `float` | `100.0` | Distance ahead of ego position where global route is enriched with more information [m] (negative=unlimited) |
 | `enrich_route_behind_ego_distance` | `float` | `10.0` | Distance behind ego position where global route is enriched with more information [m] (negative=unlimited) |
 | `route_undershoot_distance` | `float` | `0.0` | Undershoot route by this distance before ego position [m] |
