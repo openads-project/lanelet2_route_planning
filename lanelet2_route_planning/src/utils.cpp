@@ -50,8 +50,11 @@ std::optional<lanelet::routing::Route> getRoute(const lanelet::routing::RoutingG
   auto shortest_route_ptr = std::min_element(
       route_alternatives.begin(), route_alternatives.end(),
       [](const lanelet::routing::Route& a, const lanelet::routing::Route& b) { return a.length2d() < b.length2d(); });
-  auto shortest_route = std::optional<lanelet::routing::Route>(std::move(*shortest_route_ptr));
 
+  if (shortest_route_ptr == route_alternatives.end()) {
+    return std::nullopt;
+  }
+  auto shortest_route = std::optional<lanelet::routing::Route>(std::move(*shortest_route_ptr));
   return shortest_route;
 }
 
