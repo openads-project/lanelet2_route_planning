@@ -73,12 +73,12 @@ Lanelet2RoutePlanning::Lanelet2RoutePlanning() : Node("lanelet2_route_planning")
 }
 
 template <typename T>
-void Ros2CppNode::declareAndLoadParameter(const std::string& name, T& param, const std::string& description,
-                                          const bool add_to_auto_reconfigurable_params, const bool is_required,
-                                          const bool read_only, const std::optional<double>& from_value,
-                                          const std::optional<double>& to_value,
-                                          const std::optional<double>& step_value,
-                                          const std::string& additional_constraints) {
+void Lanelet2RoutePlanning::declareAndLoadParameter(const std::string& name, T& param, const std::string& description,
+                                                    const bool add_to_auto_reconfigurable_params, const bool is_required,
+                                                    const bool read_only, const std::optional<double>& from_value,
+                                                    const std::optional<double>& to_value,
+                                                    const std::optional<double>& step_value,
+                                                    const std::string& additional_constraints) {
   rcl_interfaces::msg::ParameterDescriptor param_desc;
   param_desc.description = description;
   param_desc.additional_constraints = additional_constraints;
