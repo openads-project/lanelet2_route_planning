@@ -74,8 +74,9 @@ Lanelet2RoutePlanning::Lanelet2RoutePlanning() : Node("lanelet2_route_planning")
 
 template <typename T>
 void Lanelet2RoutePlanning::declareAndLoadParameter(const std::string& name, T& param, const std::string& description,
-                                                    const bool add_to_auto_reconfigurable_params, const bool is_required,
-                                                    const bool read_only, const std::optional<double>& from_value,
+                                                    const bool add_to_auto_reconfigurable_params,
+                                                    const bool is_required, const bool read_only,
+                                                    const std::optional<double>& from_value,
                                                     const std::optional<double>& to_value,
                                                     const std::optional<double>& step_value,
                                                     const std::string& additional_constraints) {
@@ -601,9 +602,10 @@ void Lanelet2RoutePlanning::buildGlobalRouteMessage() {
 
   // determine starting/current/destination indices in route elements
   route_msg.starting_route_element_idx =
-      indexOfLineStringPointClosestToPoint(shortest_path_centerline, toEigen2d(starting_point_), true, true);
-  route_msg.current_route_element_idx = indexOfLineStringPointClosestToPoint(
-      shortest_path_centerline, toEigen2d(egoPosition(latest_ego_data_)), true, true);
+      matchPointToLineString(shortest_path_centerline, toEigen2d(starting_point_), 0, true, true);
+  route_msg.current_route_element_idx =
+      matchPointToLineString(shortest_path_centerline, toEigen2d(egoPosition(latest_ego_data_)),
+                             route_msg.starting_route_element_idx, true, true);
   route_msg.destination_route_element_idx =
       indexOfLineStringPointClosestToPoint(shortest_path_centerline, toEigen2d(destination_), true, false);
 
