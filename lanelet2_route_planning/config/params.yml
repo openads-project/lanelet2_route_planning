@@ -6,6 +6,7 @@
     sampling_distance: 1.0
     project_destination_to_reference_line: true
     destination_distance_threshold: 1.0
+    required_traveled_distance_proportion: 0.5
     enrich_route_ahead_ego_distance: 100.0
     enrich_route_behind_ego_distance: 10.0
     route_undershoot_distance: 0.0

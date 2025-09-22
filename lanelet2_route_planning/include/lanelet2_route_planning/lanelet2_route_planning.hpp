@@ -334,6 +334,11 @@ class Lanelet2RoutePlanning : public rclcpp::Node {
   double destination_distance_threshold_ = 1.0;
 
   /**
+   * @brief Proportion of route length that must have been traveled before considering destination reached [0..1] (parameter)
+   */
+  double required_traveled_distance_proportion_ = 0.5;
+
+  /**
    * @brief Distance ahead of ego position where global route is enriched with more information [m] (negative=unlimited) (parameter)
    */
   double enrich_route_ahead_ego_distance_ = 100.0;

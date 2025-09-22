@@ -95,7 +95,7 @@ size_t matchPointToLineString(const std::vector<Eigen::Vector2d>& line_string, c
     double delta_s = 0.0;
     size_t idx = start_idx;
     // only check points within the local range of max_delta_s
-    while (delta_s <= max_delta_s && idx > 0 && idx < line_string.size()) {
+    while (delta_s <= max_delta_s && idx >= 0 && idx < line_string.size()) {
       double distance = (line_string[idx] - point).norm();
       if (distance < min_distance) {
         min_distance = distance;
