@@ -329,14 +329,20 @@ uint8_t laneBoundaryType(const lanelet::ConstLineString2d& line);
 uint8_t speedLimit(const lanelet::ConstLanelet& lanelet);
 
 /**
- * @brief Extracts the suggested turn signal of a lanelet.
+ * @brief Extracts the suggested turn signal of a lanelet (with a hacked twist).
  *
  * Checks for the attribute `suggested_turn_signal` with values `left` or `right`.
  *
+ * Note that the suggested turn signal distance ahead is hacked into the return value
+ * for further processing in postprocessRouteMessage.
+ *   3-128: left values 1-126
+ * 129-255: right values 1-127
+ *
  * @param[in] lanelet lanelet
+ * @param[in] logger logger (for error logging)
  * @return suggested turn signal
  */
-uint8_t suggestedTurnSignal(const lanelet::ConstLanelet& lanelet);
+uint8_t suggestedTurnSignal(const lanelet::ConstLanelet& lanelet, const rclcpp::Logger& logger);
 
 /**
  * @brief Get traffic rules.
