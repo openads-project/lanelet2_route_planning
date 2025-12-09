@@ -744,6 +744,7 @@ void Lanelet2RoutePlanning::buildEnrichedRouteMessage() {
         if (lane_element_msg.has_following_lane_idx) {
           lane_element_msg.following_lane_idx = computed_following_lane_idx;
         }
+        lane_element_msg.suggested_turn_signal = suggestedTurnSignal(adjacent_left_lanelets_projected_points[a]);
         route_element_msg.lane_elements.push_back(lane_element_msg);
       }
 
@@ -763,6 +764,7 @@ void Lanelet2RoutePlanning::buildEnrichedRouteMessage() {
       if (centerline_lane_element_msg.has_following_lane_idx) {
         centerline_lane_element_msg.following_lane_idx = computed_following_lane_idx;
       }
+      centerline_lane_element_msg.suggested_turn_signal = suggestedTurnSignal(lanelet);
       route_element_msg.lane_elements.push_back(centerline_lane_element_msg);
 
       // create LaneElements for right adjacent lanes
@@ -783,6 +785,7 @@ void Lanelet2RoutePlanning::buildEnrichedRouteMessage() {
         if (lane_element_msg.has_following_lane_idx) {
           lane_element_msg.following_lane_idx = computed_following_lane_idx;
         }
+        lane_element_msg.suggested_turn_signal = suggestedTurnSignal(adjacent_right_lanelets_projected_points[a]);
         route_element_msg.lane_elements.push_back(lane_element_msg);
       }
     }

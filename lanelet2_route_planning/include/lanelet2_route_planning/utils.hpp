@@ -329,6 +329,16 @@ uint8_t laneBoundaryType(const lanelet::ConstLineString2d& line);
 uint8_t speedLimit(const lanelet::ConstLanelet& lanelet);
 
 /**
+ * @brief Extracts the suggested turn signal of a lanelet.
+ *
+ * Checks for the attribute `suggested_turn_signal` with values `left` or `right`.
+ *
+ * @param[in] lanelet lanelet
+ * @return suggested turn signal
+ */
+uint8_t suggestedTurnSignal(const lanelet::ConstLanelet& lanelet);
+
+/**
  * @brief Get traffic rules.
  *
  * @return traffic rules

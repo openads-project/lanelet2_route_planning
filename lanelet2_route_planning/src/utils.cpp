@@ -667,6 +667,19 @@ uint8_t speedLimit(const lanelet::ConstLanelet& lanelet) {
   }
 }
 
+uint8_t suggestedTurnSignal(const lanelet::ConstLanelet& lanelet) {
+  uint8_t suggested_turn_signal = route_planning_msgs::msg::LaneElement::SUGGESTED_TURN_SIGNAL_NONE;
+  if (lanelet.hasAttribute("suggested_turn_signal")) {
+    std::string value = lanelet.attribute("suggested_turn_signal").value();
+    if (value == "left") {
+      suggested_turn_signal = route_planning_msgs::msg::LaneElement::SUGGESTED_TURN_SIGNAL_LEFT;
+    } else if (value == "right") {
+      suggested_turn_signal = route_planning_msgs::msg::LaneElement::SUGGESTED_TURN_SIGNAL_RIGHT;
+    }
+  }
+  return suggested_turn_signal;
+}
+
 lanelet::traffic_rules::TrafficRulesPtr getTrafficRules() {
   auto location = lanelet::Locations::Germany;
   auto vehicle_type = std::string(lanelet::Participants::Vehicle);
