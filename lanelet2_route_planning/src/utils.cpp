@@ -939,39 +939,37 @@ void postprocessRouteMessage(route_planning_msgs::msg::Route& route_msg) {
       // get preceding lane element
       if (r <= 0) break;
       int curr_r = r;
-      auto& curr_lane_element = lane_element;
-      auto prev_route_element = route_elements[r - 1];
-      auto prev_lane_element_opt = route_planning_msgs::route_access::getPrecedingLaneElement(l, prev_route_element);
+      auto* curr_lane_element = &lane_element;
+      auto* prev_route_element = &route_elements[r - 1];
       auto prev_lane_element_idx_opt =
-          route_planning_msgs::route_access::getPrecedingLaneElementIdx(l, prev_route_element);
+          route_planning_msgs::route_access::getPrecedingLaneElementIdx(l, *prev_route_element);
 
       // iterate over preceding lane elements within suggested distance to set suggested turn signal
-      while (suggested_turn_signal_distance_ahead > 0 && prev_lane_element_opt) {
+      while (suggested_turn_signal_distance_ahead > 0 && prev_lane_element_idx_opt) {
+        auto& prev_lane_element = prev_route_element->lane_elements[*prev_lane_element_idx_opt];
+
         // stop if preceding lane element already has a valid suggested turn signal
-        if (prev_lane_element_opt->suggested_turn_signal <= 2) break;
+        if (prev_lane_element.suggested_turn_signal <= 2) break;
 
         // check distance to preceding lane element
-        const auto point = toEigen2d(lane_element.reference_pose.position);
-        const auto prev_point = toEigen2d(prev_lane_element_opt->reference_pose.position);
+        const auto point = toEigen2d(curr_lane_element->reference_pose.position);
+        const auto prev_point = toEigen2d(prev_lane_element.reference_pose.position);
         const double distance_to_prev_point = (point - prev_point).norm();
         if (distance_to_prev_point > suggested_turn_signal_distance_ahead) {
           break;  // stop if distance to preceding point exceeds remaining distance ahead
         }
 
         // set suggested turn signal of preceding lane element
-        // TODO: this probably does not modify by reference, but modifies a copy
-        prev_lane_element_opt->suggested_turn_signal = lane_element.suggested_turn_signal;
+        prev_lane_element.suggested_turn_signal = lane_element.suggested_turn_signal;
 
         // update remaining distance and move to next preceding lane element
         suggested_turn_signal_distance_ahead -= static_cast<uint8_t>(std::round(distance_to_prev_point));
         curr_r -= 1;
         if (curr_r <= 0) break;
-        curr_lane_element = *prev_lane_element_opt;
-        prev_route_element = route_elements[curr_r - 1];
-        prev_lane_element_opt =
-            route_planning_msgs::route_access::getPrecedingLaneElement(*prev_lane_element_idx_opt, prev_route_element);
+        curr_lane_element = &prev_lane_element;
+        prev_route_element = &route_elements[curr_r - 1];
         prev_lane_element_idx_opt = route_planning_msgs::route_access::getPrecedingLaneElementIdx(
-            *prev_lane_element_idx_opt, prev_route_element);
+            *prev_lane_element_idx_opt, *prev_route_element);
       }
     }
   }
