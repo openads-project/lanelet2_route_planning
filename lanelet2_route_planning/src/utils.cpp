@@ -693,7 +693,7 @@ uint8_t suggestedTurnSignal(const lanelet::ConstLanelet& lanelet, const rclcpp::
         return suggested_turn_signal;
       }
 
-      // hack suggested distance into return value
+      // hack suggested distance into turn signal value
       // to be decoded and extended to preceding LaneElements in postprocessRouteMessage
       //   3-128: left values 1-126
       // 129-255: right values 1-127
@@ -948,8 +948,8 @@ void postprocessRouteMessage(route_planning_msgs::msg::Route& route_msg) {
       while (suggested_turn_signal_distance_ahead > 0 && prev_lane_element_idx_opt) {
         auto& prev_lane_element = prev_route_element->lane_elements[*prev_lane_element_idx_opt];
 
-        // stop if preceding lane element already has a valid suggested turn signal
-        if (prev_lane_element.suggested_turn_signal <= 2) break;
+        // stop if preceding lane element has its own suggested turn signal information
+        if (prev_lane_element.suggested_turn_signal > 0) break;
 
         // check distance to preceding lane element
         const auto point = toEigen2d(curr_lane_element->reference_pose.position);
