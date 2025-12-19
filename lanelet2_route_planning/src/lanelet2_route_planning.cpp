@@ -749,7 +749,7 @@ void Lanelet2RoutePlanning::buildEnrichedRouteMessage() {
         if (lane_element_msg.has_following_lane_idx) {
           lane_element_msg.following_lane_idx = computed_following_lane_idx;
         }
-        std::tie(centerline_lane_element_msg.suggested_turn_signal,
+        std::tie(lane_element_msg.suggested_turn_signal,
                  suggested_turn_signal_distance_ahead_by_route_element_by_lane_element[c][lane_element_idx]) =
             suggestedTurnSignal(adjacent_left_lanelets[a], this->get_logger());
         route_element_msg.lane_elements.push_back(lane_element_msg);
@@ -796,7 +796,7 @@ void Lanelet2RoutePlanning::buildEnrichedRouteMessage() {
         if (lane_element_msg.has_following_lane_idx) {
           lane_element_msg.following_lane_idx = computed_following_lane_idx;
         }
-        std::tie(centerline_lane_element_msg.suggested_turn_signal,
+        std::tie(lane_element_msg.suggested_turn_signal,
                  suggested_turn_signal_distance_ahead_by_route_element_by_lane_element[c][lane_element_idx]) =
             suggestedTurnSignal(adjacent_right_lanelets[a], this->get_logger());
         route_element_msg.lane_elements.push_back(lane_element_msg);

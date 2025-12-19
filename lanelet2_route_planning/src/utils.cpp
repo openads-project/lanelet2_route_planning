@@ -869,7 +869,7 @@ double estimateRemainingTime(const route_planning_msgs::msg::Route& route, const
 }
 
 void postprocessRouteMessage(
-    route_planning_msgs::msg::Route& route_msgm,
+    route_planning_msgs::msg::Route& route_msg,
     std::vector<std::vector<int>>& suggested_turn_signal_distance_ahead_by_route_element_by_lane_element) {
   // loop over route elements to set orientations and following lane indices
   std::vector<route_planning_msgs::msg::RouteElement>& route_elements = route_msg.route_elements;
@@ -937,7 +937,7 @@ void postprocessRouteMessage(
         auto& prev_lane_element = prev_route_element->lane_elements[*prev_lane_element_idx_opt];
 
         // stop if preceding lane element has its own suggested turn signal information
-        prev_suggested_turn_signal_distance_ahead =
+        int prev_suggested_turn_signal_distance_ahead =
             suggested_turn_signal_distance_ahead_by_route_element_by_lane_element[curr_r - 1]
                                                                                  [*prev_lane_element_idx_opt];
         if (prev_suggested_turn_signal_distance_ahead >= 0) {
