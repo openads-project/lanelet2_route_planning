@@ -314,7 +314,7 @@ class Lanelet2RoutePlanning : public rclcpp::Node {
   /**
    * @brief Name of lanelet2_map_server node (parameter)
    */
-  std::string ll2_map_server_name_ = "ll2_map_server";
+  std::string ll2_map_server_name_ = "lanelet2_map_server";
 
   /**
    * @brief Frequency of route publication [Hz] (parameter)
