@@ -917,10 +917,13 @@ void postprocessRouteMessage(
   // loop over route elements in reverse to propagate suggested turn signals backwards
   for (int r = route_elements.size() - 1; r >= 0; --r) {
     auto& route_element = route_elements[r];
+    if (!route_element.is_enriched) continue;  // only handle turn signal information for enriched route elements
 
     // loop over lane elements of current route element
     for (size_t l = 0; l < route_element.lane_elements.size(); ++l) {
       auto& lane_element = route_element.lane_elements[l];
+
+      if (suggested_turn_signal_distance_ahead_by_route_element_by_lane_element[r].empty()) continue;
       int suggested_turn_signal_distance_ahead =
           suggested_turn_signal_distance_ahead_by_route_element_by_lane_element[r][l];
 
@@ -935,13 +938,16 @@ void postprocessRouteMessage(
       // iterate over preceding lane elements within suggested distance to set suggested turn signal
       while (suggested_turn_signal_distance_ahead > 0 && prev_lane_element_idx_opt) {
         auto& prev_lane_element = prev_route_element->lane_elements[*prev_lane_element_idx_opt];
+        if (!prev_route_element->is_enriched) break;  // only propagate through enriched route elements
 
         // stop if preceding lane element has its own suggested turn signal information
-        int prev_suggested_turn_signal_distance_ahead =
-            suggested_turn_signal_distance_ahead_by_route_element_by_lane_element[curr_r - 1]
-                                                                                 [*prev_lane_element_idx_opt];
-        if (prev_suggested_turn_signal_distance_ahead >= 0) {
-          break;
+        if (!suggested_turn_signal_distance_ahead_by_route_element_by_lane_element[curr_r - 1].empty()) {
+          int prev_suggested_turn_signal_distance_ahead =
+              suggested_turn_signal_distance_ahead_by_route_element_by_lane_element[curr_r - 1]
+                                                                                   [*prev_lane_element_idx_opt];
+          if (prev_suggested_turn_signal_distance_ahead >= 0) {
+            break;
+          }
         }
 
         // check distance to preceding lane element

@@ -304,6 +304,14 @@ class Lanelet2RoutePlanning : public rclcpp::Node {
   std::vector<size_t> latest_lanelet_idx_by_reference_line_point_idx_;
 
   /**
+   * @brief Latest suggested turn signal distance ahead by route element by lane element
+   *
+   * Used to store the suggested turn signal distances ahead for each lane element,
+   * which can only be propagated to preceding lane elements during postprocessing.
+   */
+  std::vector<std::vector<int>> latest_suggested_turn_signal_distance_ahead_by_route_element_by_lane_element_;
+
+  /**
    * @brief Name of lanelet2_map_server node (parameter)
    */
   std::string ll2_map_server_name_ = "ll2_map_server";
