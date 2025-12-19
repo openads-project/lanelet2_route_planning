@@ -3,7 +3,7 @@
 <package format="3">
 
   <name>lanelet2_route_planning</name>
-  <version>0.0.0</version>
+  <version>1.0.0</version>
   <description>Plans a route on a Lanelet2 map</description>
 
   <maintainer email="lennart.reiher@ika.rwth-aachen.de">Lennart Reiher</maintainer>
