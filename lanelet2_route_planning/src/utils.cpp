@@ -2,6 +2,7 @@
 #include <cmath>
 #include <limits>
 #include <regex>
+#include <tuple>
 #include <unordered_map>
 #include <unordered_set>
 
@@ -667,48 +668,44 @@ uint8_t speedLimit(const lanelet::ConstLanelet& lanelet) {
   }
 }
 
-uint8_t suggestedTurnSignal(const lanelet::ConstLanelet& lanelet, const rclcpp::Logger& logger) {
+std::tuple<uint8_t, int> suggestedTurnSignal(const lanelet::ConstLanelet& lanelet, const rclcpp::Logger& logger) {
   uint8_t suggested_turn_signal = route_planning_msgs::msg::LaneElement::SUGGESTED_TURN_SIGNAL_NONE;
-  std::string suggested_turn_signal_str, suggested_turn_signal_distance_ahead_str;
+  int suggested_turn_signal_distance_ahead = 0;
 
   // parse suggested turn signal attribute
   if (lanelet.hasAttribute("suggested_turn_signal")) {
-    suggested_turn_signal_str = lanelet.attribute("suggested_turn_signal").value();
-    if (suggested_turn_signal_str != "left" && suggested_turn_signal_str != "right") {
+    std::string suggested_turn_signal_str = lanelet.attribute("suggested_turn_signal").value();
+    if (suggested_turn_signal_str == "left") {
+      suggested_turn_signal = route_planning_msgs::msg::LaneElement::SUGGESTED_TURN_SIGNAL_LEFT;
+    } else if (suggested_turn_signal_str == "right") {
+      suggested_turn_signal = route_planning_msgs::msg::LaneElement::SUGGESTED_TURN_SIGNAL_RIGHT;
+    } else if (suggested_turn_signal_str == "hazard") {
+      suggested_turn_signal = route_planning_msgs::msg::LaneElement::SUGGESTED_TURN_SIGNAL_HAZARD;
+    } else {
+      suggested_turn_signal = route_planning_msgs::msg::LaneElement::SUGGESTED_TURN_SIGNAL_NONE;
       RCLCPP_ERROR(logger, "Could not parse 'suggested_turn_signal' attribute value of lanelet '%ld': '%s'",
                    lanelet.id(), suggested_turn_signal_str.c_str());
-      return suggested_turn_signal;
+      return std::make_tuple(suggested_turn_signal, suggested_turn_signal_distance_ahead);
     }
 
     // parse suggested turn signal distance ahead attribute
     if (lanelet.hasAttribute("suggested_turn_signal_distance_ahead")) {
-      suggested_turn_signal_distance_ahead_str = lanelet.attribute("suggested_turn_signal_distance_ahead").value();
-      int suggested_turn_signal_distance_ahead = 0;
+      std::string suggested_turn_signal_distance_ahead_str =
+          lanelet.attribute("suggested_turn_signal_distance_ahead").value();
       try {
         suggested_turn_signal_distance_ahead = std::stoi(suggested_turn_signal_distance_ahead_str);
       } catch (const std::exception&) {
         RCLCPP_ERROR(logger,
                      "Could not parse 'suggested_turn_signal_distance_ahead' attribute value of lanelet '%ld': '%s'",
                      lanelet.id(), suggested_turn_signal_distance_ahead_str.c_str());
-        return suggested_turn_signal;
+        return std::make_tuple(suggested_turn_signal, suggested_turn_signal_distance_ahead);
       }
-
-      // hack suggested distance into turn signal value
-      // to be decoded and extended to preceding LaneElements in postprocessRouteMessage
-      //   3-128: left values 1-126
-      // 129-255: right values 1-127
-      if (suggested_turn_signal_distance_ahead < 1 || suggested_turn_signal_distance_ahead > 126) {
-        RCLCPP_WARN(
+      if (suggested_turn_signal_distance_ahead < 0) {
+        RCLCPP_ERROR(
             logger,
-            "Attribute value 'suggested_turn_signal_distance_ahead' of lanelet '%ld' is clamped to range [1, 126]: "
-            "'%d'",
+            "'suggested_turn_signal_distance_ahead' attribute value of lanelet '%ld' is negative, clamping to 0: %d",
             lanelet.id(), suggested_turn_signal_distance_ahead);
-      }
-      suggested_turn_signal_distance_ahead = std::clamp(suggested_turn_signal_distance_ahead, 1, 126);
-      if (suggested_turn_signal_str == "left") {
-        suggested_turn_signal = static_cast<uint8_t>(suggested_turn_signal_distance_ahead + 2);
-      } else if (suggested_turn_signal_str == "right") {
-        suggested_turn_signal = static_cast<uint8_t>(suggested_turn_signal_distance_ahead + 128);
+        suggested_turn_signal_distance_ahead = 0;
       }
     } else {
       RCLCPP_ERROR(
@@ -718,7 +715,7 @@ uint8_t suggestedTurnSignal(const lanelet::ConstLanelet& lanelet, const rclcpp::
           lanelet.id());
     }
   }
-  return suggested_turn_signal;
+  return std::make_tuple(suggested_turn_signal, suggested_turn_signal_distance_ahead);
 }
 
 lanelet::traffic_rules::TrafficRulesPtr getTrafficRules() {
@@ -871,8 +868,10 @@ double estimateRemainingTime(const route_planning_msgs::msg::Route& route, const
   return remaining_time;
 }
 
-void postprocessRouteMessage(route_planning_msgs::msg::Route& route_msg) {
-  // loop over route elements
+void postprocessRouteMessage(
+    route_planning_msgs::msg::Route& route_msgm,
+    std::vector<std::vector<int>>& suggested_turn_signal_distance_ahead_by_route_element_by_lane_element) {
+  // loop over route elements to set orientations and following lane indices
   std::vector<route_planning_msgs::msg::RouteElement>& route_elements = route_msg.route_elements;
   for (size_t r = 0; r < route_elements.size(); ++r) {
     // get current, previous and next route element
@@ -915,26 +914,15 @@ void postprocessRouteMessage(route_planning_msgs::msg::Route& route_msg) {
     }
   }
 
-  // loop over route elements in reverse
+  // loop over route elements in reverse to propagate suggested turn signals backwards
   for (int r = route_elements.size() - 1; r >= 0; --r) {
     auto& route_element = route_elements[r];
 
     // loop over lane elements of current route element
     for (size_t l = 0; l < route_element.lane_elements.size(); ++l) {
       auto& lane_element = route_element.lane_elements[l];
-
-      // decode suggested turn signal hack
-      uint8_t suggested_turn_signal_hacked = lane_element.suggested_turn_signal;
-      uint8_t suggested_turn_signal_distance_ahead = 0;
-      if (suggested_turn_signal_hacked >= 3 && suggested_turn_signal_hacked <= 128) {
-        lane_element.suggested_turn_signal = route_planning_msgs::msg::LaneElement::SUGGESTED_TURN_SIGNAL_LEFT;
-        suggested_turn_signal_distance_ahead = suggested_turn_signal_hacked - 2;
-      } else if (suggested_turn_signal_hacked >= 129 && suggested_turn_signal_hacked <= 255) {
-        lane_element.suggested_turn_signal = route_planning_msgs::msg::LaneElement::SUGGESTED_TURN_SIGNAL_RIGHT;
-        suggested_turn_signal_distance_ahead = suggested_turn_signal_hacked - 128;
-      } else {
-        continue;  // continue if suggested turn signal is already valid
-      }
+      int suggested_turn_signal_distance_ahead =
+          suggested_turn_signal_distance_ahead_by_route_element_by_lane_element[r][l];
 
       // get preceding lane element
       if (r <= 0) break;
@@ -949,7 +937,12 @@ void postprocessRouteMessage(route_planning_msgs::msg::Route& route_msg) {
         auto& prev_lane_element = prev_route_element->lane_elements[*prev_lane_element_idx_opt];
 
         // stop if preceding lane element has its own suggested turn signal information
-        if (prev_lane_element.suggested_turn_signal > 0) break;
+        prev_suggested_turn_signal_distance_ahead =
+            suggested_turn_signal_distance_ahead_by_route_element_by_lane_element[curr_r - 1]
+                                                                                 [*prev_lane_element_idx_opt];
+        if (prev_suggested_turn_signal_distance_ahead >= 0) {
+          break;
+        }
 
         // check distance to preceding lane element
         const auto point = toEigen2d(curr_lane_element->reference_pose.position);
