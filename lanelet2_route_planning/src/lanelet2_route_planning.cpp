@@ -1,5 +1,6 @@
 #include <functional>
 #include <thread>
+#include <tuple>
 #include <utility>
 
 #include <lanelet2_routing/RoutingGraph.h>
@@ -616,6 +617,10 @@ void Lanelet2RoutePlanning::buildGlobalRouteMessage() {
 void Lanelet2RoutePlanning::buildEnrichedRouteMessage() {
   route_planning_msgs::msg::Route route_msg = latest_route_msg_;
   std::vector<route_planning_msgs::msg::RouteElement>& route_elements = route_msg.route_elements;
+  if (latest_suggested_turn_signal_distance_ahead_by_route_element_by_lane_element_.size() != route_elements.size()) {
+    latest_suggested_turn_signal_distance_ahead_by_route_element_by_lane_element_ =
+        std::vector<std::vector<int>>(route_elements.size());
+  }
 
   // find point of global reference line closest to and behind of ego position
   const Eigen::Vector2d ego_position = toEigen2d(egoPosition(latest_ego_data_));
@@ -637,6 +642,7 @@ void Lanelet2RoutePlanning::buildEnrichedRouteMessage() {
       route_element_msg = createMinimalRouteElement(
           lane_element_msg.reference_pose.position, lane_element_msg.reference_pose.orientation, route_element_msg.s,
           route_element_msg.will_change_suggested_lane, lane_element_msg.speed_limit);
+      latest_suggested_turn_signal_distance_ahead_by_route_element_by_lane_element_[c].clear();
       continue;
     }
 
@@ -679,6 +685,9 @@ void Lanelet2RoutePlanning::buildEnrichedRouteMessage() {
         adjacentLeftOrRightLanelets(lanelet, routing_graph_, false);
     int suggested_lane_idx = adjacent_left_lanelets.size();
     int n_lanes = adjacent_left_lanelets.size() + 1 + adjacent_right_lanelets.size();
+    if (latest_suggested_turn_signal_distance_ahead_by_route_element_by_lane_element_[c].empty()) {
+      latest_suggested_turn_signal_distance_ahead_by_route_element_by_lane_element_[c] = std::vector<int>(n_lanes, -1);
+    }
 
     // project centerline point to lanelet and adjacent lanelet centerlines and bounds
     auto lanelet_projected_points =
@@ -725,6 +734,7 @@ void Lanelet2RoutePlanning::buildEnrichedRouteMessage() {
       route_element_msg.suggested_lane_idx = suggested_lane_idx;
       route_element_msg.will_change_suggested_lane = changes_lane_to_next_point;
       // route_element_msg.s already set in global route
+      size_t lane_element_idx = route_element_msg.lane_elements.size();
 
       // create LaneElements for left adjacent lanes
       for (size_t a = 0; a < adjacent_left_lanelets_projected_points.size(); ++a) {
@@ -744,7 +754,11 @@ void Lanelet2RoutePlanning::buildEnrichedRouteMessage() {
         if (lane_element_msg.has_following_lane_idx) {
           lane_element_msg.following_lane_idx = computed_following_lane_idx;
         }
+        std::tie(lane_element_msg.suggested_turn_signal,
+                 latest_suggested_turn_signal_distance_ahead_by_route_element_by_lane_element_[c][lane_element_idx]) =
+            suggestedTurnSignal(adjacent_left_lanelets[a], this->get_logger());
         route_element_msg.lane_elements.push_back(lane_element_msg);
+        lane_element_idx = route_element_msg.lane_elements.size();
       }
 
       // create LaneElement for centerline lane
@@ -763,7 +777,11 @@ void Lanelet2RoutePlanning::buildEnrichedRouteMessage() {
       if (centerline_lane_element_msg.has_following_lane_idx) {
         centerline_lane_element_msg.following_lane_idx = computed_following_lane_idx;
       }
+      std::tie(centerline_lane_element_msg.suggested_turn_signal,
+               latest_suggested_turn_signal_distance_ahead_by_route_element_by_lane_element_[c][lane_element_idx]) =
+          suggestedTurnSignal(lanelet, this->get_logger());
       route_element_msg.lane_elements.push_back(centerline_lane_element_msg);
+      lane_element_idx = route_element_msg.lane_elements.size();
 
       // create LaneElements for right adjacent lanes
       for (size_t a = 0; a < adjacent_right_lanelets_projected_points.size(); ++a) {
@@ -783,7 +801,11 @@ void Lanelet2RoutePlanning::buildEnrichedRouteMessage() {
         if (lane_element_msg.has_following_lane_idx) {
           lane_element_msg.following_lane_idx = computed_following_lane_idx;
         }
+        std::tie(lane_element_msg.suggested_turn_signal,
+                 latest_suggested_turn_signal_distance_ahead_by_route_element_by_lane_element_[c][lane_element_idx]) =
+            suggestedTurnSignal(adjacent_right_lanelets[a], this->get_logger());
         route_element_msg.lane_elements.push_back(lane_element_msg);
+        lane_element_idx = route_element_msg.lane_elements.size();
       }
     }
   }
@@ -793,7 +815,7 @@ void Lanelet2RoutePlanning::buildEnrichedRouteMessage() {
   route_msg.header.stamp = latest_ego_data_.header.stamp;
 
   // postprocess route message
-  postprocessRouteMessage(route_msg);
+  postprocessRouteMessage(route_msg, latest_suggested_turn_signal_distance_ahead_by_route_element_by_lane_element_);
 
   // save as latest route message
   latest_route_msg_ = route_msg;

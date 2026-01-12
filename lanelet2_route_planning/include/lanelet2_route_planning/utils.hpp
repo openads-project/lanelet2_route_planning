@@ -329,6 +329,18 @@ uint8_t laneBoundaryType(const lanelet::ConstLineString2d& line);
 uint8_t speedLimit(const lanelet::ConstLanelet& lanelet);
 
 /**
+ * @brief Extracts the suggested turn signal of a lanelet.
+ *
+ * Checks for the attribute `suggested_turn_signal` with values `left`, `right`, or `hazard`.
+ * Checks for the attribute `suggested_turn_signal_distance_ahead` to get the suggested distance ahead for the turn signal.
+ *
+ * @param[in] lanelet lanelet
+ * @param[in] logger logger (for error logging)
+ * @return suggested turn signal and distance ahead
+ */
+std::tuple<uint8_t, int> suggestedTurnSignal(const lanelet::ConstLanelet& lanelet, const rclcpp::Logger& logger);
+
+/**
  * @brief Get traffic rules.
  *
  * @return traffic rules
@@ -420,9 +432,13 @@ double estimateRemainingTime(const route_planning_msgs::msg::Route& route, const
  *
  * This includes:
  * - orientation of each lane element's reference pose based on preceding and following points
+ * - propagation of suggested turn signals backwards along the route based on distance ahead information
  *
  * @param[in,out] route_msg route message to postprocess
+ * @param[in] suggested_turn_signal_distance_ahead_by_route_element_by_lane_element suggested turn signal distances ahead by route element and lane element indices
  */
-void postprocessRouteMessage(route_planning_msgs::msg::Route& route_msg);
+void postprocessRouteMessage(
+    route_planning_msgs::msg::Route& route_msg,
+    std::vector<std::vector<int>>& suggested_turn_signal_distance_ahead_by_route_element_by_lane_element);
 
 }  // namespace lanelet2_route_planning
