@@ -178,7 +178,7 @@ void PlanRouteActionClient::setup() {
   RCLCPP_INFO(this->get_logger(), "Subscribed to '%s'", goal_pose_subscriber_->get_topic_name());
 
   // action client
-  action_client_ = rclcpp_action::create_client<PlanRoute>(this, "/lanelet2_route_planning/plan_route");
+  action_client_ = rclcpp_action::create_client<PlanRoute>(this, "/planning/lanelet2_route_planning/plan_route");
 
   // ll2 map interface
   ll2_interface_ = std::make_unique<LL2MapInterface>(*this, ll2_map_server_name_);

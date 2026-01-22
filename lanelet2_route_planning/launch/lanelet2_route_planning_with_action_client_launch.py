@@ -14,7 +14,6 @@ def generate_launch_description():
     remappable_topics = [
         DeclareLaunchArgument("ego_data_topic", default_value="~/ego_data"),
         DeclareLaunchArgument("route_topic", default_value="~/route"),
-        DeclareLaunchArgument("route_action", default_value="/lanelet2_route_planning/plan_route"),
         DeclareLaunchArgument("goal_pose_topic", default_value="/goal_pose"),
     ]
 
