@@ -2,16 +2,16 @@ repositories:
   lanelet2_map_interface:
     type: git
     url: https://gitlab.ika.rwth-aachen.de/fb-fi/its-modules/localization/lanelet2_map_interface
-    version: main
+    version: v1.0.0
   lanelet2_utilities:
     type: git
     url: https://gitlab.ika.rwth-aachen.de/fb-fi/its-modules/localization/lanelet2_utilities
-    version: main
+    version: v1.0.0
   perception_interfaces:
     type: git
     url: https://github.com/ika-rwth-aachen/perception_interfaces
-    version: main
+    version: v1.0.0
   planning_interfaces:
     type: git
     url: https://github.com/ika-rwth-aachen/planning_interfaces
-    version: main
+    version: v1.0.0
