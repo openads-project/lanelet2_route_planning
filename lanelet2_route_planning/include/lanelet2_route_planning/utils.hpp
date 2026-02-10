@@ -211,18 +211,19 @@ std::pair<Eigen::Vector2d, Eigen::Vector2d> extractDrivableSpace(const lanelet::
  * Drivable in the sense of being able to physically cross it, not whether it is allowed to cross it.
  *
  * The following types are considered drivable:
- * - line_thin
- * - line_thick
- * - virtual
- * - zebra_marking
+ * - arrow
  * - bike_marking
+ * - centerline
+ * - curbstone (only if subtype is 'low')
+ * - lane_center
+ * - line_thick
+ * - line_thin
  * - pedestrian_marking
+ * - roadpainting
  * - stop_line
  * - traffic_light
- * - curbstone (only if subtype is 'low')
- * - roadpainting
- * - lane_center
- * - centerline
+ * - virtual
+ * - zebra_marking
  *
  * Additionally, the extra attribute 'HoldingLine' is considered drivable.
  *
