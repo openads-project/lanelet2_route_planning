@@ -421,9 +421,9 @@ std::pair<Eigen::Vector2d, Eigen::Vector2d> extractDrivableSpace(const lanelet::
 
 bool isLineStringDrivable(const lanelet::ConstLineString3d& line_string) {
   const std::unordered_set<std::string> drivable_types = {
-      "arrow", "bike_marking", "centerline", "curbstone", "lane_center", "line_thick",
-      "line_thin", "pedestrian_marking", "roadpainting", "stop_line", "traffic_light", "virtual",
-      "zebra_marking"};
+      "arrow",         "bike_marking", "centerline",         "curbstone",    "lane_center",
+      "line_thick",    "line_thin",    "pedestrian_marking", "roadpainting", "stop_line",
+      "traffic_light", "virtual",      "zebra_marking"};
   if (line_string.hasAttribute("type")) {
     std::string type = line_string.attribute("type").value();
     if (drivable_types.count(type) > 0) {

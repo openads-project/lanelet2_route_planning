@@ -51,12 +51,12 @@ class PlanRouteActionClient : public rclcpp::Node {
    * @param[in] additional_constraints additional constraints description
    */
   template <typename T>
-  void declareAndLoadParameter(const std::string &name, T &param, const std::string &description,
+  void declareAndLoadParameter(const std::string& name, T& param, const std::string& description,
                                const bool add_to_auto_reconfigurable_params = true, const bool is_required = false,
-                               const bool read_only = false, const std::optional<double> &from_value = std::nullopt,
-                               const std::optional<double> &to_value = std::nullopt,
-                               const std::optional<double> &step_value = std::nullopt,
-                               const std::string &additional_constraints = "");
+                               const bool read_only = false, const std::optional<double>& from_value = std::nullopt,
+                               const std::optional<double>& to_value = std::nullopt,
+                               const std::optional<double>& step_value = std::nullopt,
+                               const std::string& additional_constraints = "");
 
   /**
    * @brief Handles reconfiguration when a parameter value is changed
@@ -64,7 +64,7 @@ class PlanRouteActionClient : public rclcpp::Node {
    * @param[in] parameters parameters
    * @return parameter change result
    */
-  rcl_interfaces::msg::SetParametersResult parametersCallback(const std::vector<rclcpp::Parameter> &parameters);
+  rcl_interfaces::msg::SetParametersResult parametersCallback(const std::vector<rclcpp::Parameter>& parameters);
 
   /**
    * @brief Sets up subscribers, publishers, etc. to configure the node
@@ -108,7 +108,7 @@ class PlanRouteActionClient : public rclcpp::Node {
    *
    * @param[in] goal_handle goal handle
    */
-  void goalResponseCallback(const GoalHandlePlanRoute::SharedPtr &goal_handle);
+  void goalResponseCallback(const GoalHandlePlanRoute::SharedPtr& goal_handle);
 
   /**
    * @brief Callback for feedback from the action server
@@ -124,13 +124,13 @@ class PlanRouteActionClient : public rclcpp::Node {
    *
    * @param[in] result action result
    */
-  void resultCallback(const GoalHandlePlanRoute::WrappedResult &result);
+  void resultCallback(const GoalHandlePlanRoute::WrappedResult& result);
 
  private:
   /**
    * @brief Auto-reconfigurable parameters for dynamic reconfiguration
    */
-  std::vector<std::tuple<std::string, std::function<void(const rclcpp::Parameter &)>>> auto_reconfigurable_params_;
+  std::vector<std::tuple<std::string, std::function<void(const rclcpp::Parameter&)>>> auto_reconfigurable_params_;
 
   /**
    * @brief Callback handle for dynamic parameter reconfiguration
