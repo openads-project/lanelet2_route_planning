@@ -1,13 +1,12 @@
 # lanelet2_route_planning
 
 <p align="center">
-  <a href="https://github.com/openads-project"><img src="https://img.shields.io/badge/OpenADS-ffff00"/></a>
+  <a href="https://github.com/openads-project"><img src="https://img.shields.io/badge/OpenADS-f5ff01"/></a>
   <a href="https://www.ros.org"><img src="https://img.shields.io/badge/ROS 2-jazzy-22314e"/></a>
   <a href="https://github.com/openads-project/lanelet2_route_planning/releases/latest"><img src="https://img.shields.io/github/v/release/openads-project/lanelet2_route_planning"/></a>
   <a href="https://github.com/openads-project/lanelet2_route_planning/blob/main/LICENSE"><img src="https://img.shields.io/github/license/openads-project/lanelet2_route_planning"/></a>
   <br>
   <a href="https://github.com/openads-project/lanelet2_route_planning/actions/workflows/docker-ros.yml"><img src="https://github.com/openads-project/lanelet2_route_planning/actions/workflows/docker-ros.yml/badge.svg"/></a>
-  <a href="https://github.com/openads-project/lanelet2_route_planning/actions/workflows/industrial_ci.yml"><img src="https://github.com/openads-project/lanelet2_route_planning/actions/workflows/industrial_ci.yml/badge.svg"/></a>
   <a href="https://openads-project.github.io/lanelet2_route_planning"><img src="https://github.com/openads-project/lanelet2_route_planning/actions/workflows/docs.yml/badge.svg"/></a>
   <a href="https://github.com/openads-project/lanelet2_route_planning/actions/workflows/consistency.yml"><img src="https://github.com/openads-project/lanelet2_route_planning/actions/workflows/consistency.yml/badge.svg"/></a>
 </p>
@@ -16,7 +15,9 @@
 
 TODO: High-level repository introduction paragraph
 
-**🚀 [Quick Start](#-quick-start)** | **🧑‍💻 [Development](#-development)** | **📝 [Documentation](#-documentation)**
+<p align="center">
+  <strong>🚀 <a href="#-quick-start">Quick Start</a></strong> • <strong>🧑‍💻 <a href="%E2%80%8D-development">Development</a></strong> • <strong>📝 <a href="#-documentation">Documentation</a></strong>
+</p>
 
 > [!IMPORTANT]
 > This repository is part of [🚗 ***OpenADS***](https://github.com/openads-project), the *Open Automated Driving Stack*.
@@ -91,8 +92,9 @@ colcon test-result --verbose
 
 ## 🙏 Acknowledgements
 
-This work was mainly funded by the 🇩🇪 Federal Ministry for Research, Technology and Space (BMFTR) as part of the project [6GEM](https://6gem.de) (FKZ 16KISK036K).
+This work was funded by the 🇩🇪 Federal Ministry for Research, Technology and Space (BMFTR) as part of the project [6GEM](https://6gem.de) (FKZ 16KISK036K).
 
-<img src="https://6gem.de/static/sixgem/images/logos/6gem_logo.jpeg" height=80>
-<img src="https://raw.githubusercontent.com/openads-project/openads-dev-environment/refs/heads/improvement/industrial-ci/assets/funding-logos/BMFTR.jpeg" height=80>
-
+<p>
+  <img src="https://6gem.de/static/sixgem/images/logos/6gem_logo.jpeg" height=100>
+  <img src="https://raw.githubusercontent.com/openads-project/openads-dev-environment/refs/heads/improvement/industrial-ci/assets/funding-logos/BMFTR.jpeg" height=100>
+</p>
