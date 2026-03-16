@@ -1,3 +1,6 @@
+// Copyright Institute for Automotive Engineering (ika), RWTH Aachen University
+// SPDX-License-Identifier: Apache-2.0
+
 #include <perception_msgs_utils/object_access.hpp>
 #include <route_planning_msgs_utils/route_access.hpp>
 
