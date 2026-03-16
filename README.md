@@ -91,4 +91,8 @@ colcon test-result --verbose
 
 ## 🙏 Acknowledgements
 
-TODO: Project/funding acknowledgements
+This work was mainly funded by the 🇩🇪 Federal Ministry for Research, Technology and Space (BMFTR) as part of the project [6GEM](https://6gem.de) (FKZ 16KISK036K).
+
+<img src="https://6gem.de/static/sixgem/images/logos/6gem_logo.jpeg" height=80>
+<img src="https://raw.githubusercontent.com/openads-project/openads-dev-environment/refs/heads/improvement/industrial-ci/assets/funding-logos/BMFTR.jpeg" height=80>
+
