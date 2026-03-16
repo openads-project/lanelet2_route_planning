@@ -10,6 +10,8 @@ Plans a route on a Lanelet2 map
 
 ### `lanelet2_route_planning`
 
+The `lanelet2_route_planning` node computes a shortest path route from a current ego position to a destination based on a Lanelet2 map. Progress along the route is continuously tracked and published as action feedback via the integrated action server, which is accepting a destination in the first place. The route is published at a constant frequency, allowing downstream planning tasks to incorporate knowledge about the road topology. For this purpose, the published route not only contains a suggested reference line, but also information about adjacent lanes, regulatory elements, and drivable space. For the sake of computation and data efficiency, the route is only locally enriched with this additional information. More information on the outgoing `route_planning_msgs/msg/Route` format is found in [planning_interfaces](https://github.com/ika-rwth-aachen/planning_interfaces?tab=readme-ov-file#overview-of-the-route_planning_msgs).
+
 ```mermaid
 flowchart LR
     NODE("lanelet2_route_planning")
@@ -23,19 +25,19 @@ flowchart LR
 
 | Topic | Type | Description |
 | --- | --- | --- |
-| `~/ego_data` | `perception_msgs/msg/EgoData` | |
+| `~/ego_data` | `perception_msgs/msg/EgoData` | ego data |
 
 #### Published Topics
 
 | Topic | Type | Description |
 | --- | --- | --- |
-| `~/route` | `route_planning_msgs/msg/Route` | |
+| `~/route` | `route_planning_msgs/msg/Route` | planned route |
 
 #### Action Servers
 
 | Action | Type | Description |
 | --- | --- | --- |
-| `~/plan_route` | `route_planning_msgs/action/PlanRoute` | |
+| `~/plan_route` | `route_planning_msgs/action/PlanRoute` | plans route to destination |
 
 #### Parameters
 
@@ -74,9 +76,9 @@ flowchart LR
 
 | Argument | Default | Description |
 | --- | --- | --- |
-| `ego_data_topic` | `"~/ego_data"` |  |
-| `route_topic` | `"~/route"` |  |
-| `goal_pose_topic` | `"/goal_pose"` |  |
+| `ego_data_topic` | `"~/ego_data"` | ego data topic |
+| `route_topic` | `"~/route"` | planned route topic |
+| `goal_pose_topic` | `"/goal_pose"` | goal pose topic |
 | `name` | `"lanelet2_route_planning"` | node name |
 | `namespace` | `""` | node namespace |
 | `params` | `os.path.join(get_package_share_directory("lanelet2_route_planning"), "config", "params.yml")` | path to parameter file |

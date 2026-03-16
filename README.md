@@ -11,9 +11,9 @@
   <a href="https://github.com/openads-project/lanelet2_route_planning/actions/workflows/consistency.yml"><img src="https://github.com/openads-project/lanelet2_route_planning/actions/workflows/consistency.yml/badge.svg"/></a>
 </p>
 
-**TODO: Repository tagline/description**
+**ROS 2 Route Planning for Automated Driving based on Lanelet2**
 
-TODO: High-level repository introduction paragraph
+The [lanelet2_route_planning](lanelet2_route_planning/README.md) node plans a (shortest path) route to a destination based on [Lanelet2](https://github.com/fzi-forschungszentrum-informatik/Lanelet2) map. It runs a ROS action server that accepts a destination, plans a route, and continuously publishes feedback on the route progress to the action client. The [plan_route_action_client](plan_route_action_client/README.md) node can be used alongside as a standard action client, e.g., by listening to goal poses published from RViz. The suggested way of interactively planning routes is to use the [PlanRouteTool](https://github.com/ika-rwth-aachen/planning_interfaces/tree/main/route_planning_msgs_rviz_plugins) RViz tool plugin.
 
 <p align="center">
   <strong>🚀 <a href="#-quick-start">Quick Start</a></strong> • <strong>🧑‍💻 <a href="%E2%80%8D-development">Development</a></strong> • <strong>📝 <a href="#-documentation">Documentation</a></strong>
@@ -23,7 +23,7 @@ TODO: High-level repository introduction paragraph
 > This repository is part of [🚗 ***OpenADS***](https://github.com/openads-project), the *Open Automated Driving Stack*.
 
 
-TODO img src="TODO: teaser image/gif" width=800>
+<!-- <img src="TODO: teaser image/gif" width=800> -->
 
 
 ## 🚀 Quick Start
@@ -81,6 +81,7 @@ colcon test-result --verbose
 ## 📝 Documentation
 
 - [Source Code Documentation](https://openads-project.github.io/lanelet2_route_planning)
+- [Implementation Details](docs/IMPLEMENTATION.md)
 - Package Documentation
   - [lanelet2_route_planning](lanelet2_route_planning/README.md)
   - [plan_route_action_client](plan_route_action_client/README.md)

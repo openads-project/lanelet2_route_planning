@@ -9,6 +9,11 @@ Action client to plan a route_planning_msgs/action/Route based on clicked RViz p
 
 ### `plan_route_action_client`
 
+The `plan_route_action_client` node is an action client interacting with the `lanelet2_route_planning` action server, allowing to plan a route based on clicked RViz poses or other inputs. It primarily offers three different modes of route planning:
+1. goal pose subscriber: plans a route to a `/goal_pose` published by RViz's goal pose plugin
+2. waypoints: plans routes to pre-defined waypoints, one after the other
+3. random: plans a route to a random destination on the map
+
 ```mermaid
 flowchart LR
     NODE("plan_route_action_client")
@@ -20,13 +25,13 @@ flowchart LR
 
 | Topic | Type | Description |
 | --- | --- | --- |
-| `/goal_pose` | `geometry_msgs/msg/PoseStamped` | |
+| `/goal_pose` | `geometry_msgs/msg/PoseStamped` | goal pose (clicked in RViz) |
 
 #### Action Clients
 
 | Action | Type | Description |
 | --- | --- | --- |
-| `/planning/lanelet2_route_planning/plan_route` | `route_planning_msgs/action/PlanRoute` | |
+| `/planning/lanelet2_route_planning/plan_route` | `route_planning_msgs/action/PlanRoute` | plans route to destination |
 
 #### Parameters
 
