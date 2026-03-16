@@ -23,7 +23,7 @@ TODO: High-level repository introduction paragraph
 > This repository is part of [🚗 ***OpenADS***](https://github.com/openads-project), the *Open Automated Driving Stack*.
 
 
-<!-- <img src="TODO: teaser image/gif" width=800> -->
+TODO img src="TODO: teaser image/gif" width=800>
 
 
 ## 🚀 Quick Start
@@ -63,8 +63,6 @@ TODO: High-level repository introduction paragraph
 
 > *Ctrl+Shift+B*
 
-or
-
 ```bash
 colcon build
 ```
@@ -72,8 +70,6 @@ colcon build
 ### Run Tests
 
 > *Ctrl+Shift+P / Tasks: Run Test Task*
-
-or
 
 ```bash
 colcon build --cmake-args -DCMAKE_EXPORT_COMPILE_COMMANDS=1
