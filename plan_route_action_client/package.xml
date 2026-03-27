@@ -6,8 +6,9 @@
   <version>1.0.0</version>
   <description>Action client to plan a route_planning_msgs/action/Route based on clicked RViz poses or other inputs</description>
 
-  <maintainer email="lennart.reiher@ika.rwth-aachen.de">Lennart Reiher</maintainer>
-  <author email="lennart.reiher@ika.rwth-aachen.de">Lennart Reiher</author>
+  <maintainer email="lennart.reiher@rwth-aachen.de">Lennart Reiher</maintainer>
+  <author email="lennart.reiher@rwth-aachen.de">Lennart Reiher</author>
+  <author email="guido.linden@rwth-aachen.de">Guido Linden</author>
 
   <license>Apache-2.0</license>
 
