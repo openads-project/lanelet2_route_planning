@@ -2,10 +2,6 @@
 
 Plans a route on a Lanelet2 map
 
-- [Nodes](#nodes)
-  - [lanelet2_route_planning](#lanelet2_route_planning)
-- [Launch Files](#launch-files)
-
 ## Nodes
 
 ### `lanelet2_route_planning`
@@ -64,8 +60,8 @@ flowchart LR
 
 | Argument | Default | Description |
 | --- | --- | --- |
-| `ego_data_topic` | `"~/ego_data"` |  |
-| `route_topic` | `"~/route"` |  |
+| `ego_data_topic` | `"~/ego_data"` | ego data topic |
+| `route_topic` | `"~/route"` | planned route topic |
 | `name` | `"lanelet2_route_planning"` | node name |
 | `namespace` | `""` | node namespace |
 | `params` | `os.path.join(get_package_share_directory("lanelet2_route_planning"), "config", "params.yml")` | path to parameter file |

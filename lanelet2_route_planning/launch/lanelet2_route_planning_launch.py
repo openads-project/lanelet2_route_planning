@@ -15,8 +15,8 @@ from launch_ros.actions import Node, SetParameter
 def generate_launch_description():
 
     remappable_topics = [
-        DeclareLaunchArgument("ego_data_topic", default_value="~/ego_data"),
-        DeclareLaunchArgument("route_topic", default_value="~/route"),
+        DeclareLaunchArgument("ego_data_topic", default_value="~/ego_data", description="ego data topic"),
+        DeclareLaunchArgument("route_topic", default_value="~/route", description="planned route topic"),
     ]
 
     args = [
