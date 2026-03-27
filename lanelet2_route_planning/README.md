@@ -74,7 +74,7 @@ flowchart LR
 | --- | --- | --- |
 | `ego_data_topic` | `"~/ego_data"` | ego data topic |
 | `route_topic` | `"~/route"` | planned route topic |
-| `goal_pose_topic` | `"/goal_pose"` | goal pose topic |
+| `goal_pose_topic` | `"~/goal_pose"` | goal pose topic |
 | `name` | `"lanelet2_route_planning"` | node name |
 | `namespace` | `""` | node namespace |
 | `params` | `os.path.join(get_package_share_directory("lanelet2_route_planning"), "config", "params.yml")` | path to parameter file |

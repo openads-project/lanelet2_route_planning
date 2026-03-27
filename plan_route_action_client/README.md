@@ -17,7 +17,7 @@ The `plan_route_action_client` node is an action client interacting with the `la
 ```mermaid
 flowchart LR
     NODE("plan_route_action_client")
-    S0:::hidden -->|/goal_pose| NODE
+    S0:::hidden -->|~/goal_pose| NODE
     classDef hidden display: none;
 ```
 
@@ -25,7 +25,7 @@ flowchart LR
 
 | Topic | Type | Description |
 | --- | --- | --- |
-| `/goal_pose` | `geometry_msgs/msg/PoseStamped` | goal pose (clicked in RViz) |
+| `~/goal_pose` | `geometry_msgs/msg/PoseStamped` | goal pose (clicked in RViz) |
 
 #### Action Clients
 

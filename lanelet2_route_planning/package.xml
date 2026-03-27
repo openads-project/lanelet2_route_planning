@@ -28,7 +28,14 @@
   <depend>tf2_perception_msgs</depend>
   <depend>tf2_ros</depend>
   <depend>tf2</depend>
+
   <exec_depend>plan_route_action_client</exec_depend>
+
+  <test_depend>ament_lint_auto</test_depend>
+  <test_depend>ament_cmake_black</test_depend>
+  <test_depend>ament_cmake_clang_format</test_depend>
+  <test_depend>ament_cmake_clang_tidy</test_depend>
+  <test_depend>ament_cmake_flake8</test_depend>
 
   <export>
     <build_type>ament_cmake</build_type>

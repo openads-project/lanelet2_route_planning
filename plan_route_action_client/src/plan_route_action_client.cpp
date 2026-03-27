@@ -177,7 +177,7 @@ void PlanRouteActionClient::setup() {
 
   // subscriber for goal pose
   goal_pose_subscriber_ = this->create_subscription<geometry_msgs::msg::PoseStamped>(
-      "/goal_pose", 10, std::bind(&PlanRouteActionClient::goalPoseCallback, this, std::placeholders::_1));
+      "~/goal_pose", 10, std::bind(&PlanRouteActionClient::goalPoseCallback, this, std::placeholders::_1));
   RCLCPP_INFO(this->get_logger(), "Subscribed to '%s'", goal_pose_subscriber_->get_topic_name());
 
   // action client
