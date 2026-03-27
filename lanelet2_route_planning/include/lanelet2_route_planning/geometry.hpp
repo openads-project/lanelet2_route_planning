@@ -61,7 +61,8 @@ std::optional<IntersectionOfLinesResult> intersectionOfLines(const std::vector<E
  * @param[in] next_point next point along line string
  * @return unit tangential vector
  */
-Eigen::Vector2d tangentOfPointAlongLineString(const Eigen::Vector2d& point, const Eigen::Vector2d& prev_point,
+Eigen::Vector2d tangentOfPointAlongLineString(const Eigen::Vector2d& point,
+                                              const Eigen::Vector2d& prev_point,
                                               const Eigen::Vector2d& next_point);
 
 /**
@@ -74,7 +75,8 @@ Eigen::Vector2d tangentOfPointAlongLineString(const Eigen::Vector2d& point, cons
  * @param[in] next_point next point along line string
  * @return unit normal vector
  */
-Eigen::Vector2d normalOfPointAlongLineString(const Eigen::Vector2d& point, const Eigen::Vector2d& prev_point,
+Eigen::Vector2d normalOfPointAlongLineString(const Eigen::Vector2d& point,
+                                             const Eigen::Vector2d& prev_point,
                                              const Eigen::Vector2d& next_point);
 
 /**
@@ -85,7 +87,8 @@ Eigen::Vector2d normalOfPointAlongLineString(const Eigen::Vector2d& point, const
  * @param[in,out] offset starts sampling at offset distance, returns overshoot distance
  * @return resampled line string
  */
-std::vector<Eigen::Vector2d> resampleLineString(const std::vector<Eigen::Vector2d>& line_string, const double delta,
+std::vector<Eigen::Vector2d> resampleLineString(const std::vector<Eigen::Vector2d>& line_string,
+                                                const double delta,
                                                 double& offset);
 
 /**
@@ -126,7 +129,9 @@ std::optional<ProjectPointToLineStringAlongAxisResult> projectPointToLineStringA
  * @return projected point and whether intersection is on line segment
  */
 std::optional<ProjectPointToLineStringAlongAxisResult> projectPointToLineStringAlongNormal(
-    const Eigen::Vector2d& point, const Eigen::Vector2d& prev_point, const Eigen::Vector2d& next_point,
+    const Eigen::Vector2d& point,
+    const Eigen::Vector2d& prev_point,
+    const Eigen::Vector2d& next_point,
     const std::vector<Eigen::Vector2d>& line_string);
 
 }  // namespace lanelet2_route_planning

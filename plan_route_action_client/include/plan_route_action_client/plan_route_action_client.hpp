@@ -54,9 +54,13 @@ class PlanRouteActionClient : public rclcpp::Node {
    * @param[in] additional_constraints additional constraints description
    */
   template <typename T>
-  void declareAndLoadParameter(const std::string& name, T& param, const std::string& description,
-                               const bool add_to_auto_reconfigurable_params = true, const bool is_required = false,
-                               const bool read_only = false, const std::optional<double>& from_value = std::nullopt,
+  void declareAndLoadParameter(const std::string& name,
+                               T& param,
+                               const std::string& description,
+                               const bool add_to_auto_reconfigurable_params = true,
+                               const bool is_required = false,
+                               const bool read_only = false,
+                               const std::optional<double>& from_value = std::nullopt,
                                const std::optional<double>& to_value = std::nullopt,
                                const std::optional<double>& step_value = std::nullopt,
                                const std::string& additional_constraints = "");
@@ -119,8 +123,7 @@ class PlanRouteActionClient : public rclcpp::Node {
    * @param[in] goal_handle goal handle
    * @param[in] feedback action feedback
    */
-  void feedbackCallback(GoalHandlePlanRoute::SharedPtr goal_handle,
-                        const std::shared_ptr<const PlanRoute::Feedback> feedback);
+  void feedbackCallback(GoalHandlePlanRoute::SharedPtr goal_handle, const std::shared_ptr<const PlanRoute::Feedback> feedback);
 
   /**
    * @brief Callback for result from the action server

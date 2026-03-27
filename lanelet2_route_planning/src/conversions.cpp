@@ -38,9 +38,7 @@ geometry_msgs::msg::Point toRos(const Eigen::Vector3d& point) {
   return ros_point;
 }
 
-geometry_msgs::msg::Point toRos(const lanelet::BasicPoint2d& point) {
-  return toRos(Eigen::Vector2d(point.x(), point.y()));
-}
+geometry_msgs::msg::Point toRos(const lanelet::BasicPoint2d& point) { return toRos(Eigen::Vector2d(point.x(), point.y())); }
 
 lanelet::BasicPoint2d toLanelet(const Eigen::Vector2d& point) { return lanelet::BasicPoint2d(point.x(), point.y()); }
 

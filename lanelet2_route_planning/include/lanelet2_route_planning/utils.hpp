@@ -43,7 +43,8 @@ std::optional<lanelet::routing::Route> getRoute(const lanelet::routing::RoutingG
  * @return index of closest point
  */
 size_t indexOfLineStringPointClosestToPoint(const std::vector<Eigen::Vector2d>& line_string,
-                                            const Eigen::Vector2d& point, const bool consider_order = false,
+                                            const Eigen::Vector2d& point,
+                                            const bool consider_order = false,
                                             const bool behind = true);
 
 /**
@@ -65,8 +66,11 @@ size_t indexOfLineStringPointClosestToPoint(const std::vector<Eigen::Vector2d>& 
  * @param[in] behind whether to consider points behind (or ahead of) the given point
  * @return index of locally closest point
  */
-size_t matchPointToLineString(const std::vector<Eigen::Vector2d>& line_string, const Eigen::Vector2d& point,
-                              const size_t idx_indication, const bool consider_order = false, const bool behind = true);
+size_t matchPointToLineString(const std::vector<Eigen::Vector2d>& line_string,
+                              const Eigen::Vector2d& point,
+                              const size_t idx_indication,
+                              const bool consider_order = false,
+                              const bool behind = true);
 
 /**
  * @brief Takes a closest point in a line string and guarantees that it is behind or ahead of the given point.
@@ -81,7 +85,8 @@ size_t matchPointToLineString(const std::vector<Eigen::Vector2d>& line_string, c
  * @return
  */
 size_t considerOrderForPointMatchedToLineString(const std::vector<Eigen::Vector2d>& line_string,
-                                                const Eigen::Vector2d& point, const size_t idx_closest,
+                                                const Eigen::Vector2d& point,
+                                                const size_t idx_closest,
                                                 const bool behind);
 
 /**
@@ -95,8 +100,7 @@ size_t considerOrderForPointMatchedToLineString(const std::vector<Eigen::Vector2
  * @param[in] sampling_distance expected distance between points
  * @return whether a lane change is identified
  */
-bool changesLaneFromPointToPoint(const Eigen::Vector2d& point, const Eigen::Vector2d& next_point,
-                                 const double sampling_distance);
+bool changesLaneFromPointToPoint(const Eigen::Vector2d& point, const Eigen::Vector2d& next_point, const double sampling_distance);
 
 /**
  * @brief Finds lanelets adjacent to the left or right of a given lanelet.
@@ -111,7 +115,8 @@ bool changesLaneFromPointToPoint(const Eigen::Vector2d& point, const Eigen::Vect
  */
 std::vector<lanelet::ConstLanelet> adjacentLeftOrRightLanelets(const lanelet::ConstLanelet& lanelet,
                                                                const lanelet::routing::RoutingGraphUPtr& routing_graph,
-                                                               bool left, bool sort_from_left = true);
+                                                               bool left,
+                                                               bool sort_from_left = true);
 
 /**
  * @brief Projected lanelet points.
@@ -135,7 +140,9 @@ struct ProjectedLaneletPoints {
  * @return projected points
  */
 std::vector<ProjectedLaneletPoints> projectPointToLaneletLines(
-    const Eigen::Vector2d& point, const Eigen::Vector2d& prev_point, const Eigen::Vector2d& next_point,
+    const Eigen::Vector2d& point,
+    const Eigen::Vector2d& prev_point,
+    const Eigen::Vector2d& next_point,
     const std::vector<lanelet::ConstLanelet>& lanelets,
     const rclcpp::Logger& logger = rclcpp::get_logger("lanelet2_route_planning"));
 
@@ -262,9 +269,10 @@ struct ExtractRegulatoryElementsResult {
  * @param[in] point_sequence point sequence (should be centerline of main lanelet)
  * @return regulatory element information
  */
-ExtractRegulatoryElementsResult extractRegulatoryElements(
-    const lanelet::ConstLanelet& lanelet, const std::vector<lanelet::ConstLanelet>& adjacent_left_lanelets,
-    const std::vector<lanelet::ConstLanelet>& adjacent_right_lanelets, const PointSequence& point_sequence);
+ExtractRegulatoryElementsResult extractRegulatoryElements(const lanelet::ConstLanelet& lanelet,
+                                                          const std::vector<lanelet::ConstLanelet>& adjacent_left_lanelets,
+                                                          const std::vector<lanelet::ConstLanelet>& adjacent_right_lanelets,
+                                                          const PointSequence& point_sequence);
 
 /**
  * @brief Extracts the reference/effect line of a regulatory element.
@@ -299,8 +307,7 @@ std::vector<geometry_msgs::msg::Point> regulatoryElementPositions(
  * @param[in] regulatory_element regulatory element
  * @return type and meta value
  */
-std::pair<uint8_t, uint8_t> regulatoryElementType(
-    const std::shared_ptr<const lanelet::RegulatoryElement>& regulatory_element);
+std::pair<uint8_t, uint8_t> regulatoryElementType(const std::shared_ptr<const lanelet::RegulatoryElement>& regulatory_element);
 
 /**
  * @brief Extracts the speed limit of a regulatory element of subtype 'speed_limit'.
@@ -363,7 +370,8 @@ lanelet::traffic_rules::TrafficRulesPtr getTrafficRules();
  * @return matching lanelet
  */
 std::optional<lanelet::ConstLanelet> laneletAtPoint(
-    const Eigen::Vector2d& point, const lanelet::LaneletMapConstPtr& map,
+    const Eigen::Vector2d& point,
+    const lanelet::LaneletMapConstPtr& map,
     const std::optional<lanelet::traffic_rules::TrafficRulesPtr> traffic_rules = std::nullopt);
 
 /**
@@ -379,7 +387,8 @@ std::optional<lanelet::ConstLanelet> laneletAtPoint(
  */
 lanelet::ConstLanelet followLaneletsAlongRoutingGraph(const lanelet::routing::RoutingGraphUPtr& routing_graph,
                                                       const lanelet::ConstLanelet& lanelet,
-                                                      const Eigen::Vector2d& position, const double distance);
+                                                      const Eigen::Vector2d& position,
+                                                      const double distance);
 
 /**
  * @brief Return type of resampleCenterlinesAlongPath.
@@ -398,7 +407,8 @@ struct ResampleCenterlinesAlongPathResult {
  * @return resampled centerline and lanelet index by point
  */
 ResampleCenterlinesAlongPathResult resampleCenterlinesAlongPath(const lanelet::routing::LaneletPath& path,
-                                                                const double delta_s, bool monotonically);
+                                                                const double delta_s,
+                                                                bool monotonically);
 
 /**
  * @brief Computes the traveled distance along the route.

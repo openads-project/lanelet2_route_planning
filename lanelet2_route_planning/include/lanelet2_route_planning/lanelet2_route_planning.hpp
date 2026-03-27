@@ -53,9 +53,13 @@ class Lanelet2RoutePlanning : public rclcpp::Node {
    * @param[in] additional_constraints additional constraints description
    */
   template <typename T>
-  void declareAndLoadParameter(const std::string& name, T& param, const std::string& description,
-                               const bool add_to_auto_reconfigurable_params = true, const bool is_required = false,
-                               const bool read_only = false, const std::optional<double>& from_value = std::nullopt,
+  void declareAndLoadParameter(const std::string& name,
+                               T& param,
+                               const std::string& description,
+                               const bool add_to_auto_reconfigurable_params = true,
+                               const bool is_required = false,
+                               const bool read_only = false,
+                               const std::optional<double>& from_value = std::nullopt,
                                const std::optional<double>& to_value = std::nullopt,
                                const std::optional<double>& step_value = std::nullopt,
                                const std::string& additional_constraints = "");
@@ -112,8 +116,8 @@ class Lanelet2RoutePlanning : public rclcpp::Node {
    * @param[in] goal action goal
    * @return goal response
    */
-  rclcpp_action::GoalResponse actionHandleGoal(
-      const rclcpp_action::GoalUUID& uuid, std::shared_ptr<const route_planning_msgs::action::PlanRoute::Goal> goal);
+  rclcpp_action::GoalResponse actionHandleGoal(const rclcpp_action::GoalUUID& uuid,
+                                               std::shared_ptr<const route_planning_msgs::action::PlanRoute::Goal> goal);
 
   /**
    * @brief Action cancel callback: cancels a running action
@@ -144,8 +148,7 @@ class Lanelet2RoutePlanning : public rclcpp::Node {
    *
    * @param[in] goal_handle action goal handle
    */
-  void actionExecute(
-      const std::shared_ptr<rclcpp_action::ServerGoalHandle<route_planning_msgs::action::PlanRoute>> goal_handle);
+  void actionExecute(const std::shared_ptr<rclcpp_action::ServerGoalHandle<route_planning_msgs::action::PlanRoute>> goal_handle);
 
   /**
    * @brief Plans a lanelet route to the destination

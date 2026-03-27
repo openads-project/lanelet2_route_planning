@@ -38,22 +38,24 @@ PlanRouteActionClient::PlanRouteActionClient() : Node("plan_route_action_client"
   this->declareAndLoadParameter("ll2_map_server_name", ll2_map_server_name_, "Name of lanelet2_map_server node", false);
   this->declareAndLoadParameter(
       "waypoints", waypoints_param_,
-      "List of WGS84 waypoints to endlessly follow (list of strings with comma-separated '<LATITUDE>,<LONGITUDE>')",
-      true);
+      "List of WGS84 waypoints to endlessly follow (list of strings with comma-separated '<LATITUDE>,<LONGITUDE>')", true);
   this->declareAndLoadParameter("enable_random_destination", enable_random_destination_,
                                 "Whether to plan a route to a random destination", true);
   this->declareAndLoadParameter(
       "enable_continuous_planning", enable_continuous_planning_,
       "Whether to continuously plan a new route (either to the next waypoint or to a random destination)", true);
-  this->declareAndLoadParameter("cancel_route", cancel_route_,
-                                "Cancel active route planning action (to be set at runtime)", true);
+  this->declareAndLoadParameter("cancel_route", cancel_route_, "Cancel active route planning action (to be set at runtime)",
+                                true);
   this->setup();
 }
 
 template <typename T>
-void PlanRouteActionClient::declareAndLoadParameter(const std::string& name, T& param, const std::string& description,
+void PlanRouteActionClient::declareAndLoadParameter(const std::string& name,
+                                                    T& param,
+                                                    const std::string& description,
                                                     const bool add_to_auto_reconfigurable_params,
-                                                    const bool is_required, const bool read_only,
+                                                    const bool is_required,
+                                                    const bool read_only,
                                                     const std::optional<double>& from_value,
                                                     const std::optional<double>& to_value,
                                                     const std::optional<double>& step_value,
@@ -69,20 +71,15 @@ void PlanRouteActionClient::declareAndLoadParameter(const std::string& name, T& 
     if constexpr (std::is_integral_v<T>) {
       rcl_interfaces::msg::IntegerRange range;
       T step = static_cast<T>(step_value.has_value() ? step_value.value() : 1);
-      range.set__from_value(static_cast<T>(from_value.value()))
-          .set__to_value(static_cast<T>(to_value.value()))
-          .set__step(step);
+      range.set__from_value(static_cast<T>(from_value.value())).set__to_value(static_cast<T>(to_value.value())).set__step(step);
       param_desc.integer_range = {range};
     } else if constexpr (std::is_floating_point_v<T>) {
       rcl_interfaces::msg::FloatingPointRange range;
       T step = static_cast<T>(step_value.has_value() ? step_value.value() : 1.0);
-      range.set__from_value(static_cast<T>(from_value.value()))
-          .set__to_value(static_cast<T>(to_value.value()))
-          .set__step(step);
+      range.set__from_value(static_cast<T>(from_value.value())).set__to_value(static_cast<T>(to_value.value())).set__step(step);
       param_desc.floating_point_range = {range};
     } else {
-      RCLCPP_WARN(this->get_logger(), "Parameter type of parameter '%s' does not support specifying a range",
-                  name.c_str());
+      RCLCPP_WARN(this->get_logger(), "Parameter type of parameter '%s' does not support specifying a range", name.c_str());
     }
   }
 
@@ -118,9 +115,7 @@ void PlanRouteActionClient::declareAndLoadParameter(const std::string& name, T& 
   }
 
   if (add_to_auto_reconfigurable_params) {
-    std::function<void(const rclcpp::Parameter&)> setter = [&param](const rclcpp::Parameter& p) {
-      param = p.get_value<T>();
-    };
+    std::function<void(const rclcpp::Parameter&)> setter = [&param](const rclcpp::Parameter& p) { param = p.get_value<T>(); };
     auto_reconfigurable_params_.push_back(std::make_tuple(name, setter));
   }
 }
@@ -172,8 +167,8 @@ rcl_interfaces::msg::SetParametersResult PlanRouteActionClient::parametersCallba
 
 void PlanRouteActionClient::setup() {
   // callback for dynamic parameter configuration
-  parameters_callback_ = this->add_on_set_parameters_callback(
-      std::bind(&PlanRouteActionClient::parametersCallback, this, std::placeholders::_1));
+  parameters_callback_ =
+      this->add_on_set_parameters_callback(std::bind(&PlanRouteActionClient::parametersCallback, this, std::placeholders::_1));
 
   // subscriber for goal pose
   goal_pose_subscriber_ = this->create_subscription<geometry_msgs::msg::PoseStamped>(
@@ -228,8 +223,7 @@ void PlanRouteActionClient::autoPlanningTimerCallback() {
 void PlanRouteActionClient::planToNextWaypoint() {
   // check if waypoint is valid
   if (next_waypoint_idx_ >= waypoints_.size()) {
-    RCLCPP_ERROR(this->get_logger(), "Waypoint index %ld out of bounds (%ld), skipping", next_waypoint_idx_,
-                 waypoints_.size());
+    RCLCPP_ERROR(this->get_logger(), "Waypoint index %ld out of bounds (%ld), skipping", next_waypoint_idx_, waypoints_.size());
     return;
   }
   RCLCPP_INFO(this->get_logger(), "Planning route to next waypoint (%.6f, %.6f)", waypoints_[next_waypoint_idx_].first,
@@ -258,9 +252,8 @@ void PlanRouteActionClient::planToNextWaypoint() {
 
   // send goal
   if (!goal_pose->header.frame_id.empty()) {
-    RCLCPP_INFO(this->get_logger(), "Generated waypoint goal pose (%.3f, %.3f, %.3f) in frame '%s'",
-                goal_pose->pose.position.x, goal_pose->pose.position.y, goal_pose->pose.position.z,
-                goal_pose->header.frame_id.c_str());
+    RCLCPP_INFO(this->get_logger(), "Generated waypoint goal pose (%.3f, %.3f, %.3f) in frame '%s'", goal_pose->pose.position.x,
+                goal_pose->pose.position.y, goal_pose->pose.position.z, goal_pose->header.frame_id.c_str());
     auto_planning_timer_->cancel();  // cancel auto-planning timer until goal completion
     next_waypoint_idx_++;
     this->sendGoal(goal_pose);
@@ -290,8 +283,8 @@ void PlanRouteActionClient::planToRandomDestination() {
       goal_pose->pose.position.y = point.y();
       goal_pose->pose.position.z = point.z();
       if (centerline.size() > 1) {
-        auto heading = std::atan2(point.y() - centerline[centerline.size() - 2].y(),
-                                  point.x() - centerline[centerline.size() - 2].x());
+        auto heading =
+            std::atan2(point.y() - centerline[centerline.size() - 2].y(), point.x() - centerline[centerline.size() - 2].x());
         tf2::Quaternion q;
         q.setRPY(0, 0, heading);
         goal_pose->pose.orientation = tf2::toMsg(q);
@@ -303,9 +296,8 @@ void PlanRouteActionClient::planToRandomDestination() {
 
   // send goal
   if (!goal_pose->header.frame_id.empty()) {
-    RCLCPP_INFO(this->get_logger(), "Generated random goal pose (%.3f, %.3f, %.3f) in frame '%s'",
-                goal_pose->pose.position.x, goal_pose->pose.position.y, goal_pose->pose.position.z,
-                goal_pose->header.frame_id.c_str());
+    RCLCPP_INFO(this->get_logger(), "Generated random goal pose (%.3f, %.3f, %.3f) in frame '%s'", goal_pose->pose.position.x,
+                goal_pose->pose.position.y, goal_pose->pose.position.z, goal_pose->header.frame_id.c_str());
     auto_planning_timer_->cancel();  // cancel auto-planning timer until goal completion
     this->sendGoal(goal_pose);
   } else {
@@ -332,8 +324,7 @@ void PlanRouteActionClient::sendGoal(const geometry_msgs::msg::PoseStamped::Shar
 
   // send goal
   auto send_goal_options = rclcpp_action::Client<PlanRoute>::SendGoalOptions();
-  send_goal_options.goal_response_callback =
-      std::bind(&PlanRouteActionClient::goalResponseCallback, this, std::placeholders::_1);
+  send_goal_options.goal_response_callback = std::bind(&PlanRouteActionClient::goalResponseCallback, this, std::placeholders::_1);
   send_goal_options.feedback_callback =
       std::bind(&PlanRouteActionClient::feedbackCallback, this, std::placeholders::_1, std::placeholders::_2);
   send_goal_options.result_callback = std::bind(&PlanRouteActionClient::resultCallback, this, std::placeholders::_1);
@@ -371,8 +362,8 @@ void PlanRouteActionClient::resultCallback(const GoalHandlePlanRoute::WrappedRes
       RCLCPP_INFO(this->get_logger(), "Goal succeeded: destination reached after %.2fm and %ds", distance_traveled,
                   time_traveled.sec);
     } else {
-      RCLCPP_WARN(this->get_logger(), "Goal succeeded, but destination not reached after %.2fm and %ds",
-                  distance_traveled, time_traveled.sec);
+      RCLCPP_WARN(this->get_logger(), "Goal succeeded, but destination not reached after %.2fm and %ds", distance_traveled,
+                  time_traveled.sec);
     }
   } else if (result.code == rclcpp_action::ResultCode::CANCELED) {
     RCLCPP_WARN(this->get_logger(), "Goal canceled: traveled %.2fm and %ds", distance_traveled, time_traveled.sec);

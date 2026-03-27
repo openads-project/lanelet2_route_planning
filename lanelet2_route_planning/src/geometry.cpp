@@ -62,7 +62,8 @@ std::optional<IntersectionOfLinesResult> intersectionOfLines(const std::vector<E
   return result;
 }
 
-Eigen::Vector2d tangentOfPointAlongLineString(const Eigen::Vector2d& point, const Eigen::Vector2d& prev_point,
+Eigen::Vector2d tangentOfPointAlongLineString(const Eigen::Vector2d& point,
+                                              const Eigen::Vector2d& prev_point,
                                               const Eigen::Vector2d& next_point) {
   Eigen::Vector2d tangent;
 
@@ -81,7 +82,8 @@ Eigen::Vector2d tangentOfPointAlongLineString(const Eigen::Vector2d& point, cons
   return tangent;
 }
 
-Eigen::Vector2d normalOfPointAlongLineString(const Eigen::Vector2d& point, const Eigen::Vector2d& prev_point,
+Eigen::Vector2d normalOfPointAlongLineString(const Eigen::Vector2d& point,
+                                             const Eigen::Vector2d& prev_point,
                                              const Eigen::Vector2d& next_point) {
   Eigen::Vector2d tangent = tangentOfPointAlongLineString(point, prev_point, next_point);
   Eigen::Vector2d normal = Eigen::Vector2d(tangent.y(), -tangent.x());
@@ -89,7 +91,8 @@ Eigen::Vector2d normalOfPointAlongLineString(const Eigen::Vector2d& point, const
   return normal;
 }
 
-std::vector<Eigen::Vector2d> resampleLineString(const std::vector<Eigen::Vector2d>& line_string, const double delta,
+std::vector<Eigen::Vector2d> resampleLineString(const std::vector<Eigen::Vector2d>& line_string,
+                                                const double delta,
                                                 double& offset) {
   std::vector<Eigen::Vector2d> resampled_line_string;
 
@@ -124,8 +127,7 @@ std::vector<Eigen::Vector2d> resampleLineString(const std::vector<Eigen::Vector2
   return resampled_line_string;
 }
 
-Eigen::Vector2d projectPointToLineString(const Eigen::Vector2d& point,
-                                         const std::vector<Eigen::Vector2d>& line_string) {
+Eigen::Vector2d projectPointToLineString(const Eigen::Vector2d& point, const std::vector<Eigen::Vector2d>& line_string) {
   return lanelet::geometry::project(toLanelet(line_string), toLanelet(point));
 }
 
@@ -171,7 +173,9 @@ std::optional<ProjectPointToLineStringAlongAxisResult> projectPointToLineStringA
 }
 
 std::optional<ProjectPointToLineStringAlongAxisResult> projectPointToLineStringAlongNormal(
-    const Eigen::Vector2d& point, const Eigen::Vector2d& prev_point, const Eigen::Vector2d& next_point,
+    const Eigen::Vector2d& point,
+    const Eigen::Vector2d& prev_point,
+    const Eigen::Vector2d& next_point,
     const std::vector<Eigen::Vector2d>& line_string) {
   // find normal to tangent at point
   Eigen::Vector2d normal = normalOfPointAlongLineString(point, prev_point, next_point);
