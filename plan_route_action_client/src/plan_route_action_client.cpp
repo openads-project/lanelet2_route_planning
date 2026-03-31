@@ -13,6 +13,12 @@
 
 namespace plan_route_action_client {
 
+/**
+ * @brief Parses WGS84 waypoints from "<LATITUDE>,<LONGITUDE>" strings.
+ *
+ * @param[in] waypoints_param waypoint parameter values
+ * @return parsed latitude/longitude pairs, or `std::nullopt` if parsing fails
+ */
 std::optional<std::vector<std::pair<double, double>>> parseWaypoints(const std::vector<std::string>& waypoints_param) {
   std::vector<std::pair<double, double>> waypoints;
   for (const auto& waypoint : waypoints_param) {
@@ -379,6 +385,13 @@ void PlanRouteActionClient::resultCallback(const GoalHandlePlanRoute::WrappedRes
 
 }  // namespace plan_route_action_client
 
+/**
+ * @brief Starts the ROS node.
+ *
+ * @param[in] argc number of command-line arguments
+ * @param[in] argv command-line arguments
+ * @return process exit code
+ */
 int main(int argc, char* argv[]) {
   rclcpp::init(argc, argv);
   rclcpp::spin(std::make_shared<plan_route_action_client::PlanRouteActionClient>());

@@ -194,6 +194,14 @@ struct PointSequence {
   Eigen::Vector2d prev;     ///< previous point
   Eigen::Vector2d current;  ///< current point
   Eigen::Vector2d next;     ///< next point
+
+  /**
+   * @brief Constructs a point sequence from three consecutive points.
+   *
+   * @param[in] prev previous point
+   * @param[in] current current point
+   * @param[in] next next point
+   */
   PointSequence(const Eigen::Vector2d& prev, const Eigen::Vector2d& current, const Eigen::Vector2d& next)
       : prev(prev), current(current), next(next) {}
 };

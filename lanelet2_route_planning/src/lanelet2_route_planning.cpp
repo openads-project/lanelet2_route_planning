@@ -809,6 +809,13 @@ void Lanelet2RoutePlanning::buildEnrichedRouteMessage() {
 
 }  // namespace lanelet2_route_planning
 
+/**
+ * @brief Starts the ROS node.
+ *
+ * @param[in] argc number of command-line arguments
+ * @param[in] argv command-line arguments
+ * @return process exit code
+ */
 int main(int argc, char* argv[]) {
   rclcpp::init(argc, argv);
   rclcpp::spin(std::make_shared<lanelet2_route_planning::Lanelet2RoutePlanning>());
