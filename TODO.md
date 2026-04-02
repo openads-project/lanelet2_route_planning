@@ -1,0 +1,4 @@
+- teaser fehlt noch in readme generator
+- teaser image/gif, planning route from rviz
+- quickstart setup: docker compose incl rviz and map
+- open source .repos dependencies
