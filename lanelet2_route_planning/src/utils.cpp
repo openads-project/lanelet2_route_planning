@@ -12,11 +12,11 @@
 #include <lanelet2_core/geometry/LaneletMap.h>
 #include <lanelet2_core/utility/Units.h>
 #include <lanelet2_traffic_rules/TrafficRulesFactory.h>
-#include <lanelet2_utilities/lanelet2_utils.hpp>
 #include <route_planning_msgs_utils/route_access.hpp>
 
 #include "lanelet2_route_planning/conversions.hpp"
 #include "lanelet2_route_planning/geometry.hpp"
+#include "lanelet2_route_planning/lanelet2_utils.hpp"
 #include "lanelet2_route_planning/utils.hpp"
 
 namespace lanelet2_route_planning {

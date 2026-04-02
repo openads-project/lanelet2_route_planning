@@ -18,7 +18,6 @@
   <depend>lanelet2_map_interface</depend>
   <depend>lanelet2_routing</depend>
   <depend>lanelet2_traffic_rules</depend>
-  <depend>lanelet2_utilities</depend>
   <depend>perception_msgs_utils</depend>
   <depend>perception_msgs</depend>
   <depend>rclcpp_action</depend>

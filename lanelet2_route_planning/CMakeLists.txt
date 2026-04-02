@@ -10,7 +10,6 @@ find_package(lanelet2_core REQUIRED)
 find_package(lanelet2_map_interface REQUIRED)
 find_package(lanelet2_routing REQUIRED)
 find_package(lanelet2_traffic_rules REQUIRED)
-find_package(lanelet2_utilities REQUIRED)
 find_package(OpenMP REQUIRED)
 find_package(perception_msgs REQUIRED)
 find_package(perception_msgs_utils REQUIRED)
@@ -43,7 +42,6 @@ ament_target_dependencies(${TARGET_NAME}
   lanelet2_map_interface
   lanelet2_routing
   lanelet2_traffic_rules
-  lanelet2_utilities
   OpenMP
   perception_msgs
   perception_msgs_utils
