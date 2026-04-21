@@ -67,8 +67,8 @@ Lanelet2RoutePlanning::Lanelet2RoutePlanning() : Node("lanelet2_route_planning")
   }
   if (max_num_threads_ <= 0) {
     max_num_threads_ = omp_get_max_threads();
-    omp_set_num_threads(max_num_threads_);
   }
+  omp_set_num_threads(max_num_threads_);
 
   this->setup();
 }
