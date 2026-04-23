@@ -707,6 +707,7 @@ uint8_t speedLimit(const lanelet::ConstLanelet& lanelet, const Eigen::Vector2d& 
   double best_reference_arc_length = 0.0;
   bool found_valid_regulatory_element_speed_limit = false;
   bool found_future_reference_line = false;
+  bool found_past_cancel_line = false;
 
   // loop over regulatory elements of lanelet
   const auto regulatory_elements = lanelet.regulatoryElements();
@@ -723,7 +724,7 @@ uint8_t speedLimit(const lanelet::ConstLanelet& lanelet, const Eigen::Vector2d& 
       std::vector<Eigen::Vector2d> reference_line_2d = {toEigen2d(reference_line->at(0)),
                                                         toEigen2d(reference_line->at(1))};
 
-      // check if reference line intersects lanelet centerline, else skip
+      // check if reference line intersects lanelet centerline
       bool reference_line_intersects_centerline = false;
       double reference_arc_length = 0.0;
       for (size_t i = 0; i < centerline.size() - 1; ++i) {
@@ -736,9 +737,6 @@ uint8_t speedLimit(const lanelet::ConstLanelet& lanelet, const Eigen::Vector2d& 
             break;
           }
         }
-      }
-      if (!reference_line_intersects_centerline) {
-        continue;
       }
 
       // check if cancel line intersects lanelet centerline
@@ -766,6 +764,9 @@ uint8_t speedLimit(const lanelet::ConstLanelet& lanelet, const Eigen::Vector2d& 
       if (!point_is_behind_reference_line) {
         found_future_reference_line = true;
       }
+      if (!point_is_before_cancel_line) {
+        found_past_cancel_line = true;
+      }
       if (point_is_behind_reference_line && point_is_before_cancel_line) {
         if (!found_valid_regulatory_element_speed_limit || reference_arc_length > best_reference_arc_length) {
           // only update speed limit if regulatory element is ahead of previously found regulatory element
@@ -785,7 +786,7 @@ uint8_t speedLimit(const lanelet::ConstLanelet& lanelet, const Eigen::Vector2d& 
   // that function will still yield regulatory-element-based speed limits, if related to the lanelet
   // even though there are no intersecting reference lines
   if (!found_valid_regulatory_element_speed_limit) {
-    if (found_future_reference_line) {
+    if (found_future_reference_line || found_past_cancel_line) {
       speed_limit = speedLimit(lanelet, false);
     } else {
       speed_limit = speedLimit(lanelet, true);
