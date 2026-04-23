@@ -421,9 +421,9 @@ std::pair<Eigen::Vector2d, Eigen::Vector2d> extractDrivableSpace(const lanelet::
 
 bool isLineStringDrivable(const lanelet::ConstLineString3d& line_string) {
   const std::unordered_set<std::string> drivable_types = {
-      "arrow", "bike_marking", "centerline", "curbstone", "lane_center", "line_thick",
-      "line_thin", "pedestrian_marking", "roadpainting", "stop_line", "traffic_light", "virtual",
-      "zebra_marking"};
+      "arrow",         "bike_marking", "centerline",         "curbstone",    "lane_center",
+      "line_thick",    "line_thin",    "pedestrian_marking", "roadpainting", "stop_line",
+      "traffic_light", "virtual",      "zebra_marking"};
   if (line_string.hasAttribute("type")) {
     std::string type = line_string.attribute("type").value();
     if (drivable_types.count(type) > 0) {
@@ -687,8 +687,7 @@ uint8_t speedLimit(const lanelet::ConstLanelet& lanelet, const bool consider_reg
     }
     bool is_mandatory = true;
     if (lanelet.hasAttribute(lanelet::AttributeNamesString::SpeedLimitMandatory)) {
-      is_mandatory =
-          lanelet.attribute(lanelet::AttributeNamesString::SpeedLimitMandatory).value() != std::string("no");
+      is_mandatory = lanelet.attribute(lanelet::AttributeNamesString::SpeedLimitMandatory).value() != std::string("no");
     }
     speed_limit_info = lanelet::traffic_rules::SpeedLimitInformation{*speed_limit, is_mandatory};
   }
@@ -703,7 +702,6 @@ uint8_t speedLimit(const lanelet::ConstLanelet& lanelet, const bool consider_reg
 }
 
 uint8_t speedLimit(const lanelet::ConstLanelet& lanelet, const Eigen::Vector2d& point) {
-
   uint8_t speed_limit = route_planning_msgs::msg::RegulatoryElement::META_VALUE_SPEED_UNLIMITED;
   std::vector<Eigen::Vector2d> centerline = toEigen(lanelet.centerline2d().basicLineString());
   double best_reference_arc_length = 0.0;
@@ -715,8 +713,7 @@ uint8_t speedLimit(const lanelet::ConstLanelet& lanelet, const Eigen::Vector2d& 
   for (const auto& regulatory_element : regulatory_elements) {
     // extract type and meta value, skip non-speed-limit regulatory elements
     uint8_t regulatory_element_type, regulatory_element_meta_value;
-    std::tie(regulatory_element_type, regulatory_element_meta_value) =
-        regulatoryElementType(regulatory_element);
+    std::tie(regulatory_element_type, regulatory_element_meta_value) = regulatoryElementType(regulatory_element);
     if (regulatory_element_type != route_planning_msgs::msg::RegulatoryElement::TYPE_SPEED_LIMIT) {
       continue;
     }
