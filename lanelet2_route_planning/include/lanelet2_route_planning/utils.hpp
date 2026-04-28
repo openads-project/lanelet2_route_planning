@@ -276,6 +276,18 @@ std::optional<std::array<geometry_msgs::msg::Point, 2>> regulatoryElementReferen
     const std::shared_ptr<const lanelet::RegulatoryElement>& regulatory_element);
 
 /**
+ * @brief Extracts the cancel line of a regulatory element.
+ *
+ * Only the first cancel line of the regulatory element is considered.
+ * Only the end points of that cancel line are considered.
+ *
+ * @param[in] regulatory_element regulatory element
+ * @return cancel line
+ */
+std::optional<std::array<geometry_msgs::msg::Point, 2>> regulatoryElementCancelLine(
+    const std::shared_ptr<const lanelet::RegulatoryElement>& regulatory_element);
+
+/**
  * @brief Extracts the sign/signal positions of a regulatory element.
  *
  * Only the first point of referenced line strings is considered.
@@ -322,12 +334,41 @@ uint8_t laneBoundaryType(const lanelet::ConstLineString2d& line);
 /**
  * @brief Extracts the speed limit of a lanelet.
  *
+ * Uses lanelet traffic rules to determine the speed limit for the whole lanelet.
+ *
+ * If `consider_regulatory_elements` is true, speed-limit regulatory elements attached to the lanelet may override the
+ * lanelet-wide speed limit according to lanelet traffic rules.
+ * If `consider_regulatory_elements` is false, only the lanelet's own `speed_limit` and
+ * `speed_limit_mandatory` attributes are considered.
+ *
  * As defined in route_planning_msgs::msg::RegulatoryElement.
  *
  * @param[in] lanelet lanelet
+ * @param[in] consider_regulatory_elements whether to consider regulatory elements related to the lanelet
  * @return speed limit [km/h]
  */
-uint8_t speedLimit(const lanelet::ConstLanelet& lanelet);
+uint8_t speedLimit(const lanelet::ConstLanelet& lanelet, const bool consider_regulatory_elements = true);
+
+/**
+ * @brief Extracts the speed limit of a lanelet at a specific position on that lanelet.
+ *
+ * Speed-limit regulatory elements take precedence over the lanelet-wide speed limit, but only once the given point is
+ * behind the regulatory element's reference line and, if present, still before its cancel line.
+ *
+ * If no applicable speed-limit regulatory element is active at the given point, this falls back to the lanelet-wide
+ * speed limit. If the point is still before an intersecting reference line, the fallback ignores regulatory elements
+ * and uses only the lanelet's own speed-limit attributes.
+ *
+ * This implementation considers only the first reference line and first cancel line of a speed-limit regulatory
+ * element, using their end points.
+ *
+ * As defined in route_planning_msgs::msg::RegulatoryElement.
+ *
+ * @param[in] lanelet lanelet
+ * @param[in] point point on or near the lanelet
+ * @return speed limit [km/h]
+ */
+uint8_t speedLimit(const lanelet::ConstLanelet& lanelet, const Eigen::Vector2d& point);
 
 /**
  * @brief Extracts the suggested turn signal of a lanelet.
