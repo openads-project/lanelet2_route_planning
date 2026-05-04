@@ -801,7 +801,7 @@ uint8_t speedLimit(const lanelet::ConstLanelet& lanelet, const Eigen::Vector2d& 
 
 std::tuple<uint8_t, int> suggestedTurnSignal(const lanelet::ConstLanelet& lanelet, const rclcpp::Logger& logger) {
   uint8_t suggested_turn_signal = route_planning_msgs::msg::LaneElement::SUGGESTED_TURN_SIGNAL_NONE;
-  int suggested_turn_signal_distance_ahead = 0;
+  int suggested_turn_signal_distance_ahead = -1;
 
   // parse suggested turn signal attribute
   if (lanelet.hasAttribute("suggested_turn_signal")) {
