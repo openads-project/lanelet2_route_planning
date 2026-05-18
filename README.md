@@ -25,6 +25,8 @@ The [lanelet2_route_planning](lanelet2_route_planning/README.md) node plans a (s
 
 ## 🚀 Quick Start
 
+![Teaser Image](assets/teaser.gif)
+
 1. Launch the [`demo/docker-compose.yml`](demo/docker-compose.yml) setup. This will open RViz with a visualization of a Lanelet2 map.
     ```bash
     cd demo
