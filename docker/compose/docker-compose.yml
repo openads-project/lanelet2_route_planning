@@ -8,8 +8,8 @@ services:
       NAME: lanelet2_route_planning
       # --- inputs ----
       EGO_DATA_TOPIC: ~/ego_data
-      ROUTE_TOPIC: ~/route
       # --- outputs ---
+      ROUTE_TOPIC: ~/route
       # --- other -----
       LOG_LEVEL: ${LOG_LEVEL:-info}
       USE_SIM_TIME: ${USE_SIM_TIME:-false}
