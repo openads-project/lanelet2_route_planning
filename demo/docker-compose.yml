@@ -1,0 +1,56 @@
+services:
+
+  lanelet2-route-planning:
+    # TODO: switch to github image
+    image: gitlab.ika.rwth-aachen.de:5050/fb-fi/its-modules/planning/lanelet2_route_planning:v1.0.2
+    environment:
+      RMW_IMPLEMENTATION: rmw_fastrtps_cpp
+    command: |
+      ros2 launch lanelet2_route_planning lanelet2_route_planning_launch.py
+        namespace:=/planning
+        name:=lanelet2_route_planning
+
+  lanelet2-map-server:
+    # TODO: switch to github image
+    image: gitlab.ika.rwth-aachen.de:5050/fb-fi/its-modules/localization/lanelet2_map_server:v1.1.1
+    environment:
+      RMW_IMPLEMENTATION: rmw_fastrtps_cpp
+    command: |
+      ros2 run lanelet2_map_server lanelet2_map_server --ros-args
+        -r __ns:=/localization
+        -r __node:=lanelet2_map_server
+        -p use_automatic_map_selection:=false
+        -p map_filepath:=/data/maps/test-track.osm
+
+  ego-data-publisher:
+    # TODO: switch to github image
+    image: gitlab.ika.rwth-aachen.de:5050/fb-fi/its-modules/monitoring/ros-monitoring:v1.0.0
+    environment:
+      RMW_IMPLEMENTATION: rmw_fastrtps_cpp
+    command: |
+      ros2 topic pub -r 10
+        /planning/lanelet2_route_planning/ego_data
+        perception_msgs/msg/EgoData
+        "{header: {frame_id: 'map'}, state: {model_id: 1, continuous_state: [320.0, 225.0, 0.75, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.3, 0.0, 0.0, 0.0]}, length: 4.0, width: 1.8, height: 1.5}"
+
+  tf-publisher:
+    image: gitlab.ika.rwth-aachen.de:5050/fb-fi/its-modules/monitoring/ros-monitoring:v1.0.0
+    environment:
+      RMW_IMPLEMENTATION: rmw_fastrtps_cpp
+    command: |
+      ros2 run tf2_ros static_transform_publisher
+        --frame-id map
+        --child-frame-id base_link
+        --x 320.0 --y 225.0 --z 0.0
+        --roll 0.0 --pitch 0.0 --yaw 0.3
+
+  rviz:
+    # TODO: switch to github image
+    image: gitlab.ika.rwth-aachen.de:5050/fb-fi/its-modules/monitoring/ros-monitoring:v1.0.0
+    environment:
+      RMW_IMPLEMENTATION: rmw_fastrtps_cpp
+      DISPLAY: ${DISPLAY}
+    command: rviz2 -d /config.rviz
+    volumes:
+      - ./config.rviz:/config.rviz
+      - /tmp/.X11-unix:/tmp/.X11-unix:rw

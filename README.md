@@ -25,13 +25,17 @@ The [lanelet2_route_planning](lanelet2_route_planning/README.md) node plans a (s
 
 ## 🚀 Quick Start
 
-1. Start a container of the pre-built runtime image.
+1. Launch the [`demo/docker-compose.yml`](demo/docker-compose.yml) setup. This will open RViz with a visualization of a Lanelet2 map.
     ```bash
-    docker run --rm -it ghcr.io/openads-project/lanelet2_route_planning:latest bash
+    cd demo
+    xhost +local: # allow GUI forwarding from containers
+    docker compose up -d
     ```
-1. Inside the container, launch the pre-built nodes.
+2. Select the *Plan Route* tool in RViz and click on a destination on the map to plan a route, which will be visualized as a green line.
+3. Stop the demo and clean up.
     ```bash
-    ros2 launch lanelet2_route_planning lanelet2_route_planning_launch.py
+    docker compose down
+    xhost -local: # revoke GUI forwarding permissions
     ```
 
 ## 💻 Development
