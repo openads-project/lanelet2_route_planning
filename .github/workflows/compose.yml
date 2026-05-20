@@ -9,6 +9,24 @@ on:
   workflow_dispatch:
 
 jobs:
+  check-compose:
+    runs-on: ubuntu-latest
+    outputs:
+      compose-exists: ${{ steps.check-compose.outputs.compose-exists }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      - name: Check Docker Compose file
+        id: check-compose
+        run: |
+          if [[ -f docker/compose/docker-compose.yml ]]; then
+            echo "compose-exists=true" >> "${GITHUB_OUTPUT}"
+          else
+            echo "compose-exists=false" >> "${GITHUB_OUTPUT}"
+          fi
+
   compose:
+    needs: check-compose
+    if: ${{ needs.check-compose.outputs.compose-exists == 'true' }}
     uses: openads-project/openads-dev-environment/.github/workflows/compose.yml@main
     secrets: inherit
