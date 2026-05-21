@@ -103,9 +103,9 @@ size_t matchPointToLineString(const std::vector<Eigen::Vector2d>& line_string,
   // loop over points in front of and behind the given index
   for (int direction : {1, -1}) {
     double delta_s = 0.0;
-    size_t idx = start_idx;
+    int idx = start_idx;
     // only check points within the local range of max_delta_s
-    while (delta_s <= max_delta_s && idx >= 0 && idx < line_string.size()) {
+    while (delta_s <= max_delta_s && idx >= 0 && static_cast<size_t>(idx) < line_string.size()) {
       double distance = (line_string[idx] - point).norm();
       if (distance < min_distance) {
         min_distance = distance;
@@ -763,7 +763,7 @@ uint8_t speedLimit(const lanelet::ConstLanelet& lanelet, const Eigen::Vector2d& 
 
       // if given point is behind reference line and before cancel line, use speed limit of regulatory element
       double point_arc_length = lanelet::geometry::toArcCoordinates(lanelet.centerline2d(), toLanelet(point)).length;
-      bool point_is_behind_reference_line = (point_arc_length >= reference_arc_length);
+      bool point_is_behind_reference_line = (!reference_line_intersects_centerline || (point_arc_length >= reference_arc_length));
       bool point_is_before_cancel_line = (!cancel_line_intersects_centerline || (point_arc_length < cancel_arc_length));
       if (!point_is_behind_reference_line) {
         found_future_reference_line = true;
