@@ -4,19 +4,21 @@
 #include <algorithm>
 #include <cmath>
 #include <limits>
+#include <optional>
 #include <regex>
 #include <tuple>
 #include <unordered_map>
 #include <unordered_set>
+#include <utility>
 
 #include <lanelet2_core/geometry/LaneletMap.h>
 #include <lanelet2_core/utility/Units.h>
+#include <lanelet2_routing/Route.h>
 #include <lanelet2_traffic_rules/TrafficRulesFactory.h>
 #include <route_planning_msgs_utils/route_access.hpp>
 
 #include "lanelet2_route_planning/conversions.hpp"
 #include "lanelet2_route_planning/geometry.hpp"
-#include "lanelet2_route_planning/lanelet2_utils.hpp"
 #include "lanelet2_route_planning/utils.hpp"
 
 namespace lanelet2_route_planning {
@@ -857,24 +859,24 @@ std::optional<lanelet::ConstLanelet> laneletAtPoint(const Eigen::Vector2d& point
                                                     const lanelet::LaneletMapConstPtr& map,
                                                     const std::optional<lanelet::traffic_rules::TrafficRulesPtr> traffic_rules) {
   // parameters for lanelet matching
-  const unsigned int k_nearest_lanelets = 5;
-  const double max_distance_lanelet_matching = 5.0;
+  const unsigned int number_of_nearest_lanelets = 5;
+  const double max_lanelet_matching_distance = 5.0;
 
   // find nearest lanelets
   std::vector<std::pair<double, lanelet::ConstLanelet>> nearest_lanelets =
-      lanelet::geometry::findNearest(map->laneletLayer, point, k_nearest_lanelets);
+      lanelet::geometry::findNearest(map->laneletLayer, point, number_of_nearest_lanelets);
 
   // find best matching lanelet
   if (traffic_rules) {
-    std::ignore = Lanelet2Utilities::laneletSorting(point, nearest_lanelets, {}, traffic_rules.value(), {});
-    for (const auto& ll : nearest_lanelets) {
-      if (ll.first <= max_distance_lanelet_matching && traffic_rules.value()->canPass(ll.second)) {
-        return ll.second;
+    sortLaneletsByMatchingCost(point, nearest_lanelets, traffic_rules);
+    for (const auto& nearest_lanelet : nearest_lanelets) {
+      if (nearest_lanelet.first <= max_lanelet_matching_distance && traffic_rules.value()->canPass(nearest_lanelet.second)) {
+        return nearest_lanelet.second;
       }
     }
   } else if (!nearest_lanelets.empty()) {
-    std::ignore = Lanelet2Utilities::laneletSorting(point, nearest_lanelets, {}, {}, {});
-    if (nearest_lanelets[0].first <= max_distance_lanelet_matching) {
+    sortLaneletsByMatchingCost(point, nearest_lanelets);
+    if (nearest_lanelets[0].first <= max_lanelet_matching_distance) {
       return nearest_lanelets[0].second;
     }
   }
@@ -1096,6 +1098,43 @@ void postprocessRouteMessage(
             route_planning_msgs::route_access::getPrecedingLaneElementIdx(*prev_lane_element_idx_opt, *prev_route_element);
       }
     }
+  }
+}
+
+void sortLaneletsByMatchingCost(const lanelet::BasicPoint2d& point,
+                                std::vector<std::pair<double, lanelet::ConstLanelet>>& lanelets_with_distances,
+                                const std::optional<lanelet::traffic_rules::TrafficRulesPtr>& traffic_rules) {
+  struct LaneletMatchingCost {
+    std::pair<double, lanelet::ConstLanelet> lanelet_with_distance;
+    double cost;
+  };
+
+  std::vector<LaneletMatchingCost> lanelet_matching_costs;
+  lanelet_matching_costs.reserve(lanelets_with_distances.size());
+
+  // compute the matching cost for each candidate lanelet
+  for (const auto& lanelet_with_distance : lanelets_with_distances) {
+    const lanelet::ConstLanelet& lanelet = lanelet_with_distance.second;
+    const lanelet::ArcCoordinates arc_coordinates = lanelet::geometry::toArcCoordinates(lanelet.centerline2d(), point);
+    const bool point_is_inside_lanelet = lanelet::geometry::inside(lanelet, point);
+
+    // favor lanelets containing the point and penalize lateral distance quadratically
+    double cost = (point_is_inside_lanelet ? 0.5 : 2.0) * arc_coordinates.distance * arc_coordinates.distance;
+
+    // keep non-passable lanelets as fallback candidates, but rank them lower
+    if (traffic_rules && !traffic_rules.value()->canPass(lanelet)) {
+      cost *= 2.0;
+    }
+
+    lanelet_matching_costs.push_back({lanelet_with_distance, cost});
+  }
+
+  // apply the sorted order to the original lanelet-distance pairs
+  std::sort(lanelet_matching_costs.begin(), lanelet_matching_costs.end(),
+            [](const LaneletMatchingCost& lhs, const LaneletMatchingCost& rhs) { return lhs.cost < rhs.cost; });
+
+  for (size_t i = 0; i < lanelet_matching_costs.size(); ++i) {
+    lanelets_with_distances.at(i) = lanelet_matching_costs[i].lanelet_with_distance;
   }
 }
 

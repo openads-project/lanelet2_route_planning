@@ -504,4 +504,20 @@ void postprocessRouteMessage(
     route_planning_msgs::msg::Route& route_msg,
     std::vector<std::vector<int>>& suggested_turn_signal_distance_ahead_by_route_element_by_lane_element);
 
+/**
+ * @brief Sorts lanelet candidates by their matching cost for a 2D point.
+ *
+ * Points inside a lanelet are favored, lateral distance is penalized quadratically, and non-passable lanelets receive
+ * an additional penalty if traffic rules are available.
+ *
+ * Derived simplified implementation from deprecated lanelet2_utilties package.
+ *
+ * @param[in] point point to match
+ * @param[in,out] lanelets_with_distances candidate lanelets from lanelet::geometry::findNearest
+ * @param[in] traffic_rules optional traffic rules used to penalize non-passable lanelets
+ */
+void sortLaneletsByMatchingCost(const lanelet::BasicPoint2d& point,
+                                std::vector<std::pair<double, lanelet::ConstLanelet>>& lanelets_with_distances,
+                                const std::optional<lanelet::traffic_rules::TrafficRulesPtr>& traffic_rules = std::nullopt);
+
 }  // namespace lanelet2_route_planning
