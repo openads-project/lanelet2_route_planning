@@ -22,8 +22,7 @@ services:
       - ./lanelet2_map_server/maps:/data/maps
 
   ego-data-publisher:
-    # TODO: github image
-    image: gitlab.ika.rwth-aachen.de:5050/fb-fi/its-modules/monitoring/ros-monitoring:v1.0.0
+    image: ghcr.io/openads-project/lanelet2_route_planning:demo-monitoring
     environment:
       RMW_IMPLEMENTATION: rmw_fastrtps_cpp
     command: |
@@ -33,8 +32,7 @@ services:
         "{header: {frame_id: 'map'}, state: {model_id: 1, continuous_state: [80.0, 90.0, 0.75, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.5708, 0.0, 0.0, 0.0]}, length: 4.0, width: 1.8, height: 1.5}"
 
   tf-publisher:
-    # TODO: github image
-    image: gitlab.ika.rwth-aachen.de:5050/fb-fi/its-modules/monitoring/ros-monitoring:v1.0.0
+    image: ghcr.io/openads-project/lanelet2_route_planning:demo-monitoring
     environment:
       RMW_IMPLEMENTATION: rmw_fastrtps_cpp
     command: |
@@ -45,8 +43,7 @@ services:
         --roll 0.0 --pitch 0.0 --yaw 1.5708
 
   rviz:
-    # TODO: github image
-    image: gitlab.ika.rwth-aachen.de:5050/fb-fi/its-modules/monitoring/ros-monitoring:v1.0.0
+    image: ghcr.io/openads-project/lanelet2_route_planning:demo-monitoring
     environment:
       RMW_IMPLEMENTATION: rmw_fastrtps_cpp
       DISPLAY: ${DISPLAY}
