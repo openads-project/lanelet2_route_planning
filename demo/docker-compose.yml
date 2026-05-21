@@ -1,26 +1,20 @@
+include:
+  - oci://ghcr.io/openads-project/lanelet2_route_planning:compose-v1.0.0
+  - oci://ghcr.io/openads-project/lanelet2_map_server:compose-v1.1.1
+
 services:
 
   lanelet2-route-planning:
-    # TODO: switch to github image
-    image: gitlab.ika.rwth-aachen.de:5050/fb-fi/its-modules/planning/lanelet2_route_planning:v1.0.2
     environment:
       RMW_IMPLEMENTATION: rmw_fastrtps_cpp
-    command: |
-      ros2 launch lanelet2_route_planning lanelet2_route_planning_launch.py
-        namespace:=/planning
-        name:=lanelet2_route_planning
+      NAMESPACE: /planning
 
   lanelet2-map-server:
-    # TODO: switch to github image
-    image: gitlab.ika.rwth-aachen.de:5050/fb-fi/its-modules/localization/lanelet2_map_server:v1.1.1
     environment:
       RMW_IMPLEMENTATION: rmw_fastrtps_cpp
-    command: |
-      ros2 run lanelet2_map_server lanelet2_map_server --ros-args
-        -r __ns:=/localization
-        -r __node:=lanelet2_map_server
-        -p use_automatic_map_selection:=false
-        -p map_filepath:=/data/maps/test-track.osm
+      NAMESPACE: /localization
+      USE_AUTOMATIC_MAP_SELECTION: false
+      MAP_FILEPATH: /data/maps/test-track.osm
 
   ego-data-publisher:
     # TODO: switch to github image
