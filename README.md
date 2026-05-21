@@ -7,6 +7,7 @@
   <a href="https://github.com/openads-project/lanelet2_route_planning/blob/main/LICENSE"><img src="https://img.shields.io/github/license/openads-project/lanelet2_route_planning"/></a>
   <br>
   <a href="https://github.com/openads-project/lanelet2_route_planning/actions/workflows/docker-ros.yml"><img src="https://github.com/openads-project/lanelet2_route_planning/actions/workflows/docker-ros.yml/badge.svg"/></a>
+  <a href="https://github.com/openads-project/lanelet2_route_planning/actions/workflows/compose-oci.yml"><img src="https://github.com/openads-project/lanelet2_route_planning/actions/workflows/compose-oci.yml/badge.svg"/></a>
   <a href="https://openads-project.github.io/lanelet2_route_planning"><img src="https://github.com/openads-project/lanelet2_route_planning/actions/workflows/docs.yml/badge.svg"/></a>
   <a href="https://github.com/openads-project/lanelet2_route_planning/actions/workflows/consistency.yml"><img src="https://github.com/openads-project/lanelet2_route_planning/actions/workflows/consistency.yml/badge.svg"/></a>
 </p>
