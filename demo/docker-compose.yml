@@ -1,24 +1,25 @@
-include:
-  - oci://ghcr.io/openads-project/lanelet2_route_planning:compose-open-source # TODO: use version tag
-  - oci://ghcr.io/openads-project/lanelet2_map_server:compose-v1.1.1
-
 services:
 
   lanelet2-route-planning:
+    image: ghcr.io/openads-project/lanelet2_route_planning:v1.0.2
     environment:
       RMW_IMPLEMENTATION: rmw_fastrtps_cpp
-      NAMESPACE: /planning
+    command: |
+      ros2 launch lanelet2_route_planning lanelet2_route_planning_launch.py
+        namespace:=/planning
 
   lanelet2-map-server:
+    image: ghcr.io/openads-project/lanelet2_map_server:v1.1.1
     environment:
       RMW_IMPLEMENTATION: rmw_fastrtps_cpp
-      NAMESPACE: /localization
-      USE_AUTOMATIC_MAP_SELECTION: false
-      MAP_FILEPATH: /data/maps/test-track.osm
+    command: |
+      ros2 launch lanelet2_route_planning lanelet2_route_planning_launch.py
+        namespace:=/localization
+    volumes:
+      - ./lanelet2_map_server/params.yml:/docker-ros/ws/install/lanelet2_map_server/share/lanelet2_map_server/config/params.yml
 
   ego-data-publisher:
-    # TODO: switch to github image
-    image: gitlab.ika.rwth-aachen.de:5050/fb-fi/its-modules/monitoring/ros-monitoring:v1.0.0
+    image: ghcr.io/openads-project/trajectory_optimization:demo-monitoring
     environment:
       RMW_IMPLEMENTATION: rmw_fastrtps_cpp
     command: |
@@ -28,7 +29,7 @@ services:
         "{header: {frame_id: 'map'}, state: {model_id: 1, continuous_state: [320.0, 225.0, 0.75, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.3, 0.0, 0.0, 0.0]}, length: 4.0, width: 1.8, height: 1.5}"
 
   tf-publisher:
-    image: gitlab.ika.rwth-aachen.de:5050/fb-fi/its-modules/monitoring/ros-monitoring:v1.0.0
+    image: ghcr.io/openads-project/trajectory_optimization:demo-monitoring
     environment:
       RMW_IMPLEMENTATION: rmw_fastrtps_cpp
     command: |
@@ -39,12 +40,11 @@ services:
         --roll 0.0 --pitch 0.0 --yaw 0.3
 
   rviz:
-    # TODO: switch to github image
-    image: gitlab.ika.rwth-aachen.de:5050/fb-fi/its-modules/monitoring/ros-monitoring:v1.0.0
+    image: ghcr.io/openads-project/trajectory_optimization:demo-monitoring
     environment:
       RMW_IMPLEMENTATION: rmw_fastrtps_cpp
       DISPLAY: ${DISPLAY}
     command: rviz2 -d /config.rviz
     volumes:
-      - ./config.rviz:/config.rviz
+      - ./rviz/config.rviz:/config.rviz
       - /tmp/.X11-unix:/tmp/.X11-unix:rw
