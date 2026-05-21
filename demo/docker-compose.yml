@@ -1,5 +1,5 @@
 include:
-  - oci://ghcr.io/openads-project/lanelet2_route_planning:compose-v1.0.0
+  - oci://ghcr.io/openads-project/lanelet2_route_planning:compose-open-source # TODO: use version tag
   - oci://ghcr.io/openads-project/lanelet2_map_server:compose-v1.1.1
 
 services:
