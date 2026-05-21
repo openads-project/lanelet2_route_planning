@@ -1,11 +1,11 @@
 stages:
-  - compose
+  - compose-oci
   - docker-ros
   - consistency
   - docs
 
-compose:
-  stage: compose
+compose-oci:
+  stage: compose-oci
   image: docker:28-cli
   variables:
     COMPOSE_FILE: docker/compose/docker-compose.yml
