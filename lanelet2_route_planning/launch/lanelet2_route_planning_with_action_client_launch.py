@@ -13,6 +13,7 @@ from launch_ros.actions import Node, SetParameter
 
 
 def generate_launch_description():
+    """Generate a launch description for lanelet2_route_planning plus plan_route_action_client."""
 
     remappable_topics = [
         DeclareLaunchArgument("ego_data_topic", default_value="~/ego_data", description="ego data topic"),

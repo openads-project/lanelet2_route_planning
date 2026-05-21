@@ -551,6 +551,21 @@ std::optional<std::array<geometry_msgs::msg::Point, 2>> regulatoryElementReferen
   return reference_line_ros;
 }
 
+std::optional<std::array<geometry_msgs::msg::Point, 2>> regulatoryElementCancelLine(
+    const std::shared_ptr<const lanelet::RegulatoryElement>& regulatory_element) {
+  const std::vector<lanelet::ConstLineString3d> cancel_lines =
+      regulatory_element->getParameters<lanelet::ConstLineString3d>(lanelet::RoleName::CancelLine);
+  if (cancel_lines.empty()) {
+    return std::nullopt;
+  }
+  const std::vector<Eigen::Vector3d> cancel_line = cancel_lines.front().basicLineString();
+  if (cancel_line.size() < 2) {
+    return std::nullopt;
+  }
+  std::array<geometry_msgs::msg::Point, 2> cancel_line_ros = {toRos(cancel_line.front()), toRos(cancel_line.back())};
+  return cancel_line_ros;
+}
+
 std::vector<geometry_msgs::msg::Point> regulatoryElementPositions(
     const std::shared_ptr<const lanelet::RegulatoryElement>& regulatory_element) {
   std::vector<geometry_msgs::msg::Point> positions;
@@ -659,9 +674,26 @@ uint8_t laneBoundaryType(const lanelet::ConstLineString2d& line) {
   return lane_boundary_type;
 }
 
-uint8_t speedLimit(const lanelet::ConstLanelet& lanelet) {
+uint8_t speedLimit(const lanelet::ConstLanelet& lanelet, const bool consider_regulatory_elements) {
   lanelet::traffic_rules::TrafficRulesPtr traffic_rules = getTrafficRules();
-  lanelet::traffic_rules::SpeedLimitInformation speed_limit_info = traffic_rules->speedLimit(lanelet);
+  lanelet::traffic_rules::SpeedLimitInformation speed_limit_info;
+  if (consider_regulatory_elements) {
+    speed_limit_info = traffic_rules->speedLimit(lanelet);
+  } else {
+    uint8_t unlimited = route_planning_msgs::msg::RegulatoryElement::META_VALUE_SPEED_UNLIMITED;
+    if (!lanelet.hasAttribute(lanelet::AttributeName::SpeedLimit)) {
+      return unlimited;
+    }
+    auto speed_limit = lanelet.attribute(lanelet::AttributeName::SpeedLimit).asVelocity();
+    if (!speed_limit) {
+      return unlimited;
+    }
+    bool is_mandatory = true;
+    if (lanelet.hasAttribute(lanelet::AttributeNamesString::SpeedLimitMandatory)) {
+      is_mandatory = lanelet.attribute(lanelet::AttributeNamesString::SpeedLimitMandatory).value() != std::string("no");
+    }
+    speed_limit_info = lanelet::traffic_rules::SpeedLimitInformation{*speed_limit, is_mandatory};
+  }
   uint8_t unlimited = route_planning_msgs::msg::RegulatoryElement::META_VALUE_SPEED_UNLIMITED;
   if (speed_limit_info.isMandatory) {
     int speed_limit = std::round(lanelet::units::KmHQuantity(speed_limit_info.speedLimit).value());
@@ -672,9 +704,106 @@ uint8_t speedLimit(const lanelet::ConstLanelet& lanelet) {
   }
 }
 
+uint8_t speedLimit(const lanelet::ConstLanelet& lanelet, const Eigen::Vector2d& point) {
+  uint8_t speed_limit = route_planning_msgs::msg::RegulatoryElement::META_VALUE_SPEED_UNLIMITED;
+  std::vector<Eigen::Vector2d> centerline = toEigen(lanelet.centerline2d().basicLineString());
+  double best_reference_arc_length = 0.0;
+  bool found_valid_regulatory_element_speed_limit = false;
+  bool found_future_reference_line = false;
+  bool found_past_cancel_line = false;
+
+  // loop over regulatory elements of lanelet
+  const auto regulatory_elements = lanelet.regulatoryElements();
+  for (const auto& regulatory_element : regulatory_elements) {
+    // extract type and meta value, skip non-speed-limit regulatory elements
+    uint8_t regulatory_element_type, regulatory_element_meta_value;
+    std::tie(regulatory_element_type, regulatory_element_meta_value) = regulatoryElementType(regulatory_element);
+    if (regulatory_element_type != route_planning_msgs::msg::RegulatoryElement::TYPE_SPEED_LIMIT) {
+      continue;
+    }
+
+    // extract reference line
+    if (auto reference_line = regulatoryElementReferenceLine(regulatory_element)) {
+      std::vector<Eigen::Vector2d> reference_line_2d = {toEigen2d(reference_line->at(0)), toEigen2d(reference_line->at(1))};
+
+      // check if reference line intersects lanelet centerline
+      bool reference_line_intersects_centerline = false;
+      double reference_arc_length = 0.0;
+      for (size_t i = 0; i < centerline.size() - 1; ++i) {
+        std::vector<Eigen::Vector2d> centerline_segment = {centerline[i], centerline[i + 1]};
+        if (auto result = intersectionOfLines(reference_line_2d, centerline_segment)) {
+          if (result->intersects_line1 && result->intersects_line2) {
+            reference_arc_length =
+                lanelet::geometry::toArcCoordinates(lanelet.centerline2d(), toLanelet(result->intersection)).length;
+            reference_line_intersects_centerline = true;
+            break;
+          }
+        }
+      }
+
+      // check if cancel line intersects lanelet centerline
+      bool cancel_line_intersects_centerline = false;
+      double cancel_arc_length = 0.0;
+      if (auto cancel_line = regulatoryElementCancelLine(regulatory_element)) {
+        std::vector<Eigen::Vector2d> cancel_line_2d = {toEigen2d(cancel_line->at(0)), toEigen2d(cancel_line->at(1))};
+        for (size_t i = 0; i < centerline.size() - 1; ++i) {
+          std::vector<Eigen::Vector2d> centerline_segment = {centerline[i], centerline[i + 1]};
+          if (auto result = intersectionOfLines(cancel_line_2d, centerline_segment)) {
+            if (result->intersects_line1 && result->intersects_line2) {
+              cancel_arc_length =
+                  lanelet::geometry::toArcCoordinates(lanelet.centerline2d(), toLanelet(result->intersection)).length;
+              cancel_line_intersects_centerline = true;
+              break;
+            }
+          }
+        }
+      }
+
+      // if given point is behind reference line and before cancel line, use speed limit of regulatory element
+      double point_arc_length = lanelet::geometry::toArcCoordinates(lanelet.centerline2d(), toLanelet(point)).length;
+      bool point_is_behind_reference_line = (point_arc_length >= reference_arc_length);
+      bool point_is_before_cancel_line = (!cancel_line_intersects_centerline || (point_arc_length < cancel_arc_length));
+      if (!point_is_behind_reference_line) {
+        found_future_reference_line = true;
+      }
+      if (!point_is_before_cancel_line) {
+        found_past_cancel_line = true;
+      }
+      if (point_is_behind_reference_line && point_is_before_cancel_line) {
+        if (!found_valid_regulatory_element_speed_limit || reference_arc_length > best_reference_arc_length) {
+          // only update speed limit if regulatory element is ahead of previously found regulatory element
+          // (in case of multiple speed limit regulatory elements on lanelet)
+          speed_limit = regulatory_element_meta_value;
+          best_reference_arc_length = reference_arc_length;
+          found_valid_regulatory_element_speed_limit = true;
+        }
+      }
+
+    } else {
+      continue;
+    }
+  }
+
+  // if no valid regulatory element speed limit is found, fall back to lanelet speed limit;
+  // that function will still yield regulatory-element-based speed limits, if related to the lanelet
+  // even though there are no intersecting reference lines
+  if (!found_valid_regulatory_element_speed_limit) {
+    if (found_future_reference_line || found_past_cancel_line) {
+      speed_limit = speedLimit(lanelet, false);
+    } else {
+      speed_limit = speedLimit(lanelet, true);
+    }
+  }
+
+  speed_limit =
+      std::clamp(speed_limit, static_cast<uint8_t>(0), route_planning_msgs::msg::RegulatoryElement::META_VALUE_SPEED_UNLIMITED);
+
+  return speed_limit;
+}
+
 std::tuple<uint8_t, int> suggestedTurnSignal(const lanelet::ConstLanelet& lanelet, const rclcpp::Logger& logger) {
   uint8_t suggested_turn_signal = route_planning_msgs::msg::LaneElement::SUGGESTED_TURN_SIGNAL_NONE;
-  int suggested_turn_signal_distance_ahead = 0;
+  int suggested_turn_signal_distance_ahead = -1;
 
   // parse suggested turn signal attribute
   if (lanelet.hasAttribute("suggested_turn_signal")) {

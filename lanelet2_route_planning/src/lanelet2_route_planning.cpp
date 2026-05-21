@@ -68,8 +68,8 @@ Lanelet2RoutePlanning::Lanelet2RoutePlanning() : Node("lanelet2_route_planning")
   }
   if (max_num_threads_ <= 0) {
     max_num_threads_ = omp_get_max_threads();
-    omp_set_num_threads(max_num_threads_);
   }
+  omp_set_num_threads(max_num_threads_);
 
   this->setup();
 }
@@ -575,7 +575,7 @@ void Lanelet2RoutePlanning::buildGlobalRouteMessage() {
     Eigen::Vector2d orientation = tangentOfPointAlongLineString(point, prev_point_for_orientation, next_point_for_orientation);
 
     // determine speed limit
-    uint8_t speed_limit = speedLimit(lanelet);
+    uint8_t speed_limit = speedLimit(lanelet, point);
 
     // accumulate distance
     accumulated_distance += (point - prev_point).norm();
@@ -734,7 +734,8 @@ void Lanelet2RoutePlanning::buildEnrichedRouteMessage() {
         lane_element_msg.left_boundary.type = laneBoundaryType(adjacent_left_lanelets[a].leftBound2d());
         lane_element_msg.right_boundary.point = toRos(adjacent_left_lanelets_projected_points[a].right_bound_point);
         lane_element_msg.right_boundary.type = laneBoundaryType(adjacent_left_lanelets[a].rightBound2d());
-        lane_element_msg.speed_limit = speedLimit(adjacent_left_lanelets[a]);
+        lane_element_msg.speed_limit =
+            speedLimit(adjacent_left_lanelets[a], adjacent_left_lanelets_projected_points[a].centerline_point);
         lane_element_msg.regulatory_element_idcs = regulatory_element_extraction.adjacent_left_regulatory_element_idcs[a];
         int computed_following_lane_idx = route_element_msg.lane_elements.size() + following_lane_idx_offset;
         lane_element_msg.has_following_lane_idx = (computed_following_lane_idx >= 0 && computed_following_lane_idx < n_lanes);
@@ -756,7 +757,7 @@ void Lanelet2RoutePlanning::buildEnrichedRouteMessage() {
       centerline_lane_element_msg.left_boundary.type = laneBoundaryType(lanelet.leftBound2d());
       centerline_lane_element_msg.right_boundary.point = toRos(lanelet_projected_points.right_bound_point);
       centerline_lane_element_msg.right_boundary.type = laneBoundaryType(lanelet.rightBound2d());
-      centerline_lane_element_msg.speed_limit = speedLimit(lanelet);
+      centerline_lane_element_msg.speed_limit = speedLimit(lanelet, point);
       centerline_lane_element_msg.regulatory_element_idcs = regulatory_element_extraction.regulatory_element_idcs;
       int computed_following_lane_idx = route_element_msg.lane_elements.size() + following_lane_idx_offset;
       centerline_lane_element_msg.has_following_lane_idx =
@@ -779,7 +780,8 @@ void Lanelet2RoutePlanning::buildEnrichedRouteMessage() {
         lane_element_msg.left_boundary.type = laneBoundaryType(adjacent_right_lanelets[a].leftBound2d());
         lane_element_msg.right_boundary.point = toRos(adjacent_right_lanelets_projected_points[a].right_bound_point);
         lane_element_msg.right_boundary.type = laneBoundaryType(adjacent_right_lanelets[a].rightBound2d());
-        lane_element_msg.speed_limit = speedLimit(adjacent_right_lanelets[a]);
+        lane_element_msg.speed_limit =
+            speedLimit(adjacent_right_lanelets[a], adjacent_right_lanelets_projected_points[a].centerline_point);
         lane_element_msg.regulatory_element_idcs = regulatory_element_extraction.adjacent_right_regulatory_element_idcs[a];
         int computed_following_lane_idx = route_element_msg.lane_elements.size() + following_lane_idx_offset;
         lane_element_msg.has_following_lane_idx = (computed_following_lane_idx >= 0 && computed_following_lane_idx < n_lanes);
