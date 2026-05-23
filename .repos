@@ -1,8 +1,8 @@
 repositories:
-  lanelet2_localization:
+  lanelet2_map_server:
     type: git
-    url: https://github.com/openads-project/lanelet2_localization
-    version: v1.0.0
+    url: https://github.com/openads-project/lanelet2_map_server
+    version: v1.2.0
   perception_interfaces:
     type: git
     url: https://github.com/ika-rwth-aachen/perception_interfaces
