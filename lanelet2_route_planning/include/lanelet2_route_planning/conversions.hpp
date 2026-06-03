@@ -141,6 +141,14 @@ std::vector<Eigen::Vector3d> toEigen(const lanelet::BasicLineString3d& line_stri
 lanelet::BasicLineString2d toLanelet(const std::vector<Eigen::Vector2d>& line_string);
 
 /**
+ * @brief Converts a vector of 3D Eigen points to a Lanelet line string.
+ *
+ * @param[in] line_string line string
+ * @return converted line string
+ */
+lanelet::BasicLineString3d toLanelet(const std::vector<Eigen::Vector3d>& line_string);
+
+/**
  * @brief Converts a 2D Eigen vector pointing in a specific direction to a ROS quaternion.
  *
  * The vector is assumed to lie in the xy-plane.

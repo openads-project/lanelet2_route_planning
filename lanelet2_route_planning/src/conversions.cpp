@@ -71,6 +71,14 @@ lanelet::BasicLineString2d toLanelet(const std::vector<Eigen::Vector2d> &line_st
   return lanelet_line_string;
 }
 
+lanelet::BasicLineString3d toLanelet(const std::vector<Eigen::Vector3d> &line_string) {
+  lanelet::BasicLineString3d lanelet_line_string;
+  for (const auto &point : line_string) {
+    lanelet_line_string.push_back(toLanelet(point));
+  }
+  return lanelet_line_string;
+}
+
 geometry_msgs::msg::Quaternion toRosQuaternion(const Eigen::Vector2d &vector) {
   Eigen::Vector2d unit_vector = vector.normalized();
   double angle = std::atan2(unit_vector.y(), unit_vector.x());

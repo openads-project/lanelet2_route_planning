@@ -86,9 +86,9 @@ Eigen::Vector2d normalOfPointAlongLineString(const Eigen::Vector2d& point, const
   return normal;
 }
 
-std::vector<Eigen::Vector2d> resampleLineString(const std::vector<Eigen::Vector2d>& line_string, const double delta,
+std::vector<Eigen::Vector3d> resampleLineString(const std::vector<Eigen::Vector3d>& line_string, const double delta,
                                                 double& offset) {
-  std::vector<Eigen::Vector2d> resampled_line_string;
+  std::vector<Eigen::Vector3d> resampled_line_string;
 
   // set initial sampling distance
   double sampling_distance = delta;
@@ -100,13 +100,13 @@ std::vector<Eigen::Vector2d> resampleLineString(const std::vector<Eigen::Vector2
 
   // loop over all line segments
   for (size_t i = 1; i < line_string.size(); ++i) {
-    // determine segment length and unit direction
-    double segment_length = (line_string[i] - line_string[i - 1]).norm();
-    const Eigen::Vector2d segment_direction = (line_string[i] - line_string[i - 1]).normalized();
+    // determine 2D segment length and 3D direction
+    double segment_length = (to2d(line_string[i]) - to2d(line_string[i - 1])).norm();
+    const Eigen::Vector3d segment_direction = (line_string[i] - line_string[i - 1]) / segment_length;
 
     // sample points along segment, increasing sampling_distance by delta
     while (segment_length >= sampling_distance) {
-      const Eigen::Vector2d resampled_point = line_string[i - 1] + sampling_distance * segment_direction;
+      const Eigen::Vector3d resampled_point = line_string[i - 1] + sampling_distance * segment_direction;
       resampled_line_string.push_back(resampled_point);
       sampling_distance += delta;
     }
@@ -123,6 +123,11 @@ std::vector<Eigen::Vector2d> resampleLineString(const std::vector<Eigen::Vector2
 
 Eigen::Vector2d projectPointToLineString(const Eigen::Vector2d& point,
                                          const std::vector<Eigen::Vector2d>& line_string) {
+  return lanelet::geometry::project(toLanelet(line_string), toLanelet(point));
+}
+
+Eigen::Vector3d projectPointToLineString(const Eigen::Vector3d& point,
+                                         const std::vector<Eigen::Vector3d>& line_string) {
   return lanelet::geometry::project(toLanelet(line_string), toLanelet(point));
 }
 
