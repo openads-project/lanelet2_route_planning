@@ -498,13 +498,6 @@ ExtractRegulatoryElementsResult extractRegulatoryElements(
       std::tie(regulatory_element_msg.type, regulatory_element_msg.meta_value) =
           regulatoryElementType(regulatory_element);
 
-      // flatten regulatory element to z=0 (2D)
-      for (auto& position : regulatory_element_msg.positions) {
-        position.z -= (regulatory_element_msg.reference_line[0].z + regulatory_element_msg.reference_line[1].z) / 2.0;
-      }
-      regulatory_element_msg.reference_line[0].z = 0.0;
-      regulatory_element_msg.reference_line[1].z = 0.0;
-
       // check if regulatory element has already been extracted (by another lanelet)
       size_t regulatory_element_msg_idx;
       if (regulatory_element_msg_idx_by_id.count(regulatory_element->id()) > 0) {

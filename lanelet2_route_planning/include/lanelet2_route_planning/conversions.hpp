@@ -33,6 +33,17 @@ Eigen::Vector2d to2d(const Eigen::Vector3d& point);
 Eigen::Vector3d to3d(const Eigen::Vector2d& point);
 
 /**
+ * @brief Converts a 2D Eigen point to a 3D Eigen point.
+ *
+ * Adds the given z-coordinate.
+ *
+ * @param[in] point point
+ * @param[in] z z-coordinate
+ * @return converted point
+ */
+Eigen::Vector3d to3d(const Eigen::Vector2d& point, double z);
+
+/**
  * @brief Converts a vector of 3D Eigen points to a vector of 2D Eigen points.
  *
  * Removes the z-coordinate.
