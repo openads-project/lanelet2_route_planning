@@ -667,7 +667,7 @@ void Lanelet2RoutePlanning::buildEnrichedRouteMessage() {
     const Eigen::Vector2d point = toEigen2d(lane_element_msg.reference_pose.position);
     const Eigen::Vector2d prev_point = toEigen2d(prev_lane_element_msg.reference_pose.position);
     const Eigen::Vector2d next_point = toEigen2d(next_lane_element_msg.reference_pose.position);
-    const double point_z = lane_element_msg.reference_pose.position.z;
+    const double point_z = lane_element_msg.reference_pose.position.z; // assuming constant z across route elements
 
     // get lanelet corresponding to centerline point
     lanelet::routing::LaneletPath shortest_path = latest_route_.shortestPath();
