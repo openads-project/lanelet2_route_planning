@@ -12,6 +12,8 @@ Eigen::Vector2d to2d(const Eigen::Vector3d& point) { return point.head<2>(); }
 
 Eigen::Vector3d to3d(const Eigen::Vector2d& point) { return Eigen::Vector3d(point.x(), point.y(), 0.0); }
 
+Eigen::Vector3d to3d(const Eigen::Vector2d& point, double z) { return Eigen::Vector3d(point.x(), point.y(), z); }
+
 std::vector<Eigen::Vector2d> to2d(const std::vector<Eigen::Vector3d>& points) {
   std::vector<Eigen::Vector2d> points_2d;
   for (const auto& point : points) {
@@ -66,6 +68,14 @@ std::vector<Eigen::Vector3d> toEigen(const lanelet::BasicLineString3d& line_stri
 
 lanelet::BasicLineString2d toLanelet(const std::vector<Eigen::Vector2d>& line_string) {
   lanelet::BasicLineString2d lanelet_line_string;
+  for (const auto& point : line_string) {
+    lanelet_line_string.push_back(toLanelet(point));
+  }
+  return lanelet_line_string;
+}
+
+lanelet::BasicLineString3d toLanelet(const std::vector<Eigen::Vector3d>& line_string) {
+  lanelet::BasicLineString3d lanelet_line_string;
   for (const auto& point : line_string) {
     lanelet_line_string.push_back(toLanelet(point));
   }

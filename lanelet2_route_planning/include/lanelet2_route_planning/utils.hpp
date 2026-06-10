@@ -443,7 +443,7 @@ lanelet::ConstLanelet followLaneletsAlongRoutingGraph(const lanelet::routing::Ro
  * @brief Return type of resampleCenterlinesAlongPath.
  */
 struct ResampleCenterlinesAlongPathResult {
-  std::vector<Eigen::Vector2d> centerline;   ///< resampled centerline
+  std::vector<Eigen::Vector3d> centerline;   ///< resampled centerline
   std::vector<size_t> lanelet_idx_by_point;  ///< lanelet index in path for each point
 };
 

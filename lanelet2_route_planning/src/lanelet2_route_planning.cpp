@@ -551,7 +551,8 @@ void Lanelet2RoutePlanning::buildGlobalRouteMessage() {
 
   // resample centerlines along shortest path to accumulate global reference line
   auto resampling_result = resampleCenterlinesAlongPath(shortest_path, sampling_distance_, true);
-  std::vector<Eigen::Vector2d> shortest_path_centerline = resampling_result.centerline;
+  std::vector<Eigen::Vector3d> shortest_path_centerline_3d = resampling_result.centerline;
+  std::vector<Eigen::Vector2d> shortest_path_centerline = to2d(shortest_path_centerline_3d);
   latest_lanelet_idx_by_reference_line_point_idx_ = resampling_result.lanelet_idx_by_point;
 
   // fill route message with global reference line
@@ -559,6 +560,7 @@ void Lanelet2RoutePlanning::buildGlobalRouteMessage() {
   for (size_t c = 0; c < shortest_path_centerline.size(); ++c) {
     // get current, previous and next centerline point
     const Eigen::Vector2d& point = shortest_path_centerline[c];
+    const Eigen::Vector3d& point_3d = shortest_path_centerline_3d[c];
     const Eigen::Vector2d& prev_point = (c > 0) ? shortest_path_centerline[c - 1] : point;
     const Eigen::Vector2d& next_point = (c < shortest_path_centerline.size() - 1) ? shortest_path_centerline[c + 1] : point;
 
@@ -582,17 +584,17 @@ void Lanelet2RoutePlanning::buildGlobalRouteMessage() {
 
     // create RouteElement
     route_planning_msgs::msg::RouteElement route_element_msg = createMinimalRouteElement(
-        toRos(point), toRosQuaternion(orientation), accumulated_distance, changes_lane_to_next_point, speed_limit);
+        toRos(point_3d), toRosQuaternion(orientation), accumulated_distance, changes_lane_to_next_point, speed_limit);
     route_msg.route_elements.push_back(route_element_msg);
   }
 
   // project starting point and destinations to reference line, if enabled
   if (project_destination_to_reference_line_) {
-    starting_point_ = toRos(projectPointToLineString(toEigen2d(starting_point_), shortest_path_centerline));
+    starting_point_ = toRos(projectPointToLineString(toEigen(starting_point_), shortest_path_centerline_3d));
     for (auto& destination : intermediate_destinations_) {
-      destination = toRos(projectPointToLineString(toEigen2d(destination), shortest_path_centerline));
+      destination = toRos(projectPointToLineString(toEigen(destination), shortest_path_centerline_3d));
     }
-    destination_ = toRos(projectPointToLineString(toEigen2d(destination_), shortest_path_centerline));
+    destination_ = toRos(projectPointToLineString(toEigen(destination_), shortest_path_centerline_3d));
     route_msg.destination = destination_;
     route_msg.intermediate_destinations = intermediate_destinations_;
   }
@@ -658,6 +660,7 @@ void Lanelet2RoutePlanning::buildEnrichedRouteMessage() {
     const Eigen::Vector2d point = toEigen2d(lane_element_msg.reference_pose.position);
     const Eigen::Vector2d prev_point = toEigen2d(prev_lane_element_msg.reference_pose.position);
     const Eigen::Vector2d next_point = toEigen2d(next_lane_element_msg.reference_pose.position);
+    const double point_z = lane_element_msg.reference_pose.position.z;  // assuming constant z across route elements
 
     // get lanelet corresponding to centerline point
     lanelet::routing::LaneletPath shortest_path = latest_route_.shortestPath();
@@ -717,8 +720,8 @@ void Lanelet2RoutePlanning::buildEnrichedRouteMessage() {
     {
       route_element_msg.lane_elements = {};
       route_element_msg.is_enriched = true;
-      route_element_msg.left_boundary = toRos(drivable_space_left);
-      route_element_msg.right_boundary = toRos(drivable_space_right);
+      route_element_msg.left_boundary = toRos(to3d(drivable_space_left, point_z));
+      route_element_msg.right_boundary = toRos(to3d(drivable_space_right, point_z));
       route_element_msg.regulatory_elements = regulatory_element_extraction.regulatory_element_msgs;
       route_element_msg.suggested_lane_idx = suggested_lane_idx;
       route_element_msg.will_change_suggested_lane = changes_lane_to_next_point;
@@ -728,11 +731,13 @@ void Lanelet2RoutePlanning::buildEnrichedRouteMessage() {
       // create LaneElements for left adjacent lanes
       for (size_t a = 0; a < adjacent_left_lanelets_projected_points.size(); ++a) {
         route_planning_msgs::msg::LaneElement lane_element_msg;
-        lane_element_msg.reference_pose.position = toRos(adjacent_left_lanelets_projected_points[a].centerline_point);
+        lane_element_msg.reference_pose.position =
+            toRos(to3d(adjacent_left_lanelets_projected_points[a].centerline_point, point_z));
         // lane_element_msg.reference_pose.orientation computed in postprocessRouteMessage
-        lane_element_msg.left_boundary.point = toRos(adjacent_left_lanelets_projected_points[a].left_bound_point);
+        lane_element_msg.left_boundary.point = toRos(to3d(adjacent_left_lanelets_projected_points[a].left_bound_point, point_z));
         lane_element_msg.left_boundary.type = laneBoundaryType(adjacent_left_lanelets[a].leftBound2d());
-        lane_element_msg.right_boundary.point = toRos(adjacent_left_lanelets_projected_points[a].right_bound_point);
+        lane_element_msg.right_boundary.point =
+            toRos(to3d(adjacent_left_lanelets_projected_points[a].right_bound_point, point_z));
         lane_element_msg.right_boundary.type = laneBoundaryType(adjacent_left_lanelets[a].rightBound2d());
         lane_element_msg.speed_limit =
             speedLimit(adjacent_left_lanelets[a], adjacent_left_lanelets_projected_points[a].centerline_point);
@@ -751,11 +756,11 @@ void Lanelet2RoutePlanning::buildEnrichedRouteMessage() {
 
       // create LaneElement for centerline lane
       route_planning_msgs::msg::LaneElement centerline_lane_element_msg;
-      centerline_lane_element_msg.reference_pose.position = toRos(point);
+      centerline_lane_element_msg.reference_pose.position = lane_element_msg.reference_pose.position;
       // centerline_lane_element_msg.reference_pose.orientation computed in postprocessRouteMessage
-      centerline_lane_element_msg.left_boundary.point = toRos(lanelet_projected_points.left_bound_point);
+      centerline_lane_element_msg.left_boundary.point = toRos(to3d(lanelet_projected_points.left_bound_point, point_z));
       centerline_lane_element_msg.left_boundary.type = laneBoundaryType(lanelet.leftBound2d());
-      centerline_lane_element_msg.right_boundary.point = toRos(lanelet_projected_points.right_bound_point);
+      centerline_lane_element_msg.right_boundary.point = toRos(to3d(lanelet_projected_points.right_bound_point, point_z));
       centerline_lane_element_msg.right_boundary.type = laneBoundaryType(lanelet.rightBound2d());
       centerline_lane_element_msg.speed_limit = speedLimit(lanelet, point);
       centerline_lane_element_msg.regulatory_element_idcs = regulatory_element_extraction.regulatory_element_idcs;
@@ -774,11 +779,13 @@ void Lanelet2RoutePlanning::buildEnrichedRouteMessage() {
       // create LaneElements for right adjacent lanes
       for (size_t a = 0; a < adjacent_right_lanelets_projected_points.size(); ++a) {
         route_planning_msgs::msg::LaneElement lane_element_msg;
-        lane_element_msg.reference_pose.position = toRos(adjacent_right_lanelets_projected_points[a].centerline_point);
+        lane_element_msg.reference_pose.position =
+            toRos(to3d(adjacent_right_lanelets_projected_points[a].centerline_point, point_z));
         // lane_element_msg.reference_pose.orientation computed in postprocessRouteMessage
-        lane_element_msg.left_boundary.point = toRos(adjacent_right_lanelets_projected_points[a].left_bound_point);
+        lane_element_msg.left_boundary.point = toRos(to3d(adjacent_right_lanelets_projected_points[a].left_bound_point, point_z));
         lane_element_msg.left_boundary.type = laneBoundaryType(adjacent_right_lanelets[a].leftBound2d());
-        lane_element_msg.right_boundary.point = toRos(adjacent_right_lanelets_projected_points[a].right_bound_point);
+        lane_element_msg.right_boundary.point =
+            toRos(to3d(adjacent_right_lanelets_projected_points[a].right_bound_point, point_z));
         lane_element_msg.right_boundary.type = laneBoundaryType(adjacent_right_lanelets[a].rightBound2d());
         lane_element_msg.speed_limit =
             speedLimit(adjacent_right_lanelets[a], adjacent_right_lanelets_projected_points[a].centerline_point);
