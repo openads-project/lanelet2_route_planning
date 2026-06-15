@@ -198,7 +198,7 @@ bool Lanelet2RoutePlanning::checkMap(bool handle_update) {
 
 void Lanelet2RoutePlanning::setup() {
   // map interface
-  ll2_interface_ = std::make_unique<LL2MapInterface>(*this, ll2_map_server_name_);
+  ll2_interface_ = std::make_unique<Lanelet2MapInterface>(*this, ll2_map_server_name_);
 
   // callback for dynamic parameter configuration
   parameters_callback_ =
