@@ -9,8 +9,8 @@ Action client to plan a route_planning_msgs/action/Route based on clicked RViz p
 
 ### `plan_route_action_client`
 
-The `plan_route_action_client` node is an action client interacting with the `lanelet2_route_planning` action server, allowing to plan a route based on clicked RViz poses or other inputs. It primarily offers three different modes of route planning:
-1. goal pose subscriber: plans a route to a `/goal_pose` published by RViz's goal pose plugin
+The `plan_route_action_client` node is an action client interacting with the `lanelet2_route_planning` action server. It primarily offers three different modes of route planning:
+1. goal pose subscriber: plans a route to a `/goal_pose` published by RViz's goal pose plugin; the suggested way of interactively planning routes in RViz is to use the [PlanRouteTool](https://github.com/ika-rwth-aachen/planning_interfaces/tree/main/route_planning_msgs_rviz_plugins) RViz tool plugin though
 2. waypoints: plans routes to pre-defined waypoints, one after the other
 3. random: plans a route to a random destination on the map
 
@@ -38,7 +38,7 @@ flowchart LR
 | Parameter | Type | Default | Description |
 | --- | --- | --- | --- |
 | `ll2_map_server_name` | `string` | `"ll2_map_server"` | Name of lanelet2_map_server node |
-| `waypoints` | `string[]` | `[]` | List of WGS84 waypoints to endlessly follow (list of strings with comma-separated '<LATITUDE>,<LONGITUDE>') |
+| `waypoints` | `string[]` | `[]` | List of WGS84 waypoints to follow (list of strings with comma-separated '<LATITUDE>,<LONGITUDE>') |
 | `enable_random_destination` | `bool` | `false` | Whether to plan a route to a random destination |
-| `enable_continuous_planning` | `bool` | `false` | Whether to continuously plan a new route (either to the next waypoint or to a random destination) |
+| `enable_continuous_planning` | `bool` | `false` | Whether to continuously plan a new route (either looping waypoints or to a random destination) |
 | `cancel_route` | `bool` | `false` | Cancel active route planning action (to be set at runtime) |

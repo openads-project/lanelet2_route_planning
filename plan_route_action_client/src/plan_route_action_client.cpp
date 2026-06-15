@@ -44,12 +44,12 @@ PlanRouteActionClient::PlanRouteActionClient() : Node("plan_route_action_client"
   this->declareAndLoadParameter("ll2_map_server_name", ll2_map_server_name_, "Name of lanelet2_map_server node", false);
   this->declareAndLoadParameter(
       "waypoints", waypoints_param_,
-      "List of WGS84 waypoints to endlessly follow (list of strings with comma-separated '<LATITUDE>,<LONGITUDE>')", true);
+      "List of WGS84 waypoints to follow (list of strings with comma-separated '<LATITUDE>,<LONGITUDE>')", true);
   this->declareAndLoadParameter("enable_random_destination", enable_random_destination_,
                                 "Whether to plan a route to a random destination", true);
   this->declareAndLoadParameter(
       "enable_continuous_planning", enable_continuous_planning_,
-      "Whether to continuously plan a new route (either to the next waypoint or to a random destination)", true);
+      "Whether to continuously plan a new route (either looping waypoints or to a random destination)", true);
   this->declareAndLoadParameter("cancel_route", cancel_route_, "Cancel active route planning action (to be set at runtime)",
                                 true);
   this->setup();
