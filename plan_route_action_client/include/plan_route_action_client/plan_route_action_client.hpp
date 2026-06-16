@@ -166,7 +166,7 @@ class PlanRouteActionClient : public rclcpp::Node {
   /**
    * @brief Lanelet2 map interface
    */
-  std::unique_ptr<LL2MapInterface> ll2_interface_;
+  std::unique_ptr<Lanelet2MapInterface> ll2_interface_;
 
   /**
    * @brief WGS84 waypoints to endlessly follow

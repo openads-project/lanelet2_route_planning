@@ -185,7 +185,7 @@ void PlanRouteActionClient::setup() {
   action_client_ = rclcpp_action::create_client<PlanRoute>(this, "/planning/lanelet2_route_planning/plan_route");
 
   // ll2 map interface
-  ll2_interface_ = std::make_unique<LL2MapInterface>(*this, ll2_map_server_name_);
+  ll2_interface_ = std::make_unique<Lanelet2MapInterface>(*this, ll2_map_server_name_);
 
   // parse waypoints
   auto parsed_waypoints = parseWaypoints(waypoints_param_);
