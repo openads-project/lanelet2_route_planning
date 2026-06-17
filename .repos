@@ -1,13 +1,13 @@
 repositories:
   lanelet2_map_server:
     type: git
-    url: https://github.com/openads-project/lanelet2_map_server
-    version: v1.2.0
+    url: https://github.com/openads-project/lanelet2_map_server.git
+    version: v1.2.1
   perception_interfaces:
     type: git
-    url: https://github.com/ika-rwth-aachen/perception_interfaces
+    url: https://github.com/ika-rwth-aachen/perception_interfaces.git
     version: v1.1.0
   planning_interfaces:
     type: git
-    url: https://github.com/ika-rwth-aachen/planning_interfaces
+    url: https://github.com/ika-rwth-aachen/planning_interfaces.git
     version: v1.1.0
