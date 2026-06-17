@@ -158,13 +158,12 @@ std::optional<ProjectPointToLineStringAlongAxisResult> projectPointToLineStringA
         result.found_intersection_with_line_segment = true;
         result.projected_point = intersection;
         break;
-      } else {
-        double distance_to_line_segment =
-            std::min((intersection - line_string[i]).norm(), (intersection - line_string[i + 1]).norm());
-        if (distance_to_line_segment < closest_distance_to_line_segment) {
-          closest_distance_to_line_segment = distance_to_line_segment;
-          result.projected_point = intersection;
-        }
+      }
+      double distance_to_line_segment =
+          std::min((intersection - line_string[i]).norm(), (intersection - line_string[i + 1]).norm());
+      if (distance_to_line_segment < closest_distance_to_line_segment) {
+        closest_distance_to_line_segment = distance_to_line_segment;
+        result.projected_point = intersection;
       }
     }
   }
@@ -190,9 +189,8 @@ std::optional<ProjectPointToLineStringAlongAxisResult> projectPointToLineStringA
   // project current point to other line along normal to tangent
   if (auto result = projectPointToLineStringAlongAxis(point, normal, line_string)) {
     return result;
-  } else {
-    return std::nullopt;
   }
+  return std::nullopt;
 }
 
 }  // namespace lanelet2_route_planning

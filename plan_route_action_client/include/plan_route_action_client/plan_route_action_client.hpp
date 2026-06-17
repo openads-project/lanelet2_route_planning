@@ -132,7 +132,6 @@ class PlanRouteActionClient : public rclcpp::Node {
    */
   void resultCallback(const GoalHandlePlanRoute::WrappedResult& result);
 
- private:
   /**
    * @brief Auto-reconfigurable parameters for dynamic reconfiguration
    */

@@ -103,16 +103,21 @@ size_t matchPointToLineString(const std::vector<Eigen::Vector2d>& line_string,
   // loop over points in front of and behind the given index
   for (int direction : {1, -1}) {
     double delta_s = 0.0;
-    int idx = start_idx;
+    size_t idx = start_idx;
     // only check points within the local range of max_delta_s
-    while (delta_s <= max_delta_s && idx >= 0 && static_cast<size_t>(idx) < line_string.size()) {
+    while (delta_s <= max_delta_s && idx >= 0 && idx < line_string.size()) {
       double distance = (line_string[idx] - point).norm();
       if (distance < min_distance) {
         min_distance = distance;
         idx_closest = idx;
       }
-      delta_s +=
-          (direction == 1 ? (line_string[idx + 1] - line_string[idx]).norm() : (line_string[idx] - line_string[idx - 1]).norm());
+      if (direction == 1) {
+        if (idx + 1 >= line_string.size()) break;
+        delta_s += (line_string[idx + 1] - line_string[idx]).norm();
+      } else {
+        if (idx == 0) break;
+        delta_s += (line_string[idx] - line_string[idx - 1]).norm();
+      }
       idx += direction;
     }
   }
@@ -132,7 +137,7 @@ size_t considerOrderForPointMatchedToLineString(const std::vector<Eigen::Vector2
                                                 const Eigen::Vector2d& point,
                                                 const size_t idx_closest,
                                                 const bool behind) {
-  size_t new_idx_closest;
+  size_t new_idx_closest = idx_closest;
   Eigen::Vector2d closest_point_to_next;
   const Eigen::Vector2d closest_point_to_point = point - line_string[idx_closest];
   if (idx_closest + 1 < line_string.size()) {
@@ -152,7 +157,7 @@ size_t considerOrderForPointMatchedToLineString(const std::vector<Eigen::Vector2
   } else {
     new_idx_closest = idx_closest;
   }
-  new_idx_closest = std::clamp(new_idx_closest, 0lu, line_string.size() - 1);
+  new_idx_closest = std::clamp(new_idx_closest, size_t{0}, line_string.size() - 1);
 
   return new_idx_closest;
 }
@@ -240,7 +245,7 @@ std::optional<int> computeFollowingLaneIdxOffset(const lanelet::ConstLanelet& la
     // get adjacent lanelets of current lanelet
     std::vector<lanelet::ConstLanelet> adjacent_left_lanelets = adjacentLeftOrRightLanelets(lanelet, routing_graph, true);
     std::vector<lanelet::ConstLanelet> adjacent_right_lanelets = adjacentLeftOrRightLanelets(lanelet, routing_graph, false);
-    int suggested_lane_idx = adjacent_left_lanelets.size();
+    const int suggested_lane_idx = static_cast<int>(adjacent_left_lanelets.size());
 
     // get adjacent lanelets of next lanelet (lanelet of next point)
     std::vector<lanelet::ConstLanelet> adjacent_left_lanelets_of_next_lanelet =
@@ -280,7 +285,8 @@ std::optional<int> computeFollowingLaneIdxOffset(const lanelet::ConstLanelet& la
           // check all adjacent lanelets of next lanelet
           for (size_t l = 0; l < adjacent_lanelets_of_next_lanelet.size(); ++l) {
             if (following_lanelet.id() == adjacent_lanelets_of_next_lanelet[l].id()) {
-              following_lane_idx_offset = l - suggested_lane_idx + group_offset_factor * (a + 1);  // gottesformel
+              following_lane_idx_offset =
+                  static_cast<int>(l) - suggested_lane_idx + group_offset_factor * static_cast<int>(a + 1);
               break;
             }
           }
@@ -441,16 +447,10 @@ bool isLineStringDrivable(const lanelet::ConstLineString3d& line_string) {
         }
       }
       return true;
-    } else {
-      if (line_string.hasAttribute("HoldingLine")) {
-        return true;
-      } else {
-        return false;
-      }
     }
-  } else {
-    return false;
+    return line_string.hasAttribute("HoldingLine");
   }
+  return false;
 }
 
 ExtractRegulatoryElementsResult extractRegulatoryElements(const lanelet::ConstLanelet& lanelet,
@@ -506,7 +506,7 @@ ExtractRegulatoryElementsResult extractRegulatoryElements(const lanelet::ConstLa
       std::tie(regulatory_element_msg.type, regulatory_element_msg.meta_value) = regulatoryElementType(regulatory_element);
 
       // check if regulatory element has already been extracted (by another lanelet)
-      size_t regulatory_element_msg_idx;
+      size_t regulatory_element_msg_idx = 0;
       if (regulatory_element_msg_idx_by_id.count(regulatory_element->id()) > 0) {
         regulatory_element_msg_idx = regulatory_element_msg_idx_by_id[regulatory_element->id()];
       } else {
@@ -684,19 +684,20 @@ uint8_t speedLimit(const lanelet::ConstLanelet& lanelet, const bool consider_reg
       return unlimited;
     }
     bool is_mandatory = true;
-    if (lanelet.hasAttribute(lanelet::AttributeNamesString::SpeedLimitMandatory)) {
-      is_mandatory = lanelet.attribute(lanelet::AttributeNamesString::SpeedLimitMandatory).value() != std::string("no");
+    const std::string speed_limit_mandatory_attribute =
+        lanelet::AttributeNamesString::SpeedLimitMandatory;  // NOLINT(cppcoreguidelines-pro-bounds-array-to-pointer-decay)
+    if (lanelet.hasAttribute(speed_limit_mandatory_attribute)) {
+      is_mandatory = lanelet.attribute(speed_limit_mandatory_attribute).value() != std::string("no");
     }
     speed_limit_info = lanelet::traffic_rules::SpeedLimitInformation{*speed_limit, is_mandatory};
   }
   uint8_t unlimited = route_planning_msgs::msg::RegulatoryElement::META_VALUE_SPEED_UNLIMITED;
   if (speed_limit_info.isMandatory) {
-    int speed_limit = std::round(lanelet::units::KmHQuantity(speed_limit_info.speedLimit).value());
+    int speed_limit = static_cast<int>(std::round(lanelet::units::KmHQuantity(speed_limit_info.speedLimit).value()));
     speed_limit = std::clamp(speed_limit, 0, static_cast<int>(unlimited));
     return static_cast<uint8_t>(speed_limit);
-  } else {
-    return unlimited;
   }
+  return unlimited;
 }
 
 uint8_t speedLimit(const lanelet::ConstLanelet& lanelet, const Eigen::Vector2d& point) {
@@ -711,7 +712,8 @@ uint8_t speedLimit(const lanelet::ConstLanelet& lanelet, const Eigen::Vector2d& 
   const auto regulatory_elements = lanelet.regulatoryElements();
   for (const auto& regulatory_element : regulatory_elements) {
     // extract type and meta value, skip non-speed-limit regulatory elements
-    uint8_t regulatory_element_type, regulatory_element_meta_value;
+    uint8_t regulatory_element_type = route_planning_msgs::msg::RegulatoryElement::TYPE_UNKNOWN;
+    uint8_t regulatory_element_meta_value = route_planning_msgs::msg::RegulatoryElement::META_VALUE_UNKNOWN;
     std::tie(regulatory_element_type, regulatory_element_meta_value) = regulatoryElementType(regulatory_element);
     if (regulatory_element_type != route_planning_msgs::msg::RegulatoryElement::TYPE_SPEED_LIMIT) {
       continue;
@@ -843,8 +845,8 @@ std::tuple<uint8_t, int> suggestedTurnSignal(const lanelet::ConstLanelet& lanele
 }
 
 lanelet::traffic_rules::TrafficRulesPtr getTrafficRules() {
-  auto location = lanelet::Locations::Germany;
-  auto vehicle_type = std::string(lanelet::Participants::Vehicle);
+  auto location = lanelet::Locations::Germany;                      // NOLINT(cppcoreguidelines-pro-bounds-array-to-pointer-decay)
+  auto vehicle_type = std::string(lanelet::Participants::Vehicle);  // NOLINT(cppcoreguidelines-pro-bounds-array-to-pointer-decay)
   return lanelet::traffic_rules::TrafficRulesFactory::create(location, vehicle_type);
 }
 
@@ -882,9 +884,9 @@ lanelet::ConstLanelet followLaneletsAlongRoutingGraph(const lanelet::routing::Ro
                                                       const Eigen::Vector2d& position,
                                                       const double distance) {
   lanelet::ConstLanelet followed_lanelet = lanelet;
-  double remaining_length;
+  double remaining_length = 0.0;
   if (distance > 0) {
-    remaining_length = lanelet::geometry::length(lanelet.centerline2d()) -
+    remaining_length = static_cast<double>(lanelet::geometry::length(lanelet.centerline2d())) -
                        lanelet::geometry::toArcCoordinates(lanelet.centerline2d(), position).length;
   } else {
     remaining_length = lanelet::geometry::toArcCoordinates(lanelet.centerline2d(), position).length;
@@ -903,7 +905,7 @@ lanelet::ConstLanelet followLaneletsAlongRoutingGraph(const lanelet::routing::Ro
     }
     followed_lanelet = next_lanelets.front();
     remaining_distance -= remaining_length;
-    remaining_length = lanelet::geometry::length(followed_lanelet.centerline2d());
+    remaining_length = static_cast<double>(lanelet::geometry::length(followed_lanelet.centerline2d()));
   }
 
   return followed_lanelet;
@@ -1039,7 +1041,7 @@ void postprocessRouteMessage(
   }
 
   // loop over route elements in reverse to propagate suggested turn signals backwards
-  for (int r = route_elements.size() - 1; r >= 0; --r) {
+  for (int r = static_cast<int>(route_elements.size()) - 1; r >= 0; --r) {
     auto& route_element = route_elements[r];
     if (!route_element.is_enriched) continue;  // only handle turn signal information for enriched route elements
 

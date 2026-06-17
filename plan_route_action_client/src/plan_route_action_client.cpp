@@ -3,6 +3,7 @@
 
 #include <chrono>
 #include <functional>
+#include <iterator>
 #include <optional>
 
 #include <lanelet2_core/geometry/LaneletMap.h>
@@ -281,9 +282,12 @@ void PlanRouteActionClient::planToRandomDestination() {
   auto goal_pose = std::make_shared<geometry_msgs::msg::PoseStamped>();
   lanelet::LaneletMapConstPtr map = ll2_interface_->getMapPtr();
   if (!map->laneletLayer.empty()) {
-    auto random_lanelet = *std::next(map->laneletLayer.begin(), std::rand() % map->laneletLayer.size());
+    const auto lanelet_count = static_cast<int>(map->laneletLayer.size());
+    const auto random_lanelet_idx =
+        static_cast<std::iterator_traits<decltype(map->laneletLayer.begin())>::difference_type>(std::rand() % lanelet_count);
+    auto random_lanelet = *std::next(map->laneletLayer.begin(), random_lanelet_idx);
     auto centerline = random_lanelet.centerline();
-    if (centerline.size() > 0) {
+    if (!centerline.empty()) {
       auto point = centerline.back();
       goal_pose->pose.position.x = point.x();
       goal_pose->pose.position.y = point.y();

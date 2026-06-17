@@ -176,7 +176,6 @@ class Lanelet2RoutePlanning : public rclcpp::Node {
    */
   void buildEnrichedRouteMessage();
 
- private:
   /**
    * @brief Auto-reconfigurable parameters for dynamic reconfiguration
    */

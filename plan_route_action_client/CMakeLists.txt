@@ -34,6 +34,9 @@ ament_target_dependencies(${TARGET_NAME}
   tf2_geometry_msgs
 )
 
+# https://github.com/openads-project/lanelet2_map_server/tree/main/lanelet2_map_interface#linting-downstream-packages
+target_dependencies_as_system(${TARGET_NAME})
+
 install(TARGETS ${TARGET_NAME}
   DESTINATION lib/${PROJECT_NAME}
 )

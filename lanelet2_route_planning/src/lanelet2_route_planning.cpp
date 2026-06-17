@@ -244,7 +244,7 @@ bool Lanelet2RoutePlanning::buildRoutingGraph() {
   // build routing graph
   routing_graph_ = lanelet::routing::RoutingGraph::build(*map, *traffic_rules);
   lanelet::routing::Route::Errors errors = routing_graph_->checkValidity();
-  if (errors.size() > 0) {
+  if (!errors.empty()) {
     RCLCPP_ERROR(this->get_logger(), "Failed to build valid routing graph");
     for (size_t i = 0; i < errors.size(); ++i) {
       RCLCPP_ERROR_STREAM(this->get_logger(), errors[i]);
@@ -531,10 +531,9 @@ bool Lanelet2RoutePlanning::planRoute(const geometry_msgs::msg::PointStamped& de
     intermediate_destinations_ = intermediate_destinations_on_route;
     latest_route_ = std::move(*planned_route);
     return true;
-  } else {
-    RCLCPP_ERROR(this->get_logger(), "Failed to plan route from lanelet %ld to lanelet %ld", ego_ll.id(), destination_ll.id());
-    return false;
   }
+  RCLCPP_ERROR(this->get_logger(), "Failed to plan route from lanelet %ld to lanelet %ld", ego_ll.id(), destination_ll.id());
+  return false;
 }
 
 void Lanelet2RoutePlanning::buildGlobalRouteMessage() {
@@ -568,8 +567,9 @@ void Lanelet2RoutePlanning::buildGlobalRouteMessage() {
     const lanelet::ConstLanelet& lanelet = shortest_path[latest_lanelet_idx_by_reference_line_point_idx_[c]];
 
     // identify lane changes based on break in equidistant centerline
-    bool changes_lane_from_prev_point = changesLaneFromPointToPoint(prev_point, point, sampling_distance_);
-    bool changes_lane_to_next_point = changesLaneFromPointToPoint(point, next_point, sampling_distance_);
+    const bool changes_lane_from_prev_point =
+        changesLaneFromPointToPoint(prev_point, point, sampling_distance_);  // NOLINT(readability-suspicious-call-argument)
+    const bool changes_lane_to_next_point = changesLaneFromPointToPoint(point, next_point, sampling_distance_);
 
     // compute orientation of centerline point
     Eigen::Vector2d prev_point_for_orientation = changes_lane_from_prev_point ? point : prev_point;
@@ -667,8 +667,9 @@ void Lanelet2RoutePlanning::buildEnrichedRouteMessage() {
     const lanelet::ConstLanelet& lanelet = shortest_path[latest_lanelet_idx_by_reference_line_point_idx_[c]];
 
     // identify lane changes
-    bool changes_lane_from_prev_point = changesLaneFromPointToPoint(prev_point, point, sampling_distance_);
-    bool changes_lane_to_next_point = changesLaneFromPointToPoint(point, next_point, sampling_distance_);
+    const bool changes_lane_from_prev_point =
+        changesLaneFromPointToPoint(prev_point, point, sampling_distance_);  // NOLINT(readability-suspicious-call-argument)
+    const bool changes_lane_to_next_point = changesLaneFromPointToPoint(point, next_point, sampling_distance_);
 
     // determine neighboring points for projection
     Eigen::Vector2d prev_point_for_projection = changes_lane_from_prev_point ? point : prev_point;
@@ -677,8 +678,8 @@ void Lanelet2RoutePlanning::buildEnrichedRouteMessage() {
     // get adjacent lanelets
     std::vector<lanelet::ConstLanelet> adjacent_left_lanelets = adjacentLeftOrRightLanelets(lanelet, routing_graph_, true);
     std::vector<lanelet::ConstLanelet> adjacent_right_lanelets = adjacentLeftOrRightLanelets(lanelet, routing_graph_, false);
-    int suggested_lane_idx = adjacent_left_lanelets.size();
-    int n_lanes = adjacent_left_lanelets.size() + 1 + adjacent_right_lanelets.size();
+    const int suggested_lane_idx = static_cast<int>(adjacent_left_lanelets.size());
+    const int n_lanes = static_cast<int>(adjacent_left_lanelets.size() + 1 + adjacent_right_lanelets.size());
     if (latest_suggested_turn_signal_distance_ahead_by_route_element_by_lane_element_[c].empty()) {
       latest_suggested_turn_signal_distance_ahead_by_route_element_by_lane_element_[c] = std::vector<int>(n_lanes, -1);
     }
@@ -695,7 +696,7 @@ void Lanelet2RoutePlanning::buildEnrichedRouteMessage() {
     // compute offset of lane element indices from current to next route element
     const lanelet::ConstLanelet& lanelet_of_next_point =
         (c < route_elements.size() - 1) ? shortest_path[latest_lanelet_idx_by_reference_line_point_idx_[c + 1]] : lanelet;
-    int following_lane_idx_offset;
+    int following_lane_idx_offset = 0;
     if (auto result = computeFollowingLaneIdxOffset(lanelet, lanelet_of_next_point, routing_graph_)) {
       following_lane_idx_offset = *result;
     } else {
@@ -742,7 +743,8 @@ void Lanelet2RoutePlanning::buildEnrichedRouteMessage() {
         lane_element_msg.speed_limit =
             speedLimit(adjacent_left_lanelets[a], adjacent_left_lanelets_projected_points[a].centerline_point);
         lane_element_msg.regulatory_element_idcs = regulatory_element_extraction.adjacent_left_regulatory_element_idcs[a];
-        int computed_following_lane_idx = route_element_msg.lane_elements.size() + following_lane_idx_offset;
+        const int computed_following_lane_idx =
+            static_cast<int>(route_element_msg.lane_elements.size()) + following_lane_idx_offset;
         lane_element_msg.has_following_lane_idx = (computed_following_lane_idx >= 0 && computed_following_lane_idx < n_lanes);
         if (lane_element_msg.has_following_lane_idx) {
           lane_element_msg.following_lane_idx = computed_following_lane_idx;
@@ -764,7 +766,8 @@ void Lanelet2RoutePlanning::buildEnrichedRouteMessage() {
       centerline_lane_element_msg.right_boundary.type = laneBoundaryType(lanelet.rightBound2d());
       centerline_lane_element_msg.speed_limit = speedLimit(lanelet, point);
       centerline_lane_element_msg.regulatory_element_idcs = regulatory_element_extraction.regulatory_element_idcs;
-      int computed_following_lane_idx = route_element_msg.lane_elements.size() + following_lane_idx_offset;
+      const int computed_following_lane_idx =
+          static_cast<int>(route_element_msg.lane_elements.size()) + following_lane_idx_offset;
       centerline_lane_element_msg.has_following_lane_idx =
           (computed_following_lane_idx >= 0 && computed_following_lane_idx < n_lanes);
       if (centerline_lane_element_msg.has_following_lane_idx) {
@@ -790,7 +793,8 @@ void Lanelet2RoutePlanning::buildEnrichedRouteMessage() {
         lane_element_msg.speed_limit =
             speedLimit(adjacent_right_lanelets[a], adjacent_right_lanelets_projected_points[a].centerline_point);
         lane_element_msg.regulatory_element_idcs = regulatory_element_extraction.adjacent_right_regulatory_element_idcs[a];
-        int computed_following_lane_idx = route_element_msg.lane_elements.size() + following_lane_idx_offset;
+        const int computed_following_lane_idx =
+            static_cast<int>(route_element_msg.lane_elements.size()) + following_lane_idx_offset;
         lane_element_msg.has_following_lane_idx = (computed_following_lane_idx >= 0 && computed_following_lane_idx < n_lanes);
         if (lane_element_msg.has_following_lane_idx) {
           lane_element_msg.following_lane_idx = computed_following_lane_idx;
