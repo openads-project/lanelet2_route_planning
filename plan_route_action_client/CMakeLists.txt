@@ -34,6 +34,9 @@ ament_target_dependencies(${TARGET_NAME}
   tf2_geometry_msgs
 )
 
+# https://github.com/openads-project/lanelet2_map_server/tree/main/lanelet2_map_interface#linting-downstream-packages
+target_dependencies_as_system(${TARGET_NAME})
+
 install(TARGETS ${TARGET_NAME}
   DESTINATION lib/${PROJECT_NAME}
 )
@@ -47,5 +50,13 @@ install(DIRECTORY config
   DESTINATION share/${PROJECT_NAME}
   OPTIONAL
 )
+
+if(BUILD_TESTING)
+  find_package(ament_lint_auto REQUIRED)
+  set(ament_cmake_clang_format_CONFIG_FILE ${CMAKE_CURRENT_SOURCE_DIR}/../.vscode/format/.clang-format)
+  set(ament_cmake_clang_tidy_CONFIG_FILE ${CMAKE_CURRENT_SOURCE_DIR}/../.vscode/lint/.clang-tidy)
+  set(ament_cmake_flake8_CONFIG_FILE ${CMAKE_CURRENT_SOURCE_DIR}/../.vscode/lint/ament_flake8.ini)
+  ament_lint_auto_find_test_dependencies()
+endif()
 
 ament_package()

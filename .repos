@@ -1,17 +1,13 @@
 repositories:
-  lanelet2_map_interface:
+  lanelet2_map_server:
     type: git
-    url: https://gitlab.ika.rwth-aachen.de/fb-fi/its-modules/localization/lanelet2_map_interface
-    version: v1.0.0
-  lanelet2_utilities:
-    type: git
-    url: https://gitlab.ika.rwth-aachen.de/fb-fi/its-modules/localization/lanelet2_utilities
-    version: v1.0.0
+    url: https://github.com/openads-project/lanelet2_map_server.git
+    version: v1.2.1
   perception_interfaces:
     type: git
-    url: https://github.com/ika-rwth-aachen/perception_interfaces
-    version: v1.0.0
+    url: https://github.com/ika-rwth-aachen/perception_interfaces.git
+    version: v1.1.0
   planning_interfaces:
     type: git
-    url: https://github.com/ika-rwth-aachen/planning_interfaces
-    version: v1.0.0
+    url: https://github.com/ika-rwth-aachen/planning_interfaces.git
+    version: v1.1.0
