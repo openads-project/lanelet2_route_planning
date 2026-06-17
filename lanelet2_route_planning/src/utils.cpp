@@ -68,6 +68,10 @@ size_t indexOfLineStringPointClosestToPoint(const std::vector<Eigen::Vector2d>& 
                                             const Eigen::Vector2d& point,
                                             const bool consider_order,
                                             const bool behind) {
+  if (line_string.empty()) {
+    return 0;
+  }
+
   // loop over all points in line string to find closest one to given point
   size_t idx_closest = 0;
   double min_distance = std::numeric_limits<double>::infinity();
@@ -92,6 +96,10 @@ size_t matchPointToLineString(const std::vector<Eigen::Vector2d>& line_string,
                               const size_t idx_indication,
                               const bool consider_order,
                               const bool behind) {
+  if (line_string.empty()) {
+    return 0;
+  }
+
   // constants
   const double max_delta_s = 10.0;
   const double max_local_distance = 10.0;
@@ -105,7 +113,7 @@ size_t matchPointToLineString(const std::vector<Eigen::Vector2d>& line_string,
     double delta_s = 0.0;
     size_t idx = start_idx;
     // only check points within the local range of max_delta_s
-    while (delta_s <= max_delta_s && idx >= 0 && idx < line_string.size()) {
+    while (delta_s <= max_delta_s && idx < line_string.size()) {
       double distance = (line_string[idx] - point).norm();
       if (distance < min_distance) {
         min_distance = distance;
@@ -137,6 +145,10 @@ size_t considerOrderForPointMatchedToLineString(const std::vector<Eigen::Vector2
                                                 const Eigen::Vector2d& point,
                                                 const size_t idx_closest,
                                                 const bool behind) {
+  if (line_string.empty()) {
+    return 0;
+  }
+
   size_t new_idx_closest = idx_closest;
   Eigen::Vector2d closest_point_to_next;
   const Eigen::Vector2d closest_point_to_point = point - line_string[idx_closest];
@@ -151,7 +163,7 @@ size_t considerOrderForPointMatchedToLineString(const std::vector<Eigen::Vector2
   // use angle to check if closest point is behind or ahead of the given point
   const double angle = angleBetweenVectors(closest_point_to_point, closest_point_to_next);
   if (behind && std::abs(angle) > M_PI_2) {
-    new_idx_closest = idx_closest - 1;
+    new_idx_closest = idx_closest > 0 ? idx_closest - 1 : 0;
   } else if (!behind && std::abs(angle) < M_PI_2) {
     new_idx_closest = idx_closest + 1;
   } else {
