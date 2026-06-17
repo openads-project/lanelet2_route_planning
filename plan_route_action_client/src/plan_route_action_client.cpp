@@ -47,9 +47,9 @@ PlanRouteActionClient::PlanRouteActionClient() : Node("plan_route_action_client"
       "List of WGS84 waypoints to follow (list of strings with comma-separated '<LATITUDE>,<LONGITUDE>')", true);
   this->declareAndLoadParameter("enable_random_destination", enable_random_destination_,
                                 "Whether to plan a route to a random destination", true);
-  this->declareAndLoadParameter(
-      "enable_continuous_planning", enable_continuous_planning_,
-      "Whether to continuously plan a new route (either looping waypoints or to a random destination)", true);
+  this->declareAndLoadParameter("enable_continuous_planning", enable_continuous_planning_,
+                                "Whether to continuously plan a new route (either looping waypoints or to a random destination)",
+                                true);
   this->declareAndLoadParameter("cancel_route", cancel_route_, "Cancel active route planning action (to be set at runtime)",
                                 true);
   this->setup();
