@@ -1,7 +1,7 @@
 services:
 
   lanelet2-route-planning:
-    image: ghcr.io/openads-project/lanelet2_route_planning:v1.1.0
+    image: ghcr.io/openads-project/lanelet2_route_planning:latest_fix-altitude_ci
     environment:
       RMW_IMPLEMENTATION: rmw_fastrtps_cpp
     command: |
@@ -27,21 +27,10 @@ services:
       ros2 topic pub -r 10
         /planning/lanelet2_route_planning/ego_data
         perception_msgs/msg/EgoData
-        "{header: {frame_id: 'map'}, state: {model_id: 1, continuous_state: [80.0, 90.0, 0.75, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.5708, 0.0, 0.0, 0.0]}, length: 4.0, width: 1.8, height: 1.5}"
-
-  tf-publisher:
-    image: ghcr.io/openads-project/lanelet2_route_planning:demo-monitoring
-    environment:
-      RMW_IMPLEMENTATION: rmw_fastrtps_cpp
-    command: |
-      ros2 run tf2_ros static_transform_publisher
-        --frame-id map
-        --child-frame-id base_link
-        --x 80.0 --y 90.0 --z 0.0
-        --roll 0.0 --pitch 0.0 --yaw 1.5708
+        "{header: {frame_id: 'map'}, state: {model_id: 1, continuous_state: [0.0, 0.0, 0.75, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, -2.5, 0.0, 0.0, 0.0]}, length: 4.0, width: 1.8, height: 1.5}"
 
   rviz:
-    image: ghcr.io/openads-project/lanelet2_route_planning:demo-monitoring
+    image: gitlab.ika.rwth-aachen.de:5050/fb-fi/its-modules/monitoring/ros-monitoring:latest
     environment:
       RMW_IMPLEMENTATION: rmw_fastrtps_cpp
       DISPLAY: ${DISPLAY}
