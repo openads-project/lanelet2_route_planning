@@ -151,10 +151,9 @@ double interpolateZAtPoint(const Eigen::Vector2d& point, const std::vector<Eigen
     const Eigen::Vector2d segment_end = to2d(line_string[i]);
     const Eigen::Vector2d segment = segment_end - segment_start;
     const double segment_length_squared = segment.squaredNorm();
-    const double segment_ratio =
-        (segment_length_squared > 0.0)
-            ? std::clamp((point - segment_start).dot(segment) / segment_length_squared, 0.0, 1.0)
-            : 0.0;
+    const double segment_ratio = (segment_length_squared > 0.0)
+                                     ? std::clamp((point - segment_start).dot(segment) / segment_length_squared, 0.0, 1.0)
+                                     : 0.0;
     const Eigen::Vector2d projected_point = segment_start + segment_ratio * segment;
     const double squared_distance = (point - projected_point).squaredNorm();
     if (squared_distance < closest_squared_distance) {
