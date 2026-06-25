@@ -215,33 +215,26 @@ std::vector<ProjectedLaneletPoints> projectPointToLaneletLines(const Eigen::Vect
   // loop over lanelets
   for (const auto& lanelet : lanelets) {
     ProjectedLaneletPoints projected_points;
+    auto project_to_line = [&](const lanelet::ConstLineString2d& line_string, const char* line_name) {
+      const std::vector<Eigen::Vector2d> line_string_eigen = toEigen(line_string.basicLineString());
+      if (auto result = projectPointToLineStringAlongNormal(point, prev_point, next_point, line_string_eigen)) {
+        if (result->found_intersection_with_line_segment) {
+          return result->projected_point;
+        }
+      }
+      RCLCPP_WARN(logger, "Failed to project point (%.3f, %.3f) to %s of lanelet %ld, using closest point", point.x(),
+                  point.y(), line_name, lanelet.id());
+      return projectPointToLineString(point, line_string_eigen);
+    };
 
     // project point to left bounds
-    if (auto result = projectPointToLineStringAlongNormal(point, prev_point, next_point,
-                                                          toEigen(lanelet.leftBound2d().basicLineString()))) {
-      projected_points.left_bound_point = result->projected_point;
-    } else {
-      RCLCPP_WARN(logger, "Failed to project point (%.3f, %.3f) to left bounds of lanelet %ld", point.x(), point.y(),
-                  lanelet.id());
-    }
+    projected_points.left_bound_point = project_to_line(lanelet.leftBound2d(), "left bounds");
 
     // project point to centerline
-    if (auto result = projectPointToLineStringAlongNormal(point, prev_point, next_point,
-                                                          toEigen(lanelet.centerline2d().basicLineString()))) {
-      projected_points.centerline_point = result->projected_point;
-    } else {
-      RCLCPP_WARN(logger, "Failed to project point (%.3f, %.3f) to centerline of lanelet %ld", point.x(), point.y(),
-                  lanelet.id());
-    }
+    projected_points.centerline_point = project_to_line(lanelet.centerline2d(), "centerline");
 
     // project point to right bounds
-    if (auto result = projectPointToLineStringAlongNormal(point, prev_point, next_point,
-                                                          toEigen(lanelet.rightBound2d().basicLineString()))) {
-      projected_points.right_bound_point = result->projected_point;
-    } else {
-      RCLCPP_WARN(logger, "Failed to project point (%.3f, %.3f) to right bounds of lanelet %ld", point.x(), point.y(),
-                  lanelet.id());
-    }
+    projected_points.right_bound_point = project_to_line(lanelet.rightBound2d(), "right bounds");
 
     projected_points_per_lanelet.push_back(projected_points);
   }
