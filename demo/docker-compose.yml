@@ -27,7 +27,7 @@ services:
       ros2 topic pub -r 10
         /planning/lanelet2_route_planning/ego_data
         perception_msgs/msg/EgoData
-        "{header: {frame_id: 'map'}, state: {model_id: 1, continuous_state: [0.0, 0.0, 0.75, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, -2.5, 0.0, 0.0, 0.0]}, length: 4.0, width: 1.8, height: 1.5}"
+        "{header: {frame_id: 'map'}, state: {model_id: 1, continuous_state: [80.0, 90.0, 0.75, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.5708, 0.0, 0.0, 0.0]}, length: 4.0, width: 1.8, height: 1.5}"
 
   rviz:
     image: ghcr.io/openads-project/lanelet2_route_planning:demo-monitoring
