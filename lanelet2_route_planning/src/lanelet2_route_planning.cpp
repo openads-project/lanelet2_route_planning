@@ -590,16 +590,11 @@ void Lanelet2RoutePlanning::buildGlobalRouteMessage() {
 
   // project starting point and destinations to reference line, if enabled
   if (project_destination_to_reference_line_) {
-    auto project_to_reference_line = [&shortest_path_centerline,
-                                      &shortest_path_centerline_3d](const geometry_msgs::msg::Point& point) {
-      const Eigen::Vector2d projected_point = projectPointToLineString(toEigen2d(point), shortest_path_centerline);
-      return toRos(to3d(projected_point, interpolateZAtPoint(projected_point, shortest_path_centerline_3d)));
-    };
-    starting_point_ = project_to_reference_line(starting_point_);
+    starting_point_ = toRos(projectPointToLineString(toEigen(starting_point_), shortest_path_centerline_3d));
     for (auto& destination : intermediate_destinations_) {
-      destination = project_to_reference_line(destination);
+      destination = toRos(projectPointToLineString(toEigen(destination), shortest_path_centerline_3d));
     }
-    destination_ = project_to_reference_line(destination_);
+    destination_ = toRos(projectPointToLineString(toEigen(destination_), shortest_path_centerline_3d));
     route_msg.destination = destination_;
     route_msg.intermediate_destinations = intermediate_destinations_;
   }

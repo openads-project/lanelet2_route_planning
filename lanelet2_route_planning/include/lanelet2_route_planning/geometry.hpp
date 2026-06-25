@@ -80,14 +80,16 @@ Eigen::Vector2d normalOfPointAlongLineString(const Eigen::Vector2d& point,
                                              const Eigen::Vector2d& next_point);
 
 /**
- * @brief Resamples a line string with a constant sampling distance.
+ * @brief Resamples a 3D line string with a constant sampling distance.
+ *
+ * Sampling distance is measured in the xy-plane; z is interpolated.
  *
  * @param[in] line line string
  * @param[in] delta sampling distance
  * @param[in,out] offset starts sampling at offset distance, returns overshoot distance
  * @return resampled line string
  */
-std::vector<Eigen::Vector2d> resampleLineString(const std::vector<Eigen::Vector2d>& line_string,
+std::vector<Eigen::Vector3d> resampleLineString(const std::vector<Eigen::Vector3d>& line_string,
                                                 const double delta,
                                                 double& offset);
 
@@ -108,17 +110,6 @@ Eigen::Vector2d projectPointToLineString(const Eigen::Vector2d& point, const std
  * @return projected point
  */
 Eigen::Vector3d projectPointToLineString(const Eigen::Vector3d& point, const std::vector<Eigen::Vector3d>& line_string);
-
-/**
- * @brief Interpolates the z-coordinate of a 3D line string at a 2D point.
- *
- * The closest line segment is selected in the xy-plane.
- *
- * @param[in] point point
- * @param[in] line_string line string
- * @return interpolated z-coordinate
- */
-double interpolateZAtPoint(const Eigen::Vector2d& point, const std::vector<Eigen::Vector3d>& line_string);
 
 /**
  * @brief Return type of projectPointToLineStringAlongAxis.

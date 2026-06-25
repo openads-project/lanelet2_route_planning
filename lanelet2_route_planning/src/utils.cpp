@@ -936,14 +936,13 @@ ResampleCenterlinesAlongPathResult resampleCenterlinesAlongPath(const lanelet::r
   for (size_t l = 0; l < path.size(); ++l) {
     // get centerline
     const lanelet::ConstLanelet& lanelet = path[l];
-    lanelet::BasicLineString2d centerline = lanelet.centerline2d().basicLineString();
-    const std::vector<Eigen::Vector3d> centerline_3d = toEigen(lanelet.centerline().basicLineString());
+    lanelet::BasicLineString3d centerline = lanelet.centerline().basicLineString();
 
     // skip point if behind previous sampled point, e.g., if on adjacent lanelet in shortest path due to lane change
     if (monotonically && !result.centerline.empty()) {
       for (auto cit = centerline.begin(); cit != centerline.end();) {
         auto& centerline_point = *cit;
-        if ((centerline_point - prev_sampled_point).dot(prev_sampled_point_orientation) < 0) {  // angle > 90deg
+        if ((to2d(centerline_point) - prev_sampled_point).dot(prev_sampled_point_orientation) < 0) {  // angle > 90deg
           cit = centerline.erase(cit);
         } else {
           break;
@@ -952,23 +951,19 @@ ResampleCenterlinesAlongPathResult resampleCenterlinesAlongPath(const lanelet::r
     }
 
     // resample lanelet centerline
-    std::vector<Eigen::Vector2d> resampled_centerline = resampleLineString(toEigen(centerline), delta_s, resampling_offset);
-    std::vector<Eigen::Vector3d> resampled_centerline_3d;
-    resampled_centerline_3d.reserve(resampled_centerline.size());
-    for (const auto& point : resampled_centerline) {
-      resampled_centerline_3d.push_back(to3d(point, interpolateZAtPoint(point, centerline_3d)));
-    }
-    result.centerline.insert(result.centerline.end(), resampled_centerline_3d.begin(), resampled_centerline_3d.end());
+    std::vector<Eigen::Vector3d> resampled_centerline = resampleLineString(toEigen(centerline), delta_s, resampling_offset);
+    result.centerline.insert(result.centerline.end(), resampled_centerline.begin(), resampled_centerline.end());
     result.lanelet_idx_by_point.insert(result.lanelet_idx_by_point.end(), resampled_centerline.size(), l);
 
     // update information for monotonicity check
     if (monotonically && !resampled_centerline.empty()) {
       if (resampled_centerline.size() > 1) {
-        prev_sampled_point = resampled_centerline[resampled_centerline.size() - 2];
+        prev_sampled_point = to2d(resampled_centerline[resampled_centerline.size() - 2]);
       }
+      const Eigen::Vector2d current_sampled_point = to2d(resampled_centerline.back());
       prev_sampled_point_orientation =
-          tangentOfPointAlongLineString(resampled_centerline.back(), prev_sampled_point, resampled_centerline.back());
-      prev_sampled_point = resampled_centerline.back();
+          tangentOfPointAlongLineString(current_sampled_point, prev_sampled_point, current_sampled_point);
+      prev_sampled_point = current_sampled_point;
     }
   }
 
