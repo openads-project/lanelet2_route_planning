@@ -22,7 +22,7 @@ jobs:
           base-image: rwthika/ros2:jazzy
           rmw-implementation: rmw_zenoh_cpp
           command: ros2 launch lanelet2_route_planning lanelet2_route_planning_launch.py
-          enable-industrial-ci: true
+          enable-industrial-ci: false
           label-maintainer: Institute for Automotive Engineering (ika), RWTH Aachen University <opensource@ika.rwth-aachen.de>
           label-authors: Institute for Automotive Engineering (ika), RWTH Aachen University <opensource@ika.rwth-aachen.de>
         env:
