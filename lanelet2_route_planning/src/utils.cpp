@@ -222,8 +222,8 @@ std::vector<ProjectedLaneletPoints> projectPointToLaneletLines(const Eigen::Vect
           return result->projected_point;
         }
       }
-      RCLCPP_WARN(logger, "Failed to project point (%.3f, %.3f) to %s of lanelet %ld, using closest point", point.x(),
-                  point.y(), line_name, lanelet.id());
+      RCLCPP_WARN(logger, "Failed to project point (%.3f, %.3f) to %s of lanelet %ld, using closest point", point.x(), point.y(),
+                  line_name, lanelet.id());
       return projectPointToLineString(point, line_string_eigen);
     };
 
