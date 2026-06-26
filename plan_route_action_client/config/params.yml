@@ -3,6 +3,7 @@
     ll2_map_server_name: ll2_map_server
     # waypoints:
     #   - "<LATITUDE>, <LONGITUDE>"
+    #   - "<LATITUDE>, <LONGITUDE>, <TRANSITION_DISTANCE>"
     enable_random_destination: false
     enable_continuous_planning: false
     cancel_route: false

@@ -4,6 +4,7 @@
 #pragma once
 
 #include <memory>
+#include <optional>
 #include <string>
 #include <utility>
 #include <vector>
@@ -173,9 +174,24 @@ class PlanRouteActionClient : public rclcpp::Node {
   std::vector<std::pair<double, double>> waypoints_;
 
   /**
+   * @brief Transition distance for each waypoint
+   */
+  std::vector<double> waypoint_transition_distances_;
+
+  /**
    * @brief Index of next waypoint to follow
    */
   size_t next_waypoint_idx_ = 0;
+
+  /**
+   * @brief Whether the active goal belongs to the waypoint list
+   */
+  bool has_active_waypoint_ = false;
+
+  /**
+   * @brief Whether a waypoint transition goal has already been sent
+   */
+  bool is_switching_waypoints_ = false;
 
   /**
    * @brief Whether one goal has been completed (succeeded or failed)
@@ -190,7 +206,7 @@ class PlanRouteActionClient : public rclcpp::Node {
   /**
    * @brief WGS84 waypoints to endlessly follow (parameter)
    *
-   * list of strings with comma-separated '<LATITUDE>,<LONGITUDE>'
+   * list of strings with comma-separated '<LATITUDE>,<LONGITUDE>[,<TRANSITION_DISTANCE>]'
    */
   std::vector<std::string> waypoints_param_;
 
