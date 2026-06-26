@@ -66,11 +66,10 @@ std::optional<std::vector<std::pair<double, double>>> parseWaypoints(const std::
 
 PlanRouteActionClient::PlanRouteActionClient() : Node("plan_route_action_client") {
   this->declareAndLoadParameter("ll2_map_server_name", ll2_map_server_name_, "Name of lanelet2_map_server node", false);
-  this->declareAndLoadParameter(
-      "waypoints", waypoints_param_,
-      "List of WGS84 waypoints to follow (list of strings with comma-separated "
-      "'<LATITUDE>,<LONGITUDE>[,<TRANSITION_DISTANCE>]')",
-      true);
+  this->declareAndLoadParameter("waypoints", waypoints_param_,
+                                "List of WGS84 waypoints to follow (list of strings with comma-separated "
+                                "'<LATITUDE>,<LONGITUDE>[,<TRANSITION_DISTANCE>]')",
+                                true);
   this->declareAndLoadParameter("enable_random_destination", enable_random_destination_,
                                 "Whether to plan a route to a random destination", true);
   this->declareAndLoadParameter("enable_continuous_planning", enable_continuous_planning_,
