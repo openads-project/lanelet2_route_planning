@@ -758,7 +758,7 @@ void Lanelet2RoutePlanning::buildEnrichedRouteMessage() {
 
       // create LaneElement for centerline lane
       route_planning_msgs::msg::LaneElement centerline_lane_element_msg;
-      centerline_lane_element_msg.reference_pose.position = lane_element_msg.reference_pose.position;
+      centerline_lane_element_msg.reference_pose.position = toRos(to3d(point, point_z));
       // centerline_lane_element_msg.reference_pose.orientation computed in postprocessRouteMessage
       centerline_lane_element_msg.left_boundary.point = toRos(to3d(lanelet_projected_points.left_bound_point, point_z));
       centerline_lane_element_msg.left_boundary.type = laneBoundaryType(lanelet.leftBound2d());
