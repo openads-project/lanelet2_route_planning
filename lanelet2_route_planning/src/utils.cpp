@@ -386,7 +386,8 @@ std::pair<Eigen::Vector2d, Eigen::Vector2d> extractDrivableSpace(const lanelet::
     const auto& line_string = line_strings_and_distances[l].second;
     auto result = projectPointToLineStringAlongNormal(point_sequence.current, point_sequence.prev, point_sequence.next,
                                                       to2d(toEigen(line_string.basicLineString())));
-    if (result && result->found_intersection_with_line_segment) {
+    if (result && result->found_intersection_with_line_segment &&
+        (result->projected_point - point_sequence.current).norm() <= max_distance) {
       projected_points_and_line_string_idcs.emplace_back(result->projected_point, l);
     }
   }
