@@ -380,15 +380,27 @@ std::pair<Eigen::Vector2d, Eigen::Vector2d> extractDrivableSpace(const lanelet::
   std::vector<std::pair<double, lanelet::ConstLineString3d>> line_strings_and_distances =
       lanelet::geometry::findWithin2d(line_string_layer, line_to_search_around, max_distance);
 
-  // project current point to all line strings
+  // collect all intersections of the normal through the current point with nearby line strings
+  const std::vector<Eigen::Vector2d> normal_line = {
+      point_sequence.current,
+      point_sequence.current + normalOfPointAlongLineString(point_sequence.current, point_sequence.prev, point_sequence.next)};
   std::vector<std::pair<Eigen::Vector2d, size_t>> projected_points_and_line_string_idcs;
   for (size_t l = 0; l < line_strings_and_distances.size(); ++l) {
     const auto& line_string = line_strings_and_distances[l].second;
-    auto result = projectPointToLineStringAlongNormal(point_sequence.current, point_sequence.prev, point_sequence.next,
-                                                      to2d(toEigen(line_string.basicLineString())));
-    if (result && result->found_intersection_with_line_segment &&
-        (result->projected_point - point_sequence.current).norm() <= max_distance) {
-      projected_points_and_line_string_idcs.emplace_back(result->projected_point, l);
+    const std::vector<Eigen::Vector2d> line_string_2d = to2d(toEigen(line_string.basicLineString()));
+    for (size_t i = 1; i < line_string_2d.size(); ++i) {
+      const std::vector<Eigen::Vector2d> line_segment = {line_string_2d[i - 1], line_string_2d[i]};
+      auto intersection = intersectionOfLines(normal_line, line_segment);
+      if (!intersection || !intersection->intersects_line2) {
+        continue;
+      }
+
+      const Eigen::Vector2d& projected_point = intersection->intersection;
+      if ((projected_point - point_sequence.current).norm() > max_distance) {
+        continue;
+      }
+
+      projected_points_and_line_string_idcs.emplace_back(projected_point, l);
     }
   }
 
