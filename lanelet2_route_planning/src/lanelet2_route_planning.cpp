@@ -35,7 +35,7 @@ Lanelet2RoutePlanning::Lanelet2RoutePlanning() : Node("lanelet2_route_planning")
                                 "Whether to project destination to reference line", true, false, false);
   this->declareAndLoadParameter("destination_distance_threshold", destination_distance_threshold_,
                                 "Distance to destination where destination is considered reached [m]", true, false, false, 0.1,
-                                10.0);
+                                200.0);
   this->declareAndLoadParameter(
       "required_traveled_distance_proportion", required_traveled_distance_proportion_,
       "Proportion of route length that must have been traveled before considering destination reached [0..1]", true, false, false,
