@@ -9,6 +9,7 @@
 #include <utility>
 #include <vector>
 
+#include <geometry_msgs/msg/point_stamped.hpp>
 #include <geometry_msgs/msg/pose_stamped.hpp>
 #include <lanelet2_map_interface/lanelet2_map_interface.hpp>
 #include <rclcpp/rclcpp.hpp>
@@ -108,8 +109,10 @@ class PlanRouteActionClient : public rclcpp::Node {
    * @brief Sends a goal to the action server
    *
    * @param[in] msg goal pose
+   * @param[in] intermediate_destinations intermediate destinations to route via
    */
-  void sendGoal(const geometry_msgs::msg::PoseStamped::SharedPtr msg);
+  void sendGoal(const geometry_msgs::msg::PoseStamped::SharedPtr msg,
+                const std::vector<geometry_msgs::msg::PointStamped>& intermediate_destinations = {});
 
   /**
    * @brief Callback for goal response from the action server
@@ -174,9 +177,9 @@ class PlanRouteActionClient : public rclcpp::Node {
   std::vector<std::pair<double, double>> waypoints_;
 
   /**
-   * @brief Transition distance for each waypoint
+   * @brief Wait time for each waypoint [s]; negative values mark intermediate destinations
    */
-  std::vector<double> waypoint_transition_distances_;
+  std::vector<double> waypoint_wait_times_;
 
   /**
    * @brief Index of next waypoint to follow
@@ -189,9 +192,14 @@ class PlanRouteActionClient : public rclcpp::Node {
   bool has_active_waypoint_ = false;
 
   /**
-   * @brief Whether a waypoint transition goal has already been sent
+   * @brief Wait time of the active waypoint [s]
    */
-  bool is_switching_waypoints_ = false;
+  double active_waypoint_wait_time_s_ = 0.0;
+
+  /**
+   * @brief Earliest wall-clock time at which automatic planning may continue
+   */
+  double auto_planning_resume_time_s_ = 0.0;
 
   /**
    * @brief Whether one goal has been completed (succeeded or failed)
@@ -206,7 +214,7 @@ class PlanRouteActionClient : public rclcpp::Node {
   /**
    * @brief WGS84 waypoints to endlessly follow (parameter)
    *
-   * list of strings with comma-separated '<LATITUDE>,<LONGITUDE>[,<TRANSITION_DISTANCE>]'
+   * list of strings with comma-separated '<LATITUDE>,<LONGITUDE>[,<WAIT_TIME_S>]'
    */
   std::vector<std::string> waypoints_param_;
 

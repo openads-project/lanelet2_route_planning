@@ -38,7 +38,7 @@ flowchart LR
 | Parameter | Type | Default | Description |
 | --- | --- | --- | --- |
 | `ll2_map_server_name` | `string` | `"ll2_map_server"` | Name of lanelet2_map_server node |
-| `waypoints` | `string[]` | `[]` | List of WGS84 waypoints to follow (list of strings with comma-separated '<LATITUDE>,<LONGITUDE>[,<TRANSITION_DISTANCE>]') |
+| `waypoints` | `string[]` | `[]` | List of WGS84 waypoints to follow (list of strings with comma-separated '<LATITUDE>,<LONGITUDE>[,<WAIT_TIME_S>]', missing wait time defaults to 0s, negative wait time means intermediate destination) |
 | `enable_random_destination` | `bool` | `false` | Whether to plan a route to a random destination |
 | `enable_continuous_planning` | `bool` | `false` | Whether to continuously plan a new route (either looping waypoints or to a random destination) |
 | `cancel_route` | `bool` | `false` | Cancel active route planning action (to be set at runtime) |
