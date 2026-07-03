@@ -3,7 +3,7 @@
 <package format="3">
 
   <name>plan_route_action_client</name>
-  <version>1.1.1</version>
+  <version>1.2.0</version>
   <description>Action client to plan a route_planning_msgs/action/Route based on clicked RViz poses or other inputs</description>
 
   <maintainer email="lennart.reiher@rwth-aachen.de">Lennart Reiher</maintainer>
