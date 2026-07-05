@@ -7,6 +7,39 @@ on:
   workflow_dispatch:
 
 jobs:
-  docs:
-    uses: openads-project/openads-dev-environment/.github/workflows/docs.yml@main
-    secrets: inherit
+  doxygen:
+    runs-on: ubuntu-latest
+    env:
+      DOXYGEN_PROJECT_NAME: ${{ github.event.repository.name }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          submodules: true
+      - name: Disable submodule recursion for subsequent git fetches
+        run: git config fetch.recurseSubmodules false
+      - name: Get latest release tag
+        id: get-latest-tag
+        uses: actions-ecosystem/action-get-latest-tag@v1
+        with:
+          semver_only: true
+          initial_version: v0.0.0
+          with_initial_version: true
+      - name: Export DOXYGEN_PROJECT_NUMBER
+        run: echo "DOXYGEN_PROJECT_NUMBER=${{ steps.get-latest-tag.outputs.tag }}" >> $GITHUB_ENV
+      - name: Checkout doxygen-awesome-css
+        uses: actions/checkout@v4
+        with:
+          repository: jothepro/doxygen-awesome-css
+          ref: v2.4.1
+          path: doxygen-awesome-css
+      - name: Run Doxygen
+        uses: mattnotmitt/doxygen-action@v1
+        with:
+          doxyfile-path: .openads-dev-environment/Doxyfile
+      - name: Publish to GitHub Pages
+        uses: peaceiris/actions-gh-pages@v4
+        if: startsWith(github.ref, 'refs/tags/')
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: docs/html
