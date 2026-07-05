@@ -1,7 +1,7 @@
 var searchData=
 [
   ['sampling_5fdistance_5f_0',['sampling_distance_',['../classlanelet2__route__planning_1_1Lanelet2RoutePlanning.html#a01c6662f7c9246eebfadfe2775e41042',1,'lanelet2_route_planning::Lanelet2RoutePlanning']]],
-  ['sendgoal_1',['sendGoal',['../classplan__route__action__client_1_1PlanRouteActionClient.html#a7f3b81ef97d090d49dce72def1e33b30',1,'plan_route_action_client::PlanRouteActionClient']]],
+  ['sendgoal_1',['sendGoal',['../classplan__route__action__client_1_1PlanRouteActionClient.html#a9cfc5f12f6f83180f18091b5a317ac6f',1,'plan_route_action_client::PlanRouteActionClient']]],
   ['set_20up_20development_20environment_2',['Set up Development Environment',['../index.html#autotoc_md3',1,'']]],
   ['setup_3',['setup',['../classlanelet2__route__planning_1_1Lanelet2RoutePlanning.html#a38280137b1d9a296bea8d69a72366e3f',1,'lanelet2_route_planning::Lanelet2RoutePlanning::setup()'],['../classplan__route__action__client_1_1PlanRouteActionClient.html#af2379914c28ff79abc6ffe7f48ab744c',1,'plan_route_action_client::PlanRouteActionClient::setup()']]],
   ['sortlaneletsbymatchingcost_4',['sortLaneletsByMatchingCost',['../namespacelanelet2__route__planning.html#aa2df16df3e8d469b88287f754ed6dd42',1,'lanelet2_route_planning']]],

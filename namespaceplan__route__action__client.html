@@ -28,7 +28,7 @@
  <tbody>
  <tr id="projectrow">
   <td id="projectalign">
-   <div id="projectname">lanelet2_route_planning<span id="projectnumber">&#160;v1.1.0</span>
+   <div id="projectname">lanelet2_route_planning<span id="projectnumber">&#160;v1.2.0</span>
    </div>
   </td>
  </tr>
@@ -117,9 +117,9 @@ Classes</h2></td></tr>
 </table><table class="memberdecls">
 <tr class="heading"><td colspan="2"><h2 class="groupheader"><a id="func-members" name="func-members"></a>
 Functions</h2></td></tr>
-<tr class="memitem:a4db854bd5d101b2d3478a5e48ab8ae25" id="r_a4db854bd5d101b2d3478a5e48ab8ae25"><td class="memItemLeft" align="right" valign="top">std::optional&lt; std::vector&lt; std::pair&lt; double, double &gt; &gt; &gt;&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="#a4db854bd5d101b2d3478a5e48ab8ae25">parseWaypoints</a> (const std::vector&lt; std::string &gt; &amp;waypoints_param)</td></tr>
-<tr class="memdesc:a4db854bd5d101b2d3478a5e48ab8ae25"><td class="mdescLeft">&#160;</td><td class="mdescRight">Parses WGS84 waypoints from "&lt;LATITUDE&gt;,&lt;LONGITUDE&gt;" strings.  <br /></td></tr>
-<tr class="separator:a4db854bd5d101b2d3478a5e48ab8ae25"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a25e3adc12a2cbcdba0a493e1d4461eeb" id="r_a25e3adc12a2cbcdba0a493e1d4461eeb"><td class="memItemLeft" align="right" valign="top">std::optional&lt; std::vector&lt; std::pair&lt; double, double &gt; &gt; &gt;&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="#a25e3adc12a2cbcdba0a493e1d4461eeb">parseWaypoints</a> (const std::vector&lt; std::string &gt; &amp;waypoints_param, std::vector&lt; double &gt; &amp;waypoint_wait_times, const rclcpp::Logger &amp;logger)</td></tr>
+<tr class="memdesc:a25e3adc12a2cbcdba0a493e1d4461eeb"><td class="mdescLeft">&#160;</td><td class="mdescRight">Parses WGS84 waypoints from "&lt;LATITUDE&gt;,&lt;LONGITUDE&gt;[,&lt;WAIT_TIME_S&gt;]" strings.  <br /></td></tr>
+<tr class="separator:a25e3adc12a2cbcdba0a493e1d4461eeb"><td class="memSeparator" colspan="2">&#160;</td></tr>
 </table><table class="memberdecls">
 <tr class="heading"><td colspan="2"><h2 class="groupheader"><a id="var-members" name="var-members"></a>
 Variables</h2></td></tr>
@@ -128,8 +128,8 @@ Variables</h2></td></tr>
 <tr class="separator:aa5ad83816090dd3b9ff1627db759c250"><td class="memSeparator" colspan="2">&#160;</td></tr>
 </table>
 <h2 class="groupheader">Function Documentation</h2>
-<a id="a4db854bd5d101b2d3478a5e48ab8ae25" name="a4db854bd5d101b2d3478a5e48ab8ae25"></a>
-<h2 class="memtitle"><span class="permalink"><a href="#a4db854bd5d101b2d3478a5e48ab8ae25">&#9670;&#160;</a></span>parseWaypoints()</h2>
+<a id="a25e3adc12a2cbcdba0a493e1d4461eeb" name="a25e3adc12a2cbcdba0a493e1d4461eeb"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a25e3adc12a2cbcdba0a493e1d4461eeb">&#9670;&#160;</a></span>parseWaypoints()</h2>
 
 <div class="memitem">
 <div class="memproto">
@@ -137,42 +137,70 @@ Variables</h2></td></tr>
         <tr>
           <td class="memname">std::optional&lt; std::vector&lt; std::pair&lt; double, double &gt; &gt; &gt; plan_route_action_client::parseWaypoints </td>
           <td>(</td>
-          <td class="paramtype">const std::vector&lt; std::string &gt; &amp;</td>          <td class="paramname"><span class="paramname"><em>waypoints_param</em></span></td><td>)</td>
+          <td class="paramtype">const std::vector&lt; std::string &gt; &amp;</td>          <td class="paramname"><span class="paramname"><em>waypoints_param</em></span>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
           <td></td>
+          <td class="paramtype">std::vector&lt; double &gt; &amp;</td>          <td class="paramname"><span class="paramname"><em>waypoint_wait_times</em></span>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">const rclcpp::Logger &amp;</td>          <td class="paramname"><span class="paramname"><em>logger</em></span>&#160;)</td>
         </tr>
       </table>
 </div><div class="memdoc">
 
-<p>Parses WGS84 waypoints from "&lt;LATITUDE&gt;,&lt;LONGITUDE&gt;" strings. </p>
+<p>Parses WGS84 waypoints from "&lt;LATITUDE&gt;,&lt;LONGITUDE&gt;[,&lt;WAIT_TIME_S&gt;]" strings. </p>
 <dl class="params"><dt>Parameters</dt><dd>
   <table class="params">
     <tr><td class="paramdir">[in]</td><td class="paramname">waypoints_param</td><td>waypoint parameter values </td></tr>
+    <tr><td class="paramdir">[in,out]</td><td class="paramname">waypoint_wait_times</td><td>wait time for each waypoint </td></tr>
+    <tr><td class="paramdir">[in]</td><td class="paramname">logger</td><td>ROS logger </td></tr>
   </table>
   </dd>
 </dl>
 <dl class="section return"><dt>Returns</dt><dd>parsed latitude/longitude pairs, or <code>std::nullopt</code> if parsing fails </dd></dl>
 
-<p class="definition">Definition at line <a class="el" href="plan__route__action__client_8cpp_source.html#l00023">23</a> of file <a class="el" href="plan__route__action__client_8cpp_source.html">plan_route_action_client.cpp</a>.</p>
-<div class="fragment"><div class="line"><span class="lineno">   23</span>                                                                                                            {</div>
-<div class="line"><span class="lineno">   24</span>  std::vector&lt;std::pair&lt;double, double&gt;&gt; waypoints;</div>
-<div class="line"><span class="lineno">   25</span>  <span class="keywordflow">for</span> (<span class="keyword">const</span> <span class="keyword">auto</span>&amp; waypoint : waypoints_param) {</div>
-<div class="line"><span class="lineno">   26</span>    <span class="keywordtype">size_t</span> comma_pos = waypoint.find(<span class="charliteral">&#39;,&#39;</span>);</div>
-<div class="line"><span class="lineno">   27</span>    <span class="keywordflow">if</span> (comma_pos != std::string::npos) {</div>
-<div class="line"><span class="lineno">   28</span>      <span class="keywordflow">try</span> {</div>
-<div class="line"><span class="lineno">   29</span>        <span class="keywordtype">double</span> lat = std::stod(waypoint.substr(0, comma_pos));</div>
-<div class="line"><span class="lineno">   30</span>        <span class="keywordtype">double</span> lon = std::stod(waypoint.substr(comma_pos + 1));</div>
-<div class="line"><span class="lineno">   31</span>        waypoints.emplace_back(lat, lon);</div>
-<div class="line"><span class="lineno">   32</span>      } <span class="keywordflow">catch</span> (<span class="keyword">const</span> std::invalid_argument&amp; e) {</div>
-<div class="line"><span class="lineno">   33</span>        <span class="keywordflow">return</span> std::nullopt;</div>
-<div class="line"><span class="lineno">   34</span>      } <span class="keywordflow">catch</span> (<span class="keyword">const</span> std::out_of_range&amp; e) {</div>
-<div class="line"><span class="lineno">   35</span>        <span class="keywordflow">return</span> std::nullopt;</div>
-<div class="line"><span class="lineno">   36</span>      }</div>
-<div class="line"><span class="lineno">   37</span>    } <span class="keywordflow">else</span> {</div>
-<div class="line"><span class="lineno">   38</span>      <span class="keywordflow">return</span> std::nullopt;</div>
-<div class="line"><span class="lineno">   39</span>    }</div>
-<div class="line"><span class="lineno">   40</span>  }</div>
-<div class="line"><span class="lineno">   41</span>  <span class="keywordflow">return</span> waypoints;</div>
-<div class="line"><span class="lineno">   42</span>}</div>
+<p class="definition">Definition at line <a class="el" href="plan__route__action__client_8cpp_source.html#l00027">27</a> of file <a class="el" href="plan__route__action__client_8cpp_source.html">plan_route_action_client.cpp</a>.</p>
+<div class="fragment"><div class="line"><span class="lineno">   29</span>                                                                                                 {</div>
+<div class="line"><span class="lineno">   30</span>  std::vector&lt;std::pair&lt;double, double&gt;&gt; waypoints;</div>
+<div class="line"><span class="lineno">   31</span>  std::vector&lt;double&gt; parsed_wait_times;</div>
+<div class="line"><span class="lineno">   32</span>  <span class="keywordflow">for</span> (<span class="keyword">const</span> <span class="keyword">auto</span>&amp; waypoint : waypoints_param) {</div>
+<div class="line"><span class="lineno">   33</span>    <span class="keywordtype">size_t</span> comma_pos = waypoint.find(<span class="charliteral">&#39;,&#39;</span>);</div>
+<div class="line"><span class="lineno">   34</span>    <span class="keywordflow">if</span> (comma_pos != std::string::npos) {</div>
+<div class="line"><span class="lineno">   35</span>      <span class="keywordflow">try</span> {</div>
+<div class="line"><span class="lineno">   36</span>        <span class="keywordtype">size_t</span> wait_time_comma_pos = waypoint.find(<span class="charliteral">&#39;,&#39;</span>, comma_pos + 1);</div>
+<div class="line"><span class="lineno">   37</span>        <span class="keywordflow">if</span> (wait_time_comma_pos != std::string::npos &amp;&amp; waypoint.find(<span class="charliteral">&#39;,&#39;</span>, wait_time_comma_pos + 1) != std::string::npos) {</div>
+<div class="line"><span class="lineno">   38</span>          <span class="keywordflow">return</span> std::nullopt;</div>
+<div class="line"><span class="lineno">   39</span>        }</div>
+<div class="line"><span class="lineno">   40</span>        <span class="keywordtype">double</span> lat = std::stod(waypoint.substr(0, comma_pos));</div>
+<div class="line"><span class="lineno">   41</span>        <span class="keywordtype">double</span> lon = std::stod(waypoint.substr(comma_pos + 1, wait_time_comma_pos - comma_pos - 1));</div>
+<div class="line"><span class="lineno">   42</span>        <span class="keywordtype">double</span> wait_time_s = 0.0;</div>
+<div class="line"><span class="lineno">   43</span>        <span class="keywordflow">if</span> (wait_time_comma_pos != std::string::npos) {</div>
+<div class="line"><span class="lineno">   44</span>          wait_time_s = std::stod(waypoint.substr(wait_time_comma_pos + 1));</div>
+<div class="line"><span class="lineno">   45</span>        }</div>
+<div class="line"><span class="lineno">   46</span>        waypoints.emplace_back(lat, lon);</div>
+<div class="line"><span class="lineno">   47</span>        parsed_wait_times.push_back(wait_time_s);</div>
+<div class="line"><span class="lineno">   48</span>      } <span class="keywordflow">catch</span> (<span class="keyword">const</span> std::invalid_argument&amp; e) {</div>
+<div class="line"><span class="lineno">   49</span>        <span class="keywordflow">return</span> std::nullopt;</div>
+<div class="line"><span class="lineno">   50</span>      } <span class="keywordflow">catch</span> (<span class="keyword">const</span> std::out_of_range&amp; e) {</div>
+<div class="line"><span class="lineno">   51</span>        <span class="keywordflow">return</span> std::nullopt;</div>
+<div class="line"><span class="lineno">   52</span>      }</div>
+<div class="line"><span class="lineno">   53</span>    } <span class="keywordflow">else</span> {</div>
+<div class="line"><span class="lineno">   54</span>      <span class="keywordflow">return</span> std::nullopt;</div>
+<div class="line"><span class="lineno">   55</span>    }</div>
+<div class="line"><span class="lineno">   56</span>  }</div>
+<div class="line"><span class="lineno">   57</span> </div>
+<div class="line"><span class="lineno">   58</span>  <span class="keywordflow">if</span> (!parsed_wait_times.empty() &amp;&amp; parsed_wait_times.back() &lt; 0.0) {</div>
+<div class="line"><span class="lineno">   59</span>    RCLCPP_WARN(logger, <span class="stringliteral">&quot;Last waypoint cannot be intermediate, treating it as stop with wait_time_s 0.0&quot;</span>);</div>
+<div class="line"><span class="lineno">   60</span>    parsed_wait_times.back() = 0.0;</div>
+<div class="line"><span class="lineno">   61</span>  }</div>
+<div class="line"><span class="lineno">   62</span> </div>
+<div class="line"><span class="lineno">   63</span>  waypoint_wait_times = parsed_wait_times;</div>
+<div class="line"><span class="lineno">   64</span>  <span class="keywordflow">return</span> waypoints;</div>
+<div class="line"><span class="lineno">   65</span>}</div>
 </div><!-- fragment -->
 </div>
 </div>
@@ -199,7 +227,7 @@ template&lt;typename C &gt; </div>
 </table>
 </div><div class="memdoc">
 
-<p class="definition">Definition at line <a class="el" href="plan__route__action__client_8hpp_source.html#l00026">26</a> of file <a class="el" href="plan__route__action__client_8hpp_source.html">plan_route_action_client.hpp</a>.</p>
+<p class="definition">Definition at line <a class="el" href="plan__route__action__client_8hpp_source.html#l00028">28</a> of file <a class="el" href="plan__route__action__client_8hpp_source.html">plan_route_action_client.hpp</a>.</p>
 
 </div>
 </div>

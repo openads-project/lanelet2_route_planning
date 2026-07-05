@@ -28,7 +28,7 @@
  <tbody>
  <tr id="projectrow">
   <td id="projectalign">
-   <div id="projectname">lanelet2_route_planning<span id="projectnumber">&#160;v1.1.0</span>
+   <div id="projectname">lanelet2_route_planning<span id="projectnumber">&#160;v1.2.0</span>
    </div>
   </td>
  </tr>
@@ -155,9 +155,9 @@ Private Member Functions</h2></td></tr>
 <tr class="memitem:a316f2579aad885c4f2004e2e051e13dc" id="r_a316f2579aad885c4f2004e2e051e13dc"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="#a316f2579aad885c4f2004e2e051e13dc">planToRandomDestination</a> ()</td></tr>
 <tr class="memdesc:a316f2579aad885c4f2004e2e051e13dc"><td class="mdescLeft">&#160;</td><td class="mdescRight">Plans to a random destination.  <br /></td></tr>
 <tr class="separator:a316f2579aad885c4f2004e2e051e13dc"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a7f3b81ef97d090d49dce72def1e33b30" id="r_a7f3b81ef97d090d49dce72def1e33b30"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="#a7f3b81ef97d090d49dce72def1e33b30">sendGoal</a> (const geometry_msgs::msg::PoseStamped::SharedPtr msg)</td></tr>
-<tr class="memdesc:a7f3b81ef97d090d49dce72def1e33b30"><td class="mdescLeft">&#160;</td><td class="mdescRight">Sends a goal to the action server.  <br /></td></tr>
-<tr class="separator:a7f3b81ef97d090d49dce72def1e33b30"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a9cfc5f12f6f83180f18091b5a317ac6f" id="r_a9cfc5f12f6f83180f18091b5a317ac6f"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="#a9cfc5f12f6f83180f18091b5a317ac6f">sendGoal</a> (const geometry_msgs::msg::PoseStamped::SharedPtr msg, const std::vector&lt; geometry_msgs::msg::PointStamped &gt; &amp;intermediate_destinations={})</td></tr>
+<tr class="memdesc:a9cfc5f12f6f83180f18091b5a317ac6f"><td class="mdescLeft">&#160;</td><td class="mdescRight">Sends a goal to the action server.  <br /></td></tr>
+<tr class="separator:a9cfc5f12f6f83180f18091b5a317ac6f"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:ac33a231bdbdbb9ea4a63a920157a29db" id="r_ac33a231bdbdbb9ea4a63a920157a29db"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="#ac33a231bdbdbb9ea4a63a920157a29db">goalResponseCallback</a> (const GoalHandlePlanRoute::SharedPtr &amp;goal_handle)</td></tr>
 <tr class="memdesc:ac33a231bdbdbb9ea4a63a920157a29db"><td class="mdescLeft">&#160;</td><td class="mdescRight">Callback for goal response from the action server.  <br /></td></tr>
 <tr class="separator:ac33a231bdbdbb9ea4a63a920157a29db"><td class="memSeparator" colspan="2">&#160;</td></tr>
@@ -194,9 +194,21 @@ Private Attributes</h2></td></tr>
 <tr class="memitem:a5b79533e885a6a4cd1e3681628b5618c" id="r_a5b79533e885a6a4cd1e3681628b5618c"><td class="memItemLeft" align="right" valign="top">std::vector&lt; std::pair&lt; double, double &gt; &gt;&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="#a5b79533e885a6a4cd1e3681628b5618c">waypoints_</a></td></tr>
 <tr class="memdesc:a5b79533e885a6a4cd1e3681628b5618c"><td class="mdescLeft">&#160;</td><td class="mdescRight">WGS84 waypoints to endlessly follow.  <br /></td></tr>
 <tr class="separator:a5b79533e885a6a4cd1e3681628b5618c"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a2617009b882a29e10c5a2379d77b51e3" id="r_a2617009b882a29e10c5a2379d77b51e3"><td class="memItemLeft" align="right" valign="top">std::vector&lt; double &gt;&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="#a2617009b882a29e10c5a2379d77b51e3">waypoint_wait_times_</a></td></tr>
+<tr class="memdesc:a2617009b882a29e10c5a2379d77b51e3"><td class="mdescLeft">&#160;</td><td class="mdescRight">Wait time for each waypoint [s]; negative values mark intermediate destinations.  <br /></td></tr>
+<tr class="separator:a2617009b882a29e10c5a2379d77b51e3"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a0bf871c446026da84086696e7b1d4776" id="r_a0bf871c446026da84086696e7b1d4776"><td class="memItemLeft" align="right" valign="top">size_t&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="#a0bf871c446026da84086696e7b1d4776">next_waypoint_idx_</a> = 0</td></tr>
 <tr class="memdesc:a0bf871c446026da84086696e7b1d4776"><td class="mdescLeft">&#160;</td><td class="mdescRight">Index of next waypoint to follow.  <br /></td></tr>
 <tr class="separator:a0bf871c446026da84086696e7b1d4776"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a28490c05351272002b8e37849074f8b9" id="r_a28490c05351272002b8e37849074f8b9"><td class="memItemLeft" align="right" valign="top">bool&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="#a28490c05351272002b8e37849074f8b9">has_active_waypoint_</a> = false</td></tr>
+<tr class="memdesc:a28490c05351272002b8e37849074f8b9"><td class="mdescLeft">&#160;</td><td class="mdescRight">Whether the active goal belongs to the waypoint list.  <br /></td></tr>
+<tr class="separator:a28490c05351272002b8e37849074f8b9"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a1b85f353baf77516a5b290532673f781" id="r_a1b85f353baf77516a5b290532673f781"><td class="memItemLeft" align="right" valign="top">double&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="#a1b85f353baf77516a5b290532673f781">active_waypoint_wait_time_s_</a> = 0.0</td></tr>
+<tr class="memdesc:a1b85f353baf77516a5b290532673f781"><td class="mdescLeft">&#160;</td><td class="mdescRight">Wait time of the active waypoint [s].  <br /></td></tr>
+<tr class="separator:a1b85f353baf77516a5b290532673f781"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a4d909d65a512089b6208fc4d1ff04667" id="r_a4d909d65a512089b6208fc4d1ff04667"><td class="memItemLeft" align="right" valign="top">double&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="#a4d909d65a512089b6208fc4d1ff04667">auto_planning_resume_time_s_</a> = 0.0</td></tr>
+<tr class="memdesc:a4d909d65a512089b6208fc4d1ff04667"><td class="mdescLeft">&#160;</td><td class="mdescRight">Earliest wall-clock time at which automatic planning may continue.  <br /></td></tr>
+<tr class="separator:a4d909d65a512089b6208fc4d1ff04667"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:aaecad8d71c66dcb63b502a9577bc8ce3" id="r_aaecad8d71c66dcb63b502a9577bc8ce3"><td class="memItemLeft" align="right" valign="top">bool&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="#aaecad8d71c66dcb63b502a9577bc8ce3">has_completed_one_goal_</a> = false</td></tr>
 <tr class="memdesc:aaecad8d71c66dcb63b502a9577bc8ce3"><td class="mdescLeft">&#160;</td><td class="mdescRight">Whether one goal has been completed (succeeded or failed)  <br /></td></tr>
 <tr class="separator:aaecad8d71c66dcb63b502a9577bc8ce3"><td class="memSeparator" colspan="2">&#160;</td></tr>
@@ -219,7 +231,7 @@ Private Attributes</h2></td></tr>
 <a name="details" id="details"></a><h2 class="groupheader">Detailed Description</h2>
 <div class="textblock"><p>Action client node for planning a route. </p>
 
-<p class="definition">Definition at line <a class="el" href="plan__route__action__client_8hpp_source.html#l00031">31</a> of file <a class="el" href="plan__route__action__client_8hpp_source.html">plan_route_action_client.hpp</a>.</p>
+<p class="definition">Definition at line <a class="el" href="plan__route__action__client_8hpp_source.html#l00033">33</a> of file <a class="el" href="plan__route__action__client_8hpp_source.html">plan_route_action_client.hpp</a>.</p>
 </div><h2 class="groupheader">Member Typedef Documentation</h2>
 <a id="a3e4662e765a8c8b767139103c7b54ba5" name="a3e4662e765a8c8b767139103c7b54ba5"></a>
 <h2 class="memtitle"><span class="permalink"><a href="#a3e4662e765a8c8b767139103c7b54ba5">&#9670;&#160;</a></span>GoalHandlePlanRoute</h2>
@@ -241,7 +253,7 @@ Private Attributes</h2></td></tr>
 </table>
 </div><div class="memdoc">
 
-<p class="definition">Definition at line <a class="el" href="plan__route__action__client_8hpp_source.html#l00033">33</a> of file <a class="el" href="plan__route__action__client_8hpp_source.html">plan_route_action_client.hpp</a>.</p>
+<p class="definition">Definition at line <a class="el" href="plan__route__action__client_8hpp_source.html#l00035">35</a> of file <a class="el" href="plan__route__action__client_8hpp_source.html">plan_route_action_client.hpp</a>.</p>
 
 </div>
 </div>
@@ -265,7 +277,7 @@ Private Attributes</h2></td></tr>
 </table>
 </div><div class="memdoc">
 
-<p class="definition">Definition at line <a class="el" href="plan__route__action__client_8hpp_source.html#l00032">32</a> of file <a class="el" href="plan__route__action__client_8hpp_source.html">plan_route_action_client.hpp</a>.</p>
+<p class="definition">Definition at line <a class="el" href="plan__route__action__client_8hpp_source.html#l00034">34</a> of file <a class="el" href="plan__route__action__client_8hpp_source.html">plan_route_action_client.hpp</a>.</p>
 
 </div>
 </div>
@@ -287,28 +299,30 @@ Private Attributes</h2></td></tr>
 
 <p>Constructor. </p>
 
-<p class="definition">Definition at line <a class="el" href="plan__route__action__client_8cpp_source.html#l00044">44</a> of file <a class="el" href="plan__route__action__client_8cpp_source.html">plan_route_action_client.cpp</a>.</p>
-<div class="fragment"><div class="line"><span class="lineno">   44</span>                                             : Node(<span class="stringliteral">&quot;plan_route_action_client&quot;</span>) {</div>
-<div class="line"><span class="lineno">   45</span>  this-&gt;<a class="code hl_function" href="#af9a852975463a4003b5e3d3315947720">declareAndLoadParameter</a>(<span class="stringliteral">&quot;ll2_map_server_name&quot;</span>, <a class="code hl_variable" href="#a9f5c2b8ccbf82da0346db832b74426cf">ll2_map_server_name_</a>, <span class="stringliteral">&quot;Name of lanelet2_map_server node&quot;</span>, <span class="keyword">false</span>);</div>
-<div class="line"><span class="lineno">   46</span>  this-&gt;<a class="code hl_function" href="#af9a852975463a4003b5e3d3315947720">declareAndLoadParameter</a>(</div>
-<div class="line"><span class="lineno">   47</span>      <span class="stringliteral">&quot;waypoints&quot;</span>, <a class="code hl_variable" href="#ad7777334fda5192ca277a0a9437d827e">waypoints_param_</a>,</div>
-<div class="line"><span class="lineno">   48</span>      <span class="stringliteral">&quot;List of WGS84 waypoints to follow (list of strings with comma-separated &#39;&lt;LATITUDE&gt;,&lt;LONGITUDE&gt;&#39;)&quot;</span>, <span class="keyword">true</span>);</div>
-<div class="line"><span class="lineno">   49</span>  this-&gt;<a class="code hl_function" href="#af9a852975463a4003b5e3d3315947720">declareAndLoadParameter</a>(<span class="stringliteral">&quot;enable_random_destination&quot;</span>, <a class="code hl_variable" href="#af1bfeca3b9c471828c26272732a81d54">enable_random_destination_</a>,</div>
-<div class="line"><span class="lineno">   50</span>                                <span class="stringliteral">&quot;Whether to plan a route to a random destination&quot;</span>, <span class="keyword">true</span>);</div>
-<div class="line"><span class="lineno">   51</span>  this-&gt;<a class="code hl_function" href="#af9a852975463a4003b5e3d3315947720">declareAndLoadParameter</a>(<span class="stringliteral">&quot;enable_continuous_planning&quot;</span>, <a class="code hl_variable" href="#a58a2fa1396ba4e2dbc91fae51de00b39">enable_continuous_planning_</a>,</div>
-<div class="line"><span class="lineno">   52</span>                                <span class="stringliteral">&quot;Whether to continuously plan a new route (either looping waypoints or to a random destination)&quot;</span>,</div>
-<div class="line"><span class="lineno">   53</span>                                <span class="keyword">true</span>);</div>
-<div class="line"><span class="lineno">   54</span>  this-&gt;<a class="code hl_function" href="#af9a852975463a4003b5e3d3315947720">declareAndLoadParameter</a>(<span class="stringliteral">&quot;cancel_route&quot;</span>, <a class="code hl_variable" href="#a450797ba40f14cbcd4da9b1ec68b527d">cancel_route_</a>, <span class="stringliteral">&quot;Cancel active route planning action (to be set at runtime)&quot;</span>,</div>
-<div class="line"><span class="lineno">   55</span>                                <span class="keyword">true</span>);</div>
-<div class="line"><span class="lineno">   56</span>  this-&gt;<a class="code hl_function" href="#af2379914c28ff79abc6ffe7f48ab744c">setup</a>();</div>
-<div class="line"><span class="lineno">   57</span>}</div>
-<div class="ttc" id="aclassplan__route__action__client_1_1PlanRouteActionClient_html_a450797ba40f14cbcd4da9b1ec68b527d"><div class="ttname"><a href="#a450797ba40f14cbcd4da9b1ec68b527d">plan_route_action_client::PlanRouteActionClient::cancel_route_</a></div><div class="ttdeci">bool cancel_route_</div><div class="ttdoc">Flag to cancel the route planning action (parameter)</div><div class="ttdef"><b>Definition</b> <a href="plan__route__action__client_8hpp_source.html#l00212">plan_route_action_client.hpp:212</a></div></div>
-<div class="ttc" id="aclassplan__route__action__client_1_1PlanRouteActionClient_html_a58a2fa1396ba4e2dbc91fae51de00b39"><div class="ttname"><a href="#a58a2fa1396ba4e2dbc91fae51de00b39">plan_route_action_client::PlanRouteActionClient::enable_continuous_planning_</a></div><div class="ttdeci">bool enable_continuous_planning_</div><div class="ttdoc">Whether to continuously plan a new route (parameter)</div><div class="ttdef"><b>Definition</b> <a href="plan__route__action__client_8hpp_source.html#l00207">plan_route_action_client.hpp:207</a></div></div>
-<div class="ttc" id="aclassplan__route__action__client_1_1PlanRouteActionClient_html_a9f5c2b8ccbf82da0346db832b74426cf"><div class="ttname"><a href="#a9f5c2b8ccbf82da0346db832b74426cf">plan_route_action_client::PlanRouteActionClient::ll2_map_server_name_</a></div><div class="ttdeci">std::string ll2_map_server_name_</div><div class="ttdoc">Name of lanelet2_map_server node (parameter)</div><div class="ttdef"><b>Definition</b> <a href="plan__route__action__client_8hpp_source.html#l00188">plan_route_action_client.hpp:188</a></div></div>
-<div class="ttc" id="aclassplan__route__action__client_1_1PlanRouteActionClient_html_ad7777334fda5192ca277a0a9437d827e"><div class="ttname"><a href="#ad7777334fda5192ca277a0a9437d827e">plan_route_action_client::PlanRouteActionClient::waypoints_param_</a></div><div class="ttdeci">std::vector&lt; std::string &gt; waypoints_param_</div><div class="ttdoc">WGS84 waypoints to endlessly follow (parameter)</div><div class="ttdef"><b>Definition</b> <a href="plan__route__action__client_8hpp_source.html#l00195">plan_route_action_client.hpp:195</a></div></div>
-<div class="ttc" id="aclassplan__route__action__client_1_1PlanRouteActionClient_html_af1bfeca3b9c471828c26272732a81d54"><div class="ttname"><a href="#af1bfeca3b9c471828c26272732a81d54">plan_route_action_client::PlanRouteActionClient::enable_random_destination_</a></div><div class="ttdeci">bool enable_random_destination_</div><div class="ttdoc">Whether to plan a route to a random destination (parameter)</div><div class="ttdef"><b>Definition</b> <a href="plan__route__action__client_8hpp_source.html#l00200">plan_route_action_client.hpp:200</a></div></div>
-<div class="ttc" id="aclassplan__route__action__client_1_1PlanRouteActionClient_html_af2379914c28ff79abc6ffe7f48ab744c"><div class="ttname"><a href="#af2379914c28ff79abc6ffe7f48ab744c">plan_route_action_client::PlanRouteActionClient::setup</a></div><div class="ttdeci">void setup()</div><div class="ttdoc">Sets up subscribers, publishers, etc. to configure the node.</div><div class="ttdef"><b>Definition</b> <a href="plan__route__action__client_8cpp_source.html#l00175">plan_route_action_client.cpp:175</a></div></div>
-<div class="ttc" id="aclassplan__route__action__client_1_1PlanRouteActionClient_html_af9a852975463a4003b5e3d3315947720"><div class="ttname"><a href="#af9a852975463a4003b5e3d3315947720">plan_route_action_client::PlanRouteActionClient::declareAndLoadParameter</a></div><div class="ttdeci">void declareAndLoadParameter(const std::string &amp;name, T &amp;param, const std::string &amp;description, const bool add_to_auto_reconfigurable_params=true, const bool is_required=false, const bool read_only=false, const std::optional&lt; double &gt; &amp;from_value=std::nullopt, const std::optional&lt; double &gt; &amp;to_value=std::nullopt, const std::optional&lt; double &gt; &amp;step_value=std::nullopt, const std::string &amp;additional_constraints=&quot;&quot;)</div><div class="ttdoc">Declares and loads a ROS parameter.</div><div class="ttdef"><b>Definition</b> <a href="plan__route__action__client_8cpp_source.html#l00060">plan_route_action_client.cpp:60</a></div></div>
+<p class="definition">Definition at line <a class="el" href="plan__route__action__client_8cpp_source.html#l00067">67</a> of file <a class="el" href="plan__route__action__client_8cpp_source.html">plan_route_action_client.cpp</a>.</p>
+<div class="fragment"><div class="line"><span class="lineno">   67</span>                                             : Node(<span class="stringliteral">&quot;plan_route_action_client&quot;</span>) {</div>
+<div class="line"><span class="lineno">   68</span>  this-&gt;<a class="code hl_function" href="#af9a852975463a4003b5e3d3315947720">declareAndLoadParameter</a>(<span class="stringliteral">&quot;ll2_map_server_name&quot;</span>, <a class="code hl_variable" href="#a9f5c2b8ccbf82da0346db832b74426cf">ll2_map_server_name_</a>, <span class="stringliteral">&quot;Name of lanelet2_map_server node&quot;</span>, <span class="keyword">false</span>);</div>
+<div class="line"><span class="lineno">   69</span>  this-&gt;<a class="code hl_function" href="#af9a852975463a4003b5e3d3315947720">declareAndLoadParameter</a>(</div>
+<div class="line"><span class="lineno">   70</span>      <span class="stringliteral">&quot;waypoints&quot;</span>, <a class="code hl_variable" href="#ad7777334fda5192ca277a0a9437d827e">waypoints_param_</a>,</div>
+<div class="line"><span class="lineno">   71</span>      <span class="stringliteral">&quot;List of WGS84 waypoints to follow (list of strings with comma-separated &#39;&lt;LATITUDE&gt;,&lt;LONGITUDE&gt;[,&lt;WAIT_TIME_S&gt;]&#39;, missing &quot;</span></div>
+<div class="line"><span class="lineno">   72</span>      <span class="stringliteral">&quot;wait time defaults to 0s, negative wait time means intermediate destination)&quot;</span>,</div>
+<div class="line"><span class="lineno">   73</span>      <span class="keyword">true</span>);</div>
+<div class="line"><span class="lineno">   74</span>  this-&gt;<a class="code hl_function" href="#af9a852975463a4003b5e3d3315947720">declareAndLoadParameter</a>(<span class="stringliteral">&quot;enable_random_destination&quot;</span>, <a class="code hl_variable" href="#af1bfeca3b9c471828c26272732a81d54">enable_random_destination_</a>,</div>
+<div class="line"><span class="lineno">   75</span>                                <span class="stringliteral">&quot;Whether to plan a route to a random destination&quot;</span>, <span class="keyword">true</span>);</div>
+<div class="line"><span class="lineno">   76</span>  this-&gt;<a class="code hl_function" href="#af9a852975463a4003b5e3d3315947720">declareAndLoadParameter</a>(<span class="stringliteral">&quot;enable_continuous_planning&quot;</span>, <a class="code hl_variable" href="#a58a2fa1396ba4e2dbc91fae51de00b39">enable_continuous_planning_</a>,</div>
+<div class="line"><span class="lineno">   77</span>                                <span class="stringliteral">&quot;Whether to continuously plan a new route (either looping waypoints or to a random destination)&quot;</span>,</div>
+<div class="line"><span class="lineno">   78</span>                                <span class="keyword">true</span>);</div>
+<div class="line"><span class="lineno">   79</span>  this-&gt;<a class="code hl_function" href="#af9a852975463a4003b5e3d3315947720">declareAndLoadParameter</a>(<span class="stringliteral">&quot;cancel_route&quot;</span>, <a class="code hl_variable" href="#a450797ba40f14cbcd4da9b1ec68b527d">cancel_route_</a>, <span class="stringliteral">&quot;Cancel active route planning action (to be set at runtime)&quot;</span>,</div>
+<div class="line"><span class="lineno">   80</span>                                <span class="keyword">true</span>);</div>
+<div class="line"><span class="lineno">   81</span>  this-&gt;<a class="code hl_function" href="#af2379914c28ff79abc6ffe7f48ab744c">setup</a>();</div>
+<div class="line"><span class="lineno">   82</span>}</div>
+<div class="ttc" id="aclassplan__route__action__client_1_1PlanRouteActionClient_html_a450797ba40f14cbcd4da9b1ec68b527d"><div class="ttname"><a href="#a450797ba40f14cbcd4da9b1ec68b527d">plan_route_action_client::PlanRouteActionClient::cancel_route_</a></div><div class="ttdeci">bool cancel_route_</div><div class="ttdoc">Flag to cancel the route planning action (parameter)</div><div class="ttdef"><b>Definition</b> <a href="plan__route__action__client_8hpp_source.html#l00236">plan_route_action_client.hpp:236</a></div></div>
+<div class="ttc" id="aclassplan__route__action__client_1_1PlanRouteActionClient_html_a58a2fa1396ba4e2dbc91fae51de00b39"><div class="ttname"><a href="#a58a2fa1396ba4e2dbc91fae51de00b39">plan_route_action_client::PlanRouteActionClient::enable_continuous_planning_</a></div><div class="ttdeci">bool enable_continuous_planning_</div><div class="ttdoc">Whether to continuously plan a new route (parameter)</div><div class="ttdef"><b>Definition</b> <a href="plan__route__action__client_8hpp_source.html#l00231">plan_route_action_client.hpp:231</a></div></div>
+<div class="ttc" id="aclassplan__route__action__client_1_1PlanRouteActionClient_html_a9f5c2b8ccbf82da0346db832b74426cf"><div class="ttname"><a href="#a9f5c2b8ccbf82da0346db832b74426cf">plan_route_action_client::PlanRouteActionClient::ll2_map_server_name_</a></div><div class="ttdeci">std::string ll2_map_server_name_</div><div class="ttdoc">Name of lanelet2_map_server node (parameter)</div><div class="ttdef"><b>Definition</b> <a href="plan__route__action__client_8hpp_source.html#l00212">plan_route_action_client.hpp:212</a></div></div>
+<div class="ttc" id="aclassplan__route__action__client_1_1PlanRouteActionClient_html_ad7777334fda5192ca277a0a9437d827e"><div class="ttname"><a href="#ad7777334fda5192ca277a0a9437d827e">plan_route_action_client::PlanRouteActionClient::waypoints_param_</a></div><div class="ttdeci">std::vector&lt; std::string &gt; waypoints_param_</div><div class="ttdoc">WGS84 waypoints to endlessly follow (parameter)</div><div class="ttdef"><b>Definition</b> <a href="plan__route__action__client_8hpp_source.html#l00219">plan_route_action_client.hpp:219</a></div></div>
+<div class="ttc" id="aclassplan__route__action__client_1_1PlanRouteActionClient_html_af1bfeca3b9c471828c26272732a81d54"><div class="ttname"><a href="#af1bfeca3b9c471828c26272732a81d54">plan_route_action_client::PlanRouteActionClient::enable_random_destination_</a></div><div class="ttdeci">bool enable_random_destination_</div><div class="ttdoc">Whether to plan a route to a random destination (parameter)</div><div class="ttdef"><b>Definition</b> <a href="plan__route__action__client_8hpp_source.html#l00224">plan_route_action_client.hpp:224</a></div></div>
+<div class="ttc" id="aclassplan__route__action__client_1_1PlanRouteActionClient_html_af2379914c28ff79abc6ffe7f48ab744c"><div class="ttname"><a href="#af2379914c28ff79abc6ffe7f48ab744c">plan_route_action_client::PlanRouteActionClient::setup</a></div><div class="ttdeci">void setup()</div><div class="ttdoc">Sets up subscribers, publishers, etc. to configure the node.</div><div class="ttdef"><b>Definition</b> <a href="plan__route__action__client_8cpp_source.html#l00200">plan_route_action_client.cpp:200</a></div></div>
+<div class="ttc" id="aclassplan__route__action__client_1_1PlanRouteActionClient_html_af9a852975463a4003b5e3d3315947720"><div class="ttname"><a href="#af9a852975463a4003b5e3d3315947720">plan_route_action_client::PlanRouteActionClient::declareAndLoadParameter</a></div><div class="ttdeci">void declareAndLoadParameter(const std::string &amp;name, T &amp;param, const std::string &amp;description, const bool add_to_auto_reconfigurable_params=true, const bool is_required=false, const bool read_only=false, const std::optional&lt; double &gt; &amp;from_value=std::nullopt, const std::optional&lt; double &gt; &amp;to_value=std::nullopt, const std::optional&lt; double &gt; &amp;step_value=std::nullopt, const std::string &amp;additional_constraints=&quot;&quot;)</div><div class="ttdoc">Declares and loads a ROS parameter.</div><div class="ttdef"><b>Definition</b> <a href="plan__route__action__client_8cpp_source.html#l00085">plan_route_action_client.cpp:85</a></div></div>
 </div><!-- fragment -->
 </div>
 </div>
@@ -339,26 +353,32 @@ Private Attributes</h2></td></tr>
 <p>Callback for automatically planning a route, e.g., if waypoints are given. </p>
 <p>Does nothing, if no waypoints are given and random planning is disabled. Precedence: random planning, waypoints </p>
 
-<p class="definition">Definition at line <a class="el" href="plan__route__action__client_8cpp_source.html#l00215">215</a> of file <a class="el" href="plan__route__action__client_8cpp_source.html">plan_route_action_client.cpp</a>.</p>
-<div class="fragment"><div class="line"><span class="lineno">  215</span>                                                      {</div>
-<div class="line"><span class="lineno">  216</span>  <span class="keywordflow">if</span> (<a class="code hl_variable" href="#af1bfeca3b9c471828c26272732a81d54">enable_random_destination_</a> &amp;&amp; (<a class="code hl_variable" href="#a58a2fa1396ba4e2dbc91fae51de00b39">enable_continuous_planning_</a> || !<a class="code hl_variable" href="#aaecad8d71c66dcb63b502a9577bc8ce3">has_completed_one_goal_</a>)) {</div>
-<div class="line"><span class="lineno">  217</span>    this-&gt;<a class="code hl_function" href="#a316f2579aad885c4f2004e2e051e13dc">planToRandomDestination</a>();</div>
-<div class="line"><span class="lineno">  218</span>  } <span class="keywordflow">else</span> <span class="keywordflow">if</span> (!<a class="code hl_variable" href="#a5b79533e885a6a4cd1e3681628b5618c">waypoints_</a>.empty()) {</div>
-<div class="line"><span class="lineno">  219</span>    <span class="keywordflow">if</span> (<a class="code hl_variable" href="#a0bf871c446026da84086696e7b1d4776">next_waypoint_idx_</a> &gt;= <a class="code hl_variable" href="#a5b79533e885a6a4cd1e3681628b5618c">waypoints_</a>.size() &amp;&amp; <a class="code hl_variable" href="#a58a2fa1396ba4e2dbc91fae51de00b39">enable_continuous_planning_</a>) {</div>
-<div class="line"><span class="lineno">  220</span>      <a class="code hl_variable" href="#a0bf871c446026da84086696e7b1d4776">next_waypoint_idx_</a> = 0;  <span class="comment">// loop waypoints, if continuous planning is enabled</span></div>
-<div class="line"><span class="lineno">  221</span>    }</div>
-<div class="line"><span class="lineno">  222</span>    <span class="keywordflow">if</span> (<a class="code hl_variable" href="#a0bf871c446026da84086696e7b1d4776">next_waypoint_idx_</a> &lt; <a class="code hl_variable" href="#a5b79533e885a6a4cd1e3681628b5618c">waypoints_</a>.size()) {</div>
-<div class="line"><span class="lineno">  223</span>      this-&gt;<a class="code hl_function" href="#a3fa9a9fe39370dea61609ac2ecbe7dca">planToNextWaypoint</a>();</div>
-<div class="line"><span class="lineno">  224</span>    }</div>
-<div class="line"><span class="lineno">  225</span>  } <span class="keywordflow">else</span> {</div>
-<div class="line"><span class="lineno">  226</span>    RCLCPP_DEBUG(this-&gt;get_logger(), <span class="stringliteral">&quot;Nothing to plan, waiting for waypoints or random destination&quot;</span>);</div>
-<div class="line"><span class="lineno">  227</span>  }</div>
-<div class="line"><span class="lineno">  228</span>}</div>
-<div class="ttc" id="aclassplan__route__action__client_1_1PlanRouteActionClient_html_a0bf871c446026da84086696e7b1d4776"><div class="ttname"><a href="#a0bf871c446026da84086696e7b1d4776">plan_route_action_client::PlanRouteActionClient::next_waypoint_idx_</a></div><div class="ttdeci">size_t next_waypoint_idx_</div><div class="ttdoc">Index of next waypoint to follow.</div><div class="ttdef"><b>Definition</b> <a href="plan__route__action__client_8hpp_source.html#l00178">plan_route_action_client.hpp:178</a></div></div>
-<div class="ttc" id="aclassplan__route__action__client_1_1PlanRouteActionClient_html_a316f2579aad885c4f2004e2e051e13dc"><div class="ttname"><a href="#a316f2579aad885c4f2004e2e051e13dc">plan_route_action_client::PlanRouteActionClient::planToRandomDestination</a></div><div class="ttdeci">void planToRandomDestination()</div><div class="ttdoc">Plans to a random destination.</div><div class="ttdef"><b>Definition</b> <a href="plan__route__action__client_8cpp_source.html#l00272">plan_route_action_client.cpp:272</a></div></div>
-<div class="ttc" id="aclassplan__route__action__client_1_1PlanRouteActionClient_html_a3fa9a9fe39370dea61609ac2ecbe7dca"><div class="ttname"><a href="#a3fa9a9fe39370dea61609ac2ecbe7dca">plan_route_action_client::PlanRouteActionClient::planToNextWaypoint</a></div><div class="ttdeci">void planToNextWaypoint()</div><div class="ttdoc">Plans to next waypoint.</div><div class="ttdef"><b>Definition</b> <a href="plan__route__action__client_8cpp_source.html#l00230">plan_route_action_client.cpp:230</a></div></div>
-<div class="ttc" id="aclassplan__route__action__client_1_1PlanRouteActionClient_html_a5b79533e885a6a4cd1e3681628b5618c"><div class="ttname"><a href="#a5b79533e885a6a4cd1e3681628b5618c">plan_route_action_client::PlanRouteActionClient::waypoints_</a></div><div class="ttdeci">std::vector&lt; std::pair&lt; double, double &gt; &gt; waypoints_</div><div class="ttdoc">WGS84 waypoints to endlessly follow.</div><div class="ttdef"><b>Definition</b> <a href="plan__route__action__client_8hpp_source.html#l00173">plan_route_action_client.hpp:173</a></div></div>
-<div class="ttc" id="aclassplan__route__action__client_1_1PlanRouteActionClient_html_aaecad8d71c66dcb63b502a9577bc8ce3"><div class="ttname"><a href="#aaecad8d71c66dcb63b502a9577bc8ce3">plan_route_action_client::PlanRouteActionClient::has_completed_one_goal_</a></div><div class="ttdeci">bool has_completed_one_goal_</div><div class="ttdoc">Whether one goal has been completed (succeeded or failed)</div><div class="ttdef"><b>Definition</b> <a href="plan__route__action__client_8hpp_source.html#l00183">plan_route_action_client.hpp:183</a></div></div>
+<p class="definition">Definition at line <a class="el" href="plan__route__action__client_8cpp_source.html#l00243">243</a> of file <a class="el" href="plan__route__action__client_8cpp_source.html">plan_route_action_client.cpp</a>.</p>
+<div class="fragment"><div class="line"><span class="lineno">  243</span>                                                      {</div>
+<div class="line"><span class="lineno">  244</span>  <span class="keyword">const</span> <span class="keywordtype">double</span> now_s = std::chrono::duration&lt;double&gt;(std::chrono::steady_clock::now().time_since_epoch()).count();</div>
+<div class="line"><span class="lineno">  245</span>  <span class="keywordflow">if</span> (now_s &lt; <a class="code hl_variable" href="#a4d909d65a512089b6208fc4d1ff04667">auto_planning_resume_time_s_</a>) {</div>
+<div class="line"><span class="lineno">  246</span>    <span class="keywordflow">return</span>;</div>
+<div class="line"><span class="lineno">  247</span>  }</div>
+<div class="line"><span class="lineno">  248</span> </div>
+<div class="line"><span class="lineno">  249</span>  <span class="keywordflow">if</span> (<a class="code hl_variable" href="#af1bfeca3b9c471828c26272732a81d54">enable_random_destination_</a> &amp;&amp; (<a class="code hl_variable" href="#a58a2fa1396ba4e2dbc91fae51de00b39">enable_continuous_planning_</a> || !<a class="code hl_variable" href="#aaecad8d71c66dcb63b502a9577bc8ce3">has_completed_one_goal_</a>)) {</div>
+<div class="line"><span class="lineno">  250</span>    this-&gt;<a class="code hl_function" href="#a316f2579aad885c4f2004e2e051e13dc">planToRandomDestination</a>();</div>
+<div class="line"><span class="lineno">  251</span>  } <span class="keywordflow">else</span> <span class="keywordflow">if</span> (!<a class="code hl_variable" href="#a5b79533e885a6a4cd1e3681628b5618c">waypoints_</a>.empty()) {</div>
+<div class="line"><span class="lineno">  252</span>    <span class="keywordflow">if</span> (<a class="code hl_variable" href="#a0bf871c446026da84086696e7b1d4776">next_waypoint_idx_</a> &gt;= <a class="code hl_variable" href="#a5b79533e885a6a4cd1e3681628b5618c">waypoints_</a>.size() &amp;&amp; <a class="code hl_variable" href="#a58a2fa1396ba4e2dbc91fae51de00b39">enable_continuous_planning_</a>) {</div>
+<div class="line"><span class="lineno">  253</span>      <a class="code hl_variable" href="#a0bf871c446026da84086696e7b1d4776">next_waypoint_idx_</a> = 0;  <span class="comment">// loop waypoints, if continuous planning is enabled</span></div>
+<div class="line"><span class="lineno">  254</span>    }</div>
+<div class="line"><span class="lineno">  255</span>    <span class="keywordflow">if</span> (<a class="code hl_variable" href="#a0bf871c446026da84086696e7b1d4776">next_waypoint_idx_</a> &lt; <a class="code hl_variable" href="#a5b79533e885a6a4cd1e3681628b5618c">waypoints_</a>.size()) {</div>
+<div class="line"><span class="lineno">  256</span>      this-&gt;<a class="code hl_function" href="#a3fa9a9fe39370dea61609ac2ecbe7dca">planToNextWaypoint</a>();</div>
+<div class="line"><span class="lineno">  257</span>    }</div>
+<div class="line"><span class="lineno">  258</span>  } <span class="keywordflow">else</span> {</div>
+<div class="line"><span class="lineno">  259</span>    RCLCPP_DEBUG(this-&gt;get_logger(), <span class="stringliteral">&quot;Nothing to plan, waiting for waypoints or random destination&quot;</span>);</div>
+<div class="line"><span class="lineno">  260</span>  }</div>
+<div class="line"><span class="lineno">  261</span>}</div>
+<div class="ttc" id="aclassplan__route__action__client_1_1PlanRouteActionClient_html_a0bf871c446026da84086696e7b1d4776"><div class="ttname"><a href="#a0bf871c446026da84086696e7b1d4776">plan_route_action_client::PlanRouteActionClient::next_waypoint_idx_</a></div><div class="ttdeci">size_t next_waypoint_idx_</div><div class="ttdoc">Index of next waypoint to follow.</div><div class="ttdef"><b>Definition</b> <a href="plan__route__action__client_8hpp_source.html#l00187">plan_route_action_client.hpp:187</a></div></div>
+<div class="ttc" id="aclassplan__route__action__client_1_1PlanRouteActionClient_html_a316f2579aad885c4f2004e2e051e13dc"><div class="ttname"><a href="#a316f2579aad885c4f2004e2e051e13dc">plan_route_action_client::PlanRouteActionClient::planToRandomDestination</a></div><div class="ttdeci">void planToRandomDestination()</div><div class="ttdoc">Plans to a random destination.</div><div class="ttdef"><b>Definition</b> <a href="plan__route__action__client_8cpp_source.html#l00341">plan_route_action_client.cpp:341</a></div></div>
+<div class="ttc" id="aclassplan__route__action__client_1_1PlanRouteActionClient_html_a3fa9a9fe39370dea61609ac2ecbe7dca"><div class="ttname"><a href="#a3fa9a9fe39370dea61609ac2ecbe7dca">plan_route_action_client::PlanRouteActionClient::planToNextWaypoint</a></div><div class="ttdeci">void planToNextWaypoint()</div><div class="ttdoc">Plans to next waypoint.</div><div class="ttdef"><b>Definition</b> <a href="plan__route__action__client_8cpp_source.html#l00263">plan_route_action_client.cpp:263</a></div></div>
+<div class="ttc" id="aclassplan__route__action__client_1_1PlanRouteActionClient_html_a4d909d65a512089b6208fc4d1ff04667"><div class="ttname"><a href="#a4d909d65a512089b6208fc4d1ff04667">plan_route_action_client::PlanRouteActionClient::auto_planning_resume_time_s_</a></div><div class="ttdeci">double auto_planning_resume_time_s_</div><div class="ttdoc">Earliest wall-clock time at which automatic planning may continue.</div><div class="ttdef"><b>Definition</b> <a href="plan__route__action__client_8hpp_source.html#l00202">plan_route_action_client.hpp:202</a></div></div>
+<div class="ttc" id="aclassplan__route__action__client_1_1PlanRouteActionClient_html_a5b79533e885a6a4cd1e3681628b5618c"><div class="ttname"><a href="#a5b79533e885a6a4cd1e3681628b5618c">plan_route_action_client::PlanRouteActionClient::waypoints_</a></div><div class="ttdeci">std::vector&lt; std::pair&lt; double, double &gt; &gt; waypoints_</div><div class="ttdoc">WGS84 waypoints to endlessly follow.</div><div class="ttdef"><b>Definition</b> <a href="plan__route__action__client_8hpp_source.html#l00177">plan_route_action_client.hpp:177</a></div></div>
+<div class="ttc" id="aclassplan__route__action__client_1_1PlanRouteActionClient_html_aaecad8d71c66dcb63b502a9577bc8ce3"><div class="ttname"><a href="#aaecad8d71c66dcb63b502a9577bc8ce3">plan_route_action_client::PlanRouteActionClient::has_completed_one_goal_</a></div><div class="ttdeci">bool has_completed_one_goal_</div><div class="ttdoc">Whether one goal has been completed (succeeded or failed)</div><div class="ttdef"><b>Definition</b> <a href="plan__route__action__client_8hpp_source.html#l00207">plan_route_action_client.hpp:207</a></div></div>
 </div><!-- fragment -->
 </div>
 </div>
@@ -448,69 +468,69 @@ template&lt;typename T &gt; </div>
   </dd>
 </dl>
 
-<p class="definition">Definition at line <a class="el" href="plan__route__action__client_8cpp_source.html#l00060">60</a> of file <a class="el" href="plan__route__action__client_8cpp_source.html">plan_route_action_client.cpp</a>.</p>
-<div class="fragment"><div class="line"><span class="lineno">   69</span>                                                                                             {</div>
-<div class="line"><span class="lineno">   70</span>  rcl_interfaces::msg::ParameterDescriptor param_desc;</div>
-<div class="line"><span class="lineno">   71</span>  param_desc.description = description;</div>
-<div class="line"><span class="lineno">   72</span>  param_desc.additional_constraints = additional_constraints;</div>
-<div class="line"><span class="lineno">   73</span>  param_desc.read_only = read_only;</div>
-<div class="line"><span class="lineno">   74</span> </div>
-<div class="line"><span class="lineno">   75</span>  <span class="keyword">auto</span> type = rclcpp::ParameterValue(param).get_type();</div>
-<div class="line"><span class="lineno">   76</span> </div>
-<div class="line"><span class="lineno">   77</span>  <span class="keywordflow">if</span> (from_value.has_value() &amp;&amp; to_value.has_value()) {</div>
-<div class="line"><span class="lineno">   78</span>    <span class="keywordflow">if</span> <span class="keyword">constexpr</span> (std::is_integral_v&lt;T&gt;) {</div>
-<div class="line"><span class="lineno">   79</span>      rcl_interfaces::msg::IntegerRange range;</div>
-<div class="line"><span class="lineno">   80</span>      T step = <span class="keyword">static_cast&lt;</span>T<span class="keyword">&gt;</span>(step_value.has_value() ? step_value.value() : 1);</div>
-<div class="line"><span class="lineno">   81</span>      range.set__from_value(<span class="keyword">static_cast&lt;</span>T<span class="keyword">&gt;</span>(from_value.value())).set__to_value(<span class="keyword">static_cast&lt;</span>T<span class="keyword">&gt;</span>(to_value.value())).set__step(step);</div>
-<div class="line"><span class="lineno">   82</span>      param_desc.integer_range = {range};</div>
-<div class="line"><span class="lineno">   83</span>    } <span class="keywordflow">else</span> <span class="keywordflow">if</span> <span class="keyword">constexpr</span> (std::is_floating_point_v&lt;T&gt;) {</div>
-<div class="line"><span class="lineno">   84</span>      rcl_interfaces::msg::FloatingPointRange range;</div>
-<div class="line"><span class="lineno">   85</span>      T step = <span class="keyword">static_cast&lt;</span>T<span class="keyword">&gt;</span>(step_value.has_value() ? step_value.value() : 1.0);</div>
-<div class="line"><span class="lineno">   86</span>      range.set__from_value(<span class="keyword">static_cast&lt;</span>T<span class="keyword">&gt;</span>(from_value.value())).set__to_value(<span class="keyword">static_cast&lt;</span>T<span class="keyword">&gt;</span>(to_value.value())).set__step(step);</div>
-<div class="line"><span class="lineno">   87</span>      param_desc.floating_point_range = {range};</div>
-<div class="line"><span class="lineno">   88</span>    } <span class="keywordflow">else</span> {</div>
-<div class="line"><span class="lineno">   89</span>      RCLCPP_WARN(this-&gt;get_logger(), <span class="stringliteral">&quot;Parameter type of parameter &#39;%s&#39; does not support specifying a range&quot;</span>, name.c_str());</div>
-<div class="line"><span class="lineno">   90</span>    }</div>
-<div class="line"><span class="lineno">   91</span>  }</div>
-<div class="line"><span class="lineno">   92</span> </div>
-<div class="line"><span class="lineno">   93</span>  this-&gt;declare_parameter(name, type, param_desc);</div>
-<div class="line"><span class="lineno">   94</span> </div>
-<div class="line"><span class="lineno">   95</span>  <span class="keywordflow">try</span> {</div>
-<div class="line"><span class="lineno">   96</span>    param = this-&gt;get_parameter(name).get_value&lt;T&gt;();</div>
-<div class="line"><span class="lineno">   97</span>    std::stringstream ss;</div>
-<div class="line"><span class="lineno">   98</span>    ss &lt;&lt; <span class="stringliteral">&quot;Loaded parameter &#39;&quot;</span> &lt;&lt; name &lt;&lt; <span class="stringliteral">&quot;&#39;: &quot;</span>;</div>
-<div class="line"><span class="lineno">   99</span>    <span class="keywordflow">if</span> <span class="keyword">constexpr</span> (<a class="code hl_variable" href="namespaceplan__route__action__client.html#aa5ad83816090dd3b9ff1627db759c250">is_vector_v&lt;T&gt;</a>) {</div>
-<div class="line"><span class="lineno">  100</span>      ss &lt;&lt; <span class="stringliteral">&quot;[&quot;</span>;</div>
-<div class="line"><span class="lineno">  101</span>      <span class="keywordflow">for</span> (<span class="keyword">const</span> <span class="keyword">auto</span>&amp; element : param) ss &lt;&lt; element &lt;&lt; (&amp;element != &amp;param.back() ? <span class="stringliteral">&quot;, &quot;</span> : <span class="stringliteral">&quot;]&quot;</span>);</div>
-<div class="line"><span class="lineno">  102</span>    } <span class="keywordflow">else</span> {</div>
-<div class="line"><span class="lineno">  103</span>      ss &lt;&lt; param;</div>
-<div class="line"><span class="lineno">  104</span>    }</div>
-<div class="line"><span class="lineno">  105</span>    RCLCPP_INFO_STREAM(this-&gt;get_logger(), ss.str());</div>
-<div class="line"><span class="lineno">  106</span>  } <span class="keywordflow">catch</span> (rclcpp::exceptions::ParameterUninitializedException&amp;) {</div>
-<div class="line"><span class="lineno">  107</span>    <span class="keywordflow">if</span> (is_required) {</div>
-<div class="line"><span class="lineno">  108</span>      RCLCPP_FATAL_STREAM(this-&gt;get_logger(), <span class="stringliteral">&quot;Missing required parameter &#39;&quot;</span> &lt;&lt; name &lt;&lt; <span class="stringliteral">&quot;&#39;, exiting&quot;</span>);</div>
-<div class="line"><span class="lineno">  109</span>      exit(EXIT_FAILURE);</div>
-<div class="line"><span class="lineno">  110</span>    } <span class="keywordflow">else</span> {</div>
-<div class="line"><span class="lineno">  111</span>      std::stringstream ss;</div>
-<div class="line"><span class="lineno">  112</span>      ss &lt;&lt; <span class="stringliteral">&quot;Missing parameter &#39;&quot;</span> &lt;&lt; name &lt;&lt; <span class="stringliteral">&quot;&#39;, using default value: &quot;</span>;</div>
-<div class="line"><span class="lineno">  113</span>      <span class="keywordflow">if</span> <span class="keyword">constexpr</span> (<a class="code hl_variable" href="namespaceplan__route__action__client.html#aa5ad83816090dd3b9ff1627db759c250">is_vector_v&lt;T&gt;</a>) {</div>
-<div class="line"><span class="lineno">  114</span>        ss &lt;&lt; <span class="stringliteral">&quot;[&quot;</span>;</div>
-<div class="line"><span class="lineno">  115</span>        <span class="keywordflow">for</span> (<span class="keyword">const</span> <span class="keyword">auto</span>&amp; element : param) ss &lt;&lt; element &lt;&lt; (&amp;element != &amp;param.back() ? <span class="stringliteral">&quot;, &quot;</span> : <span class="stringliteral">&quot;]&quot;</span>);</div>
-<div class="line"><span class="lineno">  116</span>      } <span class="keywordflow">else</span> {</div>
-<div class="line"><span class="lineno">  117</span>        ss &lt;&lt; param;</div>
-<div class="line"><span class="lineno">  118</span>      }</div>
-<div class="line"><span class="lineno">  119</span>      RCLCPP_WARN_STREAM(this-&gt;get_logger(), ss.str());</div>
-<div class="line"><span class="lineno">  120</span>      this-&gt;set_parameters({rclcpp::Parameter(name, rclcpp::ParameterValue(param))});</div>
-<div class="line"><span class="lineno">  121</span>    }</div>
-<div class="line"><span class="lineno">  122</span>  }</div>
-<div class="line"><span class="lineno">  123</span> </div>
-<div class="line"><span class="lineno">  124</span>  <span class="keywordflow">if</span> (add_to_auto_reconfigurable_params) {</div>
-<div class="line"><span class="lineno">  125</span>    std::function&lt;void(<span class="keyword">const</span> rclcpp::Parameter&amp;)&gt; setter = [&amp;param](<span class="keyword">const</span> rclcpp::Parameter&amp; p) { param = p.get_value&lt;T&gt;(); };</div>
-<div class="line"><span class="lineno">  126</span>    <a class="code hl_variable" href="#afecc4bd0df3153a15ed2461baf455e78">auto_reconfigurable_params_</a>.push_back(std::make_tuple(name, setter));</div>
-<div class="line"><span class="lineno">  127</span>  }</div>
-<div class="line"><span class="lineno">  128</span>}</div>
-<div class="ttc" id="aclassplan__route__action__client_1_1PlanRouteActionClient_html_afecc4bd0df3153a15ed2461baf455e78"><div class="ttname"><a href="#afecc4bd0df3153a15ed2461baf455e78">plan_route_action_client::PlanRouteActionClient::auto_reconfigurable_params_</a></div><div class="ttdeci">std::vector&lt; std::tuple&lt; std::string, std::function&lt; void(const rclcpp::Parameter &amp;)&gt; &gt; &gt; auto_reconfigurable_params_</div><div class="ttdoc">Auto-reconfigurable parameters for dynamic reconfiguration.</div><div class="ttdef"><b>Definition</b> <a href="plan__route__action__client_8hpp_source.html#l00138">plan_route_action_client.hpp:138</a></div></div>
-<div class="ttc" id="anamespaceplan__route__action__client_html_aa5ad83816090dd3b9ff1627db759c250"><div class="ttname"><a href="namespaceplan__route__action__client.html#aa5ad83816090dd3b9ff1627db759c250">plan_route_action_client::is_vector_v</a></div><div class="ttdeci">constexpr bool is_vector_v</div><div class="ttdef"><b>Definition</b> <a href="plan__route__action__client_8hpp_source.html#l00026">plan_route_action_client.hpp:26</a></div></div>
+<p class="definition">Definition at line <a class="el" href="plan__route__action__client_8cpp_source.html#l00085">85</a> of file <a class="el" href="plan__route__action__client_8cpp_source.html">plan_route_action_client.cpp</a>.</p>
+<div class="fragment"><div class="line"><span class="lineno">   94</span>                                                                                             {</div>
+<div class="line"><span class="lineno">   95</span>  rcl_interfaces::msg::ParameterDescriptor param_desc;</div>
+<div class="line"><span class="lineno">   96</span>  param_desc.description = description;</div>
+<div class="line"><span class="lineno">   97</span>  param_desc.additional_constraints = additional_constraints;</div>
+<div class="line"><span class="lineno">   98</span>  param_desc.read_only = read_only;</div>
+<div class="line"><span class="lineno">   99</span> </div>
+<div class="line"><span class="lineno">  100</span>  <span class="keyword">auto</span> type = rclcpp::ParameterValue(param).get_type();</div>
+<div class="line"><span class="lineno">  101</span> </div>
+<div class="line"><span class="lineno">  102</span>  <span class="keywordflow">if</span> (from_value.has_value() &amp;&amp; to_value.has_value()) {</div>
+<div class="line"><span class="lineno">  103</span>    <span class="keywordflow">if</span> <span class="keyword">constexpr</span> (std::is_integral_v&lt;T&gt;) {</div>
+<div class="line"><span class="lineno">  104</span>      rcl_interfaces::msg::IntegerRange range;</div>
+<div class="line"><span class="lineno">  105</span>      T step = <span class="keyword">static_cast&lt;</span>T<span class="keyword">&gt;</span>(step_value.has_value() ? step_value.value() : 1);</div>
+<div class="line"><span class="lineno">  106</span>      range.set__from_value(<span class="keyword">static_cast&lt;</span>T<span class="keyword">&gt;</span>(from_value.value())).set__to_value(<span class="keyword">static_cast&lt;</span>T<span class="keyword">&gt;</span>(to_value.value())).set__step(step);</div>
+<div class="line"><span class="lineno">  107</span>      param_desc.integer_range = {range};</div>
+<div class="line"><span class="lineno">  108</span>    } <span class="keywordflow">else</span> <span class="keywordflow">if</span> <span class="keyword">constexpr</span> (std::is_floating_point_v&lt;T&gt;) {</div>
+<div class="line"><span class="lineno">  109</span>      rcl_interfaces::msg::FloatingPointRange range;</div>
+<div class="line"><span class="lineno">  110</span>      T step = <span class="keyword">static_cast&lt;</span>T<span class="keyword">&gt;</span>(step_value.has_value() ? step_value.value() : 1.0);</div>
+<div class="line"><span class="lineno">  111</span>      range.set__from_value(<span class="keyword">static_cast&lt;</span>T<span class="keyword">&gt;</span>(from_value.value())).set__to_value(<span class="keyword">static_cast&lt;</span>T<span class="keyword">&gt;</span>(to_value.value())).set__step(step);</div>
+<div class="line"><span class="lineno">  112</span>      param_desc.floating_point_range = {range};</div>
+<div class="line"><span class="lineno">  113</span>    } <span class="keywordflow">else</span> {</div>
+<div class="line"><span class="lineno">  114</span>      RCLCPP_WARN(this-&gt;get_logger(), <span class="stringliteral">&quot;Parameter type of parameter &#39;%s&#39; does not support specifying a range&quot;</span>, name.c_str());</div>
+<div class="line"><span class="lineno">  115</span>    }</div>
+<div class="line"><span class="lineno">  116</span>  }</div>
+<div class="line"><span class="lineno">  117</span> </div>
+<div class="line"><span class="lineno">  118</span>  this-&gt;declare_parameter(name, type, param_desc);</div>
+<div class="line"><span class="lineno">  119</span> </div>
+<div class="line"><span class="lineno">  120</span>  <span class="keywordflow">try</span> {</div>
+<div class="line"><span class="lineno">  121</span>    param = this-&gt;get_parameter(name).get_value&lt;T&gt;();</div>
+<div class="line"><span class="lineno">  122</span>    std::stringstream ss;</div>
+<div class="line"><span class="lineno">  123</span>    ss &lt;&lt; <span class="stringliteral">&quot;Loaded parameter &#39;&quot;</span> &lt;&lt; name &lt;&lt; <span class="stringliteral">&quot;&#39;: &quot;</span>;</div>
+<div class="line"><span class="lineno">  124</span>    <span class="keywordflow">if</span> <span class="keyword">constexpr</span> (<a class="code hl_variable" href="namespaceplan__route__action__client.html#aa5ad83816090dd3b9ff1627db759c250">is_vector_v&lt;T&gt;</a>) {</div>
+<div class="line"><span class="lineno">  125</span>      ss &lt;&lt; <span class="stringliteral">&quot;[&quot;</span>;</div>
+<div class="line"><span class="lineno">  126</span>      <span class="keywordflow">for</span> (<span class="keyword">const</span> <span class="keyword">auto</span>&amp; element : param) ss &lt;&lt; element &lt;&lt; (&amp;element != &amp;param.back() ? <span class="stringliteral">&quot;, &quot;</span> : <span class="stringliteral">&quot;]&quot;</span>);</div>
+<div class="line"><span class="lineno">  127</span>    } <span class="keywordflow">else</span> {</div>
+<div class="line"><span class="lineno">  128</span>      ss &lt;&lt; param;</div>
+<div class="line"><span class="lineno">  129</span>    }</div>
+<div class="line"><span class="lineno">  130</span>    RCLCPP_INFO_STREAM(this-&gt;get_logger(), ss.str());</div>
+<div class="line"><span class="lineno">  131</span>  } <span class="keywordflow">catch</span> (rclcpp::exceptions::ParameterUninitializedException&amp;) {</div>
+<div class="line"><span class="lineno">  132</span>    <span class="keywordflow">if</span> (is_required) {</div>
+<div class="line"><span class="lineno">  133</span>      RCLCPP_FATAL_STREAM(this-&gt;get_logger(), <span class="stringliteral">&quot;Missing required parameter &#39;&quot;</span> &lt;&lt; name &lt;&lt; <span class="stringliteral">&quot;&#39;, exiting&quot;</span>);</div>
+<div class="line"><span class="lineno">  134</span>      exit(EXIT_FAILURE);</div>
+<div class="line"><span class="lineno">  135</span>    } <span class="keywordflow">else</span> {</div>
+<div class="line"><span class="lineno">  136</span>      std::stringstream ss;</div>
+<div class="line"><span class="lineno">  137</span>      ss &lt;&lt; <span class="stringliteral">&quot;Missing parameter &#39;&quot;</span> &lt;&lt; name &lt;&lt; <span class="stringliteral">&quot;&#39;, using default value: &quot;</span>;</div>
+<div class="line"><span class="lineno">  138</span>      <span class="keywordflow">if</span> <span class="keyword">constexpr</span> (<a class="code hl_variable" href="namespaceplan__route__action__client.html#aa5ad83816090dd3b9ff1627db759c250">is_vector_v&lt;T&gt;</a>) {</div>
+<div class="line"><span class="lineno">  139</span>        ss &lt;&lt; <span class="stringliteral">&quot;[&quot;</span>;</div>
+<div class="line"><span class="lineno">  140</span>        <span class="keywordflow">for</span> (<span class="keyword">const</span> <span class="keyword">auto</span>&amp; element : param) ss &lt;&lt; element &lt;&lt; (&amp;element != &amp;param.back() ? <span class="stringliteral">&quot;, &quot;</span> : <span class="stringliteral">&quot;]&quot;</span>);</div>
+<div class="line"><span class="lineno">  141</span>      } <span class="keywordflow">else</span> {</div>
+<div class="line"><span class="lineno">  142</span>        ss &lt;&lt; param;</div>
+<div class="line"><span class="lineno">  143</span>      }</div>
+<div class="line"><span class="lineno">  144</span>      RCLCPP_WARN_STREAM(this-&gt;get_logger(), ss.str());</div>
+<div class="line"><span class="lineno">  145</span>      this-&gt;set_parameters({rclcpp::Parameter(name, rclcpp::ParameterValue(param))});</div>
+<div class="line"><span class="lineno">  146</span>    }</div>
+<div class="line"><span class="lineno">  147</span>  }</div>
+<div class="line"><span class="lineno">  148</span> </div>
+<div class="line"><span class="lineno">  149</span>  <span class="keywordflow">if</span> (add_to_auto_reconfigurable_params) {</div>
+<div class="line"><span class="lineno">  150</span>    std::function&lt;void(<span class="keyword">const</span> rclcpp::Parameter&amp;)&gt; setter = [&amp;param](<span class="keyword">const</span> rclcpp::Parameter&amp; p) { param = p.get_value&lt;T&gt;(); };</div>
+<div class="line"><span class="lineno">  151</span>    <a class="code hl_variable" href="#afecc4bd0df3153a15ed2461baf455e78">auto_reconfigurable_params_</a>.push_back(std::make_tuple(name, setter));</div>
+<div class="line"><span class="lineno">  152</span>  }</div>
+<div class="line"><span class="lineno">  153</span>}</div>
+<div class="ttc" id="aclassplan__route__action__client_1_1PlanRouteActionClient_html_afecc4bd0df3153a15ed2461baf455e78"><div class="ttname"><a href="#afecc4bd0df3153a15ed2461baf455e78">plan_route_action_client::PlanRouteActionClient::auto_reconfigurable_params_</a></div><div class="ttdeci">std::vector&lt; std::tuple&lt; std::string, std::function&lt; void(const rclcpp::Parameter &amp;)&gt; &gt; &gt; auto_reconfigurable_params_</div><div class="ttdoc">Auto-reconfigurable parameters for dynamic reconfiguration.</div><div class="ttdef"><b>Definition</b> <a href="plan__route__action__client_8hpp_source.html#l00142">plan_route_action_client.hpp:142</a></div></div>
+<div class="ttc" id="anamespaceplan__route__action__client_html_aa5ad83816090dd3b9ff1627db759c250"><div class="ttname"><a href="namespaceplan__route__action__client.html#aa5ad83816090dd3b9ff1627db759c250">plan_route_action_client::is_vector_v</a></div><div class="ttdeci">constexpr bool is_vector_v</div><div class="ttdef"><b>Definition</b> <a href="plan__route__action__client_8hpp_source.html#l00028">plan_route_action_client.hpp:28</a></div></div>
 </div><!-- fragment -->
 </div>
 </div>
@@ -550,18 +570,18 @@ template&lt;typename T &gt; </div>
   </dd>
 </dl>
 
-<p class="definition">Definition at line <a class="el" href="plan__route__action__client_8cpp_source.html#l00354">354</a> of file <a class="el" href="plan__route__action__client_8cpp_source.html">plan_route_action_client.cpp</a>.</p>
-<div class="fragment"><div class="line"><span class="lineno">  355</span>                                                                                                    {</div>
-<div class="line"><span class="lineno">  356</span>  (void)goal_handle;</div>
-<div class="line"><span class="lineno">  357</span> </div>
-<div class="line"><span class="lineno">  358</span>  <span class="keyword">const</span> <span class="keywordtype">double</span> distance_traveled = feedback-&gt;distance_traveled;</div>
-<div class="line"><span class="lineno">  359</span>  <span class="keyword">const</span> <span class="keywordtype">double</span> distance_total = feedback-&gt;distance_remaining + feedback-&gt;distance_traveled;</div>
-<div class="line"><span class="lineno">  360</span>  rclcpp::Duration time_traveled(feedback-&gt;time_traveled.sec, feedback-&gt;time_traveled.nanosec);</div>
-<div class="line"><span class="lineno">  361</span>  rclcpp::Duration time_remaining(feedback-&gt;time_remaining.sec, feedback-&gt;time_remaining.nanosec);</div>
-<div class="line"><span class="lineno">  362</span>  rclcpp::Duration time_total = time_traveled + time_remaining;</div>
-<div class="line"><span class="lineno">  363</span>  RCLCPP_INFO(this-&gt;get_logger(), <span class="stringliteral">&quot;Route progress: %.2f / %.2f m, %.1f / %.1f s&quot;</span>, distance_traveled, distance_total,</div>
-<div class="line"><span class="lineno">  364</span>              time_traveled.seconds(), time_total.seconds());</div>
-<div class="line"><span class="lineno">  365</span>}</div>
+<p class="definition">Definition at line <a class="el" href="plan__route__action__client_8cpp_source.html#l00429">429</a> of file <a class="el" href="plan__route__action__client_8cpp_source.html">plan_route_action_client.cpp</a>.</p>
+<div class="fragment"><div class="line"><span class="lineno">  430</span>                                                                                                    {</div>
+<div class="line"><span class="lineno">  431</span>  (void)goal_handle;</div>
+<div class="line"><span class="lineno">  432</span> </div>
+<div class="line"><span class="lineno">  433</span>  <span class="keyword">const</span> <span class="keywordtype">double</span> distance_traveled = feedback-&gt;distance_traveled;</div>
+<div class="line"><span class="lineno">  434</span>  <span class="keyword">const</span> <span class="keywordtype">double</span> distance_total = feedback-&gt;distance_remaining + feedback-&gt;distance_traveled;</div>
+<div class="line"><span class="lineno">  435</span>  rclcpp::Duration time_traveled(feedback-&gt;time_traveled.sec, feedback-&gt;time_traveled.nanosec);</div>
+<div class="line"><span class="lineno">  436</span>  rclcpp::Duration time_remaining(feedback-&gt;time_remaining.sec, feedback-&gt;time_remaining.nanosec);</div>
+<div class="line"><span class="lineno">  437</span>  rclcpp::Duration time_total = time_traveled + time_remaining;</div>
+<div class="line"><span class="lineno">  438</span>  RCLCPP_INFO(this-&gt;get_logger(), <span class="stringliteral">&quot;Route progress: %.2f / %.2f m, %.1f / %.1f s&quot;</span>, distance_traveled, distance_total,</div>
+<div class="line"><span class="lineno">  439</span>              time_traveled.seconds(), time_total.seconds());</div>
+<div class="line"><span class="lineno">  440</span>}</div>
 </div><!-- fragment -->
 </div>
 </div>
@@ -596,13 +616,18 @@ template&lt;typename T &gt; </div>
   </dd>
 </dl>
 
-<p class="definition">Definition at line <a class="el" href="plan__route__action__client_8cpp_source.html#l00209">209</a> of file <a class="el" href="plan__route__action__client_8cpp_source.html">plan_route_action_client.cpp</a>.</p>
-<div class="fragment"><div class="line"><span class="lineno">  209</span>                                                                                           {</div>
-<div class="line"><span class="lineno">  210</span>  RCLCPP_INFO(this-&gt;get_logger(), <span class="stringliteral">&quot;Received goal pose (%.3f, %.3f, %.3f) in frame &#39;%s&#39;&quot;</span>, msg-&gt;pose.position.x,</div>
-<div class="line"><span class="lineno">  211</span>              msg-&gt;pose.position.y, msg-&gt;pose.position.z, msg-&gt;header.frame_id.c_str());</div>
-<div class="line"><span class="lineno">  212</span>  <a class="code hl_function" href="#a7f3b81ef97d090d49dce72def1e33b30">sendGoal</a>(msg);</div>
-<div class="line"><span class="lineno">  213</span>}</div>
-<div class="ttc" id="aclassplan__route__action__client_1_1PlanRouteActionClient_html_a7f3b81ef97d090d49dce72def1e33b30"><div class="ttname"><a href="#a7f3b81ef97d090d49dce72def1e33b30">plan_route_action_client::PlanRouteActionClient::sendGoal</a></div><div class="ttdeci">void sendGoal(const geometry_msgs::msg::PoseStamped::SharedPtr msg)</div><div class="ttdoc">Sends a goal to the action server.</div><div class="ttdef"><b>Definition</b> <a href="plan__route__action__client_8cpp_source.html#l00318">plan_route_action_client.cpp:318</a></div></div>
+<p class="definition">Definition at line <a class="el" href="plan__route__action__client_8cpp_source.html#l00234">234</a> of file <a class="el" href="plan__route__action__client_8cpp_source.html">plan_route_action_client.cpp</a>.</p>
+<div class="fragment"><div class="line"><span class="lineno">  234</span>                                                                                           {</div>
+<div class="line"><span class="lineno">  235</span>  RCLCPP_INFO(this-&gt;get_logger(), <span class="stringliteral">&quot;Received goal pose (%.3f, %.3f, %.3f) in frame &#39;%s&#39;&quot;</span>, msg-&gt;pose.position.x,</div>
+<div class="line"><span class="lineno">  236</span>              msg-&gt;pose.position.y, msg-&gt;pose.position.z, msg-&gt;header.frame_id.c_str());</div>
+<div class="line"><span class="lineno">  237</span>  <a class="code hl_variable" href="#a28490c05351272002b8e37849074f8b9">has_active_waypoint_</a> = <span class="keyword">false</span>;</div>
+<div class="line"><span class="lineno">  238</span>  <a class="code hl_variable" href="#a1b85f353baf77516a5b290532673f781">active_waypoint_wait_time_s_</a> = 0.0;</div>
+<div class="line"><span class="lineno">  239</span>  <a class="code hl_variable" href="#a4d909d65a512089b6208fc4d1ff04667">auto_planning_resume_time_s_</a> = 0.0;</div>
+<div class="line"><span class="lineno">  240</span>  <a class="code hl_function" href="#a9cfc5f12f6f83180f18091b5a317ac6f">sendGoal</a>(msg);</div>
+<div class="line"><span class="lineno">  241</span>}</div>
+<div class="ttc" id="aclassplan__route__action__client_1_1PlanRouteActionClient_html_a1b85f353baf77516a5b290532673f781"><div class="ttname"><a href="#a1b85f353baf77516a5b290532673f781">plan_route_action_client::PlanRouteActionClient::active_waypoint_wait_time_s_</a></div><div class="ttdeci">double active_waypoint_wait_time_s_</div><div class="ttdoc">Wait time of the active waypoint [s].</div><div class="ttdef"><b>Definition</b> <a href="plan__route__action__client_8hpp_source.html#l00197">plan_route_action_client.hpp:197</a></div></div>
+<div class="ttc" id="aclassplan__route__action__client_1_1PlanRouteActionClient_html_a28490c05351272002b8e37849074f8b9"><div class="ttname"><a href="#a28490c05351272002b8e37849074f8b9">plan_route_action_client::PlanRouteActionClient::has_active_waypoint_</a></div><div class="ttdeci">bool has_active_waypoint_</div><div class="ttdoc">Whether the active goal belongs to the waypoint list.</div><div class="ttdef"><b>Definition</b> <a href="plan__route__action__client_8hpp_source.html#l00192">plan_route_action_client.hpp:192</a></div></div>
+<div class="ttc" id="aclassplan__route__action__client_1_1PlanRouteActionClient_html_a9cfc5f12f6f83180f18091b5a317ac6f"><div class="ttname"><a href="#a9cfc5f12f6f83180f18091b5a317ac6f">plan_route_action_client::PlanRouteActionClient::sendGoal</a></div><div class="ttdeci">void sendGoal(const geometry_msgs::msg::PoseStamped::SharedPtr msg, const std::vector&lt; geometry_msgs::msg::PointStamped &gt; &amp;intermediate_destinations={})</div><div class="ttdoc">Sends a goal to the action server.</div><div class="ttdef"><b>Definition</b> <a href="plan__route__action__client_8cpp_source.html#l00389">plan_route_action_client.cpp:389</a></div></div>
 </div><!-- fragment -->
 </div>
 </div>
@@ -637,16 +662,17 @@ template&lt;typename T &gt; </div>
   </dd>
 </dl>
 
-<p class="definition">Definition at line <a class="el" href="plan__route__action__client_8cpp_source.html#l00345">345</a> of file <a class="el" href="plan__route__action__client_8cpp_source.html">plan_route_action_client.cpp</a>.</p>
-<div class="fragment"><div class="line"><span class="lineno">  345</span>                                                                                                {</div>
-<div class="line"><span class="lineno">  346</span>  <span class="keywordflow">if</span> (!goal_handle) {</div>
-<div class="line"><span class="lineno">  347</span>    RCLCPP_ERROR(this-&gt;get_logger(), <span class="stringliteral">&quot;Goal rejected by action server&quot;</span>);</div>
-<div class="line"><span class="lineno">  348</span>    <a class="code hl_variable" href="#a7269a73c3dc931587c3003f14714107c">auto_planning_timer_</a>-&gt;reset();  <span class="comment">// restart auto-planning timer</span></div>
-<div class="line"><span class="lineno">  349</span>  } <span class="keywordflow">else</span> {</div>
-<div class="line"><span class="lineno">  350</span>    RCLCPP_INFO(this-&gt;get_logger(), <span class="stringliteral">&quot;Goal accepted by action server&quot;</span>);</div>
-<div class="line"><span class="lineno">  351</span>  }</div>
-<div class="line"><span class="lineno">  352</span>}</div>
-<div class="ttc" id="aclassplan__route__action__client_1_1PlanRouteActionClient_html_a7269a73c3dc931587c3003f14714107c"><div class="ttname"><a href="#a7269a73c3dc931587c3003f14714107c">plan_route_action_client::PlanRouteActionClient::auto_planning_timer_</a></div><div class="ttdeci">rclcpp::TimerBase::SharedPtr auto_planning_timer_</div><div class="ttdoc">Timer to automatically plan route, e.g., if waypoints are given.</div><div class="ttdef"><b>Definition</b> <a href="plan__route__action__client_8hpp_source.html#l00163">plan_route_action_client.hpp:163</a></div></div>
+<p class="definition">Definition at line <a class="el" href="plan__route__action__client_8cpp_source.html#l00419">419</a> of file <a class="el" href="plan__route__action__client_8cpp_source.html">plan_route_action_client.cpp</a>.</p>
+<div class="fragment"><div class="line"><span class="lineno">  419</span>                                                                                                {</div>
+<div class="line"><span class="lineno">  420</span>  <span class="keywordflow">if</span> (!goal_handle) {</div>
+<div class="line"><span class="lineno">  421</span>    RCLCPP_ERROR(this-&gt;get_logger(), <span class="stringliteral">&quot;Goal rejected by action server&quot;</span>);</div>
+<div class="line"><span class="lineno">  422</span>    <a class="code hl_variable" href="#a28490c05351272002b8e37849074f8b9">has_active_waypoint_</a> = <span class="keyword">false</span>;</div>
+<div class="line"><span class="lineno">  423</span>    <a class="code hl_variable" href="#a7269a73c3dc931587c3003f14714107c">auto_planning_timer_</a>-&gt;reset();  <span class="comment">// restart auto-planning timer</span></div>
+<div class="line"><span class="lineno">  424</span>  } <span class="keywordflow">else</span> {</div>
+<div class="line"><span class="lineno">  425</span>    RCLCPP_INFO(this-&gt;get_logger(), <span class="stringliteral">&quot;Goal accepted by action server&quot;</span>);</div>
+<div class="line"><span class="lineno">  426</span>  }</div>
+<div class="line"><span class="lineno">  427</span>}</div>
+<div class="ttc" id="aclassplan__route__action__client_1_1PlanRouteActionClient_html_a7269a73c3dc931587c3003f14714107c"><div class="ttname"><a href="#a7269a73c3dc931587c3003f14714107c">plan_route_action_client::PlanRouteActionClient::auto_planning_timer_</a></div><div class="ttdeci">rclcpp::TimerBase::SharedPtr auto_planning_timer_</div><div class="ttdoc">Timer to automatically plan route, e.g., if waypoints are given.</div><div class="ttdef"><b>Definition</b> <a href="plan__route__action__client_8hpp_source.html#l00167">plan_route_action_client.hpp:167</a></div></div>
 </div><!-- fragment -->
 </div>
 </div>
@@ -682,52 +708,53 @@ template&lt;typename T &gt; </div>
 </dl>
 <dl class="section return"><dt>Returns</dt><dd>parameter change result </dd></dl>
 
-<p class="definition">Definition at line <a class="el" href="plan__route__action__client_8cpp_source.html#l00130">130</a> of file <a class="el" href="plan__route__action__client_8cpp_source.html">plan_route_action_client.cpp</a>.</p>
-<div class="fragment"><div class="line"><span class="lineno">  131</span>                                                  {</div>
-<div class="line"><span class="lineno">  132</span>  <span class="keywordflow">for</span> (<span class="keyword">const</span> <span class="keyword">auto</span>&amp; param : parameters) {</div>
-<div class="line"><span class="lineno">  133</span>    <span class="keywordflow">for</span> (<span class="keyword">auto</span>&amp; auto_reconfigurable_param : <a class="code hl_variable" href="#afecc4bd0df3153a15ed2461baf455e78">auto_reconfigurable_params_</a>) {</div>
-<div class="line"><span class="lineno">  134</span>      <span class="keywordflow">if</span> (param.get_name() == std::get&lt;0&gt;(auto_reconfigurable_param)) {</div>
-<div class="line"><span class="lineno">  135</span>        std::get&lt;1&gt;(auto_reconfigurable_param)(param);</div>
-<div class="line"><span class="lineno">  136</span>        RCLCPP_INFO(this-&gt;get_logger(), <span class="stringliteral">&quot;Reconfigured parameter &#39;%s&#39;&quot;</span>, param.get_name().c_str());</div>
-<div class="line"><span class="lineno">  137</span>        <span class="keywordflow">break</span>;</div>
-<div class="line"><span class="lineno">  138</span>      }</div>
-<div class="line"><span class="lineno">  139</span>    }</div>
-<div class="line"><span class="lineno">  140</span> </div>
-<div class="line"><span class="lineno">  141</span>    <span class="comment">// handle waypoints</span></div>
-<div class="line"><span class="lineno">  142</span>    <span class="keywordflow">if</span> (param.get_name() == <span class="stringliteral">&quot;waypoints&quot;</span>) {</div>
-<div class="line"><span class="lineno">  143</span>      <span class="keyword">auto</span> parsed_waypoints = <a class="code hl_function" href="namespaceplan__route__action__client.html#a4db854bd5d101b2d3478a5e48ab8ae25">parseWaypoints</a>(<a class="code hl_variable" href="#ad7777334fda5192ca277a0a9437d827e">waypoints_param_</a>);</div>
-<div class="line"><span class="lineno">  144</span>      <span class="keywordflow">if</span> (parsed_waypoints) {</div>
-<div class="line"><span class="lineno">  145</span>        <a class="code hl_variable" href="#a5b79533e885a6a4cd1e3681628b5618c">waypoints_</a> = *parsed_waypoints;</div>
-<div class="line"><span class="lineno">  146</span>      } <span class="keywordflow">else</span> {</div>
-<div class="line"><span class="lineno">  147</span>        std::stringstream ss;</div>
-<div class="line"><span class="lineno">  148</span>        ss &lt;&lt; <span class="stringliteral">&quot;Failed to parse parameter &#39;waypoints&#39;: [&quot;</span>;</div>
-<div class="line"><span class="lineno">  149</span>        <span class="keywordflow">for</span> (<span class="keyword">const</span> <span class="keyword">auto</span>&amp; waypoint : <a class="code hl_variable" href="#ad7777334fda5192ca277a0a9437d827e">waypoints_param_</a>) {</div>
-<div class="line"><span class="lineno">  150</span>          ss &lt;&lt; waypoint &lt;&lt; (&amp;waypoint != &amp;<a class="code hl_variable" href="#ad7777334fda5192ca277a0a9437d827e">waypoints_param_</a>.back() ? <span class="stringliteral">&quot;, &quot;</span> : <span class="stringliteral">&quot;]&quot;</span>);</div>
-<div class="line"><span class="lineno">  151</span>        }</div>
-<div class="line"><span class="lineno">  152</span>        RCLCPP_ERROR(this-&gt;get_logger(), <span class="stringliteral">&quot;%s&quot;</span>, ss.str().c_str());</div>
-<div class="line"><span class="lineno">  153</span>      }</div>
-<div class="line"><span class="lineno">  154</span>    }</div>
-<div class="line"><span class="lineno">  155</span> </div>
-<div class="line"><span class="lineno">  156</span>    <span class="comment">// handle cancel_route</span></div>
-<div class="line"><span class="lineno">  157</span>    <span class="keywordflow">if</span> (param.get_name() == <span class="stringliteral">&quot;cancel_route&quot;</span>) {</div>
-<div class="line"><span class="lineno">  158</span>      <span class="keywordflow">if</span> (<a class="code hl_variable" href="#a450797ba40f14cbcd4da9b1ec68b527d">cancel_route_</a>) {</div>
-<div class="line"><span class="lineno">  159</span>        <span class="keywordflow">if</span> (<a class="code hl_variable" href="#a9120c978899cbc1209927b54ee70de44">action_client_</a>-&gt;wait_for_action_server(std::chrono::duration&lt;double&gt;(0.1))) {</div>
-<div class="line"><span class="lineno">  160</span>          RCLCPP_INFO(this-&gt;get_logger(), <span class="stringliteral">&quot;Cancelling route&quot;</span>);</div>
-<div class="line"><span class="lineno">  161</span>          <a class="code hl_variable" href="#a9120c978899cbc1209927b54ee70de44">action_client_</a>-&gt;async_cancel_all_goals();</div>
-<div class="line"><span class="lineno">  162</span>        } <span class="keywordflow">else</span> {</div>
-<div class="line"><span class="lineno">  163</span>          RCLCPP_WARN(this-&gt;get_logger(), <span class="stringliteral">&quot;Action server not available, cannot cancel route&quot;</span>);</div>
-<div class="line"><span class="lineno">  164</span>        }</div>
-<div class="line"><span class="lineno">  165</span>      }</div>
-<div class="line"><span class="lineno">  166</span>    }</div>
-<div class="line"><span class="lineno">  167</span>  }</div>
-<div class="line"><span class="lineno">  168</span> </div>
-<div class="line"><span class="lineno">  169</span>  rcl_interfaces::msg::SetParametersResult result;</div>
-<div class="line"><span class="lineno">  170</span>  result.successful = <span class="keyword">true</span>;</div>
-<div class="line"><span class="lineno">  171</span> </div>
-<div class="line"><span class="lineno">  172</span>  <span class="keywordflow">return</span> result;</div>
-<div class="line"><span class="lineno">  173</span>}</div>
-<div class="ttc" id="aclassplan__route__action__client_1_1PlanRouteActionClient_html_a9120c978899cbc1209927b54ee70de44"><div class="ttname"><a href="#a9120c978899cbc1209927b54ee70de44">plan_route_action_client::PlanRouteActionClient::action_client_</a></div><div class="ttdeci">rclcpp_action::Client&lt; PlanRoute &gt;::SharedPtr action_client_</div><div class="ttdoc">Action client.</div><div class="ttdef"><b>Definition</b> <a href="plan__route__action__client_8hpp_source.html#l00153">plan_route_action_client.hpp:153</a></div></div>
-<div class="ttc" id="anamespaceplan__route__action__client_html_a4db854bd5d101b2d3478a5e48ab8ae25"><div class="ttname"><a href="namespaceplan__route__action__client.html#a4db854bd5d101b2d3478a5e48ab8ae25">plan_route_action_client::parseWaypoints</a></div><div class="ttdeci">std::optional&lt; std::vector&lt; std::pair&lt; double, double &gt; &gt; &gt; parseWaypoints(const std::vector&lt; std::string &gt; &amp;waypoints_param)</div><div class="ttdoc">Parses WGS84 waypoints from &quot;&lt;LATITUDE&gt;,&lt;LONGITUDE&gt;&quot; strings.</div><div class="ttdef"><b>Definition</b> <a href="plan__route__action__client_8cpp_source.html#l00023">plan_route_action_client.cpp:23</a></div></div>
+<p class="definition">Definition at line <a class="el" href="plan__route__action__client_8cpp_source.html#l00155">155</a> of file <a class="el" href="plan__route__action__client_8cpp_source.html">plan_route_action_client.cpp</a>.</p>
+<div class="fragment"><div class="line"><span class="lineno">  156</span>                                                  {</div>
+<div class="line"><span class="lineno">  157</span>  <span class="keywordflow">for</span> (<span class="keyword">const</span> <span class="keyword">auto</span>&amp; param : parameters) {</div>
+<div class="line"><span class="lineno">  158</span>    <span class="keywordflow">for</span> (<span class="keyword">auto</span>&amp; auto_reconfigurable_param : <a class="code hl_variable" href="#afecc4bd0df3153a15ed2461baf455e78">auto_reconfigurable_params_</a>) {</div>
+<div class="line"><span class="lineno">  159</span>      <span class="keywordflow">if</span> (param.get_name() == std::get&lt;0&gt;(auto_reconfigurable_param)) {</div>
+<div class="line"><span class="lineno">  160</span>        std::get&lt;1&gt;(auto_reconfigurable_param)(param);</div>
+<div class="line"><span class="lineno">  161</span>        RCLCPP_INFO(this-&gt;get_logger(), <span class="stringliteral">&quot;Reconfigured parameter &#39;%s&#39;&quot;</span>, param.get_name().c_str());</div>
+<div class="line"><span class="lineno">  162</span>        <span class="keywordflow">break</span>;</div>
+<div class="line"><span class="lineno">  163</span>      }</div>
+<div class="line"><span class="lineno">  164</span>    }</div>
+<div class="line"><span class="lineno">  165</span> </div>
+<div class="line"><span class="lineno">  166</span>    <span class="comment">// handle waypoints</span></div>
+<div class="line"><span class="lineno">  167</span>    <span class="keywordflow">if</span> (param.get_name() == <span class="stringliteral">&quot;waypoints&quot;</span>) {</div>
+<div class="line"><span class="lineno">  168</span>      <span class="keyword">auto</span> parsed_waypoints = <a class="code hl_function" href="namespaceplan__route__action__client.html#a25e3adc12a2cbcdba0a493e1d4461eeb">parseWaypoints</a>(<a class="code hl_variable" href="#ad7777334fda5192ca277a0a9437d827e">waypoints_param_</a>, <a class="code hl_variable" href="#a2617009b882a29e10c5a2379d77b51e3">waypoint_wait_times_</a>, this-&gt;get_logger());</div>
+<div class="line"><span class="lineno">  169</span>      <span class="keywordflow">if</span> (parsed_waypoints) {</div>
+<div class="line"><span class="lineno">  170</span>        <a class="code hl_variable" href="#a5b79533e885a6a4cd1e3681628b5618c">waypoints_</a> = *parsed_waypoints;</div>
+<div class="line"><span class="lineno">  171</span>      } <span class="keywordflow">else</span> {</div>
+<div class="line"><span class="lineno">  172</span>        std::stringstream ss;</div>
+<div class="line"><span class="lineno">  173</span>        ss &lt;&lt; <span class="stringliteral">&quot;Failed to parse parameter &#39;waypoints&#39;: [&quot;</span>;</div>
+<div class="line"><span class="lineno">  174</span>        <span class="keywordflow">for</span> (<span class="keyword">const</span> <span class="keyword">auto</span>&amp; waypoint : <a class="code hl_variable" href="#ad7777334fda5192ca277a0a9437d827e">waypoints_param_</a>) {</div>
+<div class="line"><span class="lineno">  175</span>          ss &lt;&lt; waypoint &lt;&lt; (&amp;waypoint != &amp;<a class="code hl_variable" href="#ad7777334fda5192ca277a0a9437d827e">waypoints_param_</a>.back() ? <span class="stringliteral">&quot;, &quot;</span> : <span class="stringliteral">&quot;]&quot;</span>);</div>
+<div class="line"><span class="lineno">  176</span>        }</div>
+<div class="line"><span class="lineno">  177</span>        RCLCPP_ERROR(this-&gt;get_logger(), <span class="stringliteral">&quot;%s&quot;</span>, ss.str().c_str());</div>
+<div class="line"><span class="lineno">  178</span>      }</div>
+<div class="line"><span class="lineno">  179</span>    }</div>
+<div class="line"><span class="lineno">  180</span> </div>
+<div class="line"><span class="lineno">  181</span>    <span class="comment">// handle cancel_route</span></div>
+<div class="line"><span class="lineno">  182</span>    <span class="keywordflow">if</span> (param.get_name() == <span class="stringliteral">&quot;cancel_route&quot;</span>) {</div>
+<div class="line"><span class="lineno">  183</span>      <span class="keywordflow">if</span> (<a class="code hl_variable" href="#a450797ba40f14cbcd4da9b1ec68b527d">cancel_route_</a>) {</div>
+<div class="line"><span class="lineno">  184</span>        <span class="keywordflow">if</span> (<a class="code hl_variable" href="#a9120c978899cbc1209927b54ee70de44">action_client_</a>-&gt;wait_for_action_server(std::chrono::duration&lt;double&gt;(0.1))) {</div>
+<div class="line"><span class="lineno">  185</span>          RCLCPP_INFO(this-&gt;get_logger(), <span class="stringliteral">&quot;Cancelling route&quot;</span>);</div>
+<div class="line"><span class="lineno">  186</span>          <a class="code hl_variable" href="#a9120c978899cbc1209927b54ee70de44">action_client_</a>-&gt;async_cancel_all_goals();</div>
+<div class="line"><span class="lineno">  187</span>        } <span class="keywordflow">else</span> {</div>
+<div class="line"><span class="lineno">  188</span>          RCLCPP_WARN(this-&gt;get_logger(), <span class="stringliteral">&quot;Action server not available, cannot cancel route&quot;</span>);</div>
+<div class="line"><span class="lineno">  189</span>        }</div>
+<div class="line"><span class="lineno">  190</span>      }</div>
+<div class="line"><span class="lineno">  191</span>    }</div>
+<div class="line"><span class="lineno">  192</span>  }</div>
+<div class="line"><span class="lineno">  193</span> </div>
+<div class="line"><span class="lineno">  194</span>  rcl_interfaces::msg::SetParametersResult result;</div>
+<div class="line"><span class="lineno">  195</span>  result.successful = <span class="keyword">true</span>;</div>
+<div class="line"><span class="lineno">  196</span> </div>
+<div class="line"><span class="lineno">  197</span>  <span class="keywordflow">return</span> result;</div>
+<div class="line"><span class="lineno">  198</span>}</div>
+<div class="ttc" id="aclassplan__route__action__client_1_1PlanRouteActionClient_html_a2617009b882a29e10c5a2379d77b51e3"><div class="ttname"><a href="#a2617009b882a29e10c5a2379d77b51e3">plan_route_action_client::PlanRouteActionClient::waypoint_wait_times_</a></div><div class="ttdeci">std::vector&lt; double &gt; waypoint_wait_times_</div><div class="ttdoc">Wait time for each waypoint [s]; negative values mark intermediate destinations.</div><div class="ttdef"><b>Definition</b> <a href="plan__route__action__client_8hpp_source.html#l00182">plan_route_action_client.hpp:182</a></div></div>
+<div class="ttc" id="aclassplan__route__action__client_1_1PlanRouteActionClient_html_a9120c978899cbc1209927b54ee70de44"><div class="ttname"><a href="#a9120c978899cbc1209927b54ee70de44">plan_route_action_client::PlanRouteActionClient::action_client_</a></div><div class="ttdeci">rclcpp_action::Client&lt; PlanRoute &gt;::SharedPtr action_client_</div><div class="ttdoc">Action client.</div><div class="ttdef"><b>Definition</b> <a href="plan__route__action__client_8hpp_source.html#l00157">plan_route_action_client.hpp:157</a></div></div>
+<div class="ttc" id="anamespaceplan__route__action__client_html_a25e3adc12a2cbcdba0a493e1d4461eeb"><div class="ttname"><a href="namespaceplan__route__action__client.html#a25e3adc12a2cbcdba0a493e1d4461eeb">plan_route_action_client::parseWaypoints</a></div><div class="ttdeci">std::optional&lt; std::vector&lt; std::pair&lt; double, double &gt; &gt; &gt; parseWaypoints(const std::vector&lt; std::string &gt; &amp;waypoints_param, std::vector&lt; double &gt; &amp;waypoint_wait_times, const rclcpp::Logger &amp;logger)</div><div class="ttdoc">Parses WGS84 waypoints from &quot;&lt;LATITUDE&gt;,&lt;LONGITUDE&gt;[,&lt;WAIT_TIME_S&gt;]&quot; strings.</div><div class="ttdef"><b>Definition</b> <a href="plan__route__action__client_8cpp_source.html#l00027">plan_route_action_client.cpp:27</a></div></div>
 </div><!-- fragment -->
 </div>
 </div>
@@ -756,49 +783,85 @@ template&lt;typename T &gt; </div>
 
 <p>Plans to next waypoint. </p>
 
-<p class="definition">Definition at line <a class="el" href="plan__route__action__client_8cpp_source.html#l00230">230</a> of file <a class="el" href="plan__route__action__client_8cpp_source.html">plan_route_action_client.cpp</a>.</p>
-<div class="fragment"><div class="line"><span class="lineno">  230</span>                                               {</div>
-<div class="line"><span class="lineno">  231</span>  <span class="comment">// check if waypoint is valid</span></div>
-<div class="line"><span class="lineno">  232</span>  <span class="keywordflow">if</span> (<a class="code hl_variable" href="#a0bf871c446026da84086696e7b1d4776">next_waypoint_idx_</a> &gt;= <a class="code hl_variable" href="#a5b79533e885a6a4cd1e3681628b5618c">waypoints_</a>.size()) {</div>
-<div class="line"><span class="lineno">  233</span>    RCLCPP_ERROR(this-&gt;get_logger(), <span class="stringliteral">&quot;Waypoint index %ld out of bounds (%ld), skipping&quot;</span>, <a class="code hl_variable" href="#a0bf871c446026da84086696e7b1d4776">next_waypoint_idx_</a>, <a class="code hl_variable" href="#a5b79533e885a6a4cd1e3681628b5618c">waypoints_</a>.size());</div>
-<div class="line"><span class="lineno">  234</span>    <span class="keywordflow">return</span>;</div>
-<div class="line"><span class="lineno">  235</span>  }</div>
-<div class="line"><span class="lineno">  236</span>  RCLCPP_INFO(this-&gt;get_logger(), <span class="stringliteral">&quot;Planning route to next waypoint (%.6f, %.6f)&quot;</span>, <a class="code hl_variable" href="#a5b79533e885a6a4cd1e3681628b5618c">waypoints_</a>[<a class="code hl_variable" href="#a0bf871c446026da84086696e7b1d4776">next_waypoint_idx_</a>].first,</div>
-<div class="line"><span class="lineno">  237</span>              <a class="code hl_variable" href="#a5b79533e885a6a4cd1e3681628b5618c">waypoints_</a>[<a class="code hl_variable" href="#a0bf871c446026da84086696e7b1d4776">next_waypoint_idx_</a>].second);</div>
-<div class="line"><span class="lineno">  238</span> </div>
-<div class="line"><span class="lineno">  239</span>  <span class="comment">// check if map is loaded</span></div>
-<div class="line"><span class="lineno">  240</span>  <span class="keywordflow">if</span> (!<a class="code hl_variable" href="#aff7352d4659ad20e4a82c44e1059db48">ll2_interface_</a>-&gt;map_loaded_) {</div>
-<div class="line"><span class="lineno">  241</span>    RCLCPP_ERROR(this-&gt;get_logger(), <span class="stringliteral">&quot;Map not loaded, cannot generate waypoint&quot;</span>);</div>
-<div class="line"><span class="lineno">  242</span>    <span class="keywordflow">return</span>;</div>
-<div class="line"><span class="lineno">  243</span>  }</div>
-<div class="line"><span class="lineno">  244</span> </div>
-<div class="line"><span class="lineno">  245</span>  <span class="comment">// generate goal pose from waypoint</span></div>
-<div class="line"><span class="lineno">  246</span>  <span class="keyword">auto</span> goal_pose = std::make_shared&lt;geometry_msgs::msg::PoseStamped&gt;();</div>
-<div class="line"><span class="lineno">  247</span>  <span class="keyword">auto</span> ll2_projector = <a class="code hl_variable" href="#aff7352d4659ad20e4a82c44e1059db48">ll2_interface_</a>-&gt;getProjectorPtr();</div>
-<div class="line"><span class="lineno">  248</span>  <span class="keywordflow">if</span> (ll2_projector) {</div>
-<div class="line"><span class="lineno">  249</span>    lanelet::GPSPoint gps_waypoint;</div>
-<div class="line"><span class="lineno">  250</span>    gps_waypoint.lat = <a class="code hl_variable" href="#a5b79533e885a6a4cd1e3681628b5618c">waypoints_</a>[<a class="code hl_variable" href="#a0bf871c446026da84086696e7b1d4776">next_waypoint_idx_</a>].first;</div>
-<div class="line"><span class="lineno">  251</span>    gps_waypoint.lon = <a class="code hl_variable" href="#a5b79533e885a6a4cd1e3681628b5618c">waypoints_</a>[<a class="code hl_variable" href="#a0bf871c446026da84086696e7b1d4776">next_waypoint_idx_</a>].second;</div>
-<div class="line"><span class="lineno">  252</span>    lanelet::BasicPoint3d map_waypoint = ll2_projector-&gt;forward(gps_waypoint);</div>
-<div class="line"><span class="lineno">  253</span>    goal_pose-&gt;pose.position.x = map_waypoint.x();</div>
-<div class="line"><span class="lineno">  254</span>    goal_pose-&gt;pose.position.y = map_waypoint.y();</div>
-<div class="line"><span class="lineno">  255</span>    goal_pose-&gt;pose.position.z = 0.0;</div>
-<div class="line"><span class="lineno">  256</span>    goal_pose-&gt;header.frame_id = <a class="code hl_variable" href="#aff7352d4659ad20e4a82c44e1059db48">ll2_interface_</a>-&gt;map_frame_id_;</div>
-<div class="line"><span class="lineno">  257</span>    goal_pose-&gt;header.stamp = this-&gt;now();</div>
-<div class="line"><span class="lineno">  258</span>  }</div>
-<div class="line"><span class="lineno">  259</span> </div>
-<div class="line"><span class="lineno">  260</span>  <span class="comment">// send goal</span></div>
-<div class="line"><span class="lineno">  261</span>  <span class="keywordflow">if</span> (!goal_pose-&gt;header.frame_id.empty()) {</div>
-<div class="line"><span class="lineno">  262</span>    RCLCPP_INFO(this-&gt;get_logger(), <span class="stringliteral">&quot;Generated waypoint goal pose (%.3f, %.3f, %.3f) in frame &#39;%s&#39;&quot;</span>, goal_pose-&gt;pose.position.x,</div>
-<div class="line"><span class="lineno">  263</span>                goal_pose-&gt;pose.position.y, goal_pose-&gt;pose.position.z, goal_pose-&gt;header.frame_id.c_str());</div>
-<div class="line"><span class="lineno">  264</span>    <a class="code hl_variable" href="#a7269a73c3dc931587c3003f14714107c">auto_planning_timer_</a>-&gt;cancel();  <span class="comment">// cancel auto-planning timer until goal completion</span></div>
-<div class="line"><span class="lineno">  265</span>    <a class="code hl_variable" href="#a0bf871c446026da84086696e7b1d4776">next_waypoint_idx_</a>++;</div>
-<div class="line"><span class="lineno">  266</span>    this-&gt;<a class="code hl_function" href="#a7f3b81ef97d090d49dce72def1e33b30">sendGoal</a>(goal_pose);</div>
-<div class="line"><span class="lineno">  267</span>  } <span class="keywordflow">else</span> {</div>
-<div class="line"><span class="lineno">  268</span>    RCLCPP_ERROR(this-&gt;get_logger(), <span class="stringliteral">&quot;Failed to generate waypoint goal pose&quot;</span>);</div>
-<div class="line"><span class="lineno">  269</span>  }</div>
-<div class="line"><span class="lineno">  270</span>}</div>
-<div class="ttc" id="aclassplan__route__action__client_1_1PlanRouteActionClient_html_aff7352d4659ad20e4a82c44e1059db48"><div class="ttname"><a href="#aff7352d4659ad20e4a82c44e1059db48">plan_route_action_client::PlanRouteActionClient::ll2_interface_</a></div><div class="ttdeci">std::unique_ptr&lt; Lanelet2MapInterface &gt; ll2_interface_</div><div class="ttdoc">Lanelet2 map interface.</div><div class="ttdef"><b>Definition</b> <a href="plan__route__action__client_8hpp_source.html#l00168">plan_route_action_client.hpp:168</a></div></div>
+<p class="definition">Definition at line <a class="el" href="plan__route__action__client_8cpp_source.html#l00263">263</a> of file <a class="el" href="plan__route__action__client_8cpp_source.html">plan_route_action_client.cpp</a>.</p>
+<div class="fragment"><div class="line"><span class="lineno">  263</span>                                               {</div>
+<div class="line"><span class="lineno">  264</span>  <span class="comment">// check if waypoint is valid</span></div>
+<div class="line"><span class="lineno">  265</span>  <span class="keywordflow">if</span> (<a class="code hl_variable" href="#a0bf871c446026da84086696e7b1d4776">next_waypoint_idx_</a> &gt;= <a class="code hl_variable" href="#a5b79533e885a6a4cd1e3681628b5618c">waypoints_</a>.size()) {</div>
+<div class="line"><span class="lineno">  266</span>    RCLCPP_ERROR(this-&gt;get_logger(), <span class="stringliteral">&quot;Waypoint index %ld out of bounds (%ld), skipping&quot;</span>, <a class="code hl_variable" href="#a0bf871c446026da84086696e7b1d4776">next_waypoint_idx_</a>, <a class="code hl_variable" href="#a5b79533e885a6a4cd1e3681628b5618c">waypoints_</a>.size());</div>
+<div class="line"><span class="lineno">  267</span>    <span class="keywordflow">return</span>;</div>
+<div class="line"><span class="lineno">  268</span>  }</div>
+<div class="line"><span class="lineno">  269</span>  <span class="keywordflow">if</span> (<a class="code hl_variable" href="#a2617009b882a29e10c5a2379d77b51e3">waypoint_wait_times_</a>.size() != <a class="code hl_variable" href="#a5b79533e885a6a4cd1e3681628b5618c">waypoints_</a>.size()) {</div>
+<div class="line"><span class="lineno">  270</span>    RCLCPP_ERROR(this-&gt;get_logger(), <span class="stringliteral">&quot;Waypoint wait times do not match waypoints, skipping&quot;</span>);</div>
+<div class="line"><span class="lineno">  271</span>    <span class="keywordflow">return</span>;</div>
+<div class="line"><span class="lineno">  272</span>  }</div>
+<div class="line"><span class="lineno">  273</span> </div>
+<div class="line"><span class="lineno">  274</span>  <span class="comment">// check if map is loaded</span></div>
+<div class="line"><span class="lineno">  275</span>  <span class="keywordflow">if</span> (!<a class="code hl_variable" href="#aff7352d4659ad20e4a82c44e1059db48">ll2_interface_</a>-&gt;map_loaded_) {</div>
+<div class="line"><span class="lineno">  276</span>    RCLCPP_ERROR(this-&gt;get_logger(), <span class="stringliteral">&quot;Map not loaded, cannot generate waypoint&quot;</span>);</div>
+<div class="line"><span class="lineno">  277</span>    <span class="keywordflow">return</span>;</div>
+<div class="line"><span class="lineno">  278</span>  }</div>
+<div class="line"><span class="lineno">  279</span> </div>
+<div class="line"><span class="lineno">  280</span>  <span class="comment">// generate goal pose from waypoint</span></div>
+<div class="line"><span class="lineno">  281</span>  <span class="keyword">auto</span> goal_pose = std::make_shared&lt;geometry_msgs::msg::PoseStamped&gt;();</div>
+<div class="line"><span class="lineno">  282</span>  std::vector&lt;geometry_msgs::msg::PointStamped&gt; intermediate_destinations;</div>
+<div class="line"><span class="lineno">  283</span>  <span class="keyword">auto</span> ll2_projector = <a class="code hl_variable" href="#aff7352d4659ad20e4a82c44e1059db48">ll2_interface_</a>-&gt;getProjectorPtr();</div>
+<div class="line"><span class="lineno">  284</span>  <span class="keywordflow">if</span> (!ll2_projector) {</div>
+<div class="line"><span class="lineno">  285</span>    RCLCPP_ERROR(this-&gt;get_logger(), <span class="stringliteral">&quot;Failed to generate waypoint goal pose&quot;</span>);</div>
+<div class="line"><span class="lineno">  286</span>    <span class="keywordflow">return</span>;</div>
+<div class="line"><span class="lineno">  287</span>  }</div>
+<div class="line"><span class="lineno">  288</span> </div>
+<div class="line"><span class="lineno">  289</span>  <span class="keywordtype">size_t</span> checked_waypoints = 0;</div>
+<div class="line"><span class="lineno">  290</span>  <span class="keywordflow">while</span> (checked_waypoints &lt; <a class="code hl_variable" href="#a5b79533e885a6a4cd1e3681628b5618c">waypoints_</a>.size()) {</div>
+<div class="line"><span class="lineno">  291</span>    <span class="keyword">const</span> <span class="keyword">auto</span>&amp; waypoint = <a class="code hl_variable" href="#a5b79533e885a6a4cd1e3681628b5618c">waypoints_</a>[<a class="code hl_variable" href="#a0bf871c446026da84086696e7b1d4776">next_waypoint_idx_</a>];</div>
+<div class="line"><span class="lineno">  292</span>    <span class="keyword">const</span> <span class="keywordtype">double</span> wait_time_s = <a class="code hl_variable" href="#a2617009b882a29e10c5a2379d77b51e3">waypoint_wait_times_</a>[<a class="code hl_variable" href="#a0bf871c446026da84086696e7b1d4776">next_waypoint_idx_</a>];</div>
+<div class="line"><span class="lineno">  293</span>    lanelet::GPSPoint gps_waypoint;</div>
+<div class="line"><span class="lineno">  294</span>    gps_waypoint.lat = waypoint.first;</div>
+<div class="line"><span class="lineno">  295</span>    gps_waypoint.lon = waypoint.second;</div>
+<div class="line"><span class="lineno">  296</span>    lanelet::BasicPoint3d map_waypoint = ll2_projector-&gt;forward(gps_waypoint);</div>
+<div class="line"><span class="lineno">  297</span> </div>
+<div class="line"><span class="lineno">  298</span>    geometry_msgs::msg::PointStamped waypoint_point;</div>
+<div class="line"><span class="lineno">  299</span>    waypoint_point.header.frame_id = <a class="code hl_variable" href="#aff7352d4659ad20e4a82c44e1059db48">ll2_interface_</a>-&gt;map_frame_id_;</div>
+<div class="line"><span class="lineno">  300</span>    waypoint_point.header.stamp = this-&gt;now();</div>
+<div class="line"><span class="lineno">  301</span>    waypoint_point.point.x = map_waypoint.x();</div>
+<div class="line"><span class="lineno">  302</span>    waypoint_point.point.y = map_waypoint.y();</div>
+<div class="line"><span class="lineno">  303</span>    waypoint_point.point.z = 0.0;</div>
+<div class="line"><span class="lineno">  304</span> </div>
+<div class="line"><span class="lineno">  305</span>    <span class="keywordflow">if</span> (wait_time_s &lt; 0.0) {</div>
+<div class="line"><span class="lineno">  306</span>      RCLCPP_INFO(this-&gt;get_logger(), <span class="stringliteral">&quot;Adding intermediate waypoint (%.6f, %.6f)&quot;</span>, waypoint.first, waypoint.second);</div>
+<div class="line"><span class="lineno">  307</span>      intermediate_destinations.push_back(waypoint_point);</div>
+<div class="line"><span class="lineno">  308</span>      <a class="code hl_variable" href="#a0bf871c446026da84086696e7b1d4776">next_waypoint_idx_</a>++;</div>
+<div class="line"><span class="lineno">  309</span>      <span class="keywordflow">if</span> (<a class="code hl_variable" href="#a0bf871c446026da84086696e7b1d4776">next_waypoint_idx_</a> &gt;= <a class="code hl_variable" href="#a5b79533e885a6a4cd1e3681628b5618c">waypoints_</a>.size()) {</div>
+<div class="line"><span class="lineno">  310</span>        <span class="keywordflow">if</span> (<a class="code hl_variable" href="#a58a2fa1396ba4e2dbc91fae51de00b39">enable_continuous_planning_</a>) {</div>
+<div class="line"><span class="lineno">  311</span>          <a class="code hl_variable" href="#a0bf871c446026da84086696e7b1d4776">next_waypoint_idx_</a> = 0;</div>
+<div class="line"><span class="lineno">  312</span>        } <span class="keywordflow">else</span> {</div>
+<div class="line"><span class="lineno">  313</span>          RCLCPP_ERROR(this-&gt;get_logger(), <span class="stringliteral">&quot;No destination waypoint found after intermediate waypoints&quot;</span>);</div>
+<div class="line"><span class="lineno">  314</span>          <span class="keywordflow">return</span>;</div>
+<div class="line"><span class="lineno">  315</span>        }</div>
+<div class="line"><span class="lineno">  316</span>      }</div>
+<div class="line"><span class="lineno">  317</span>      checked_waypoints++;</div>
+<div class="line"><span class="lineno">  318</span>      <span class="keywordflow">continue</span>;</div>
+<div class="line"><span class="lineno">  319</span>    }</div>
+<div class="line"><span class="lineno">  320</span> </div>
+<div class="line"><span class="lineno">  321</span>    RCLCPP_INFO(this-&gt;get_logger(), <span class="stringliteral">&quot;Planning route to next waypoint (%.6f, %.6f)&quot;</span>, waypoint.first, waypoint.second);</div>
+<div class="line"><span class="lineno">  322</span>    goal_pose-&gt;pose.position = waypoint_point.point;</div>
+<div class="line"><span class="lineno">  323</span>    goal_pose-&gt;header = waypoint_point.header;</div>
+<div class="line"><span class="lineno">  324</span>    <a class="code hl_variable" href="#a1b85f353baf77516a5b290532673f781">active_waypoint_wait_time_s_</a> = wait_time_s;</div>
+<div class="line"><span class="lineno">  325</span>    <a class="code hl_variable" href="#a0bf871c446026da84086696e7b1d4776">next_waypoint_idx_</a>++;</div>
+<div class="line"><span class="lineno">  326</span>    <span class="keywordflow">break</span>;</div>
+<div class="line"><span class="lineno">  327</span>  }</div>
+<div class="line"><span class="lineno">  328</span> </div>
+<div class="line"><span class="lineno">  329</span>  <span class="comment">// send goal</span></div>
+<div class="line"><span class="lineno">  330</span>  <span class="keywordflow">if</span> (!goal_pose-&gt;header.frame_id.empty()) {</div>
+<div class="line"><span class="lineno">  331</span>    RCLCPP_INFO(this-&gt;get_logger(), <span class="stringliteral">&quot;Generated waypoint goal pose (%.3f, %.3f, %.3f) in frame &#39;%s&#39;&quot;</span>, goal_pose-&gt;pose.position.x,</div>
+<div class="line"><span class="lineno">  332</span>                goal_pose-&gt;pose.position.y, goal_pose-&gt;pose.position.z, goal_pose-&gt;header.frame_id.c_str());</div>
+<div class="line"><span class="lineno">  333</span>    <a class="code hl_variable" href="#a7269a73c3dc931587c3003f14714107c">auto_planning_timer_</a>-&gt;cancel();  <span class="comment">// cancel auto-planning timer until goal completion</span></div>
+<div class="line"><span class="lineno">  334</span>    <a class="code hl_variable" href="#a28490c05351272002b8e37849074f8b9">has_active_waypoint_</a> = <span class="keyword">true</span>;</div>
+<div class="line"><span class="lineno">  335</span>    this-&gt;<a class="code hl_function" href="#a9cfc5f12f6f83180f18091b5a317ac6f">sendGoal</a>(goal_pose, intermediate_destinations);</div>
+<div class="line"><span class="lineno">  336</span>  } <span class="keywordflow">else</span> {</div>
+<div class="line"><span class="lineno">  337</span>    RCLCPP_ERROR(this-&gt;get_logger(), <span class="stringliteral">&quot;Failed to generate waypoint goal pose&quot;</span>);</div>
+<div class="line"><span class="lineno">  338</span>  }</div>
+<div class="line"><span class="lineno">  339</span>}</div>
+<div class="ttc" id="aclassplan__route__action__client_1_1PlanRouteActionClient_html_aff7352d4659ad20e4a82c44e1059db48"><div class="ttname"><a href="#aff7352d4659ad20e4a82c44e1059db48">plan_route_action_client::PlanRouteActionClient::ll2_interface_</a></div><div class="ttdeci">std::unique_ptr&lt; Lanelet2MapInterface &gt; ll2_interface_</div><div class="ttdoc">Lanelet2 map interface.</div><div class="ttdef"><b>Definition</b> <a href="plan__route__action__client_8hpp_source.html#l00172">plan_route_action_client.hpp:172</a></div></div>
 </div><!-- fragment -->
 </div>
 </div>
@@ -827,52 +890,54 @@ template&lt;typename T &gt; </div>
 
 <p>Plans to a random destination. </p>
 
-<p class="definition">Definition at line <a class="el" href="plan__route__action__client_8cpp_source.html#l00272">272</a> of file <a class="el" href="plan__route__action__client_8cpp_source.html">plan_route_action_client.cpp</a>.</p>
-<div class="fragment"><div class="line"><span class="lineno">  272</span>                                                    {</div>
-<div class="line"><span class="lineno">  273</span>  RCLCPP_INFO(this-&gt;get_logger(), <span class="stringliteral">&quot;Planning route to random destination&quot;</span>);</div>
-<div class="line"><span class="lineno">  274</span> </div>
-<div class="line"><span class="lineno">  275</span>  <span class="comment">// check if map is loaded</span></div>
-<div class="line"><span class="lineno">  276</span>  <span class="keywordflow">if</span> (!<a class="code hl_variable" href="#aff7352d4659ad20e4a82c44e1059db48">ll2_interface_</a>-&gt;map_loaded_) {</div>
-<div class="line"><span class="lineno">  277</span>    RCLCPP_ERROR(this-&gt;get_logger(), <span class="stringliteral">&quot;Map not loaded, cannot generate a random destination&quot;</span>);</div>
-<div class="line"><span class="lineno">  278</span>    <span class="keywordflow">return</span>;</div>
-<div class="line"><span class="lineno">  279</span>  }</div>
-<div class="line"><span class="lineno">  280</span> </div>
-<div class="line"><span class="lineno">  281</span>  <span class="comment">// generate random goal pose by sampling a random lanelet</span></div>
-<div class="line"><span class="lineno">  282</span>  <span class="keyword">auto</span> goal_pose = std::make_shared&lt;geometry_msgs::msg::PoseStamped&gt;();</div>
-<div class="line"><span class="lineno">  283</span>  lanelet::LaneletMapConstPtr map = <a class="code hl_variable" href="#aff7352d4659ad20e4a82c44e1059db48">ll2_interface_</a>-&gt;getMapPtr();</div>
-<div class="line"><span class="lineno">  284</span>  <span class="keywordflow">if</span> (!map-&gt;laneletLayer.empty()) {</div>
-<div class="line"><span class="lineno">  285</span>    <span class="keyword">const</span> <span class="keyword">auto</span> lanelet_count = <span class="keyword">static_cast&lt;</span><span class="keywordtype">int</span><span class="keyword">&gt;</span>(map-&gt;laneletLayer.size());</div>
-<div class="line"><span class="lineno">  286</span>    <span class="keyword">const</span> <span class="keyword">auto</span> random_lanelet_idx =</div>
-<div class="line"><span class="lineno">  287</span>        <span class="keyword">static_cast&lt;</span>std::iterator_traits&lt;decltype(map-<span class="keyword">&gt;</span>laneletLayer.begin())&gt;::difference_type&gt;(std::rand() % lanelet_count);</div>
-<div class="line"><span class="lineno">  288</span>    <span class="keyword">auto</span> random_lanelet = *std::next(map-&gt;laneletLayer.begin(), random_lanelet_idx);</div>
-<div class="line"><span class="lineno">  289</span>    <span class="keyword">auto</span> centerline = random_lanelet.centerline();</div>
-<div class="line"><span class="lineno">  290</span>    <span class="keywordflow">if</span> (!centerline.empty()) {</div>
-<div class="line"><span class="lineno">  291</span>      <span class="keyword">auto</span> point = centerline.back();</div>
-<div class="line"><span class="lineno">  292</span>      goal_pose-&gt;pose.position.x = point.x();</div>
-<div class="line"><span class="lineno">  293</span>      goal_pose-&gt;pose.position.y = point.y();</div>
-<div class="line"><span class="lineno">  294</span>      goal_pose-&gt;pose.position.z = point.z();</div>
-<div class="line"><span class="lineno">  295</span>      <span class="keywordflow">if</span> (centerline.size() &gt; 1) {</div>
-<div class="line"><span class="lineno">  296</span>        <span class="keyword">auto</span> heading =</div>
-<div class="line"><span class="lineno">  297</span>            std::atan2(point.y() - centerline[centerline.size() - 2].y(), point.x() - centerline[centerline.size() - 2].x());</div>
-<div class="line"><span class="lineno">  298</span>        tf2::Quaternion q;</div>
-<div class="line"><span class="lineno">  299</span>        q.setRPY(0, 0, heading);</div>
-<div class="line"><span class="lineno">  300</span>        goal_pose-&gt;pose.orientation = tf2::toMsg(q);</div>
-<div class="line"><span class="lineno">  301</span>      }</div>
-<div class="line"><span class="lineno">  302</span>      goal_pose-&gt;header.frame_id = <a class="code hl_variable" href="#aff7352d4659ad20e4a82c44e1059db48">ll2_interface_</a>-&gt;map_frame_id_;</div>
-<div class="line"><span class="lineno">  303</span>      goal_pose-&gt;header.stamp = this-&gt;now();</div>
-<div class="line"><span class="lineno">  304</span>    }</div>
-<div class="line"><span class="lineno">  305</span>  }</div>
-<div class="line"><span class="lineno">  306</span> </div>
-<div class="line"><span class="lineno">  307</span>  <span class="comment">// send goal</span></div>
-<div class="line"><span class="lineno">  308</span>  <span class="keywordflow">if</span> (!goal_pose-&gt;header.frame_id.empty()) {</div>
-<div class="line"><span class="lineno">  309</span>    RCLCPP_INFO(this-&gt;get_logger(), <span class="stringliteral">&quot;Generated random goal pose (%.3f, %.3f, %.3f) in frame &#39;%s&#39;&quot;</span>, goal_pose-&gt;pose.position.x,</div>
-<div class="line"><span class="lineno">  310</span>                goal_pose-&gt;pose.position.y, goal_pose-&gt;pose.position.z, goal_pose-&gt;header.frame_id.c_str());</div>
-<div class="line"><span class="lineno">  311</span>    <a class="code hl_variable" href="#a7269a73c3dc931587c3003f14714107c">auto_planning_timer_</a>-&gt;cancel();  <span class="comment">// cancel auto-planning timer until goal completion</span></div>
-<div class="line"><span class="lineno">  312</span>    this-&gt;<a class="code hl_function" href="#a7f3b81ef97d090d49dce72def1e33b30">sendGoal</a>(goal_pose);</div>
-<div class="line"><span class="lineno">  313</span>  } <span class="keywordflow">else</span> {</div>
-<div class="line"><span class="lineno">  314</span>    RCLCPP_ERROR(this-&gt;get_logger(), <span class="stringliteral">&quot;Failed to generate random goal pose&quot;</span>);</div>
-<div class="line"><span class="lineno">  315</span>  }</div>
-<div class="line"><span class="lineno">  316</span>}</div>
+<p class="definition">Definition at line <a class="el" href="plan__route__action__client_8cpp_source.html#l00341">341</a> of file <a class="el" href="plan__route__action__client_8cpp_source.html">plan_route_action_client.cpp</a>.</p>
+<div class="fragment"><div class="line"><span class="lineno">  341</span>                                                    {</div>
+<div class="line"><span class="lineno">  342</span>  RCLCPP_INFO(this-&gt;get_logger(), <span class="stringliteral">&quot;Planning route to random destination&quot;</span>);</div>
+<div class="line"><span class="lineno">  343</span> </div>
+<div class="line"><span class="lineno">  344</span>  <span class="comment">// check if map is loaded</span></div>
+<div class="line"><span class="lineno">  345</span>  <span class="keywordflow">if</span> (!<a class="code hl_variable" href="#aff7352d4659ad20e4a82c44e1059db48">ll2_interface_</a>-&gt;map_loaded_) {</div>
+<div class="line"><span class="lineno">  346</span>    RCLCPP_ERROR(this-&gt;get_logger(), <span class="stringliteral">&quot;Map not loaded, cannot generate a random destination&quot;</span>);</div>
+<div class="line"><span class="lineno">  347</span>    <span class="keywordflow">return</span>;</div>
+<div class="line"><span class="lineno">  348</span>  }</div>
+<div class="line"><span class="lineno">  349</span> </div>
+<div class="line"><span class="lineno">  350</span>  <span class="comment">// generate random goal pose by sampling a random lanelet</span></div>
+<div class="line"><span class="lineno">  351</span>  <span class="keyword">auto</span> goal_pose = std::make_shared&lt;geometry_msgs::msg::PoseStamped&gt;();</div>
+<div class="line"><span class="lineno">  352</span>  lanelet::LaneletMapConstPtr map = <a class="code hl_variable" href="#aff7352d4659ad20e4a82c44e1059db48">ll2_interface_</a>-&gt;getMapPtr();</div>
+<div class="line"><span class="lineno">  353</span>  <span class="keywordflow">if</span> (!map-&gt;laneletLayer.empty()) {</div>
+<div class="line"><span class="lineno">  354</span>    <span class="keyword">const</span> <span class="keyword">auto</span> lanelet_count = <span class="keyword">static_cast&lt;</span><span class="keywordtype">int</span><span class="keyword">&gt;</span>(map-&gt;laneletLayer.size());</div>
+<div class="line"><span class="lineno">  355</span>    <span class="keyword">const</span> <span class="keyword">auto</span> random_lanelet_idx =</div>
+<div class="line"><span class="lineno">  356</span>        <span class="keyword">static_cast&lt;</span>std::iterator_traits&lt;decltype(map-<span class="keyword">&gt;</span>laneletLayer.begin())&gt;::difference_type&gt;(std::rand() % lanelet_count);</div>
+<div class="line"><span class="lineno">  357</span>    <span class="keyword">auto</span> random_lanelet = *std::next(map-&gt;laneletLayer.begin(), random_lanelet_idx);</div>
+<div class="line"><span class="lineno">  358</span>    <span class="keyword">auto</span> centerline = random_lanelet.centerline();</div>
+<div class="line"><span class="lineno">  359</span>    <span class="keywordflow">if</span> (!centerline.empty()) {</div>
+<div class="line"><span class="lineno">  360</span>      <span class="keyword">auto</span> point = centerline.back();</div>
+<div class="line"><span class="lineno">  361</span>      goal_pose-&gt;pose.position.x = point.x();</div>
+<div class="line"><span class="lineno">  362</span>      goal_pose-&gt;pose.position.y = point.y();</div>
+<div class="line"><span class="lineno">  363</span>      goal_pose-&gt;pose.position.z = point.z();</div>
+<div class="line"><span class="lineno">  364</span>      <span class="keywordflow">if</span> (centerline.size() &gt; 1) {</div>
+<div class="line"><span class="lineno">  365</span>        <span class="keyword">auto</span> heading =</div>
+<div class="line"><span class="lineno">  366</span>            std::atan2(point.y() - centerline[centerline.size() - 2].y(), point.x() - centerline[centerline.size() - 2].x());</div>
+<div class="line"><span class="lineno">  367</span>        tf2::Quaternion q;</div>
+<div class="line"><span class="lineno">  368</span>        q.setRPY(0, 0, heading);</div>
+<div class="line"><span class="lineno">  369</span>        goal_pose-&gt;pose.orientation = tf2::toMsg(q);</div>
+<div class="line"><span class="lineno">  370</span>      }</div>
+<div class="line"><span class="lineno">  371</span>      goal_pose-&gt;header.frame_id = <a class="code hl_variable" href="#aff7352d4659ad20e4a82c44e1059db48">ll2_interface_</a>-&gt;map_frame_id_;</div>
+<div class="line"><span class="lineno">  372</span>      goal_pose-&gt;header.stamp = this-&gt;now();</div>
+<div class="line"><span class="lineno">  373</span>    }</div>
+<div class="line"><span class="lineno">  374</span>  }</div>
+<div class="line"><span class="lineno">  375</span> </div>
+<div class="line"><span class="lineno">  376</span>  <span class="comment">// send goal</span></div>
+<div class="line"><span class="lineno">  377</span>  <span class="keywordflow">if</span> (!goal_pose-&gt;header.frame_id.empty()) {</div>
+<div class="line"><span class="lineno">  378</span>    RCLCPP_INFO(this-&gt;get_logger(), <span class="stringliteral">&quot;Generated random goal pose (%.3f, %.3f, %.3f) in frame &#39;%s&#39;&quot;</span>, goal_pose-&gt;pose.position.x,</div>
+<div class="line"><span class="lineno">  379</span>                goal_pose-&gt;pose.position.y, goal_pose-&gt;pose.position.z, goal_pose-&gt;header.frame_id.c_str());</div>
+<div class="line"><span class="lineno">  380</span>    <a class="code hl_variable" href="#a7269a73c3dc931587c3003f14714107c">auto_planning_timer_</a>-&gt;cancel();  <span class="comment">// cancel auto-planning timer until goal completion</span></div>
+<div class="line"><span class="lineno">  381</span>    <a class="code hl_variable" href="#a28490c05351272002b8e37849074f8b9">has_active_waypoint_</a> = <span class="keyword">false</span>;</div>
+<div class="line"><span class="lineno">  382</span>    <a class="code hl_variable" href="#a1b85f353baf77516a5b290532673f781">active_waypoint_wait_time_s_</a> = 0.0;</div>
+<div class="line"><span class="lineno">  383</span>    this-&gt;<a class="code hl_function" href="#a9cfc5f12f6f83180f18091b5a317ac6f">sendGoal</a>(goal_pose);</div>
+<div class="line"><span class="lineno">  384</span>  } <span class="keywordflow">else</span> {</div>
+<div class="line"><span class="lineno">  385</span>    RCLCPP_ERROR(this-&gt;get_logger(), <span class="stringliteral">&quot;Failed to generate random goal pose&quot;</span>);</div>
+<div class="line"><span class="lineno">  386</span>  }</div>
+<div class="line"><span class="lineno">  387</span>}</div>
 </div><!-- fragment -->
 </div>
 </div>
@@ -907,34 +972,42 @@ template&lt;typename T &gt; </div>
   </dd>
 </dl>
 
-<p class="definition">Definition at line <a class="el" href="plan__route__action__client_8cpp_source.html#l00367">367</a> of file <a class="el" href="plan__route__action__client_8cpp_source.html">plan_route_action_client.cpp</a>.</p>
-<div class="fragment"><div class="line"><span class="lineno">  367</span>                                                                                         {</div>
-<div class="line"><span class="lineno">  368</span>  <span class="keyword">const</span> <span class="keywordtype">double</span> distance_traveled = result.result-&gt;distance_traveled;</div>
-<div class="line"><span class="lineno">  369</span>  <span class="keyword">const</span> builtin_interfaces::msg::Duration&amp; time_traveled = result.result-&gt;time_traveled;</div>
-<div class="line"><span class="lineno">  370</span>  <span class="keywordflow">if</span> (result.code == rclcpp_action::ResultCode::SUCCEEDED) {</div>
-<div class="line"><span class="lineno">  371</span>    <span class="keywordflow">if</span> (result.result-&gt;destination_reached) {</div>
-<div class="line"><span class="lineno">  372</span>      RCLCPP_INFO(this-&gt;get_logger(), <span class="stringliteral">&quot;Goal succeeded: destination reached after %.2fm and %ds&quot;</span>, distance_traveled,</div>
-<div class="line"><span class="lineno">  373</span>                  time_traveled.sec);</div>
-<div class="line"><span class="lineno">  374</span>    } <span class="keywordflow">else</span> {</div>
-<div class="line"><span class="lineno">  375</span>      RCLCPP_WARN(this-&gt;get_logger(), <span class="stringliteral">&quot;Goal succeeded, but destination not reached after %.2fm and %ds&quot;</span>, distance_traveled,</div>
-<div class="line"><span class="lineno">  376</span>                  time_traveled.sec);</div>
-<div class="line"><span class="lineno">  377</span>    }</div>
-<div class="line"><span class="lineno">  378</span>  } <span class="keywordflow">else</span> <span class="keywordflow">if</span> (result.code == rclcpp_action::ResultCode::CANCELED) {</div>
-<div class="line"><span class="lineno">  379</span>    RCLCPP_WARN(this-&gt;get_logger(), <span class="stringliteral">&quot;Goal canceled: traveled %.2fm and %ds&quot;</span>, distance_traveled, time_traveled.sec);</div>
-<div class="line"><span class="lineno">  380</span>  } <span class="keywordflow">else</span> <span class="keywordflow">if</span> (result.code == rclcpp_action::ResultCode::ABORTED) {</div>
-<div class="line"><span class="lineno">  381</span>    RCLCPP_ERROR(this-&gt;get_logger(), <span class="stringliteral">&quot;Goal aborted: traveled %.2fm and %ds&quot;</span>, distance_traveled, time_traveled.sec);</div>
-<div class="line"><span class="lineno">  382</span>  } <span class="keywordflow">else</span> {</div>
-<div class="line"><span class="lineno">  383</span>    RCLCPP_ERROR(this-&gt;get_logger(), <span class="stringliteral">&quot;Goal finished with unknown result code: %d&quot;</span>, <span class="keyword">static_cast&lt;</span><span class="keywordtype">int</span><span class="keyword">&gt;</span>(result.code));</div>
-<div class="line"><span class="lineno">  384</span>  }</div>
-<div class="line"><span class="lineno">  385</span> </div>
-<div class="line"><span class="lineno">  386</span>  <a class="code hl_variable" href="#a7269a73c3dc931587c3003f14714107c">auto_planning_timer_</a>-&gt;reset();  <span class="comment">// restart auto-planning timer</span></div>
-<div class="line"><span class="lineno">  387</span>  <a class="code hl_variable" href="#aaecad8d71c66dcb63b502a9577bc8ce3">has_completed_one_goal_</a> = <span class="keyword">true</span>;</div>
-<div class="line"><span class="lineno">  388</span>}</div>
+<p class="definition">Definition at line <a class="el" href="plan__route__action__client_8cpp_source.html#l00442">442</a> of file <a class="el" href="plan__route__action__client_8cpp_source.html">plan_route_action_client.cpp</a>.</p>
+<div class="fragment"><div class="line"><span class="lineno">  442</span>                                                                                         {</div>
+<div class="line"><span class="lineno">  443</span>  <span class="keyword">const</span> <span class="keywordtype">double</span> distance_traveled = result.result-&gt;distance_traveled;</div>
+<div class="line"><span class="lineno">  444</span>  <span class="keyword">const</span> builtin_interfaces::msg::Duration&amp; time_traveled = result.result-&gt;time_traveled;</div>
+<div class="line"><span class="lineno">  445</span>  <span class="keyword">const</span> <span class="keywordtype">double</span> wait_time_s = <a class="code hl_variable" href="#a28490c05351272002b8e37849074f8b9">has_active_waypoint_</a> ? <a class="code hl_variable" href="#a1b85f353baf77516a5b290532673f781">active_waypoint_wait_time_s_</a> : 0.0;</div>
+<div class="line"><span class="lineno">  446</span> </div>
+<div class="line"><span class="lineno">  447</span>  <span class="keywordflow">if</span> (result.code == rclcpp_action::ResultCode::SUCCEEDED) {</div>
+<div class="line"><span class="lineno">  448</span>    <span class="keywordflow">if</span> (result.result-&gt;destination_reached) {</div>
+<div class="line"><span class="lineno">  449</span>      RCLCPP_INFO(this-&gt;get_logger(), <span class="stringliteral">&quot;Goal succeeded: destination reached after %.2fm and %ds&quot;</span>, distance_traveled,</div>
+<div class="line"><span class="lineno">  450</span>                  time_traveled.sec);</div>
+<div class="line"><span class="lineno">  451</span>    } <span class="keywordflow">else</span> {</div>
+<div class="line"><span class="lineno">  452</span>      RCLCPP_WARN(this-&gt;get_logger(), <span class="stringliteral">&quot;Goal succeeded, but destination not reached after %.2fm and %ds&quot;</span>, distance_traveled,</div>
+<div class="line"><span class="lineno">  453</span>                  time_traveled.sec);</div>
+<div class="line"><span class="lineno">  454</span>    }</div>
+<div class="line"><span class="lineno">  455</span>  } <span class="keywordflow">else</span> <span class="keywordflow">if</span> (result.code == rclcpp_action::ResultCode::CANCELED) {</div>
+<div class="line"><span class="lineno">  456</span>    RCLCPP_WARN(this-&gt;get_logger(), <span class="stringliteral">&quot;Goal canceled: traveled %.2fm and %ds&quot;</span>, distance_traveled, time_traveled.sec);</div>
+<div class="line"><span class="lineno">  457</span>  } <span class="keywordflow">else</span> <span class="keywordflow">if</span> (result.code == rclcpp_action::ResultCode::ABORTED) {</div>
+<div class="line"><span class="lineno">  458</span>    RCLCPP_ERROR(this-&gt;get_logger(), <span class="stringliteral">&quot;Goal aborted: traveled %.2fm and %ds&quot;</span>, distance_traveled, time_traveled.sec);</div>
+<div class="line"><span class="lineno">  459</span>  } <span class="keywordflow">else</span> {</div>
+<div class="line"><span class="lineno">  460</span>    RCLCPP_ERROR(this-&gt;get_logger(), <span class="stringliteral">&quot;Goal finished with unknown result code: %d&quot;</span>, <span class="keyword">static_cast&lt;</span><span class="keywordtype">int</span><span class="keyword">&gt;</span>(result.code));</div>
+<div class="line"><span class="lineno">  461</span>  }</div>
+<div class="line"><span class="lineno">  462</span> </div>
+<div class="line"><span class="lineno">  463</span>  <a class="code hl_variable" href="#a28490c05351272002b8e37849074f8b9">has_active_waypoint_</a> = <span class="keyword">false</span>;</div>
+<div class="line"><span class="lineno">  464</span>  <a class="code hl_variable" href="#aaecad8d71c66dcb63b502a9577bc8ce3">has_completed_one_goal_</a> = <span class="keyword">true</span>;</div>
+<div class="line"><span class="lineno">  465</span>  <span class="keywordflow">if</span> (result.code == rclcpp_action::ResultCode::SUCCEEDED &amp;&amp; wait_time_s &gt; 0.0) {</div>
+<div class="line"><span class="lineno">  466</span>    RCLCPP_INFO(this-&gt;get_logger(), <span class="stringliteral">&quot;Waiting %.2fs before planning next waypoint&quot;</span>, wait_time_s);</div>
+<div class="line"><span class="lineno">  467</span>    <span class="keyword">const</span> <span class="keywordtype">double</span> now_s = std::chrono::duration&lt;double&gt;(std::chrono::steady_clock::now().time_since_epoch()).count();</div>
+<div class="line"><span class="lineno">  468</span>    <a class="code hl_variable" href="#a4d909d65a512089b6208fc4d1ff04667">auto_planning_resume_time_s_</a> = now_s + wait_time_s;</div>
+<div class="line"><span class="lineno">  469</span>  }</div>
+<div class="line"><span class="lineno">  470</span>  <a class="code hl_variable" href="#a7269a73c3dc931587c3003f14714107c">auto_planning_timer_</a>-&gt;reset();  <span class="comment">// restart auto-planning timer</span></div>
+<div class="line"><span class="lineno">  471</span>}</div>
 </div><!-- fragment -->
 </div>
 </div>
-<a id="a7f3b81ef97d090d49dce72def1e33b30" name="a7f3b81ef97d090d49dce72def1e33b30"></a>
-<h2 class="memtitle"><span class="permalink"><a href="#a7f3b81ef97d090d49dce72def1e33b30">&#9670;&#160;</a></span>sendGoal()</h2>
+<a id="a9cfc5f12f6f83180f18091b5a317ac6f" name="a9cfc5f12f6f83180f18091b5a317ac6f"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a9cfc5f12f6f83180f18091b5a317ac6f">&#9670;&#160;</a></span>sendGoal()</h2>
 
 <div class="memitem">
 <div class="memproto">
@@ -945,8 +1018,12 @@ template&lt;typename T &gt; </div>
         <tr>
           <td class="memname">void plan_route_action_client::PlanRouteActionClient::sendGoal </td>
           <td>(</td>
-          <td class="paramtype">const geometry_msgs::msg::PoseStamped::SharedPtr</td>          <td class="paramname"><span class="paramname"><em>msg</em></span></td><td>)</td>
+          <td class="paramtype">const geometry_msgs::msg::PoseStamped::SharedPtr</td>          <td class="paramname"><span class="paramname"><em>msg</em></span>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
           <td></td>
+          <td class="paramtype">const std::vector&lt; geometry_msgs::msg::PointStamped &gt; &amp;</td>          <td class="paramname"><span class="paramname"><em>intermediate_destinations</em></span><span class="paramdefsep"> = </span><span class="paramdefval">{}</span>&#160;)</td>
         </tr>
       </table>
   </td>
@@ -960,41 +1037,44 @@ template&lt;typename T &gt; </div>
 <dl class="params"><dt>Parameters</dt><dd>
   <table class="params">
     <tr><td class="paramdir">[in]</td><td class="paramname">msg</td><td>goal pose </td></tr>
+    <tr><td class="paramdir">[in]</td><td class="paramname">intermediate_destinations</td><td>intermediate destinations to route via </td></tr>
   </table>
   </dd>
 </dl>
 
-<p class="definition">Definition at line <a class="el" href="plan__route__action__client_8cpp_source.html#l00318">318</a> of file <a class="el" href="plan__route__action__client_8cpp_source.html">plan_route_action_client.cpp</a>.</p>
-<div class="fragment"><div class="line"><span class="lineno">  318</span>                                                                                   {</div>
-<div class="line"><span class="lineno">  319</span>  RCLCPP_INFO(this-&gt;get_logger(), <span class="stringliteral">&quot;Requesting to plan route to destination (%.3f, %.3f, %.3f) in frame &#39;%s&#39;&quot;</span>,</div>
-<div class="line"><span class="lineno">  320</span>              msg-&gt;pose.position.x, msg-&gt;pose.position.y, msg-&gt;pose.position.z, msg-&gt;header.frame_id.c_str());</div>
-<div class="line"><span class="lineno">  321</span> </div>
-<div class="line"><span class="lineno">  322</span>  <span class="comment">// check if action server is available</span></div>
-<div class="line"><span class="lineno">  323</span>  <span class="keywordflow">if</span> (!<a class="code hl_variable" href="#a9120c978899cbc1209927b54ee70de44">action_client_</a>-&gt;wait_for_action_server(std::chrono::duration&lt;double&gt;(0.1))) {</div>
-<div class="line"><span class="lineno">  324</span>    RCLCPP_ERROR(this-&gt;get_logger(), <span class="stringliteral">&quot;Action server not available, aborting&quot;</span>);</div>
-<div class="line"><span class="lineno">  325</span>    <a class="code hl_variable" href="#a7269a73c3dc931587c3003f14714107c">auto_planning_timer_</a>-&gt;reset();  <span class="comment">// restart auto-planning timer</span></div>
-<div class="line"><span class="lineno">  326</span>    <span class="keywordflow">return</span>;</div>
-<div class="line"><span class="lineno">  327</span>  }</div>
-<div class="line"><span class="lineno">  328</span> </div>
-<div class="line"><span class="lineno">  329</span>  <span class="comment">// build goal</span></div>
-<div class="line"><span class="lineno">  330</span>  <span class="keyword">auto</span> goal = PlanRoute::Goal();</div>
-<div class="line"><span class="lineno">  331</span>  goal.destination = geometry_msgs::msg::PointStamped();</div>
-<div class="line"><span class="lineno">  332</span>  goal.destination.header = msg-&gt;header;</div>
-<div class="line"><span class="lineno">  333</span>  goal.destination.point = msg-&gt;pose.position;</div>
-<div class="line"><span class="lineno">  334</span> </div>
-<div class="line"><span class="lineno">  335</span>  <span class="comment">// send goal</span></div>
-<div class="line"><span class="lineno">  336</span>  <span class="keyword">auto</span> send_goal_options = rclcpp_action::Client&lt;PlanRoute&gt;::SendGoalOptions();</div>
-<div class="line"><span class="lineno">  337</span>  send_goal_options.goal_response_callback = std::bind(&amp;<a class="code hl_function" href="#ac33a231bdbdbb9ea4a63a920157a29db">PlanRouteActionClient::goalResponseCallback</a>, <span class="keyword">this</span>, std::placeholders::_1);</div>
-<div class="line"><span class="lineno">  338</span>  send_goal_options.feedback_callback =</div>
-<div class="line"><span class="lineno">  339</span>      std::bind(&amp;<a class="code hl_function" href="#ae3edad180ad11fab054db9f1e2a11116">PlanRouteActionClient::feedbackCallback</a>, <span class="keyword">this</span>, std::placeholders::_1, std::placeholders::_2);</div>
-<div class="line"><span class="lineno">  340</span>  send_goal_options.result_callback = std::bind(&amp;<a class="code hl_function" href="#a44997574d616fb70be6f4d073bf77b65">PlanRouteActionClient::resultCallback</a>, <span class="keyword">this</span>, std::placeholders::_1);</div>
-<div class="line"><span class="lineno">  341</span>  <a class="code hl_variable" href="#a1ba2aaa918117f82f40155f9a0150e42">goal_handle_future_</a> = <a class="code hl_variable" href="#a9120c978899cbc1209927b54ee70de44">action_client_</a>-&gt;async_send_goal(goal, send_goal_options);</div>
-<div class="line"><span class="lineno">  342</span>  RCLCPP_INFO(this-&gt;get_logger(), <span class="stringliteral">&quot;Goal sent&quot;</span>);</div>
-<div class="line"><span class="lineno">  343</span>}</div>
-<div class="ttc" id="aclassplan__route__action__client_1_1PlanRouteActionClient_html_a1ba2aaa918117f82f40155f9a0150e42"><div class="ttname"><a href="#a1ba2aaa918117f82f40155f9a0150e42">plan_route_action_client::PlanRouteActionClient::goal_handle_future_</a></div><div class="ttdeci">std::shared_future&lt; GoalHandlePlanRoute::SharedPtr &gt; goal_handle_future_</div><div class="ttdoc">Goal handle.</div><div class="ttdef"><b>Definition</b> <a href="plan__route__action__client_8hpp_source.html#l00158">plan_route_action_client.hpp:158</a></div></div>
-<div class="ttc" id="aclassplan__route__action__client_1_1PlanRouteActionClient_html_a44997574d616fb70be6f4d073bf77b65"><div class="ttname"><a href="#a44997574d616fb70be6f4d073bf77b65">plan_route_action_client::PlanRouteActionClient::resultCallback</a></div><div class="ttdeci">void resultCallback(const GoalHandlePlanRoute::WrappedResult &amp;result)</div><div class="ttdoc">Callback for result from the action server.</div><div class="ttdef"><b>Definition</b> <a href="plan__route__action__client_8cpp_source.html#l00367">plan_route_action_client.cpp:367</a></div></div>
-<div class="ttc" id="aclassplan__route__action__client_1_1PlanRouteActionClient_html_ac33a231bdbdbb9ea4a63a920157a29db"><div class="ttname"><a href="#ac33a231bdbdbb9ea4a63a920157a29db">plan_route_action_client::PlanRouteActionClient::goalResponseCallback</a></div><div class="ttdeci">void goalResponseCallback(const GoalHandlePlanRoute::SharedPtr &amp;goal_handle)</div><div class="ttdoc">Callback for goal response from the action server.</div><div class="ttdef"><b>Definition</b> <a href="plan__route__action__client_8cpp_source.html#l00345">plan_route_action_client.cpp:345</a></div></div>
-<div class="ttc" id="aclassplan__route__action__client_1_1PlanRouteActionClient_html_ae3edad180ad11fab054db9f1e2a11116"><div class="ttname"><a href="#ae3edad180ad11fab054db9f1e2a11116">plan_route_action_client::PlanRouteActionClient::feedbackCallback</a></div><div class="ttdeci">void feedbackCallback(GoalHandlePlanRoute::SharedPtr goal_handle, const std::shared_ptr&lt; const PlanRoute::Feedback &gt; feedback)</div><div class="ttdoc">Callback for feedback from the action server.</div><div class="ttdef"><b>Definition</b> <a href="plan__route__action__client_8cpp_source.html#l00354">plan_route_action_client.cpp:354</a></div></div>
+<p class="definition">Definition at line <a class="el" href="plan__route__action__client_8cpp_source.html#l00389">389</a> of file <a class="el" href="plan__route__action__client_8cpp_source.html">plan_route_action_client.cpp</a>.</p>
+<div class="fragment"><div class="line"><span class="lineno">  390</span>                                                                                                               {</div>
+<div class="line"><span class="lineno">  391</span>  RCLCPP_INFO(this-&gt;get_logger(), <span class="stringliteral">&quot;Requesting to plan route to destination (%.3f, %.3f, %.3f) in frame &#39;%s&#39;&quot;</span>,</div>
+<div class="line"><span class="lineno">  392</span>              msg-&gt;pose.position.x, msg-&gt;pose.position.y, msg-&gt;pose.position.z, msg-&gt;header.frame_id.c_str());</div>
+<div class="line"><span class="lineno">  393</span> </div>
+<div class="line"><span class="lineno">  394</span>  <span class="comment">// check if action server is available</span></div>
+<div class="line"><span class="lineno">  395</span>  <span class="keywordflow">if</span> (!<a class="code hl_variable" href="#a9120c978899cbc1209927b54ee70de44">action_client_</a>-&gt;wait_for_action_server(std::chrono::duration&lt;double&gt;(0.1))) {</div>
+<div class="line"><span class="lineno">  396</span>    RCLCPP_ERROR(this-&gt;get_logger(), <span class="stringliteral">&quot;Action server not available, aborting&quot;</span>);</div>
+<div class="line"><span class="lineno">  397</span>    <a class="code hl_variable" href="#a28490c05351272002b8e37849074f8b9">has_active_waypoint_</a> = <span class="keyword">false</span>;</div>
+<div class="line"><span class="lineno">  398</span>    <a class="code hl_variable" href="#a7269a73c3dc931587c3003f14714107c">auto_planning_timer_</a>-&gt;reset();  <span class="comment">// restart auto-planning timer</span></div>
+<div class="line"><span class="lineno">  399</span>    <span class="keywordflow">return</span>;</div>
+<div class="line"><span class="lineno">  400</span>  }</div>
+<div class="line"><span class="lineno">  401</span> </div>
+<div class="line"><span class="lineno">  402</span>  <span class="comment">// build goal</span></div>
+<div class="line"><span class="lineno">  403</span>  <span class="keyword">auto</span> goal = PlanRoute::Goal();</div>
+<div class="line"><span class="lineno">  404</span>  goal.destination = geometry_msgs::msg::PointStamped();</div>
+<div class="line"><span class="lineno">  405</span>  goal.destination.header = msg-&gt;header;</div>
+<div class="line"><span class="lineno">  406</span>  goal.destination.point = msg-&gt;pose.position;</div>
+<div class="line"><span class="lineno">  407</span>  goal.intermediate_destinations = intermediate_destinations;</div>
+<div class="line"><span class="lineno">  408</span> </div>
+<div class="line"><span class="lineno">  409</span>  <span class="comment">// send goal</span></div>
+<div class="line"><span class="lineno">  410</span>  <span class="keyword">auto</span> send_goal_options = rclcpp_action::Client&lt;PlanRoute&gt;::SendGoalOptions();</div>
+<div class="line"><span class="lineno">  411</span>  send_goal_options.goal_response_callback = std::bind(&amp;<a class="code hl_function" href="#ac33a231bdbdbb9ea4a63a920157a29db">PlanRouteActionClient::goalResponseCallback</a>, <span class="keyword">this</span>, std::placeholders::_1);</div>
+<div class="line"><span class="lineno">  412</span>  send_goal_options.feedback_callback =</div>
+<div class="line"><span class="lineno">  413</span>      std::bind(&amp;<a class="code hl_function" href="#ae3edad180ad11fab054db9f1e2a11116">PlanRouteActionClient::feedbackCallback</a>, <span class="keyword">this</span>, std::placeholders::_1, std::placeholders::_2);</div>
+<div class="line"><span class="lineno">  414</span>  send_goal_options.result_callback = std::bind(&amp;<a class="code hl_function" href="#a44997574d616fb70be6f4d073bf77b65">PlanRouteActionClient::resultCallback</a>, <span class="keyword">this</span>, std::placeholders::_1);</div>
+<div class="line"><span class="lineno">  415</span>  <a class="code hl_variable" href="#a1ba2aaa918117f82f40155f9a0150e42">goal_handle_future_</a> = <a class="code hl_variable" href="#a9120c978899cbc1209927b54ee70de44">action_client_</a>-&gt;async_send_goal(goal, send_goal_options);</div>
+<div class="line"><span class="lineno">  416</span>  RCLCPP_INFO(this-&gt;get_logger(), <span class="stringliteral">&quot;Goal sent&quot;</span>);</div>
+<div class="line"><span class="lineno">  417</span>}</div>
+<div class="ttc" id="aclassplan__route__action__client_1_1PlanRouteActionClient_html_a1ba2aaa918117f82f40155f9a0150e42"><div class="ttname"><a href="#a1ba2aaa918117f82f40155f9a0150e42">plan_route_action_client::PlanRouteActionClient::goal_handle_future_</a></div><div class="ttdeci">std::shared_future&lt; GoalHandlePlanRoute::SharedPtr &gt; goal_handle_future_</div><div class="ttdoc">Goal handle.</div><div class="ttdef"><b>Definition</b> <a href="plan__route__action__client_8hpp_source.html#l00162">plan_route_action_client.hpp:162</a></div></div>
+<div class="ttc" id="aclassplan__route__action__client_1_1PlanRouteActionClient_html_a44997574d616fb70be6f4d073bf77b65"><div class="ttname"><a href="#a44997574d616fb70be6f4d073bf77b65">plan_route_action_client::PlanRouteActionClient::resultCallback</a></div><div class="ttdeci">void resultCallback(const GoalHandlePlanRoute::WrappedResult &amp;result)</div><div class="ttdoc">Callback for result from the action server.</div><div class="ttdef"><b>Definition</b> <a href="plan__route__action__client_8cpp_source.html#l00442">plan_route_action_client.cpp:442</a></div></div>
+<div class="ttc" id="aclassplan__route__action__client_1_1PlanRouteActionClient_html_ac33a231bdbdbb9ea4a63a920157a29db"><div class="ttname"><a href="#ac33a231bdbdbb9ea4a63a920157a29db">plan_route_action_client::PlanRouteActionClient::goalResponseCallback</a></div><div class="ttdeci">void goalResponseCallback(const GoalHandlePlanRoute::SharedPtr &amp;goal_handle)</div><div class="ttdoc">Callback for goal response from the action server.</div><div class="ttdef"><b>Definition</b> <a href="plan__route__action__client_8cpp_source.html#l00419">plan_route_action_client.cpp:419</a></div></div>
+<div class="ttc" id="aclassplan__route__action__client_1_1PlanRouteActionClient_html_ae3edad180ad11fab054db9f1e2a11116"><div class="ttname"><a href="#ae3edad180ad11fab054db9f1e2a11116">plan_route_action_client::PlanRouteActionClient::feedbackCallback</a></div><div class="ttdeci">void feedbackCallback(GoalHandlePlanRoute::SharedPtr goal_handle, const std::shared_ptr&lt; const PlanRoute::Feedback &gt; feedback)</div><div class="ttdoc">Callback for feedback from the action server.</div><div class="ttdef"><b>Definition</b> <a href="plan__route__action__client_8cpp_source.html#l00429">plan_route_action_client.cpp:429</a></div></div>
 </div><!-- fragment -->
 </div>
 </div>
@@ -1023,45 +1103,45 @@ template&lt;typename T &gt; </div>
 
 <p>Sets up subscribers, publishers, etc. to configure the node. </p>
 
-<p class="definition">Definition at line <a class="el" href="plan__route__action__client_8cpp_source.html#l00175">175</a> of file <a class="el" href="plan__route__action__client_8cpp_source.html">plan_route_action_client.cpp</a>.</p>
-<div class="fragment"><div class="line"><span class="lineno">  175</span>                                  {</div>
-<div class="line"><span class="lineno">  176</span>  <span class="comment">// callback for dynamic parameter configuration</span></div>
-<div class="line"><span class="lineno">  177</span>  <a class="code hl_variable" href="#ab61ac3d7ac658c5b471bac04a91a12a1">parameters_callback_</a> =</div>
-<div class="line"><span class="lineno">  178</span>      this-&gt;add_on_set_parameters_callback(std::bind(&amp;<a class="code hl_function" href="#a56d7e2103be1fab623898a7b9efc284c">PlanRouteActionClient::parametersCallback</a>, <span class="keyword">this</span>, std::placeholders::_1));</div>
-<div class="line"><span class="lineno">  179</span> </div>
-<div class="line"><span class="lineno">  180</span>  <span class="comment">// subscriber for goal pose</span></div>
-<div class="line"><span class="lineno">  181</span>  <a class="code hl_variable" href="#af6a064cb7dc43feccd5f740f69db005d">goal_pose_subscriber_</a> = this-&gt;create_subscription&lt;geometry_msgs::msg::PoseStamped&gt;(</div>
-<div class="line"><span class="lineno">  182</span>      <span class="stringliteral">&quot;~/goal_pose&quot;</span>, 10, std::bind(&amp;<a class="code hl_function" href="#a423d92186d8948abd264693e81f50d68">PlanRouteActionClient::goalPoseCallback</a>, <span class="keyword">this</span>, std::placeholders::_1));</div>
-<div class="line"><span class="lineno">  183</span>  RCLCPP_INFO(this-&gt;get_logger(), <span class="stringliteral">&quot;Subscribed to &#39;%s&#39;&quot;</span>, <a class="code hl_variable" href="#af6a064cb7dc43feccd5f740f69db005d">goal_pose_subscriber_</a>-&gt;get_topic_name());</div>
-<div class="line"><span class="lineno">  184</span> </div>
-<div class="line"><span class="lineno">  185</span>  <span class="comment">// action client</span></div>
-<div class="line"><span class="lineno">  186</span>  <a class="code hl_variable" href="#a9120c978899cbc1209927b54ee70de44">action_client_</a> = rclcpp_action::create_client&lt;PlanRoute&gt;(<span class="keyword">this</span>, <span class="stringliteral">&quot;/planning/lanelet2_route_planning/plan_route&quot;</span>);</div>
-<div class="line"><span class="lineno">  187</span> </div>
-<div class="line"><span class="lineno">  188</span>  <span class="comment">// ll2 map interface</span></div>
-<div class="line"><span class="lineno">  189</span>  <a class="code hl_variable" href="#aff7352d4659ad20e4a82c44e1059db48">ll2_interface_</a> = std::make_unique&lt;Lanelet2MapInterface&gt;(*<span class="keyword">this</span>, <a class="code hl_variable" href="#a9f5c2b8ccbf82da0346db832b74426cf">ll2_map_server_name_</a>);</div>
-<div class="line"><span class="lineno">  190</span> </div>
-<div class="line"><span class="lineno">  191</span>  <span class="comment">// parse waypoints</span></div>
-<div class="line"><span class="lineno">  192</span>  <span class="keyword">auto</span> parsed_waypoints = <a class="code hl_function" href="namespaceplan__route__action__client.html#a4db854bd5d101b2d3478a5e48ab8ae25">parseWaypoints</a>(<a class="code hl_variable" href="#ad7777334fda5192ca277a0a9437d827e">waypoints_param_</a>);</div>
-<div class="line"><span class="lineno">  193</span>  <span class="keywordflow">if</span> (parsed_waypoints) {</div>
-<div class="line"><span class="lineno">  194</span>    <a class="code hl_variable" href="#a5b79533e885a6a4cd1e3681628b5618c">waypoints_</a> = *parsed_waypoints;</div>
-<div class="line"><span class="lineno">  195</span>  } <span class="keywordflow">else</span> {</div>
-<div class="line"><span class="lineno">  196</span>    std::stringstream ss;</div>
-<div class="line"><span class="lineno">  197</span>    ss &lt;&lt; <span class="stringliteral">&quot;Failed to parse parameter &#39;waypoints&#39;: [&quot;</span>;</div>
-<div class="line"><span class="lineno">  198</span>    <span class="keywordflow">for</span> (<span class="keyword">const</span> <span class="keyword">auto</span>&amp; waypoint : <a class="code hl_variable" href="#ad7777334fda5192ca277a0a9437d827e">waypoints_param_</a>) {</div>
-<div class="line"><span class="lineno">  199</span>      ss &lt;&lt; waypoint &lt;&lt; (&amp;waypoint != &amp;<a class="code hl_variable" href="#ad7777334fda5192ca277a0a9437d827e">waypoints_param_</a>.back() ? <span class="stringliteral">&quot;, &quot;</span> : <span class="stringliteral">&quot;]&quot;</span>);</div>
-<div class="line"><span class="lineno">  200</span>    }</div>
-<div class="line"><span class="lineno">  201</span>    RCLCPP_ERROR(this-&gt;get_logger(), <span class="stringliteral">&quot;%s&quot;</span>, ss.str().c_str());</div>
-<div class="line"><span class="lineno">  202</span>  }</div>
-<div class="line"><span class="lineno">  203</span> </div>
-<div class="line"><span class="lineno">  204</span>  <span class="comment">// set up auto-planning timer</span></div>
-<div class="line"><span class="lineno">  205</span>  <a class="code hl_variable" href="#a7269a73c3dc931587c3003f14714107c">auto_planning_timer_</a> = this-&gt;create_wall_timer(std::chrono::milliseconds(1000),</div>
-<div class="line"><span class="lineno">  206</span>                                                 std::bind(&amp;<a class="code hl_function" href="#aa058158d91c23213bc8c7bd0fe61f21a">PlanRouteActionClient::autoPlanningTimerCallback</a>, <span class="keyword">this</span>));</div>
-<div class="line"><span class="lineno">  207</span>}</div>
-<div class="ttc" id="aclassplan__route__action__client_1_1PlanRouteActionClient_html_a423d92186d8948abd264693e81f50d68"><div class="ttname"><a href="#a423d92186d8948abd264693e81f50d68">plan_route_action_client::PlanRouteActionClient::goalPoseCallback</a></div><div class="ttdeci">void goalPoseCallback(const geometry_msgs::msg::PoseStamped::SharedPtr msg)</div><div class="ttdoc">Callback for goal pose (most likely received from RViz)</div><div class="ttdef"><b>Definition</b> <a href="plan__route__action__client_8cpp_source.html#l00209">plan_route_action_client.cpp:209</a></div></div>
-<div class="ttc" id="aclassplan__route__action__client_1_1PlanRouteActionClient_html_a56d7e2103be1fab623898a7b9efc284c"><div class="ttname"><a href="#a56d7e2103be1fab623898a7b9efc284c">plan_route_action_client::PlanRouteActionClient::parametersCallback</a></div><div class="ttdeci">rcl_interfaces::msg::SetParametersResult parametersCallback(const std::vector&lt; rclcpp::Parameter &gt; &amp;parameters)</div><div class="ttdoc">Handles reconfiguration when a parameter value is changed.</div><div class="ttdef"><b>Definition</b> <a href="plan__route__action__client_8cpp_source.html#l00130">plan_route_action_client.cpp:130</a></div></div>
-<div class="ttc" id="aclassplan__route__action__client_1_1PlanRouteActionClient_html_aa058158d91c23213bc8c7bd0fe61f21a"><div class="ttname"><a href="#aa058158d91c23213bc8c7bd0fe61f21a">plan_route_action_client::PlanRouteActionClient::autoPlanningTimerCallback</a></div><div class="ttdeci">void autoPlanningTimerCallback()</div><div class="ttdoc">Callback for automatically planning a route, e.g., if waypoints are given.</div><div class="ttdef"><b>Definition</b> <a href="plan__route__action__client_8cpp_source.html#l00215">plan_route_action_client.cpp:215</a></div></div>
-<div class="ttc" id="aclassplan__route__action__client_1_1PlanRouteActionClient_html_ab61ac3d7ac658c5b471bac04a91a12a1"><div class="ttname"><a href="#ab61ac3d7ac658c5b471bac04a91a12a1">plan_route_action_client::PlanRouteActionClient::parameters_callback_</a></div><div class="ttdeci">OnSetParametersCallbackHandle::SharedPtr parameters_callback_</div><div class="ttdoc">Callback handle for dynamic parameter reconfiguration.</div><div class="ttdef"><b>Definition</b> <a href="plan__route__action__client_8hpp_source.html#l00143">plan_route_action_client.hpp:143</a></div></div>
-<div class="ttc" id="aclassplan__route__action__client_1_1PlanRouteActionClient_html_af6a064cb7dc43feccd5f740f69db005d"><div class="ttname"><a href="#af6a064cb7dc43feccd5f740f69db005d">plan_route_action_client::PlanRouteActionClient::goal_pose_subscriber_</a></div><div class="ttdeci">rclcpp::Subscription&lt; geometry_msgs::msg::PoseStamped &gt;::SharedPtr goal_pose_subscriber_</div><div class="ttdoc">Subscriber for goal pose.</div><div class="ttdef"><b>Definition</b> <a href="plan__route__action__client_8hpp_source.html#l00148">plan_route_action_client.hpp:148</a></div></div>
+<p class="definition">Definition at line <a class="el" href="plan__route__action__client_8cpp_source.html#l00200">200</a> of file <a class="el" href="plan__route__action__client_8cpp_source.html">plan_route_action_client.cpp</a>.</p>
+<div class="fragment"><div class="line"><span class="lineno">  200</span>                                  {</div>
+<div class="line"><span class="lineno">  201</span>  <span class="comment">// callback for dynamic parameter configuration</span></div>
+<div class="line"><span class="lineno">  202</span>  <a class="code hl_variable" href="#ab61ac3d7ac658c5b471bac04a91a12a1">parameters_callback_</a> =</div>
+<div class="line"><span class="lineno">  203</span>      this-&gt;add_on_set_parameters_callback(std::bind(&amp;<a class="code hl_function" href="#a56d7e2103be1fab623898a7b9efc284c">PlanRouteActionClient::parametersCallback</a>, <span class="keyword">this</span>, std::placeholders::_1));</div>
+<div class="line"><span class="lineno">  204</span> </div>
+<div class="line"><span class="lineno">  205</span>  <span class="comment">// subscriber for goal pose</span></div>
+<div class="line"><span class="lineno">  206</span>  <a class="code hl_variable" href="#af6a064cb7dc43feccd5f740f69db005d">goal_pose_subscriber_</a> = this-&gt;create_subscription&lt;geometry_msgs::msg::PoseStamped&gt;(</div>
+<div class="line"><span class="lineno">  207</span>      <span class="stringliteral">&quot;~/goal_pose&quot;</span>, 10, std::bind(&amp;<a class="code hl_function" href="#a423d92186d8948abd264693e81f50d68">PlanRouteActionClient::goalPoseCallback</a>, <span class="keyword">this</span>, std::placeholders::_1));</div>
+<div class="line"><span class="lineno">  208</span>  RCLCPP_INFO(this-&gt;get_logger(), <span class="stringliteral">&quot;Subscribed to &#39;%s&#39;&quot;</span>, <a class="code hl_variable" href="#af6a064cb7dc43feccd5f740f69db005d">goal_pose_subscriber_</a>-&gt;get_topic_name());</div>
+<div class="line"><span class="lineno">  209</span> </div>
+<div class="line"><span class="lineno">  210</span>  <span class="comment">// action client</span></div>
+<div class="line"><span class="lineno">  211</span>  <a class="code hl_variable" href="#a9120c978899cbc1209927b54ee70de44">action_client_</a> = rclcpp_action::create_client&lt;PlanRoute&gt;(<span class="keyword">this</span>, <span class="stringliteral">&quot;/planning/lanelet2_route_planning/plan_route&quot;</span>);</div>
+<div class="line"><span class="lineno">  212</span> </div>
+<div class="line"><span class="lineno">  213</span>  <span class="comment">// ll2 map interface</span></div>
+<div class="line"><span class="lineno">  214</span>  <a class="code hl_variable" href="#aff7352d4659ad20e4a82c44e1059db48">ll2_interface_</a> = std::make_unique&lt;Lanelet2MapInterface&gt;(*<span class="keyword">this</span>, <a class="code hl_variable" href="#a9f5c2b8ccbf82da0346db832b74426cf">ll2_map_server_name_</a>);</div>
+<div class="line"><span class="lineno">  215</span> </div>
+<div class="line"><span class="lineno">  216</span>  <span class="comment">// parse waypoints</span></div>
+<div class="line"><span class="lineno">  217</span>  <span class="keyword">auto</span> parsed_waypoints = <a class="code hl_function" href="namespaceplan__route__action__client.html#a25e3adc12a2cbcdba0a493e1d4461eeb">parseWaypoints</a>(<a class="code hl_variable" href="#ad7777334fda5192ca277a0a9437d827e">waypoints_param_</a>, <a class="code hl_variable" href="#a2617009b882a29e10c5a2379d77b51e3">waypoint_wait_times_</a>, this-&gt;get_logger());</div>
+<div class="line"><span class="lineno">  218</span>  <span class="keywordflow">if</span> (parsed_waypoints) {</div>
+<div class="line"><span class="lineno">  219</span>    <a class="code hl_variable" href="#a5b79533e885a6a4cd1e3681628b5618c">waypoints_</a> = *parsed_waypoints;</div>
+<div class="line"><span class="lineno">  220</span>  } <span class="keywordflow">else</span> {</div>
+<div class="line"><span class="lineno">  221</span>    std::stringstream ss;</div>
+<div class="line"><span class="lineno">  222</span>    ss &lt;&lt; <span class="stringliteral">&quot;Failed to parse parameter &#39;waypoints&#39;: [&quot;</span>;</div>
+<div class="line"><span class="lineno">  223</span>    <span class="keywordflow">for</span> (<span class="keyword">const</span> <span class="keyword">auto</span>&amp; waypoint : <a class="code hl_variable" href="#ad7777334fda5192ca277a0a9437d827e">waypoints_param_</a>) {</div>
+<div class="line"><span class="lineno">  224</span>      ss &lt;&lt; waypoint &lt;&lt; (&amp;waypoint != &amp;<a class="code hl_variable" href="#ad7777334fda5192ca277a0a9437d827e">waypoints_param_</a>.back() ? <span class="stringliteral">&quot;, &quot;</span> : <span class="stringliteral">&quot;]&quot;</span>);</div>
+<div class="line"><span class="lineno">  225</span>    }</div>
+<div class="line"><span class="lineno">  226</span>    RCLCPP_ERROR(this-&gt;get_logger(), <span class="stringliteral">&quot;%s&quot;</span>, ss.str().c_str());</div>
+<div class="line"><span class="lineno">  227</span>  }</div>
+<div class="line"><span class="lineno">  228</span> </div>
+<div class="line"><span class="lineno">  229</span>  <span class="comment">// set up auto-planning timer</span></div>
+<div class="line"><span class="lineno">  230</span>  <a class="code hl_variable" href="#a7269a73c3dc931587c3003f14714107c">auto_planning_timer_</a> = this-&gt;create_wall_timer(std::chrono::milliseconds(1000),</div>
+<div class="line"><span class="lineno">  231</span>                                                 std::bind(&amp;<a class="code hl_function" href="#aa058158d91c23213bc8c7bd0fe61f21a">PlanRouteActionClient::autoPlanningTimerCallback</a>, <span class="keyword">this</span>));</div>
+<div class="line"><span class="lineno">  232</span>}</div>
+<div class="ttc" id="aclassplan__route__action__client_1_1PlanRouteActionClient_html_a423d92186d8948abd264693e81f50d68"><div class="ttname"><a href="#a423d92186d8948abd264693e81f50d68">plan_route_action_client::PlanRouteActionClient::goalPoseCallback</a></div><div class="ttdeci">void goalPoseCallback(const geometry_msgs::msg::PoseStamped::SharedPtr msg)</div><div class="ttdoc">Callback for goal pose (most likely received from RViz)</div><div class="ttdef"><b>Definition</b> <a href="plan__route__action__client_8cpp_source.html#l00234">plan_route_action_client.cpp:234</a></div></div>
+<div class="ttc" id="aclassplan__route__action__client_1_1PlanRouteActionClient_html_a56d7e2103be1fab623898a7b9efc284c"><div class="ttname"><a href="#a56d7e2103be1fab623898a7b9efc284c">plan_route_action_client::PlanRouteActionClient::parametersCallback</a></div><div class="ttdeci">rcl_interfaces::msg::SetParametersResult parametersCallback(const std::vector&lt; rclcpp::Parameter &gt; &amp;parameters)</div><div class="ttdoc">Handles reconfiguration when a parameter value is changed.</div><div class="ttdef"><b>Definition</b> <a href="plan__route__action__client_8cpp_source.html#l00155">plan_route_action_client.cpp:155</a></div></div>
+<div class="ttc" id="aclassplan__route__action__client_1_1PlanRouteActionClient_html_aa058158d91c23213bc8c7bd0fe61f21a"><div class="ttname"><a href="#aa058158d91c23213bc8c7bd0fe61f21a">plan_route_action_client::PlanRouteActionClient::autoPlanningTimerCallback</a></div><div class="ttdeci">void autoPlanningTimerCallback()</div><div class="ttdoc">Callback for automatically planning a route, e.g., if waypoints are given.</div><div class="ttdef"><b>Definition</b> <a href="plan__route__action__client_8cpp_source.html#l00243">plan_route_action_client.cpp:243</a></div></div>
+<div class="ttc" id="aclassplan__route__action__client_1_1PlanRouteActionClient_html_ab61ac3d7ac658c5b471bac04a91a12a1"><div class="ttname"><a href="#ab61ac3d7ac658c5b471bac04a91a12a1">plan_route_action_client::PlanRouteActionClient::parameters_callback_</a></div><div class="ttdeci">OnSetParametersCallbackHandle::SharedPtr parameters_callback_</div><div class="ttdoc">Callback handle for dynamic parameter reconfiguration.</div><div class="ttdef"><b>Definition</b> <a href="plan__route__action__client_8hpp_source.html#l00147">plan_route_action_client.hpp:147</a></div></div>
+<div class="ttc" id="aclassplan__route__action__client_1_1PlanRouteActionClient_html_af6a064cb7dc43feccd5f740f69db005d"><div class="ttname"><a href="#af6a064cb7dc43feccd5f740f69db005d">plan_route_action_client::PlanRouteActionClient::goal_pose_subscriber_</a></div><div class="ttdeci">rclcpp::Subscription&lt; geometry_msgs::msg::PoseStamped &gt;::SharedPtr goal_pose_subscriber_</div><div class="ttdoc">Subscriber for goal pose.</div><div class="ttdef"><b>Definition</b> <a href="plan__route__action__client_8hpp_source.html#l00152">plan_route_action_client.hpp:152</a></div></div>
 </div><!-- fragment -->
 </div>
 </div>
@@ -1088,7 +1168,59 @@ template&lt;typename T &gt; </div>
 
 <p>Action client. </p>
 
-<p class="definition">Definition at line <a class="el" href="plan__route__action__client_8hpp_source.html#l00153">153</a> of file <a class="el" href="plan__route__action__client_8hpp_source.html">plan_route_action_client.hpp</a>.</p>
+<p class="definition">Definition at line <a class="el" href="plan__route__action__client_8hpp_source.html#l00157">157</a> of file <a class="el" href="plan__route__action__client_8hpp_source.html">plan_route_action_client.hpp</a>.</p>
+
+</div>
+</div>
+<a id="a1b85f353baf77516a5b290532673f781" name="a1b85f353baf77516a5b290532673f781"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a1b85f353baf77516a5b290532673f781">&#9670;&#160;</a></span>active_waypoint_wait_time_s_</h2>
+
+<div class="memitem">
+<div class="memproto">
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">double plan_route_action_client::PlanRouteActionClient::active_waypoint_wait_time_s_ = 0.0</td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">private</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+<p>Wait time of the active waypoint [s]. </p>
+
+<p class="definition">Definition at line <a class="el" href="plan__route__action__client_8hpp_source.html#l00197">197</a> of file <a class="el" href="plan__route__action__client_8hpp_source.html">plan_route_action_client.hpp</a>.</p>
+
+</div>
+</div>
+<a id="a4d909d65a512089b6208fc4d1ff04667" name="a4d909d65a512089b6208fc4d1ff04667"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a4d909d65a512089b6208fc4d1ff04667">&#9670;&#160;</a></span>auto_planning_resume_time_s_</h2>
+
+<div class="memitem">
+<div class="memproto">
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">double plan_route_action_client::PlanRouteActionClient::auto_planning_resume_time_s_ = 0.0</td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">private</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+<p>Earliest wall-clock time at which automatic planning may continue. </p>
+
+<p class="definition">Definition at line <a class="el" href="plan__route__action__client_8hpp_source.html#l00202">202</a> of file <a class="el" href="plan__route__action__client_8hpp_source.html">plan_route_action_client.hpp</a>.</p>
 
 </div>
 </div>
@@ -1114,7 +1246,7 @@ template&lt;typename T &gt; </div>
 
 <p>Timer to automatically plan route, e.g., if waypoints are given. </p>
 
-<p class="definition">Definition at line <a class="el" href="plan__route__action__client_8hpp_source.html#l00163">163</a> of file <a class="el" href="plan__route__action__client_8hpp_source.html">plan_route_action_client.hpp</a>.</p>
+<p class="definition">Definition at line <a class="el" href="plan__route__action__client_8hpp_source.html#l00167">167</a> of file <a class="el" href="plan__route__action__client_8hpp_source.html">plan_route_action_client.hpp</a>.</p>
 
 </div>
 </div>
@@ -1140,7 +1272,7 @@ template&lt;typename T &gt; </div>
 
 <p>Auto-reconfigurable parameters for dynamic reconfiguration. </p>
 
-<p class="definition">Definition at line <a class="el" href="plan__route__action__client_8hpp_source.html#l00138">138</a> of file <a class="el" href="plan__route__action__client_8hpp_source.html">plan_route_action_client.hpp</a>.</p>
+<p class="definition">Definition at line <a class="el" href="plan__route__action__client_8hpp_source.html#l00142">142</a> of file <a class="el" href="plan__route__action__client_8hpp_source.html">plan_route_action_client.hpp</a>.</p>
 
 </div>
 </div>
@@ -1166,7 +1298,7 @@ template&lt;typename T &gt; </div>
 
 <p>Flag to cancel the route planning action (parameter) </p>
 
-<p class="definition">Definition at line <a class="el" href="plan__route__action__client_8hpp_source.html#l00212">212</a> of file <a class="el" href="plan__route__action__client_8hpp_source.html">plan_route_action_client.hpp</a>.</p>
+<p class="definition">Definition at line <a class="el" href="plan__route__action__client_8hpp_source.html#l00236">236</a> of file <a class="el" href="plan__route__action__client_8hpp_source.html">plan_route_action_client.hpp</a>.</p>
 
 </div>
 </div>
@@ -1193,7 +1325,7 @@ template&lt;typename T &gt; </div>
 <p>Whether to continuously plan a new route (parameter) </p>
 <p>Either to the next waypoint or to a random destination, if enabled </p>
 
-<p class="definition">Definition at line <a class="el" href="plan__route__action__client_8hpp_source.html#l00207">207</a> of file <a class="el" href="plan__route__action__client_8hpp_source.html">plan_route_action_client.hpp</a>.</p>
+<p class="definition">Definition at line <a class="el" href="plan__route__action__client_8hpp_source.html#l00231">231</a> of file <a class="el" href="plan__route__action__client_8hpp_source.html">plan_route_action_client.hpp</a>.</p>
 
 </div>
 </div>
@@ -1219,7 +1351,7 @@ template&lt;typename T &gt; </div>
 
 <p>Whether to plan a route to a random destination (parameter) </p>
 
-<p class="definition">Definition at line <a class="el" href="plan__route__action__client_8hpp_source.html#l00200">200</a> of file <a class="el" href="plan__route__action__client_8hpp_source.html">plan_route_action_client.hpp</a>.</p>
+<p class="definition">Definition at line <a class="el" href="plan__route__action__client_8hpp_source.html#l00224">224</a> of file <a class="el" href="plan__route__action__client_8hpp_source.html">plan_route_action_client.hpp</a>.</p>
 
 </div>
 </div>
@@ -1245,7 +1377,7 @@ template&lt;typename T &gt; </div>
 
 <p>Goal handle. </p>
 
-<p class="definition">Definition at line <a class="el" href="plan__route__action__client_8hpp_source.html#l00158">158</a> of file <a class="el" href="plan__route__action__client_8hpp_source.html">plan_route_action_client.hpp</a>.</p>
+<p class="definition">Definition at line <a class="el" href="plan__route__action__client_8hpp_source.html#l00162">162</a> of file <a class="el" href="plan__route__action__client_8hpp_source.html">plan_route_action_client.hpp</a>.</p>
 
 </div>
 </div>
@@ -1271,7 +1403,33 @@ template&lt;typename T &gt; </div>
 
 <p>Subscriber for goal pose. </p>
 
-<p class="definition">Definition at line <a class="el" href="plan__route__action__client_8hpp_source.html#l00148">148</a> of file <a class="el" href="plan__route__action__client_8hpp_source.html">plan_route_action_client.hpp</a>.</p>
+<p class="definition">Definition at line <a class="el" href="plan__route__action__client_8hpp_source.html#l00152">152</a> of file <a class="el" href="plan__route__action__client_8hpp_source.html">plan_route_action_client.hpp</a>.</p>
+
+</div>
+</div>
+<a id="a28490c05351272002b8e37849074f8b9" name="a28490c05351272002b8e37849074f8b9"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a28490c05351272002b8e37849074f8b9">&#9670;&#160;</a></span>has_active_waypoint_</h2>
+
+<div class="memitem">
+<div class="memproto">
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">bool plan_route_action_client::PlanRouteActionClient::has_active_waypoint_ = false</td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">private</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+<p>Whether the active goal belongs to the waypoint list. </p>
+
+<p class="definition">Definition at line <a class="el" href="plan__route__action__client_8hpp_source.html#l00192">192</a> of file <a class="el" href="plan__route__action__client_8hpp_source.html">plan_route_action_client.hpp</a>.</p>
 
 </div>
 </div>
@@ -1297,7 +1455,7 @@ template&lt;typename T &gt; </div>
 
 <p>Whether one goal has been completed (succeeded or failed) </p>
 
-<p class="definition">Definition at line <a class="el" href="plan__route__action__client_8hpp_source.html#l00183">183</a> of file <a class="el" href="plan__route__action__client_8hpp_source.html">plan_route_action_client.hpp</a>.</p>
+<p class="definition">Definition at line <a class="el" href="plan__route__action__client_8hpp_source.html#l00207">207</a> of file <a class="el" href="plan__route__action__client_8hpp_source.html">plan_route_action_client.hpp</a>.</p>
 
 </div>
 </div>
@@ -1323,7 +1481,7 @@ template&lt;typename T &gt; </div>
 
 <p>Lanelet2 map interface. </p>
 
-<p class="definition">Definition at line <a class="el" href="plan__route__action__client_8hpp_source.html#l00168">168</a> of file <a class="el" href="plan__route__action__client_8hpp_source.html">plan_route_action_client.hpp</a>.</p>
+<p class="definition">Definition at line <a class="el" href="plan__route__action__client_8hpp_source.html#l00172">172</a> of file <a class="el" href="plan__route__action__client_8hpp_source.html">plan_route_action_client.hpp</a>.</p>
 
 </div>
 </div>
@@ -1349,7 +1507,7 @@ template&lt;typename T &gt; </div>
 
 <p>Name of lanelet2_map_server node (parameter) </p>
 
-<p class="definition">Definition at line <a class="el" href="plan__route__action__client_8hpp_source.html#l00188">188</a> of file <a class="el" href="plan__route__action__client_8hpp_source.html">plan_route_action_client.hpp</a>.</p>
+<p class="definition">Definition at line <a class="el" href="plan__route__action__client_8hpp_source.html#l00212">212</a> of file <a class="el" href="plan__route__action__client_8hpp_source.html">plan_route_action_client.hpp</a>.</p>
 
 </div>
 </div>
@@ -1375,7 +1533,7 @@ template&lt;typename T &gt; </div>
 
 <p>Index of next waypoint to follow. </p>
 
-<p class="definition">Definition at line <a class="el" href="plan__route__action__client_8hpp_source.html#l00178">178</a> of file <a class="el" href="plan__route__action__client_8hpp_source.html">plan_route_action_client.hpp</a>.</p>
+<p class="definition">Definition at line <a class="el" href="plan__route__action__client_8hpp_source.html#l00187">187</a> of file <a class="el" href="plan__route__action__client_8hpp_source.html">plan_route_action_client.hpp</a>.</p>
 
 </div>
 </div>
@@ -1401,7 +1559,33 @@ template&lt;typename T &gt; </div>
 
 <p>Callback handle for dynamic parameter reconfiguration. </p>
 
-<p class="definition">Definition at line <a class="el" href="plan__route__action__client_8hpp_source.html#l00143">143</a> of file <a class="el" href="plan__route__action__client_8hpp_source.html">plan_route_action_client.hpp</a>.</p>
+<p class="definition">Definition at line <a class="el" href="plan__route__action__client_8hpp_source.html#l00147">147</a> of file <a class="el" href="plan__route__action__client_8hpp_source.html">plan_route_action_client.hpp</a>.</p>
+
+</div>
+</div>
+<a id="a2617009b882a29e10c5a2379d77b51e3" name="a2617009b882a29e10c5a2379d77b51e3"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a2617009b882a29e10c5a2379d77b51e3">&#9670;&#160;</a></span>waypoint_wait_times_</h2>
+
+<div class="memitem">
+<div class="memproto">
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">std::vector&lt;double&gt; plan_route_action_client::PlanRouteActionClient::waypoint_wait_times_</td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">private</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+<p>Wait time for each waypoint [s]; negative values mark intermediate destinations. </p>
+
+<p class="definition">Definition at line <a class="el" href="plan__route__action__client_8hpp_source.html#l00182">182</a> of file <a class="el" href="plan__route__action__client_8hpp_source.html">plan_route_action_client.hpp</a>.</p>
 
 </div>
 </div>
@@ -1427,7 +1611,7 @@ template&lt;typename T &gt; </div>
 
 <p>WGS84 waypoints to endlessly follow. </p>
 
-<p class="definition">Definition at line <a class="el" href="plan__route__action__client_8hpp_source.html#l00173">173</a> of file <a class="el" href="plan__route__action__client_8hpp_source.html">plan_route_action_client.hpp</a>.</p>
+<p class="definition">Definition at line <a class="el" href="plan__route__action__client_8hpp_source.html#l00177">177</a> of file <a class="el" href="plan__route__action__client_8hpp_source.html">plan_route_action_client.hpp</a>.</p>
 
 </div>
 </div>
@@ -1452,9 +1636,9 @@ template&lt;typename T &gt; </div>
 </div><div class="memdoc">
 
 <p>WGS84 waypoints to endlessly follow (parameter) </p>
-<p>list of strings with comma-separated '&lt;LATITUDE&gt;,&lt;LONGITUDE&gt;' </p>
+<p>list of strings with comma-separated '&lt;LATITUDE&gt;,&lt;LONGITUDE&gt;[,&lt;WAIT_TIME_S&gt;]' </p>
 
-<p class="definition">Definition at line <a class="el" href="plan__route__action__client_8hpp_source.html#l00195">195</a> of file <a class="el" href="plan__route__action__client_8hpp_source.html">plan_route_action_client.hpp</a>.</p>
+<p class="definition">Definition at line <a class="el" href="plan__route__action__client_8hpp_source.html#l00219">219</a> of file <a class="el" href="plan__route__action__client_8hpp_source.html">plan_route_action_client.hpp</a>.</p>
 
 </div>
 </div>

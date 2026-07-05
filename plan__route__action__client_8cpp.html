@@ -28,7 +28,7 @@
  <tbody>
  <tr id="projectrow">
   <td id="projectalign">
-   <div id="projectname">lanelet2_route_planning<span id="projectnumber">&#160;v1.1.0</span>
+   <div id="projectname">lanelet2_route_planning<span id="projectnumber">&#160;v1.2.0</span>
    </div>
   </td>
  </tr>
@@ -107,6 +107,8 @@ $(function(){initNavTree('plan__route__action__client_8cpp.html',''); initResiza
 <code>#include &lt;functional&gt;</code><br />
 <code>#include &lt;iterator&gt;</code><br />
 <code>#include &lt;optional&gt;</code><br />
+<code>#include &lt;sstream&gt;</code><br />
+<code>#include &lt;stdexcept&gt;</code><br />
 <code>#include &lt;lanelet2_core/geometry/LaneletMap.h&gt;</code><br />
 <code>#include &lt;tf2/LinearMath/Quaternion.h&gt;</code><br />
 <code>#include &lt;tf2_geometry_msgs/tf2_geometry_msgs.hpp&gt;</code><br />
@@ -121,9 +123,9 @@ Namespaces</h2></td></tr>
 </table><table class="memberdecls">
 <tr class="heading"><td colspan="2"><h2 class="groupheader"><a id="func-members" name="func-members"></a>
 Functions</h2></td></tr>
-<tr class="memitem:a4db854bd5d101b2d3478a5e48ab8ae25" id="r_a4db854bd5d101b2d3478a5e48ab8ae25"><td class="memItemLeft" align="right" valign="top">std::optional&lt; std::vector&lt; std::pair&lt; double, double &gt; &gt; &gt;&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="namespaceplan__route__action__client.html#a4db854bd5d101b2d3478a5e48ab8ae25">plan_route_action_client::parseWaypoints</a> (const std::vector&lt; std::string &gt; &amp;waypoints_param)</td></tr>
-<tr class="memdesc:a4db854bd5d101b2d3478a5e48ab8ae25"><td class="mdescLeft">&#160;</td><td class="mdescRight">Parses WGS84 waypoints from "&lt;LATITUDE&gt;,&lt;LONGITUDE&gt;" strings.  <br /></td></tr>
-<tr class="separator:a4db854bd5d101b2d3478a5e48ab8ae25"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a25e3adc12a2cbcdba0a493e1d4461eeb" id="r_a25e3adc12a2cbcdba0a493e1d4461eeb"><td class="memItemLeft" align="right" valign="top">std::optional&lt; std::vector&lt; std::pair&lt; double, double &gt; &gt; &gt;&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="namespaceplan__route__action__client.html#a25e3adc12a2cbcdba0a493e1d4461eeb">plan_route_action_client::parseWaypoints</a> (const std::vector&lt; std::string &gt; &amp;waypoints_param, std::vector&lt; double &gt; &amp;waypoint_wait_times, const rclcpp::Logger &amp;logger)</td></tr>
+<tr class="memdesc:a25e3adc12a2cbcdba0a493e1d4461eeb"><td class="mdescLeft">&#160;</td><td class="mdescRight">Parses WGS84 waypoints from "&lt;LATITUDE&gt;,&lt;LONGITUDE&gt;[,&lt;WAIT_TIME_S&gt;]" strings.  <br /></td></tr>
+<tr class="separator:a25e3adc12a2cbcdba0a493e1d4461eeb"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a0ddf1224851353fc92bfbff6f499fa97" id="r_a0ddf1224851353fc92bfbff6f499fa97"><td class="memItemLeft" align="right" valign="top">int&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="#a0ddf1224851353fc92bfbff6f499fa97">main</a> (int argc, char *argv[])</td></tr>
 <tr class="memdesc:a0ddf1224851353fc92bfbff6f499fa97"><td class="mdescLeft">&#160;</td><td class="mdescRight">Starts the ROS node.  <br /></td></tr>
 <tr class="separator:a0ddf1224851353fc92bfbff6f499fa97"><td class="memSeparator" colspan="2">&#160;</td></tr>
@@ -158,14 +160,14 @@ Functions</h2></td></tr>
 </dl>
 <dl class="section return"><dt>Returns</dt><dd>process exit code </dd></dl>
 
-<p class="definition">Definition at line <a class="el" href="plan__route__action__client_8cpp_source.html#l00399">399</a> of file <a class="el" href="plan__route__action__client_8cpp_source.html">plan_route_action_client.cpp</a>.</p>
-<div class="fragment"><div class="line"><span class="lineno">  399</span>                                 {</div>
-<div class="line"><span class="lineno">  400</span>  rclcpp::init(argc, argv);</div>
-<div class="line"><span class="lineno">  401</span>  rclcpp::spin(std::make_shared&lt;plan_route_action_client::PlanRouteActionClient&gt;());</div>
-<div class="line"><span class="lineno">  402</span>  rclcpp::shutdown();</div>
-<div class="line"><span class="lineno">  403</span> </div>
-<div class="line"><span class="lineno">  404</span>  <span class="keywordflow">return</span> 0;</div>
-<div class="line"><span class="lineno">  405</span>}</div>
+<p class="definition">Definition at line <a class="el" href="plan__route__action__client_8cpp_source.html#l00482">482</a> of file <a class="el" href="plan__route__action__client_8cpp_source.html">plan_route_action_client.cpp</a>.</p>
+<div class="fragment"><div class="line"><span class="lineno">  482</span>                                 {</div>
+<div class="line"><span class="lineno">  483</span>  rclcpp::init(argc, argv);</div>
+<div class="line"><span class="lineno">  484</span>  rclcpp::spin(std::make_shared&lt;plan_route_action_client::PlanRouteActionClient&gt;());</div>
+<div class="line"><span class="lineno">  485</span>  rclcpp::shutdown();</div>
+<div class="line"><span class="lineno">  486</span> </div>
+<div class="line"><span class="lineno">  487</span>  <span class="keywordflow">return</span> 0;</div>
+<div class="line"><span class="lineno">  488</span>}</div>
 </div><!-- fragment -->
 </div>
 </div>
