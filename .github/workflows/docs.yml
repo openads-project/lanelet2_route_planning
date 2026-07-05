@@ -8,5 +8,5 @@ on:
 
 jobs:
   docs:
-    uses: openads-project/openads-dev-environment/.github/workflows/docs.yml@main
+    uses: openads-project/openads-dev-environment/.github/workflows/docs.yml@fix/docs-missing-submodule-commits
     secrets: inherit
