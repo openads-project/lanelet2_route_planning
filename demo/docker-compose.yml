@@ -9,15 +9,12 @@ services:
         namespace:=/planning
 
   lanelet2-map-server:
-    image: ghcr.io/openads-project/lanelet2_map_server:v1.2.1
+    image: ghcr.io/openads-project/lanelet2_map_server:v1.2.2
     environment:
       RMW_IMPLEMENTATION: rmw_fastrtps_cpp
     command: |
       ros2 launch lanelet2_map_server lanelet2_map_server_launch.py
         namespace:=/localization
-    volumes:
-      - ./lanelet2_map_server/params.yml:/docker-ros/ws/install/lanelet2_map_server/share/lanelet2_map_server/config/params.yml
-      - ./lanelet2_map_server/maps:/data/maps
 
   ego-data-publisher:
     image: ghcr.io/openads-project/lanelet2_route_planning:demo-monitoring
