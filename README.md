@@ -1,7 +1,7 @@
 # lanelet2_route_planning
 
 <p align="center">
-  <a href="https://github.com/openads-project"><img src="https://img.shields.io/badge/OpenADS-f5ff01"/></a>
+  <a href="https://openads-project.github.io"><img src="https://img.shields.io/badge/OpenADS-f5ff01"/></a>
   <a href="https://www.ros.org"><img src="https://img.shields.io/badge/ROS 2-jazzy-22314e"/></a>
   <a href="https://github.com/openads-project/lanelet2_route_planning/releases/latest"><img src="https://img.shields.io/github/v/release/openads-project/lanelet2_route_planning"/></a>
   <a href="https://github.com/openads-project/lanelet2_route_planning/blob/main/LICENSE"><img src="https://img.shields.io/github/license/openads-project/lanelet2_route_planning"/></a>
