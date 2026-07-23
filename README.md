@@ -1,7 +1,7 @@
 # lanelet2_route_planning
 
 <p align="center">
-  <a href="https://github.com/openads-project"><img src="https://img.shields.io/badge/OpenADS-f5ff01"/></a>
+  <a href="https://openads-project.github.io"><img src="https://img.shields.io/badge/OpenADS-f5ff01"/></a>
   <a href="https://www.ros.org"><img src="https://img.shields.io/badge/ROS 2-jazzy-22314e"/></a>
   <a href="https://github.com/openads-project/lanelet2_route_planning/releases/latest"><img src="https://img.shields.io/github/v/release/openads-project/lanelet2_route_planning"/></a>
   <a href="https://github.com/openads-project/lanelet2_route_planning/blob/main/LICENSE"><img src="https://img.shields.io/github/license/openads-project/lanelet2_route_planning"/></a>
@@ -21,7 +21,7 @@ The [lanelet2_route_planning](lanelet2_route_planning/README.md) node plans a (s
 </p>
 
 > [!IMPORTANT]
-> This repository is part of [***OpenADS***](https://github.com/openads-project), the *Open Automated Driving Systems* project. *OpenADS* and its modules have been initiated and are currently being maintained by the [**Institute for Automotive Engineering (ika) at RWTH Aachen University**](https://www.ika.rwth-aachen.de/de/).
+> This repository is part of [***OpenADS***](https://openads-project.github.io/), the *Open Automated Driving Systems* project. *OpenADS* and its modules have been initiated and are currently being maintained by the [**Institute for Automotive Engineering (ika) at RWTH Aachen University**](https://www.ika.rwth-aachen.de/de/).
 
 ## 🚀 Quick Start
 
