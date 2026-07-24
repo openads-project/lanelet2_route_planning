@@ -1,4 +1,4 @@
-name: helm-push
+name: helm
 
 on:
   push:
@@ -9,7 +9,7 @@ on:
   workflow_dispatch:
 
 jobs:
-  helm-push:
+  helm:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
