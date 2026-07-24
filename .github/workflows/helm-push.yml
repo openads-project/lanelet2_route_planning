@@ -1,0 +1,26 @@
+name: helm-push
+
+on:
+  push:
+    branches:
+      - '**'
+    tags:
+      - '**'
+  workflow_dispatch:
+
+jobs:
+  helm-push:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      - name: Push Helm chart
+        uses: bsord/helm-push@5ec3320fb5720a0a5aa210d871999f2b836f2d97
+        with:
+          useOCIRegistry: true
+          registry-url:  oci://ghcr.io/${{ github.repository }}
+          username: ${{ github.actor }}
+          access-token: ${{ secrets.GITHUB_TOKEN }}
+          chart-folder: helm/lanelet2-route-planning
+          force: true
+          update-dependencies: true
