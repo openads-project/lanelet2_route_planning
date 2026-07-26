@@ -1,4 +1,4 @@
-its-module:
+openadservice:
   name: lanelet2-route-planning
   imageName: ghcr.io/openads-project/lanelet2_route_planning
   imageTag: v1.2.0
