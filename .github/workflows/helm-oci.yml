@@ -1,0 +1,14 @@
+name: helm-oci
+
+on: # TODO
+  push:
+    branches:
+      - '**'
+    tags:
+      - '**'
+  workflow_dispatch:
+
+jobs:
+  helm-oci:
+    uses: openads-project/openads-dev-environment/.github/workflows/helm-oci.yml@helm # TODO: main
+    secrets: inherit
