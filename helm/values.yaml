@@ -22,8 +22,8 @@ openadservice:
     # --- outputs ---
     ROUTE_TOPIC: ~/route
     # --- other -----
-    LOG_LEVEL: ${LOG_LEVEL:-info}
-    USE_SIM_TIME: ${USE_SIM_TIME:-false}
-    PARAMS: ${PARAMS:-/docker-ros/ws/install/lanelet2_route_planning/share/lanelet2_route_planning/config/params.yml}
+    LOG_LEVEL: info
+    USE_SIM_TIME: false
+    PARAMS: /docker-ros/ws/install/lanelet2_route_planning/share/lanelet2_route_planning/config/params.yml
   rosParamFileMountPath: /docker-ros/ws/install/lanelet2_route_planning/share/lanelet2_route_planning/config/params.yml
   rosParamFileData: null
