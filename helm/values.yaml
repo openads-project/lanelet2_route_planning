@@ -1,11 +1,9 @@
 openadservice:
   name: lanelet2-route-planning
-  imageName: ghcr.io/openads-project/lanelet2_route_planning
-  imageTag: v1.2.0
+  image: ghcr.io/openads-project/lanelet2_route_planning:v1.2.0
   command:
   - /bin/bash
   - -ic
-  args:
   - |
     ros2 launch lanelet2_route_planning lanelet2_route_planning_launch.py \
       namespace:=${NAMESPACE} \
@@ -15,7 +13,7 @@ openadservice:
       params:=${PARAMS} \
       ego_data_topic:=${EGO_DATA_TOPIC} \
       route_topic:=${ROUTE_TOPIC}
-  env:
+  environment:
     # --- name ------
     NAMESPACE: /
     NAME: lanelet2_route_planning
