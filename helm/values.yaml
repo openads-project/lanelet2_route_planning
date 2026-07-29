@@ -1,18 +1,6 @@
 openadservice:
   name: lanelet2-route-planning
   image: ghcr.io/openads-project/lanelet2_route_planning:v1.2.0
-  command:
-  - /bin/bash
-  - -ic
-  - |
-    ros2 launch lanelet2_route_planning lanelet2_route_planning_launch.py \
-      namespace:=${NAMESPACE} \
-      name:=${NAME} \
-      log_level:=${LOG_LEVEL} \
-      use_sim_time:=${USE_SIM_TIME} \
-      params:=${PARAMS} \
-      ego_data_topic:=${EGO_DATA_TOPIC} \
-      route_topic:=${ROUTE_TOPIC}
   environment:
     # --- name ------
     NAMESPACE: /
@@ -25,5 +13,17 @@ openadservice:
     LOG_LEVEL: info
     USE_SIM_TIME: false
     PARAMS: /docker-ros/ws/install/lanelet2_route_planning/share/lanelet2_route_planning/config/params.yml
+  command:
+  - /bin/bash
+  - -ic
+  - |
+    ros2 launch lanelet2_route_planning lanelet2_route_planning_launch.py \
+      namespace:=${NAMESPACE} \
+      name:=${NAME} \
+      log_level:=${LOG_LEVEL} \
+      use_sim_time:=${USE_SIM_TIME} \
+      params:=${PARAMS} \
+      ego_data_topic:=${EGO_DATA_TOPIC} \
+      route_topic:=${ROUTE_TOPIC}
   rosParamFileMountPath: /docker-ros/ws/install/lanelet2_route_planning/share/lanelet2_route_planning/config/params.yml
   rosParamFileData: null
