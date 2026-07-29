@@ -8,17 +8,5 @@ on:
 
 jobs:
   ghcr-cleanup:
-    runs-on: ubuntu-latest
-    permissions:
-      packages: write
-    steps:
-      - uses: dataaxiom/ghcr-cleanup-action@v1.2.2
-        with:
-          dry-run: true
-          use-regex: true
-          delete-tags: ".*_ci.*"
-          exclude-tags: "^v[0-9]+.[0-9]+.[0-9]+"
-          delete-untagged: true
-          delete-ghost-images: true
-          delete-partial-images: true
-          delete-orphaned-images: true
+    uses: openads-project/openads-dev-environment/.github/workflows/ghcr-cleanup.yml@helm # TODO: main
+    secrets: inherit
