@@ -1,7 +1,7 @@
 openadservice:
   name: lanelet2-route-planning
   image: ghcr.io/openads-project/lanelet2_route_planning:v1.2.0
-  environment:
+  env:
     # --- name ------
     NAMESPACE: /
     NAME: lanelet2_route_planning
@@ -13,7 +13,7 @@ openadservice:
     LOG_LEVEL: info
     USE_SIM_TIME: false
     PARAMS: /docker-ros/ws/install/lanelet2_route_planning/share/lanelet2_route_planning/config/params.yml
-  command:
+  args:
   - /bin/bash
   - -ic
   - |
