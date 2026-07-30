@@ -13,5 +13,5 @@ on:
 
 jobs:
   helm-oci:
-    uses: openads-project/openads-dev-environment/.github/workflows/helm-oci.yml@helm # TODO: main
+    uses: openads-project/openads-dev-environment/.github/workflows/helm-oci.yml@main
     secrets: inherit
