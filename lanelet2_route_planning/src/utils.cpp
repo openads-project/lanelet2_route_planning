@@ -614,8 +614,7 @@ std::pair<uint8_t, uint8_t> regulatoryElementType(const std::shared_ptr<const la
       meta_value = regulatoryElementSpeedLimit(regulatory_element);
     } else if (subtype == "right_of_way") {
       type = route_planning_msgs::msg::RegulatoryElement::TYPE_YIELD;
-      const auto traffic_signs =
-          regulatory_element->getParameters<lanelet::ConstLineString3d>(lanelet::RoleName::Refers);
+      const auto traffic_signs = regulatory_element->getParameters<lanelet::ConstLineString3d>(lanelet::RoleName::Refers);
       const bool has_stop_sign = std::any_of(traffic_signs.begin(), traffic_signs.end(), [](const auto& traffic_sign) {
         return traffic_sign.hasAttribute("subtype") && traffic_sign.attribute("subtype").value() == "de206";
       });
