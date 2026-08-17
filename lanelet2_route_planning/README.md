@@ -43,8 +43,8 @@ flowchart LR
 | `publish_frequency` | `float` | `10.0` | Frequency of route publication [Hz] |
 | `action_feedback_frequency` | `float` | `1.0` | Frequency of action feedback publication [Hz] |
 | `sampling_distance` | `float` | `1.0` | Distance between resampled points along route [m] |
-| `max_adaptive_sampling_distance` | `float` | `100.0` | Maximum adaptive sampling distance [m]; adaptive sampling is disabled if this value is <= `sampling_distance` |
-| `max_adaptive_sampling_at_distance` | `float` | `2000.0` | Distance from ego where `max_adaptive_sampling_distance` is reached [m]. Adaptive sampling is disabled if this value is <= `max(enrich_route_ahead_ego_distance, enrich_route_behind_ego_distance)`. In the valid range, sampling increases linearly from each side's local enriched boundary up to this distance. |
+| `max_adaptive_sampling_distance` | `float` | `100.0` | Maximum adaptive sampling distance [m] (<= sampling_distance deactivates adaptive sampling) |
+| `max_adaptive_sampling_at_distance` | `float` | `2000.0` | Distance from ego where max_adaptive_sampling_distance is reached [m] |
 | `project_destination_to_reference_line` | `bool` | `true` | Whether to project destination to reference line |
 | `destination_distance_threshold` | `float` | `1.0` | Distance to destination where destination is considered reached [m] |
 | `required_traveled_distance_proportion` | `float` | `0.5` | Proportion of route length that must have been traveled before considering destination reached [0..1] |
