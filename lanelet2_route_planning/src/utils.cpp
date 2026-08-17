@@ -187,10 +187,8 @@ bool adaptiveSamplingEnabled(const double sampling_distance,
                              const double enrich_route_ahead_ego_distance,
                              const double enrich_route_behind_ego_distance) {
   const double side_enrichment_boundary = std::max(enrich_route_ahead_ego_distance, enrich_route_behind_ego_distance);
-  return max_adaptive_sampling_distance > sampling_distance &&
-         max_adaptive_sampling_at_distance > 0.0 &&
-         max_adaptive_sampling_at_distance > side_enrichment_boundary &&
-         std::isfinite(side_enrichment_boundary);
+  return max_adaptive_sampling_distance > sampling_distance && max_adaptive_sampling_at_distance > 0.0 &&
+         max_adaptive_sampling_at_distance > side_enrichment_boundary && std::isfinite(side_enrichment_boundary);
 }
 
 double adaptiveTargetSamplingDistance(const double signed_distance,

@@ -348,17 +348,17 @@ class Lanelet2RoutePlanning : public rclcpp::Node {
    */
   double sampling_distance_ = 1.0;
 
-    /**
-     * @brief Maximum adaptive sampling distance [m] (parameter)
-     *
-     * If <= sampling_distance_, adaptive sampling is deactivated.
-     */
-    double max_adaptive_sampling_distance_ = 100.0;
+  /**
+   * @brief Maximum adaptive sampling distance [m] (parameter)
+   *
+   * If <= sampling_distance_, adaptive sampling is deactivated.
+   */
+  double max_adaptive_sampling_distance_ = 100.0;
 
-    /**
-     * @brief Distance from ego at which max_adaptive_sampling_distance_ is reached [m] (parameter)
-     */
-    double max_adaptive_sampling_at_distance_ = 2000.0;
+  /**
+   * @brief Distance from ego at which max_adaptive_sampling_distance_ is reached [m] (parameter)
+   */
+  double max_adaptive_sampling_at_distance_ = 2000.0;
 
   /**
    * @brief Whether to project destination to reference line (parameter)

@@ -158,14 +158,13 @@ double adaptiveTargetSamplingDistance(const double signed_distance,
  * @param[in] enrich_route_behind_ego_distance distance behind ego at which the local enriched zone ends [m]
  * @return indices to keep in the adaptive route subset
  */
-std::vector<size_t> adaptivelySampleRouteElementIndices(
-    const std::vector<route_planning_msgs::msg::RouteElement>& route_elements,
-    const size_t idx_ego,
-    const double sampling_distance,
-    const double max_adaptive_sampling_distance,
-    const double max_adaptive_sampling_at_distance,
-    const double enrich_route_ahead_ego_distance,
-    const double enrich_route_behind_ego_distance);
+std::vector<size_t> adaptivelySampleRouteElementIndices(const std::vector<route_planning_msgs::msg::RouteElement>& route_elements,
+                                                        const size_t idx_ego,
+                                                        const double sampling_distance,
+                                                        const double max_adaptive_sampling_distance,
+                                                        const double max_adaptive_sampling_at_distance,
+                                                        const double enrich_route_ahead_ego_distance,
+                                                        const double enrich_route_behind_ego_distance);
 
 /**
  * @brief Determines whether the path topology changes lane between two reference-line points.
