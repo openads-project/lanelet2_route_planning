@@ -1,7 +1,10 @@
 // Copyright Institute for Automotive Engineering (ika), RWTH Aachen University
 // SPDX-License-Identifier: Apache-2.0
 
+#include <algorithm>
+#include <cmath>
 #include <functional>
+#include <limits>
 #include <thread>
 #include <tuple>
 #include <utility>
@@ -31,6 +34,12 @@ Lanelet2RoutePlanning::Lanelet2RoutePlanning() : Node("lanelet2_route_planning")
                                 "Frequency of action feedback publication [Hz]", true, false, false, 0.1, 20.0);
   this->declareAndLoadParameter("sampling_distance", sampling_distance_, "Distance between resampled points along route [m]",
                                 true, false, false, 0.1, 3.0);
+  this->declareAndLoadParameter("max_adaptive_sampling_distance", max_adaptive_sampling_distance_,
+                                "Maximum adaptive sampling distance [m] (<= sampling_distance deactivates adaptive sampling)",
+                                true, false, false, 0.1, 1000.0);
+  this->declareAndLoadParameter("max_adaptive_sampling_at_distance", max_adaptive_sampling_at_distance_,
+                                "Distance from ego where max_adaptive_sampling_distance is reached [m]", true, false, false,
+                                0.0, 10000.0);
   this->declareAndLoadParameter("project_destination_to_reference_line", project_destination_to_reference_line_,
                                 "Whether to project destination to reference line", true, false, false);
   this->declareAndLoadParameter("destination_distance_threshold", destination_distance_threshold_,
@@ -65,6 +74,17 @@ Lanelet2RoutePlanning::Lanelet2RoutePlanning() : Node("lanelet2_route_planning")
   }
   if (enrich_route_behind_ego_distance_ < 0.0) {
     enrich_route_behind_ego_distance_ = std::numeric_limits<double>::infinity();
+  }
+  const double max_enrichment_distance = std::max(enrich_route_ahead_ego_distance_, enrich_route_behind_ego_distance_);
+  if (max_adaptive_sampling_distance_ <= sampling_distance_) {
+    RCLCPP_INFO(this->get_logger(),
+                "Adaptive sampling disabled: max_adaptive_sampling_distance (%.3f) <= sampling_distance (%.3f)",
+                max_adaptive_sampling_distance_, sampling_distance_);
+  }
+  if (max_adaptive_sampling_at_distance_ <= max_enrichment_distance) {
+    RCLCPP_INFO(this->get_logger(),
+                "Adaptive sampling disabled: max_adaptive_sampling_at_distance (%.3f) <= max(enrich_route_ahead_ego_distance, enrich_route_behind_ego_distance) (%.3f)",
+                max_adaptive_sampling_at_distance_, max_enrichment_distance);
   }
   if (max_num_threads_ <= 0) {
     max_num_threads_ = omp_get_max_threads();
@@ -172,6 +192,17 @@ rcl_interfaces::msg::SetParametersResult Lanelet2RoutePlanning::parametersCallba
   }
   if (enrich_route_behind_ego_distance_ < 0.0) {
     enrich_route_behind_ego_distance_ = std::numeric_limits<double>::infinity();
+  }
+  const double max_enrichment_distance = std::max(enrich_route_ahead_ego_distance_, enrich_route_behind_ego_distance_);
+  if (max_adaptive_sampling_distance_ <= sampling_distance_) {
+    RCLCPP_INFO(this->get_logger(),
+                "Adaptive sampling disabled: max_adaptive_sampling_distance (%.3f) <= sampling_distance (%.3f)",
+                max_adaptive_sampling_distance_, sampling_distance_);
+  }
+  if (max_adaptive_sampling_at_distance_ <= max_enrichment_distance) {
+    RCLCPP_INFO(this->get_logger(),
+                "Adaptive sampling disabled: max_adaptive_sampling_at_distance (%.3f) <= max(enrich_route_ahead_ego_distance, enrich_route_behind_ego_distance) (%.3f)",
+                max_adaptive_sampling_at_distance_, max_enrichment_distance);
   }
   if (max_num_threads_ <= 0) {
     max_num_threads_ = omp_get_max_threads();
@@ -553,6 +584,7 @@ void Lanelet2RoutePlanning::buildGlobalRouteMessage() {
   std::vector<Eigen::Vector3d> shortest_path_centerline_3d = resampling_result.centerline;
   std::vector<Eigen::Vector2d> shortest_path_centerline = to2d(shortest_path_centerline_3d);
   latest_lanelet_idx_by_reference_line_point_idx_ = resampling_result.lanelet_idx_by_point;
+  latest_global_lanelet_idx_by_reference_line_point_idx_ = resampling_result.lanelet_idx_by_point;
 
   // fill route message with global reference line
   double accumulated_distance = 0;
@@ -566,10 +598,16 @@ void Lanelet2RoutePlanning::buildGlobalRouteMessage() {
     // get lanelet corresponding to centerline point
     const lanelet::ConstLanelet& lanelet = shortest_path[latest_lanelet_idx_by_reference_line_point_idx_[c]];
 
-    // identify lane changes based on break in equidistant centerline
+    // identify lane changes based on path topology (robust for adaptive sampling)
     const bool changes_lane_from_prev_point =
-        changesLaneFromPointToPoint(prev_point, point, sampling_distance_);  // NOLINT(readability-suspicious-call-argument)
-    const bool changes_lane_to_next_point = changesLaneFromPointToPoint(point, next_point, sampling_distance_);
+      (c > 0) ? changesLaneByPathTopology(shortest_path, latest_lanelet_idx_by_reference_line_point_idx_, routing_graph_,
+                        c - 1, c)
+          : false;
+    const bool changes_lane_to_next_point =
+      (c + 1 < shortest_path_centerline.size())
+        ? changesLaneByPathTopology(shortest_path, latest_lanelet_idx_by_reference_line_point_idx_, routing_graph_, c,
+                      c + 1)
+        : false;
 
     // compute orientation of centerline point
     Eigen::Vector2d prev_point_for_orientation = changes_lane_from_prev_point ? point : prev_point;
@@ -608,21 +646,56 @@ void Lanelet2RoutePlanning::buildGlobalRouteMessage() {
       indexOfLineStringPointClosestToPoint(shortest_path_centerline, toEigen2d(destination_), true, false);
 
   has_enriched_route_ = false;
+  latest_global_route_msg_ = route_msg;
   latest_route_msg_ = route_msg;
 }
 
 void Lanelet2RoutePlanning::buildEnrichedRouteMessage() {
-  route_planning_msgs::msg::Route route_msg = latest_route_msg_;
+  route_planning_msgs::msg::Route route_msg = latest_global_route_msg_;
   std::vector<route_planning_msgs::msg::RouteElement>& route_elements = route_msg.route_elements;
+  if (route_elements.empty()) {
+    return;
+  }
+
+  latest_lanelet_idx_by_reference_line_point_idx_ = latest_global_lanelet_idx_by_reference_line_point_idx_;
+
+  // adaptively decimate route elements around ego while preserving equidistant local sampling
+  const Eigen::Vector2d ego_position = toEigen2d(egoPosition(latest_ego_data_));
+  const std::vector<Eigen::Vector2d> global_reference_line = to2d(suggestedReferenceLineToEigen(route_elements));
+  size_t c_closest_point =
+      matchPointToLineString(global_reference_line, ego_position, route_msg.current_route_element_idx, true, true);
+  if (adaptiveSamplingEnabled(sampling_distance_, max_adaptive_sampling_distance_, max_adaptive_sampling_at_distance_,
+                              enrich_route_ahead_ego_distance_, enrich_route_behind_ego_distance_)) {
+    const std::vector<size_t> kept_indices =
+        adaptivelySampleRouteElementIndices(route_elements, c_closest_point, sampling_distance_,
+                                            max_adaptive_sampling_distance_, max_adaptive_sampling_at_distance_,
+                                            enrich_route_ahead_ego_distance_, enrich_route_behind_ego_distance_);
+    std::vector<route_planning_msgs::msg::RouteElement> sampled_route_elements;
+    sampled_route_elements.reserve(kept_indices.size());
+    std::vector<size_t> sampled_lanelet_indices;
+    sampled_lanelet_indices.reserve(kept_indices.size());
+    for (const size_t idx : kept_indices) {
+      sampled_route_elements.push_back(route_elements[idx]);
+      sampled_lanelet_indices.push_back(latest_lanelet_idx_by_reference_line_point_idx_[idx]);
+    }
+    route_elements = std::move(sampled_route_elements);
+    latest_lanelet_idx_by_reference_line_point_idx_ = std::move(sampled_lanelet_indices);
+  }
+
+  // determine starting/current/destination indices in route elements
+  const std::vector<Eigen::Vector2d> reference_line = to2d(suggestedReferenceLineToEigen(route_elements));
+  c_closest_point = matchPointToLineString(reference_line, ego_position, 0, true, true);
+  route_msg.starting_route_element_idx = matchPointToLineString(reference_line, toEigen2d(starting_point_), 0, true, true);
+  route_msg.current_route_element_idx = c_closest_point;
+  route_msg.destination_route_element_idx =
+      indexOfLineStringPointClosestToPoint(reference_line, toEigen2d(destination_), true, false);
+
   if (latest_suggested_turn_signal_distance_ahead_by_route_element_by_lane_element_.size() != route_elements.size()) {
     latest_suggested_turn_signal_distance_ahead_by_route_element_by_lane_element_ =
         std::vector<std::vector<int>>(route_elements.size());
   }
 
-  // find point of global reference line closest to and behind of ego position
-  const Eigen::Vector2d ego_position = toEigen2d(egoPosition(latest_ego_data_));
-  const std::vector<Eigen::Vector2d> reference_line = to2d(suggestedReferenceLineToEigen(route_elements));
-  size_t c_closest_point = matchPointToLineString(reference_line, ego_position, route_msg.current_route_element_idx, true, true);
+  lanelet::routing::LaneletPath shortest_path = latest_route_.shortestPath();
 
 // loop over global reference line in parallel
 #pragma omp parallel for
@@ -663,13 +736,19 @@ void Lanelet2RoutePlanning::buildEnrichedRouteMessage() {
     const double point_z = lane_element_msg.reference_pose.position.z;  // assuming constant z across route elements
 
     // get lanelet corresponding to centerline point
-    lanelet::routing::LaneletPath shortest_path = latest_route_.shortestPath();
     const lanelet::ConstLanelet& lanelet = shortest_path[latest_lanelet_idx_by_reference_line_point_idx_[c]];
 
     // identify lane changes
     const bool changes_lane_from_prev_point =
-        changesLaneFromPointToPoint(prev_point, point, sampling_distance_);  // NOLINT(readability-suspicious-call-argument)
-    const bool changes_lane_to_next_point = changesLaneFromPointToPoint(point, next_point, sampling_distance_);
+      (c > 0)
+        ? changesLaneByPathTopology(shortest_path, latest_lanelet_idx_by_reference_line_point_idx_, routing_graph_, c - 1,
+                      c)
+        : false;
+    const bool changes_lane_to_next_point =
+      (c + 1 < route_elements.size())
+        ? changesLaneByPathTopology(shortest_path, latest_lanelet_idx_by_reference_line_point_idx_, routing_graph_, c,
+                      c + 1)
+        : false;
 
     // determine neighboring points for projection
     Eigen::Vector2d prev_point_for_projection = changes_lane_from_prev_point ? point : prev_point;

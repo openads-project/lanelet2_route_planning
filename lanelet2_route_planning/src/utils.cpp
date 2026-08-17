@@ -181,6 +181,133 @@ bool changesLaneFromPointToPoint(const Eigen::Vector2d& point,
   return ((next_point - point).norm() > (sampling_distance + epsilon));
 }
 
+bool adaptiveSamplingEnabled(const double sampling_distance,
+                             const double max_adaptive_sampling_distance,
+                             const double max_adaptive_sampling_at_distance,
+                             const double enrich_route_ahead_ego_distance,
+                             const double enrich_route_behind_ego_distance) {
+  const double side_enrichment_boundary = std::max(enrich_route_ahead_ego_distance, enrich_route_behind_ego_distance);
+  return max_adaptive_sampling_distance > sampling_distance &&
+         max_adaptive_sampling_at_distance > 0.0 &&
+         max_adaptive_sampling_at_distance > side_enrichment_boundary &&
+         std::isfinite(side_enrichment_boundary);
+}
+
+double adaptiveTargetSamplingDistance(const double signed_distance,
+                                      const double sampling_distance,
+                                      const double max_adaptive_sampling_distance,
+                                      const double max_adaptive_sampling_at_distance,
+                                      const double enrich_route_ahead_ego_distance,
+                                      const double enrich_route_behind_ego_distance) {
+  if (!adaptiveSamplingEnabled(sampling_distance, max_adaptive_sampling_distance, max_adaptive_sampling_at_distance,
+                               enrich_route_ahead_ego_distance, enrich_route_behind_ego_distance)) {
+    return sampling_distance;
+  }
+
+  const bool is_ahead = (signed_distance >= 0.0);
+  const double enrich_distance = is_ahead ? enrich_route_ahead_ego_distance : enrich_route_behind_ego_distance;
+  const double distance = std::abs(signed_distance);
+  if (distance <= enrich_distance) {
+    return sampling_distance;
+  }
+  if (distance >= max_adaptive_sampling_at_distance) {
+    return max_adaptive_sampling_distance;
+  }
+
+  const double interpolation_range = max_adaptive_sampling_at_distance - enrich_distance;
+  if (interpolation_range <= 0.0) {
+    return sampling_distance;
+  }
+  const double t = std::clamp((distance - enrich_distance) / interpolation_range, 0.0, 1.0);
+  return (sampling_distance + t * (max_adaptive_sampling_distance - sampling_distance));
+}
+
+std::vector<size_t> adaptivelySampleRouteElementIndices(const std::vector<route_planning_msgs::msg::RouteElement>& route_elements,
+                                                        const size_t idx_ego,
+                                                        const double sampling_distance,
+                                                        const double max_adaptive_sampling_distance,
+                                                        const double max_adaptive_sampling_at_distance,
+                                                        const double enrich_route_ahead_ego_distance,
+                                                        const double enrich_route_behind_ego_distance) {
+  if (route_elements.empty()) {
+    return {};
+  }
+
+  std::vector<bool> keep(route_elements.size(), false);
+  const size_t idx_ego_clamped = std::min(idx_ego, route_elements.size() - 1);
+  keep[idx_ego_clamped] = true;
+  const double s_ego = route_elements[idx_ego_clamped].s;
+  constexpr double epsilon = 1e-6;
+
+  size_t last_kept_idx = idx_ego_clamped;
+  for (size_t c = idx_ego_clamped + 1; c < route_elements.size(); ++c) {
+    const double signed_distance = route_elements[c].s - s_ego;
+    const double target_spacing = adaptiveTargetSamplingDistance(
+        signed_distance, sampling_distance, max_adaptive_sampling_distance, max_adaptive_sampling_at_distance,
+        enrich_route_ahead_ego_distance, enrich_route_behind_ego_distance);
+    if ((route_elements[c].s - route_elements[last_kept_idx].s) + epsilon >= target_spacing) {
+      keep[c] = true;
+      last_kept_idx = c;
+    }
+  }
+
+  last_kept_idx = idx_ego_clamped;
+  for (size_t c = idx_ego_clamped; c-- > 0;) {
+    const double signed_distance = route_elements[c].s - s_ego;
+    const double target_spacing = adaptiveTargetSamplingDistance(
+        signed_distance, sampling_distance, max_adaptive_sampling_distance, max_adaptive_sampling_at_distance,
+        enrich_route_ahead_ego_distance, enrich_route_behind_ego_distance);
+    if ((route_elements[last_kept_idx].s - route_elements[c].s) + epsilon >= target_spacing) {
+      keep[c] = true;
+      last_kept_idx = c;
+    }
+  }
+
+  keep.front() = true;
+  keep.back() = true;
+
+  std::vector<size_t> kept_indices;
+  kept_indices.reserve(route_elements.size());
+  for (size_t c = 0; c < keep.size(); ++c) {
+    if (keep[c]) {
+      kept_indices.push_back(c);
+    }
+  }
+  return kept_indices;
+}
+
+bool changesLaneByPathTopology(const lanelet::routing::LaneletPath& shortest_path,
+                               const std::vector<size_t>& lanelet_idx_by_reference_line_point_idx,
+                               const lanelet::routing::RoutingGraphUPtr& routing_graph,
+                               const size_t from_point_idx,
+                               const size_t to_point_idx) {
+  if (from_point_idx >= lanelet_idx_by_reference_line_point_idx.size() ||
+      to_point_idx >= lanelet_idx_by_reference_line_point_idx.size()) {
+    return false;
+  }
+
+  const size_t from_lanelet_idx = lanelet_idx_by_reference_line_point_idx[from_point_idx];
+  const size_t to_lanelet_idx = lanelet_idx_by_reference_line_point_idx[to_point_idx];
+  if (from_lanelet_idx >= shortest_path.size() || to_lanelet_idx >= shortest_path.size() || from_lanelet_idx == to_lanelet_idx) {
+    return false;
+  }
+
+  const lanelet::ConstLanelet& from_lanelet = shortest_path.at(from_lanelet_idx);
+  const lanelet::ConstLanelet& to_lanelet = shortest_path.at(to_lanelet_idx);
+  if (from_lanelet.id() == to_lanelet.id()) {
+    return false;
+  }
+
+  lanelet::ConstLanelets following_lanelets = routing_graph->following(from_lanelet, false);
+  for (const auto& following_lanelet : following_lanelets) {
+    if (following_lanelet.id() == to_lanelet.id()) {
+      return false;
+    }
+  }
+
+  return true;
+}
+
 std::vector<lanelet::ConstLanelet> adjacentLeftOrRightLanelets(const lanelet::ConstLanelet& lanelet,
                                                                const lanelet::routing::RoutingGraphUPtr& routing_graph,
                                                                bool left,

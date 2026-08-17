@@ -103,6 +103,90 @@ size_t considerOrderForPointMatchedToLineString(const std::vector<Eigen::Vector2
 bool changesLaneFromPointToPoint(const Eigen::Vector2d& point, const Eigen::Vector2d& next_point, const double sampling_distance);
 
 /**
+ * @brief Checks whether adaptive sampling is enabled for the current parameter combination.
+ *
+ * Adaptive mode is enabled only if the maximum adaptive spacing exceeds the base sampling distance, the ramp reaches
+ * beyond the local enriched zone, and the enriched boundaries are finite.
+ *
+ * @param[in] sampling_distance base sampling distance [m]
+ * @param[in] max_adaptive_sampling_distance maximum spacing beyond the enriched zone [m]
+ * @param[in] max_adaptive_sampling_at_distance distance from ego where the maximum spacing is reached [m]
+ * @param[in] enrich_route_ahead_ego_distance distance ahead of ego at which the local enriched zone ends [m]
+ * @param[in] enrich_route_behind_ego_distance distance behind ego at which the local enriched zone ends [m]
+ * @return whether adaptive resampling should be active
+ */
+bool adaptiveSamplingEnabled(const double sampling_distance,
+                             const double max_adaptive_sampling_distance,
+                             const double max_adaptive_sampling_at_distance,
+                             const double enrich_route_ahead_ego_distance,
+                             const double enrich_route_behind_ego_distance);
+
+/**
+ * @brief Computes the target spacing for a route point given its signed distance to ego.
+ *
+ * The spacing stays at the base sampling distance inside the enriched region, ramps linearly up to the maximum spacing
+ * until the far-field cutoff distance, and remains at the maximum spacing beyond that cutoff.
+ *
+ * @param[in] signed_distance signed distance to ego along the route [m]
+ * @param[in] sampling_distance base sampling distance [m]
+ * @param[in] max_adaptive_sampling_distance maximum spacing beyond the enriched zone [m]
+ * @param[in] max_adaptive_sampling_at_distance distance from ego where the maximum spacing is reached [m]
+ * @param[in] enrich_route_ahead_ego_distance distance ahead of ego at which the local enriched zone ends [m]
+ * @param[in] enrich_route_behind_ego_distance distance behind ego at which the local enriched zone ends [m]
+ * @return target spacing for the current point [m]
+ */
+double adaptiveTargetSamplingDistance(const double signed_distance,
+                                      const double sampling_distance,
+                                      const double max_adaptive_sampling_distance,
+                                      const double max_adaptive_sampling_at_distance,
+                                      const double enrich_route_ahead_ego_distance,
+                                      const double enrich_route_behind_ego_distance);
+
+/**
+ * @brief Selects route-element indices for adaptive decimation around ego.
+ *
+ * The route is kept at the base sampling distance within the enriched area and thinned only outside that region. The
+ * selection is performed in both the forward and backward directions from the ego index with monotonic cumulative
+ * distance checks.
+ *
+ * @param[in] route_elements full route reference line
+ * @param[in] idx_ego index of the ego point in the route
+ * @param[in] sampling_distance base sampling distance [m]
+ * @param[in] max_adaptive_sampling_distance maximum spacing beyond the enriched zone [m]
+ * @param[in] max_adaptive_sampling_at_distance distance from ego where the maximum spacing is reached [m]
+ * @param[in] enrich_route_ahead_ego_distance distance ahead of ego at which the local enriched zone ends [m]
+ * @param[in] enrich_route_behind_ego_distance distance behind ego at which the local enriched zone ends [m]
+ * @return indices to keep in the adaptive route subset
+ */
+std::vector<size_t> adaptivelySampleRouteElementIndices(
+    const std::vector<route_planning_msgs::msg::RouteElement>& route_elements,
+    const size_t idx_ego,
+    const double sampling_distance,
+    const double max_adaptive_sampling_distance,
+    const double max_adaptive_sampling_at_distance,
+    const double enrich_route_ahead_ego_distance,
+    const double enrich_route_behind_ego_distance);
+
+/**
+ * @brief Determines whether the path topology changes lane between two reference-line points.
+ *
+ * This uses the shortest-path lanelet mapping rather than a fixed geometric distance threshold, so the lane-change flag
+ * remains valid even when the route is adaptively decimated.
+ *
+ * @param[in] shortest_path lanelet path for the current route
+ * @param[in] lanelet_idx_by_reference_line_point_idx map from reference-line point index to path lanelet index
+ * @param[in] routing_graph routing graph used to evaluate neighboring lanelets
+ * @param[in] from_point_idx index of the reference-line point before the transition
+ * @param[in] to_point_idx index of the reference-line point after the transition
+ * @return whether the topology changes lane between the two points
+ */
+bool changesLaneByPathTopology(const lanelet::routing::LaneletPath& shortest_path,
+                               const std::vector<size_t>& lanelet_idx_by_reference_line_point_idx,
+                               const lanelet::routing::RoutingGraphUPtr& routing_graph,
+                               const size_t from_point_idx,
+                               const size_t to_point_idx);
+
+/**
  * @brief Finds lanelets adjacent to the left or right of a given lanelet.
  *
  * RelationType::Left and RelationType::AdjacentLeft are used for left adjacent lanelets, right vice versa.
