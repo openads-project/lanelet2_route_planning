@@ -301,12 +301,24 @@ class Lanelet2RoutePlanning : public rclcpp::Node {
   route_planning_msgs::msg::Route latest_route_msg_;
 
   /**
+   * @brief Latest full-resolution global route message
+   *
+   * Serves as source for adaptive sampling to avoid cumulative decimation.
+   */
+  route_planning_msgs::msg::Route latest_global_route_msg_;
+
+  /**
    * @brief Latest mapping between global route reference line and lanelet indices
    *
    * Used to easily find lanelet for a given point on the global reference line.
    * Indexes into latest_route_.shortestPath().
    */
   std::vector<size_t> latest_lanelet_idx_by_reference_line_point_idx_;
+
+  /**
+   * @brief Lanelet index mapping for latest_global_route_msg_
+   */
+  std::vector<size_t> latest_global_lanelet_idx_by_reference_line_point_idx_;
 
   /**
    * @brief Latest suggested turn signal distance ahead by route element by lane element
@@ -335,6 +347,18 @@ class Lanelet2RoutePlanning : public rclcpp::Node {
    * @brief Distance between resampled points along route [m] (parameter)
    */
   double sampling_distance_ = 1.0;
+
+  /**
+   * @brief Maximum adaptive sampling distance [m] (parameter)
+   *
+   * If <= sampling_distance_, adaptive sampling is deactivated.
+   */
+  double max_adaptive_sampling_distance_ = 100.0;
+
+  /**
+   * @brief Distance from ego at which max_adaptive_sampling_distance_ is reached [m] (parameter)
+   */
+  double max_adaptive_sampling_at_distance_ = 2000.0;
 
   /**
    * @brief Whether to project destination to reference line (parameter)
