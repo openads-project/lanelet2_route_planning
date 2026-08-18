@@ -55,10 +55,10 @@ flowchart LR
 | `max_drivable_space_radius` | `float` | `50.0` | Maximum distance to left/right drivable space bounds, if not otherwise restricted [m] |
 | `max_num_threads` | `int` | `0` | Maximum number of threads for parallel processing (0=max available) |
 | `transform_timeout` | `float` | `0.02` | How long to wait for a transform to be available [s] |
-| `diagnostic_updater.ego_data_diagnostic.min_frequency` | `float` | `0.0` | Minimum frequency for incoming ego data topic |
-| `diagnostic_updater.ego_data_diagnostic.max_frequency` | `float` | `std::numeric_limits<double>::infinity()` | Maximum frequency for incoming ego data topic |
+| `diagnostic_updater.ego_data_diagnostic.min_frequency` | `float` | `45.45` | Minimum frequency for incoming ego data topic |
+| `diagnostic_updater.ego_data_diagnostic.max_frequency` | `float` | `55.55` | Maximum frequency for incoming ego data topic |
 | `diagnostic_updater.ego_data_diagnostic.min_acceptable_timestamp_delta` | `float` | `0.0` | Minimum acceptable timestamp delta for incoming ego data topic |
-| `diagnostic_updater.ego_data_diagnostic.max_acceptable_timestamp_delta` | `float` | `std::numeric_limits<double>::infinity()` | Maximum acceptable timestamp delta for incoming ego data topic |
+| `diagnostic_updater.ego_data_diagnostic.max_acceptable_timestamp_delta` | `float` | `0.002` | Maximum acceptable timestamp delta for incoming ego data topic |
 | `diagnostic_updater.timer_diagnostic.min_frequency` | `float` | `0.0` | Minimum frequency for timer |
 | `diagnostic_updater.timer_diagnostic.max_frequency` | `float` | `std::numeric_limits<double>::infinity()` | Maximum frequency for timer |
 
