@@ -1,5 +1,6 @@
 /**/*:
   ros__parameters:
+
     ll2_map_server_name: /localization/lanelet2_map_server
     publish_frequency: 20.0
     action_feedback_frequency: 1.0
@@ -14,6 +15,18 @@
     max_drivable_space_radius: 50.0
     max_num_threads: 8
     transform_timeout: 0.1
+
+    diagnostic_updater:
+      period: 0.1
+      use_fqn: true
+      # ego_data_diagnostic:
+      #   min_frequency: 45.45 # 0.022s
+      #   max_frequency: 55.55 # 0.018s
+      #   min_acceptable_timestamp_delta: 0.0
+      #   max_acceptable_timestamp_delta: 0.002
+      # timer_diagnostic:
+      #   min_frequency: 18.18 # 0.055s
+      #   max_frequency: 22.22 # 0.045s
 
     # --- plan_route_action_client ---
     # waypoints:

@@ -71,6 +71,21 @@ Lanelet2RoutePlanning::Lanelet2RoutePlanning() : Node("lanelet2_route_planning")
   }
   omp_set_num_threads(max_num_threads_);
 
+  this->declareAndLoadParameter("diagnostic_updater.ego_data_diagnostic.min_frequency", ego_data_diagnostic_config_.min_frequency,
+                                "Minimum frequency for incoming ego data topic", false, false, false);
+  this->declareAndLoadParameter("diagnostic_updater.ego_data_diagnostic.max_frequency", ego_data_diagnostic_config_.max_frequency,
+                                "Maximum frequency for incoming ego data topic", false, false, false);
+  this->declareAndLoadParameter("diagnostic_updater.ego_data_diagnostic.min_acceptable_timestamp_delta",
+                                ego_data_diagnostic_config_.min_acceptable_timestamp_delta,
+                                "Minimum acceptable timestamp delta for incoming ego data topic", false, false, false);
+  this->declareAndLoadParameter("diagnostic_updater.ego_data_diagnostic.max_acceptable_timestamp_delta",
+                                ego_data_diagnostic_config_.max_acceptable_timestamp_delta,
+                                "Maximum acceptable timestamp delta for incoming ego data topic", false, false, false);
+  this->declareAndLoadParameter("diagnostic_updater.timer_diagnostic.min_frequency", timer_diagnostic_config_.min_frequency,
+                                "Minimum frequency for timer", false, false, false);
+  this->declareAndLoadParameter("diagnostic_updater.timer_diagnostic.max_frequency", timer_diagnostic_config_.max_frequency,
+                                "Maximum frequency for timer", false, false, false);
+
   this->setup();
 }
 
@@ -193,6 +208,7 @@ bool Lanelet2RoutePlanning::checkMap(bool handle_update) {
     }
     map_status = map_status && !ll2_interface_->update_pending_;
   }
+  health_kv_["map_loaded"] = map_status ? "true" : "false";
   return map_status;
 }
 
@@ -229,6 +245,20 @@ void Lanelet2RoutePlanning::setup() {
       std::bind(&Lanelet2RoutePlanning::actionHandleAccepted, this, std::placeholders::_1),
       rcl_action_server_get_default_options(), action_callback_group_);
   RCLCPP_INFO(this->get_logger(), "Action server started");
+
+  // set up health diagnostic publisher and diagnostic updater for monitoring topic frequencies and timestamps
+  health_diagnostic_pub_ = this->create_publisher<diagnostic_msgs::msg::DiagnosticArray>("/diagnostics", 1);
+  diagnostic_updater_.setHardwareID("none");
+  ego_data_diagnostic_ = std::make_unique<diagnostic_updater::TopicDiagnostic>(
+      "~/ego_data", diagnostic_updater_,
+      diagnostic_updater::FrequencyStatusParam(&ego_data_diagnostic_config_.min_frequency,
+                                               &ego_data_diagnostic_config_.max_frequency, 0.0, 1),
+      diagnostic_updater::TimeStampStatusParam(ego_data_diagnostic_config_.min_acceptable_timestamp_delta,
+                                               ego_data_diagnostic_config_.max_acceptable_timestamp_delta));
+  timer_diagnostic_ = std::make_unique<diagnostic_updater::HeaderlessTopicDiagnostic>(
+      "timer", diagnostic_updater_,
+      diagnostic_updater::FrequencyStatusParam(&timer_diagnostic_config_.min_frequency, &timer_diagnostic_config_.max_frequency,
+                                               0.0, 1));
 }
 
 bool Lanelet2RoutePlanning::buildRoutingGraph() {
@@ -257,6 +287,8 @@ bool Lanelet2RoutePlanning::buildRoutingGraph() {
 }
 
 void Lanelet2RoutePlanning::egoDataCallback(const perception_msgs::msg::EgoData::SharedPtr msg) {
+  ego_data_diagnostic_->tick(msg->header.stamp);
+
   if (!this->checkMap(false)) {
     return;
   }
@@ -266,8 +298,11 @@ void Lanelet2RoutePlanning::egoDataCallback(const perception_msgs::msg::EgoData:
     try {
       latest_ego_data_ = tf_buffer_->transform(*msg, ll2_interface_->map_frame_id_, tf2::durationFromSec(transform_timeout_));
     } catch (tf2::TransformException& ex) {
-      RCLCPP_ERROR(this->get_logger(), "Could not transform ego data from frame '%s' to frame '%s': %s",
-                   msg->header.frame_id.c_str(), ll2_interface_->map_frame_id_.c_str(), ex.what());
+      std::stringstream ss;
+      ss << "Could not transform ego data from frame '" << msg->header.frame_id << "' to frame '" << ll2_interface_->map_frame_id_
+         << "': " << ex.what();
+      RCLCPP_ERROR_STREAM(this->get_logger(), ss.str());
+      health_kv_["latest_error"] = ss.str();
     }
   } else {
     latest_ego_data_ = *msg;
@@ -280,13 +315,47 @@ void Lanelet2RoutePlanning::egoDataCallback(const perception_msgs::msg::EgoData:
     auto t1 = std::chrono::steady_clock::now();
     auto dt = std::chrono::duration_cast<std::chrono::duration<double>>(t1 - t0).count();
     RCLCPP_DEBUG(this->get_logger(), "Recomputed route (%.3fs)", dt);
+    health_kv_["dt_buildEnrichedRouteMessage"] = std::to_string(dt);
   }
 }
 
 void Lanelet2RoutePlanning::publishTimerCallback() {
+  timer_diagnostic_->tick();
   if (is_publishing_route_ && has_enriched_route_) {
     publisher_route_->publish(latest_route_msg_);
   }
+
+  // check health
+  unsigned char health_status = diagnostic_msgs::msg::DiagnosticStatus::OK;
+  std::string health_msg = "OK";
+  if (health_kv_.count("map_loaded") > 0 && health_kv_["map_loaded"] == "false") {
+    // map not loaded
+    health_status = diagnostic_msgs::msg::DiagnosticStatus::ERROR;
+    health_msg = "Map not loaded";
+  } else if (health_kv_.count("latest_error") > 0) {
+    // at least one error
+    health_status = diagnostic_msgs::msg::DiagnosticStatus::ERROR;
+    health_msg = health_kv_["latest_error"];
+  } else if (health_kv_.count("latest_warning") > 0) {
+    // at least one warning
+    health_status = diagnostic_msgs::msg::DiagnosticStatus::WARN;
+    health_msg = health_kv_["latest_warning"];
+  } else if (health_kv_.count("dt_buildEnrichedRouteMessage") > 0) {
+    // enrichment cannot keep up with ego data
+    double dt = std::stod(health_kv_["dt_buildEnrichedRouteMessage"]);
+    double callback_freq = ego_data_diagnostic_config_.max_frequency;
+    if (callback_freq > 0.0 && dt > 1.0 / callback_freq) {
+      health_status = diagnostic_msgs::msg::DiagnosticStatus::WARN;
+      health_msg = "Building enriched route takes longer than ego data frequency allows";
+    }
+  }
+
+  // publish health diagnostics
+  this->publishHealth(health_status, health_msg, this->now());
+
+  // reset latest warning and error
+  health_kv_.erase("latest_warning");
+  health_kv_.erase("latest_error");
 }
 
 rclcpp_action::GoalResponse Lanelet2RoutePlanning::actionHandleGoal(
@@ -350,6 +419,8 @@ void Lanelet2RoutePlanning::actionHandleAccepted(
     const std::shared_ptr<rclcpp_action::ServerGoalHandle<route_planning_msgs::action::PlanRoute>> goal_handle) {
   action_goal_handle_ = goal_handle;
 
+  health_kv_["action_status"] = "accepted";
+
   // initialize feedback and result
   action_start_time_ = this->now();
   action_feedback_ = std::make_shared<route_planning_msgs::action::PlanRoute::Feedback>();
@@ -373,6 +444,8 @@ void Lanelet2RoutePlanning::actionHandleAccepted(
 void Lanelet2RoutePlanning::actionExecute(
     const std::shared_ptr<rclcpp_action::ServerGoalHandle<route_planning_msgs::action::PlanRoute>> goal_handle) {
   RCLCPP_INFO(this->get_logger(), "Executing action goal");
+
+  health_kv_["action_status"] = "executing";
 
   rclcpp::Rate feedback_rate(action_feedback_frequency_);
   bool has_reached_destination = false;
@@ -408,12 +481,15 @@ void Lanelet2RoutePlanning::actionExecute(
   // publish result
   if (goal_handle->is_canceling()) {
     goal_handle->canceled(action_result_);
+    health_kv_["action_status"] = "canceled";
     RCLCPP_INFO(this->get_logger(), "Goal canceled");
   } else if (!goal_handle->is_executing()) {
+    health_kv_["action_status"] = "aborted";
     RCLCPP_INFO(this->get_logger(), "Goal aborted");
   } else if (rclcpp::ok()) {
     is_publishing_route_ = false;  // stop publishing route
     goal_handle->succeed(action_result_);
+    health_kv_["action_status"] = "succeeded";
     RCLCPP_INFO(this->get_logger(), "Goal succeeded");
   }
 }
@@ -432,8 +508,11 @@ bool Lanelet2RoutePlanning::planRoute(const geometry_msgs::msg::PointStamped& de
       destination_map_stamped =
           tf_buffer_->transform(destination, ll2_interface_->map_frame_id_, tf2::durationFromSec(transform_timeout_));
     } catch (tf2::TransformException& ex) {
-      RCLCPP_ERROR(this->get_logger(), "Could not transform destination from frame '%s' to frame '%s': %s",
-                   destination.header.frame_id.c_str(), ll2_interface_->map_frame_id_.c_str(), ex.what());
+      std::stringstream ss;
+      ss << "Could not transform destination from frame '" << destination.header.frame_id << "' to frame '"
+         << ll2_interface_->map_frame_id_ << "': " << ex.what();
+      RCLCPP_ERROR_STREAM(this->get_logger(), ss.str());
+      health_kv_["latest_error"] = ss.str();
       return false;
     }
   } else {
@@ -450,8 +529,11 @@ bool Lanelet2RoutePlanning::planRoute(const geometry_msgs::msg::PointStamped& de
         intermediate_map_stamped =
             tf_buffer_->transform(intermediate, ll2_interface_->map_frame_id_, tf2::durationFromSec(transform_timeout_));
       } catch (tf2::TransformException& ex) {
-        RCLCPP_ERROR(this->get_logger(), "Could not transform intermediate from frame '%s' to frame '%s': %s",
-                     intermediate.header.frame_id.c_str(), ll2_interface_->map_frame_id_.c_str(), ex.what());
+        std::stringstream ss;
+        ss << "Could not transform intermediate destination from frame '" << intermediate.header.frame_id << "' to frame '"
+           << ll2_interface_->map_frame_id_ << "': " << ex.what();
+        RCLCPP_ERROR_STREAM(this->get_logger(), ss.str());
+        health_kv_["latest_error"] = ss.str();
         return false;
       }
       intermediate_destinations_map.push_back(intermediate_map_stamped.point);
@@ -471,8 +553,11 @@ bool Lanelet2RoutePlanning::planRoute(const geometry_msgs::msg::PointStamped& de
                 (this->now() - latest_ego_data_.header.stamp).seconds(), timeout_ego_data);
   }
   if (latest_ego_data_.header.frame_id != ll2_interface_->map_frame_id_) {
-    RCLCPP_ERROR(this->get_logger(), "Ego data frame '%s' does not match map frame '%s'",
-                 latest_ego_data_.header.frame_id.c_str(), ll2_interface_->map_frame_id_.c_str());
+    std::stringstream ss;
+    ss << "Ego data frame '" << latest_ego_data_.header.frame_id << "' does not match map frame '"
+       << ll2_interface_->map_frame_id_ << "'";
+    RCLCPP_ERROR_STREAM(this->get_logger(), ss.str());
+    health_kv_["latest_error"] = ss.str();
     return false;
   }
 
@@ -481,7 +566,9 @@ bool Lanelet2RoutePlanning::planRoute(const geometry_msgs::msg::PointStamped& de
   if (auto result = laneletAtPoint(toEigen2d(egoPosition(latest_ego_data_)), map)) {
     ego_ll = *result;
   } else {
-    RCLCPP_ERROR(this->get_logger(), "Failed to find lanelet at ego position");
+    std::string msg = "Failed to find lanelet at ego position";
+    RCLCPP_ERROR_STREAM(this->get_logger(), msg);
+    health_kv_["latest_error"] = msg;
     return false;
   }
   Eigen::Vector2d ego_ll_position =
@@ -492,7 +579,9 @@ bool Lanelet2RoutePlanning::planRoute(const geometry_msgs::msg::PointStamped& de
   if (auto result = laneletAtPoint(toEigen2d(destination_map), map)) {
     destination_ll = *result;
   } else {
-    RCLCPP_ERROR(this->get_logger(), "Failed to find lanelet at destination");
+    std::string msg = "Failed to find lanelet at destination";
+    RCLCPP_ERROR_STREAM(this->get_logger(), msg);
+    health_kv_["latest_error"] = msg;
     return false;
   }
   Eigen::Vector2d destination_ll_position =
@@ -507,8 +596,10 @@ bool Lanelet2RoutePlanning::planRoute(const geometry_msgs::msg::PointStamped& de
       intermediate_destination_lls.push_back(*result);
       intermediate_destinations_on_route.push_back(intermediate);
     } else {
-      RCLCPP_WARN(this->get_logger(), "Failed to find lanelet at intermediate point (%.3f, %.3f). Skipping...", intermediate.x,
-                  intermediate.y);
+      std::stringstream ss;
+      ss << "Failed to find lanelet at intermediate point (" << intermediate.x << ", " << intermediate.y << "), skipping";
+      RCLCPP_WARN_STREAM(this->get_logger(), ss.str());
+      health_kv_["latest_warning"] = ss.str();
       continue;  // skip this intermediate if no lanelet found
     }
   }
@@ -531,9 +622,13 @@ bool Lanelet2RoutePlanning::planRoute(const geometry_msgs::msg::PointStamped& de
     intermediate_destinations_ = intermediate_destinations_on_route;
     latest_route_ = std::move(*planned_route);
     return true;
+  } else {
+    std::stringstream ss;
+    ss << "Failed to plan route from lanelet " << ego_ll.id() << " to lanelet " << destination_ll.id();
+    RCLCPP_ERROR_STREAM(this->get_logger(), ss.str());
+    health_kv_["latest_error"] = ss.str();
+    return false;
   }
-  RCLCPP_ERROR(this->get_logger(), "Failed to plan route from lanelet %ld to lanelet %ld", ego_ll.id(), destination_ll.id());
-  return false;
 }
 
 void Lanelet2RoutePlanning::buildGlobalRouteMessage() {
@@ -818,6 +913,23 @@ void Lanelet2RoutePlanning::buildEnrichedRouteMessage() {
   // save as latest route message
   latest_route_msg_ = route_msg;
   has_enriched_route_ = true;
+}
+
+void Lanelet2RoutePlanning::publishHealth(const unsigned char status, const std::string& msg, const rclcpp::Time& now) {
+  diagnostic_msgs::msg::DiagnosticArray diagnostics;
+  diagnostics.header.stamp = now;
+  auto& health = diagnostics.status.emplace_back();
+  health.name = this->get_fully_qualified_name() + std::string(": health");
+  health.hardware_id = "none";
+  health.level = status;
+  health.message = msg;
+  for (const auto& [key, value] : health_kv_) {
+    auto& key_value = health.values.emplace_back();
+    key_value.key = key;
+    key_value.value = value;
+  }
+
+  health_diagnostic_pub_->publish(diagnostics);
 }
 
 }  // namespace lanelet2_route_planning
