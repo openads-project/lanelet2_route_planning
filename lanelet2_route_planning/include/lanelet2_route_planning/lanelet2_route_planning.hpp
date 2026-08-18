@@ -3,13 +3,19 @@
 
 #pragma once
 
+#include <limits>
+#include <map>
 #include <memory>
+#include <mutex>
 #include <string>
 #include <vector>
 
 #include <lanelet2_routing/Route.h>
 #include <tf2_ros/buffer.h>
 #include <tf2_ros/transform_listener.h>
+#include <diagnostic_msgs/msg/diagnostic_array.hpp>
+#include <diagnostic_updater/diagnostic_updater.hpp>
+#include <diagnostic_updater/publisher.hpp>
 #include <lanelet2_map_interface/lanelet2_map_interface.hpp>
 #include <rclcpp/rclcpp.hpp>
 #include <rclcpp_action/rclcpp_action.hpp>
@@ -26,6 +32,31 @@ struct is_vector<std::vector<T, A>> : std::true_type {};
 
 template <typename C>
 inline constexpr bool is_vector_v = is_vector<C>::value;
+
+/**
+ * @brief Configuration parameters for topic diagnostics
+ */
+struct TopicDiagnosticConfig {
+  /**
+   * @brief Minimum acceptable frequency
+   */
+  double min_frequency = 0.0;
+
+  /**
+   * @brief Maximum acceptable frequency
+   */
+  double max_frequency = std::numeric_limits<double>::infinity();
+
+  /**
+   * @brief Minimum acceptable difference between message timestamp and receipt time (in seconds)
+   */
+  double min_acceptable_timestamp_delta = 0.0;
+
+  /**
+   * @brief Maximum acceptable difference between message timestamp and receipt time (in seconds)
+   */
+  double max_acceptable_timestamp_delta = std::numeric_limits<double>::infinity();
+};
 
 /**
  * @brief Lanelet2 route planning node
@@ -175,6 +206,15 @@ class Lanelet2RoutePlanning : public rclcpp::Node {
    * The enriched part contains adjacent lanes, drivable space, and regulatory elements.
    */
   void buildEnrichedRouteMessage();
+
+  /**
+   * @brief Publishes health diagnostic
+   *
+   * @param status status code
+   * @param msg status message
+   * @param now current time for stamping
+   */
+  void publishHealth(const unsigned char status, const std::string& msg, const rclcpp::Time& now);
 
   /**
    * @brief Auto-reconfigurable parameters for dynamic reconfiguration
@@ -385,6 +425,46 @@ class Lanelet2RoutePlanning : public rclcpp::Node {
    * @brief How long to wait for a transform to be available [s] (parameter)
    */
   double transform_timeout_ = 0.02;
+
+  /**
+   * @brief Health key-value pairs for diagnostic message
+   */
+  std::map<std::string, std::string> health_kv_;
+
+  /**
+   * @brief Mutex protecting health key-value pairs across threads
+   */
+  mutable std::mutex health_kv_mutex_;
+
+  /**
+   * @brief Health diagnostic publisher
+   */
+  rclcpp::Publisher<diagnostic_msgs::msg::DiagnosticArray>::SharedPtr health_diagnostic_pub_;
+
+  /**
+   * @brief Diagnostic updater for monitoring topic frequencies and timestamps
+   */
+  diagnostic_updater::Updater diagnostic_updater_;
+
+  /**
+   * @brief Diagnostic to auto-diagnose ego data topic
+   */
+  std::unique_ptr<diagnostic_updater::TopicDiagnostic> ego_data_diagnostic_;
+
+  /**
+   * @brief Diagnostic to auto-diagnose timer frequency
+   */
+  std::unique_ptr<diagnostic_updater::HeaderlessTopicDiagnostic> timer_diagnostic_;
+
+  /**
+   * @brief Configuration for auto-diagnosed ego data topic
+   */
+  TopicDiagnosticConfig ego_data_diagnostic_config_ = {45.45, 55.55, 0.0, 0.002};
+
+  /**
+   * @brief Configuration for auto-diagnosed timer
+   */
+  TopicDiagnosticConfig timer_diagnostic_config_ = {18.18, 22.22};
 };
 
 }  // namespace lanelet2_route_planning

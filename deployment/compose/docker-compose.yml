@@ -10,6 +10,7 @@ services:
       EGO_DATA_TOPIC: ~/ego_data
       # --- outputs ---
       ROUTE_TOPIC: ~/route
+      DIAGNOSTICS_TOPIC: /diagnostics
       # --- other -----
       LOG_LEVEL: ${LOG_LEVEL:-info}
       USE_SIM_TIME: ${USE_SIM_TIME:-false}
@@ -25,6 +26,7 @@ services:
           use_sim_time:=$${USE_SIM_TIME} \
           params:=$${PARAMS} \
           ego_data_topic:=$${EGO_DATA_TOPIC} \
-          route_topic:=$${ROUTE_TOPIC}
+          route_topic:=$${ROUTE_TOPIC} \
+          diagnostics_topic:=$${DIAGNOSTICS_TOPIC}
     # volumes:
     #   - ./params.yml:/docker-ros/ws/install/lanelet2_route_planning/share/lanelet2_route_planning/config/params.yml
