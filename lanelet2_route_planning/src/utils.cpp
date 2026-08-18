@@ -290,8 +290,8 @@ bool changesLaneByPathTopology(const lanelet::routing::LaneletPath& shortest_pat
     return false;
   }
 
-  const lanelet::ConstLanelet& from_lanelet = shortest_path.at(from_lanelet_idx);
-  const lanelet::ConstLanelet& to_lanelet = shortest_path.at(to_lanelet_idx);
+  const lanelet::ConstLanelet& from_lanelet = shortest_path[from_lanelet_idx];
+  const lanelet::ConstLanelet& to_lanelet = shortest_path[to_lanelet_idx];
   if (from_lanelet.id() == to_lanelet.id()) {
     return false;
   }
