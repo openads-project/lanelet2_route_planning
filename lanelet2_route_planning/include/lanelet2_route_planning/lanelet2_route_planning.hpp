@@ -429,7 +429,7 @@ class Lanelet2RoutePlanning : public rclcpp::Node {
   /**
    * @brief Health key-value pairs for diagnostic message
    */
-  std::map<std::string, std::string> health_kv_ = {};
+  std::map<std::string, std::string> health_kv_;
 
   /**
    * @brief Mutex protecting health key-value pairs across threads
