@@ -22,7 +22,7 @@
 
 namespace lanelet2_route_planning {
 
-Lanelet2RoutePlanning::Lanelet2RoutePlanning() : Node("lanelet2_route_planning") {
+Lanelet2RoutePlanning::Lanelet2RoutePlanning() : Node("lanelet2_route_planning"), diagnostic_updater_(this) {
   this->declareAndLoadParameter("ll2_map_server_name", ll2_map_server_name_, "Name of lanelet2_map_server node", false, false,
                                 true);
   this->declareAndLoadParameter("publish_frequency", publish_frequency_, "Frequency of route publication [Hz]", true, false,
@@ -208,7 +208,10 @@ bool Lanelet2RoutePlanning::checkMap(bool handle_update) {
     }
     map_status = map_status && !ll2_interface_->update_pending_;
   }
-  health_kv_["map_loaded"] = map_status ? "true" : "false";
+  {
+    std::scoped_lock lock(health_kv_mutex_);
+    health_kv_["map_loaded"] = map_status ? "true" : "false";
+  }
   return map_status;
 }
 
@@ -302,7 +305,10 @@ void Lanelet2RoutePlanning::egoDataCallback(const perception_msgs::msg::EgoData:
       ss << "Could not transform ego data from frame '" << msg->header.frame_id << "' to frame '" << ll2_interface_->map_frame_id_
          << "': " << ex.what();
       RCLCPP_ERROR_STREAM(this->get_logger(), ss.str());
-      health_kv_["latest_error"] = ss.str();
+      {
+        std::scoped_lock lock(health_kv_mutex_);
+        health_kv_["latest_error"] = ss.str();
+      }
     }
   } else {
     latest_ego_data_ = *msg;
@@ -315,7 +321,10 @@ void Lanelet2RoutePlanning::egoDataCallback(const perception_msgs::msg::EgoData:
     auto t1 = std::chrono::steady_clock::now();
     auto dt = std::chrono::duration_cast<std::chrono::duration<double>>(t1 - t0).count();
     RCLCPP_DEBUG(this->get_logger(), "Recomputed route (%.3fs)", dt);
-    health_kv_["dt_buildEnrichedRouteMessage"] = std::to_string(dt);
+    {
+      std::scoped_lock lock(health_kv_mutex_);
+      health_kv_["dt_buildEnrichedRouteMessage"] = std::to_string(dt);
+    }
   }
 }
 
@@ -328,21 +337,26 @@ void Lanelet2RoutePlanning::publishTimerCallback() {
   // check health
   unsigned char health_status = diagnostic_msgs::msg::DiagnosticStatus::OK;
   std::string health_msg = "OK";
-  if (health_kv_.count("map_loaded") > 0 && health_kv_["map_loaded"] == "false") {
+  std::map<std::string, std::string> health_kv_snapshot;
+  {
+    std::scoped_lock lock(health_kv_mutex_);
+    health_kv_snapshot = health_kv_;
+  }
+  if (health_kv_snapshot.count("map_loaded") > 0 && health_kv_snapshot["map_loaded"] == "false") {
     // map not loaded
     health_status = diagnostic_msgs::msg::DiagnosticStatus::ERROR;
     health_msg = "Map not loaded";
-  } else if (health_kv_.count("latest_error") > 0) {
+  } else if (health_kv_snapshot.count("latest_error") > 0) {
     // at least one error
     health_status = diagnostic_msgs::msg::DiagnosticStatus::ERROR;
-    health_msg = health_kv_["latest_error"];
-  } else if (health_kv_.count("latest_warning") > 0) {
+    health_msg = health_kv_snapshot["latest_error"];
+  } else if (health_kv_snapshot.count("latest_warning") > 0) {
     // at least one warning
     health_status = diagnostic_msgs::msg::DiagnosticStatus::WARN;
-    health_msg = health_kv_["latest_warning"];
-  } else if (health_kv_.count("dt_buildEnrichedRouteMessage") > 0) {
+    health_msg = health_kv_snapshot["latest_warning"];
+  } else if (health_kv_snapshot.count("dt_buildEnrichedRouteMessage") > 0) {
     // enrichment cannot keep up with ego data
-    double dt = std::stod(health_kv_["dt_buildEnrichedRouteMessage"]);
+    double dt = std::stod(health_kv_snapshot["dt_buildEnrichedRouteMessage"]);
     double callback_freq = ego_data_diagnostic_config_.max_frequency;
     if (callback_freq > 0.0 && dt > 1.0 / callback_freq) {
       health_status = diagnostic_msgs::msg::DiagnosticStatus::WARN;
@@ -354,8 +368,11 @@ void Lanelet2RoutePlanning::publishTimerCallback() {
   this->publishHealth(health_status, health_msg, this->now());
 
   // reset latest warning and error
-  health_kv_.erase("latest_warning");
-  health_kv_.erase("latest_error");
+  {
+    std::scoped_lock lock(health_kv_mutex_);
+    health_kv_.erase("latest_warning");
+    health_kv_.erase("latest_error");
+  }
 }
 
 rclcpp_action::GoalResponse Lanelet2RoutePlanning::actionHandleGoal(
@@ -419,7 +436,10 @@ void Lanelet2RoutePlanning::actionHandleAccepted(
     const std::shared_ptr<rclcpp_action::ServerGoalHandle<route_planning_msgs::action::PlanRoute>> goal_handle) {
   action_goal_handle_ = goal_handle;
 
-  health_kv_["action_status"] = "accepted";
+  {
+    std::scoped_lock lock(health_kv_mutex_);
+    health_kv_["action_status"] = "accepted";
+  }
 
   // initialize feedback and result
   action_start_time_ = this->now();
@@ -445,7 +465,10 @@ void Lanelet2RoutePlanning::actionExecute(
     const std::shared_ptr<rclcpp_action::ServerGoalHandle<route_planning_msgs::action::PlanRoute>> goal_handle) {
   RCLCPP_INFO(this->get_logger(), "Executing action goal");
 
-  health_kv_["action_status"] = "executing";
+  {
+    std::scoped_lock lock(health_kv_mutex_);
+    health_kv_["action_status"] = "executing";
+  }
 
   rclcpp::Rate feedback_rate(action_feedback_frequency_);
   bool has_reached_destination = false;
@@ -481,15 +504,24 @@ void Lanelet2RoutePlanning::actionExecute(
   // publish result
   if (goal_handle->is_canceling()) {
     goal_handle->canceled(action_result_);
-    health_kv_["action_status"] = "canceled";
+    {
+      std::scoped_lock lock(health_kv_mutex_);
+      health_kv_["action_status"] = "canceled";
+    }
     RCLCPP_INFO(this->get_logger(), "Goal canceled");
   } else if (!goal_handle->is_executing()) {
-    health_kv_["action_status"] = "aborted";
+    {
+      std::scoped_lock lock(health_kv_mutex_);
+      health_kv_["action_status"] = "aborted";
+    }
     RCLCPP_INFO(this->get_logger(), "Goal aborted");
   } else if (rclcpp::ok()) {
     is_publishing_route_ = false;  // stop publishing route
     goal_handle->succeed(action_result_);
-    health_kv_["action_status"] = "succeeded";
+    {
+      std::scoped_lock lock(health_kv_mutex_);
+      health_kv_["action_status"] = "succeeded";
+    }
     RCLCPP_INFO(this->get_logger(), "Goal succeeded");
   }
 }
@@ -512,7 +544,10 @@ bool Lanelet2RoutePlanning::planRoute(const geometry_msgs::msg::PointStamped& de
       ss << "Could not transform destination from frame '" << destination.header.frame_id << "' to frame '"
          << ll2_interface_->map_frame_id_ << "': " << ex.what();
       RCLCPP_ERROR_STREAM(this->get_logger(), ss.str());
-      health_kv_["latest_error"] = ss.str();
+      {
+        std::scoped_lock lock(health_kv_mutex_);
+        health_kv_["latest_error"] = ss.str();
+      }
       return false;
     }
   } else {
@@ -533,7 +568,10 @@ bool Lanelet2RoutePlanning::planRoute(const geometry_msgs::msg::PointStamped& de
         ss << "Could not transform intermediate destination from frame '" << intermediate.header.frame_id << "' to frame '"
            << ll2_interface_->map_frame_id_ << "': " << ex.what();
         RCLCPP_ERROR_STREAM(this->get_logger(), ss.str());
-        health_kv_["latest_error"] = ss.str();
+        {
+          std::scoped_lock lock(health_kv_mutex_);
+          health_kv_["latest_error"] = ss.str();
+        }
         return false;
       }
       intermediate_destinations_map.push_back(intermediate_map_stamped.point);
@@ -557,7 +595,10 @@ bool Lanelet2RoutePlanning::planRoute(const geometry_msgs::msg::PointStamped& de
     ss << "Ego data frame '" << latest_ego_data_.header.frame_id << "' does not match map frame '"
        << ll2_interface_->map_frame_id_ << "'";
     RCLCPP_ERROR_STREAM(this->get_logger(), ss.str());
-    health_kv_["latest_error"] = ss.str();
+    {
+      std::scoped_lock lock(health_kv_mutex_);
+      health_kv_["latest_error"] = ss.str();
+    }
     return false;
   }
 
@@ -568,7 +609,10 @@ bool Lanelet2RoutePlanning::planRoute(const geometry_msgs::msg::PointStamped& de
   } else {
     std::string msg = "Failed to find lanelet at ego position";
     RCLCPP_ERROR_STREAM(this->get_logger(), msg);
-    health_kv_["latest_error"] = msg;
+    {
+      std::scoped_lock lock(health_kv_mutex_);
+      health_kv_["latest_error"] = msg;
+    }
     return false;
   }
   Eigen::Vector2d ego_ll_position =
@@ -581,7 +625,10 @@ bool Lanelet2RoutePlanning::planRoute(const geometry_msgs::msg::PointStamped& de
   } else {
     std::string msg = "Failed to find lanelet at destination";
     RCLCPP_ERROR_STREAM(this->get_logger(), msg);
-    health_kv_["latest_error"] = msg;
+    {
+      std::scoped_lock lock(health_kv_mutex_);
+      health_kv_["latest_error"] = msg;
+    }
     return false;
   }
   Eigen::Vector2d destination_ll_position =
@@ -599,7 +646,10 @@ bool Lanelet2RoutePlanning::planRoute(const geometry_msgs::msg::PointStamped& de
       std::stringstream ss;
       ss << "Failed to find lanelet at intermediate point (" << intermediate.x << ", " << intermediate.y << "), skipping";
       RCLCPP_WARN_STREAM(this->get_logger(), ss.str());
-      health_kv_["latest_warning"] = ss.str();
+      {
+        std::scoped_lock lock(health_kv_mutex_);
+        health_kv_["latest_warning"] = ss.str();
+      }
       continue;  // skip this intermediate if no lanelet found
     }
   }
@@ -626,7 +676,10 @@ bool Lanelet2RoutePlanning::planRoute(const geometry_msgs::msg::PointStamped& de
     std::stringstream ss;
     ss << "Failed to plan route from lanelet " << ego_ll.id() << " to lanelet " << destination_ll.id();
     RCLCPP_ERROR_STREAM(this->get_logger(), ss.str());
-    health_kv_["latest_error"] = ss.str();
+    {
+      std::scoped_lock lock(health_kv_mutex_);
+      health_kv_["latest_error"] = ss.str();
+    }
     return false;
   }
 }
@@ -923,7 +976,12 @@ void Lanelet2RoutePlanning::publishHealth(const unsigned char status, const std:
   health.hardware_id = "none";
   health.level = status;
   health.message = msg;
-  for (const auto& [key, value] : health_kv_) {
+  std::map<std::string, std::string> health_kv_snapshot;
+  {
+    std::scoped_lock lock(health_kv_mutex_);
+    health_kv_snapshot = health_kv_;
+  }
+  for (const auto& [key, value] : health_kv_snapshot) {
     auto& key_value = health.values.emplace_back();
     key_value.key = key;
     key_value.value = value;

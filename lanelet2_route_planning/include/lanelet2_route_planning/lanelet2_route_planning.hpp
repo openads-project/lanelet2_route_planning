@@ -3,7 +3,10 @@
 
 #pragma once
 
+#include <limits>
+#include <map>
 #include <memory>
+#include <mutex>
 #include <string>
 #include <vector>
 
@@ -429,6 +432,11 @@ class Lanelet2RoutePlanning : public rclcpp::Node {
   std::map<std::string, std::string> health_kv_ = {};
 
   /**
+   * @brief Mutex protecting health key-value pairs across threads
+   */
+  mutable std::mutex health_kv_mutex_;
+
+  /**
    * @brief Health diagnostic publisher
    */
   rclcpp::Publisher<diagnostic_msgs::msg::DiagnosticArray>::SharedPtr health_diagnostic_pub_;
@@ -436,7 +444,7 @@ class Lanelet2RoutePlanning : public rclcpp::Node {
   /**
    * @brief Diagnostic updater for monitoring topic frequencies and timestamps
    */
-  diagnostic_updater::Updater diagnostic_updater_{this};
+  diagnostic_updater::Updater diagnostic_updater_;
 
   /**
    * @brief Diagnostic to auto-diagnose ego data topic
