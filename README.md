@@ -89,6 +89,7 @@ Package and node interfaces are documented in the respective package READMEs lis
 | Package | Description |
 | --- | --- |
 | [lanelet2_route_planning](lanelet2_route_planning/README.md) | Plans a route on a Lanelet2 map |
+| `lanelet2_route_planning_msgs` | Temporary compact global reference-line messages |
 | [plan_route_action_client](plan_route_action_client/README.md) | Action client to plan a route_planning_msgs/action/Route based on clicked RViz poses or other inputs |
 
 ## ⚖️ Licensing

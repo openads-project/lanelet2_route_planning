@@ -6,13 +6,16 @@ Plans a route on a Lanelet2 map
 
 ### `lanelet2_route_planning`
 
-The `lanelet2_route_planning` node computes a shortest path route from a current ego position to a destination based on a Lanelet2 map. Progress along the route is continuously tracked and published as action feedback via the integrated action server, which is accepting a destination in the first place. The route is published at a constant frequency, allowing downstream planning tasks to incorporate knowledge about the road topology. For this purpose, the published route not only contains a suggested reference line, but also information about adjacent lanes, regulatory elements, and drivable space. For the sake of computation and data efficiency, the route is only locally enriched with this additional information. More information on the outgoing `route_planning_msgs/msg/Route` format is found in [planning_interfaces](https://github.com/ika-rwth-aachen/planning_interfaces?tab=readme-ov-file#overview-of-the-route_planning_msgs).
+The `lanelet2_route_planning` node computes a shortest path route from a current ego position to a destination based on a Lanelet2 map. Progress along the route is continuously tracked and published as action feedback via the integrated action server, which is accepting a destination in the first place. A local route window is published at a constant frequency, allowing downstream planning tasks to incorporate enriched information about adjacent lanes, regulatory elements, and drivable space. The complete reference line is simplified within a configurable error bound and published once per successful plan with transient-local durability.
+
+The local `route_planning_msgs/msg/Route` retains absolute `s` values and the global destination. Its start or destination index is set to `UINT64_MAX` when that element is outside the local window. More information on the `Route` format is found in [planning_interfaces](https://github.com/ika-rwth-aachen/planning_interfaces?tab=readme-ov-file#overview-of-the-route_planning_msgs). The compact global message stores its first point as a double-precision origin; all following single-precision points are offsets from that origin, not from their predecessors.
 
 ```mermaid
 flowchart LR
     NODE("lanelet2_route_planning")
     S0:::hidden -->|~/ego_data| NODE
     NODE -->|~/route| P0:::hidden
+    NODE -->|~/global_route| P1:::hidden
     AS0:::hidden o-.-o|~/plan_route| NODE
     classDef hidden display: none;
 ```
@@ -28,6 +31,7 @@ flowchart LR
 | Topic | Type | Description |
 | --- | --- | --- |
 | `~/route` | `route_planning_msgs/msg/Route` | planned route |
+| `~/global_route` | `lanelet2_route_planning_msgs/msg/ReferenceLine` | complete simplified reference line, published once per successful plan |
 
 #### Action Servers
 
@@ -43,6 +47,7 @@ flowchart LR
 | `publish_frequency` | `float` | `10.0` | Frequency of route publication [Hz] |
 | `action_feedback_frequency` | `float` | `1.0` | Frequency of action feedback publication [Hz] |
 | `sampling_distance` | `float` | `1.0` | Distance between resampled points along route [m] |
+| `global_route_max_lateral_error` | `float` | `0.5` | Maximum lateral simplification error of the global reference line [m] (0 disables simplification) |
 | `project_destination_to_reference_line` | `bool` | `true` | Whether to project destination to reference line |
 | `destination_distance_threshold` | `float` | `1.0` | Distance to destination where destination is considered reached [m] |
 | `required_traveled_distance_proportion` | `float` | `0.5` | Proportion of route length that must have been traveled before considering destination reached [0..1] |
@@ -62,6 +67,7 @@ flowchart LR
 | --- | --- | --- |
 | `ego_data_topic` | `"~/ego_data"` | ego data topic |
 | `route_topic` | `"~/route"` | planned route topic |
+| `global_route_topic` | `"~/global_route"` | global reference line topic |
 | `name` | `"lanelet2_route_planning"` | node name |
 | `namespace` | `""` | node namespace |
 | `params` | `os.path.join(get_package_share_directory("lanelet2_route_planning"), "config", "params.yml")` | path to parameter file |
@@ -74,6 +80,7 @@ flowchart LR
 | --- | --- | --- |
 | `ego_data_topic` | `"~/ego_data"` | ego data topic |
 | `route_topic` | `"~/route"` | planned route topic |
+| `global_route_topic` | `"~/global_route"` | global reference line topic |
 | `goal_pose_topic` | `"~/goal_pose"` | goal pose topic |
 | `name` | `"lanelet2_route_planning"` | node name |
 | `namespace` | `""` | node namespace |

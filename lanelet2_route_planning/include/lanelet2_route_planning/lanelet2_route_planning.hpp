@@ -11,6 +11,7 @@
 #include <tf2_ros/buffer.h>
 #include <tf2_ros/transform_listener.h>
 #include <lanelet2_map_interface/lanelet2_map_interface.hpp>
+#include <lanelet2_route_planning_msgs/msg/reference_line.hpp>
 #include <rclcpp/rclcpp.hpp>
 #include <rclcpp_action/rclcpp_action.hpp>
 #include <route_planning_msgs/action/plan_route.hpp>
@@ -197,6 +198,11 @@ class Lanelet2RoutePlanning : public rclcpp::Node {
   rclcpp::Publisher<route_planning_msgs::msg::Route>::SharedPtr publisher_route_;
 
   /**
+   * @brief Transient-local publisher for the global reference line
+   */
+  rclcpp::Publisher<lanelet2_route_planning_msgs::msg::ReferenceLine>::SharedPtr publisher_global_route_;
+
+  /**
    * @brief Timer for publishing route
    */
   rclcpp::TimerBase::SharedPtr publish_timer_;
@@ -301,6 +307,16 @@ class Lanelet2RoutePlanning : public rclcpp::Node {
   route_planning_msgs::msg::Route latest_route_msg_;
 
   /**
+   * @brief Latest complete minimal route used internally for progress tracking
+   */
+  route_planning_msgs::msg::Route latest_full_route_msg_;
+
+  /**
+   * @brief Latest complete dense reference line in the map frame
+   */
+  std::vector<Eigen::Vector2d> latest_reference_line_;
+
+  /**
    * @brief Latest mapping between global route reference line and lanelet indices
    *
    * Used to easily find lanelet for a given point on the global reference line.
@@ -335,6 +351,11 @@ class Lanelet2RoutePlanning : public rclcpp::Node {
    * @brief Distance between resampled points along route [m] (parameter)
    */
   double sampling_distance_ = 1.0;
+
+  /**
+   * @brief Maximum lateral error of the simplified global reference line [m] (parameter)
+   */
+  double global_route_max_lateral_error_ = 0.5;
 
   /**
    * @brief Whether to project destination to reference line (parameter)
