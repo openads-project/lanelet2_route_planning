@@ -8,6 +8,7 @@ endif()
 find_package(ament_cmake REQUIRED)
 find_package(lanelet2_core REQUIRED)
 find_package(lanelet2_map_interface REQUIRED)
+find_package(lanelet2_route_planning_msgs REQUIRED)
 find_package(lanelet2_routing REQUIRED)
 find_package(lanelet2_traffic_rules REQUIRED)
 find_package(OpenMP REQUIRED)
@@ -17,6 +18,7 @@ find_package(rclcpp REQUIRED)
 find_package(rclcpp_action REQUIRED)
 find_package(route_planning_msgs REQUIRED)
 find_package(route_planning_msgs_utils REQUIRED)
+find_package(std_msgs REQUIRED)
 find_package(tf2 REQUIRED)
 find_package(tf2_geometry_msgs REQUIRED)
 find_package(tf2_perception_msgs REQUIRED)
@@ -28,6 +30,7 @@ add_executable(${TARGET_NAME}
   src/conversions.cpp
   src/geometry.cpp
   src/lanelet2_route_planning.cpp
+  src/reference_line.cpp
   src/utils.cpp
 )
 
@@ -40,6 +43,7 @@ target_compile_features(${TARGET_NAME} PUBLIC c_std_99 cxx_std_17)
 ament_target_dependencies(${TARGET_NAME}
   lanelet2_core
   lanelet2_map_interface
+  lanelet2_route_planning_msgs
   lanelet2_routing
   lanelet2_traffic_rules
   OpenMP
@@ -49,6 +53,7 @@ ament_target_dependencies(${TARGET_NAME}
   rclcpp_action
   route_planning_msgs
   route_planning_msgs_utils
+  std_msgs
   tf2
   tf2_geometry_msgs
   tf2_perception_msgs

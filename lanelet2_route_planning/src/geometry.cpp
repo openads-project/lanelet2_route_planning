@@ -1,8 +1,11 @@
 // Copyright Institute for Automotive Engineering (ika), RWTH Aachen University
 // SPDX-License-Identifier: Apache-2.0
 
+#include <algorithm>
 #include <cmath>
 #include <limits>
+#include <numeric>
+#include <utility>
 
 #include <lanelet2_core/geometry/LineString.h>
 #include <rclcpp/rclcpp.hpp>
@@ -11,6 +14,59 @@
 #include "lanelet2_route_planning/geometry.hpp"
 
 namespace lanelet2_route_planning {
+namespace {
+
+double pointToSegmentDistance(const Eigen::Vector2d& point,
+                              const Eigen::Vector2d& segment_start,
+                              const Eigen::Vector2d& segment_end) {
+  const Eigen::Vector2d segment = segment_end - segment_start;
+  const double squared_length = segment.squaredNorm();
+  if (squared_length == 0.0) {
+    return (point - segment_start).norm();
+  }
+  const double interpolation = std::clamp((point - segment_start).dot(segment) / squared_length, 0.0, 1.0);
+  return (point - (segment_start + interpolation * segment)).norm();
+}
+
+void simplifyLineStringRange(const std::vector<Eigen::Vector2d>& line_string,
+                             const size_t first,
+                             const size_t last,
+                             const double max_lateral_error,
+                             std::vector<bool>& keep) {
+  keep[first] = true;
+  keep[last] = true;
+  if (last <= first + 1) {
+    return;
+  }
+
+  std::vector<std::pair<size_t, size_t>> ranges = {{first, last}};
+  while (!ranges.empty()) {
+    const auto [range_first, range_last] = ranges.back();
+    ranges.pop_back();
+
+    double largest_distance = -1.0;
+    size_t largest_distance_idx = range_first;
+    for (size_t i = range_first + 1; i < range_last; ++i) {
+      const double distance = pointToSegmentDistance(line_string[i], line_string[range_first], line_string[range_last]);
+      if (distance > largest_distance) {
+        largest_distance = distance;
+        largest_distance_idx = i;
+      }
+    }
+
+    if (largest_distance > max_lateral_error) {
+      keep[largest_distance_idx] = true;
+      if (largest_distance_idx > range_first + 1) {
+        ranges.emplace_back(range_first, largest_distance_idx);
+      }
+      if (range_last > largest_distance_idx + 1) {
+        ranges.emplace_back(largest_distance_idx, range_last);
+      }
+    }
+  }
+}
+
+}  // namespace
 
 double wrapAngle(const double angle) {
   double wrapped_angle = angle;
@@ -125,6 +181,47 @@ std::vector<Eigen::Vector3d> resampleLineString(const std::vector<Eigen::Vector3
   offset = sampling_distance;
 
   return resampled_line_string;
+}
+
+std::vector<size_t> simplifyLineString(const std::vector<Eigen::Vector2d>& line_string,
+                                       const double max_lateral_error,
+                                       const std::vector<size_t>& break_after_indices) {
+  std::vector<size_t> retained_indices;
+  if (line_string.empty()) {
+    return retained_indices;
+  }
+  if (max_lateral_error <= 0.0) {
+    retained_indices.resize(line_string.size());
+    std::iota(retained_indices.begin(), retained_indices.end(), 0);
+    return retained_indices;
+  }
+
+  std::vector<size_t> valid_breaks;
+  for (const size_t index : break_after_indices) {
+    if (index < line_string.size() - 1) {
+      valid_breaks.push_back(index);
+    }
+  }
+  std::sort(valid_breaks.begin(), valid_breaks.end());
+  valid_breaks.erase(std::unique(valid_breaks.begin(), valid_breaks.end()), valid_breaks.end());
+
+  std::vector<bool> keep(line_string.size(), false);
+  size_t segment_start = 0;
+  for (const size_t break_after : valid_breaks) {
+    if (break_after < segment_start) {
+      continue;
+    }
+    simplifyLineStringRange(line_string, segment_start, break_after, max_lateral_error, keep);
+    segment_start = break_after + 1;
+  }
+  simplifyLineStringRange(line_string, segment_start, line_string.size() - 1, max_lateral_error, keep);
+
+  for (size_t i = 0; i < keep.size(); ++i) {
+    if (keep[i]) {
+      retained_indices.push_back(i);
+    }
+  }
+  return retained_indices;
 }
 
 Eigen::Vector2d projectPointToLineString(const Eigen::Vector2d& point, const std::vector<Eigen::Vector2d>& line_string) {

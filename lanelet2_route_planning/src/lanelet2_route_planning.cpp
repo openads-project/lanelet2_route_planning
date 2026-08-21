@@ -1,7 +1,9 @@
 // Copyright Institute for Automotive Engineering (ika), RWTH Aachen University
 // SPDX-License-Identifier: Apache-2.0
 
+#include <algorithm>
 #include <functional>
+#include <limits>
 #include <thread>
 #include <tuple>
 #include <utility>
@@ -18,6 +20,8 @@
 #include "lanelet2_route_planning/conversions.hpp"
 #include "lanelet2_route_planning/geometry.hpp"
 #include "lanelet2_route_planning/lanelet2_route_planning.hpp"
+#include "lanelet2_route_planning/reference_line.hpp"
+#include "lanelet2_route_planning/route_window.hpp"
 #include "lanelet2_route_planning/utils.hpp"
 
 namespace lanelet2_route_planning {
@@ -31,6 +35,9 @@ Lanelet2RoutePlanning::Lanelet2RoutePlanning() : Node("lanelet2_route_planning")
                                 "Frequency of action feedback publication [Hz]", true, false, false, 0.1, 20.0);
   this->declareAndLoadParameter("sampling_distance", sampling_distance_, "Distance between resampled points along route [m]",
                                 true, false, false, 0.1, 3.0);
+  this->declareAndLoadParameter("global_route_max_lateral_error", global_route_max_lateral_error_,
+                                "Maximum lateral error of the simplified global reference line [m]", true, false, false, 0.0,
+                                10.0);
   this->declareAndLoadParameter("project_destination_to_reference_line", project_destination_to_reference_line_,
                                 "Whether to project destination to reference line", true, false, false);
   this->declareAndLoadParameter("destination_distance_threshold", destination_distance_threshold_,
@@ -210,10 +217,13 @@ void Lanelet2RoutePlanning::setup() {
 
   // publishers
   publisher_route_ = this->create_publisher<route_planning_msgs::msg::Route>("~/route", 1);
+  publisher_global_route_ = this->create_publisher<lanelet2_route_planning_msgs::msg::ReferenceLine>(
+      "~/global_route", rclcpp::QoS(1).reliable().transient_local());
   publish_timer_ = this->create_wall_timer(std::chrono::duration<double>(1.0 / publish_frequency_),
                                            std::bind(&Lanelet2RoutePlanning::publishTimerCallback, this));
   is_publishing_route_ = false;
   RCLCPP_INFO(this->get_logger(), "Publishing to '%s'", publisher_route_->get_topic_name());
+  RCLCPP_INFO(this->get_logger(), "Publishing global route to '%s'", publisher_global_route_->get_topic_name());
 
   // subscribers
   subscriber_ego_data_ = this->create_subscription<perception_msgs::msg::EgoData>(
@@ -355,9 +365,9 @@ void Lanelet2RoutePlanning::actionHandleAccepted(
   action_feedback_ = std::make_shared<route_planning_msgs::action::PlanRoute::Feedback>();
   action_feedback_->distance_traveled = 0.0;
   action_feedback_->distance_remaining = 0.0;
-  action_feedback_->distance_remaining = distanceRemaining(latest_route_msg_);
+  action_feedback_->distance_remaining = distanceRemaining(latest_full_route_msg_);
   action_feedback_->time_traveled = rclcpp::Duration::from_seconds(0.0);
-  action_feedback_->time_remaining = rclcpp::Duration::from_seconds(estimateRemainingTime(latest_route_msg_));
+  action_feedback_->time_remaining = rclcpp::Duration::from_seconds(estimateRemainingTime(latest_full_route_msg_));
   action_result_ = std::make_shared<route_planning_msgs::action::PlanRoute::Result>();
   action_result_->distance_traveled = 0.0;
   action_result_->time_traveled = rclcpp::Duration::from_seconds(0.0);
@@ -378,10 +388,10 @@ void Lanelet2RoutePlanning::actionExecute(
   bool has_reached_destination = false;
   while (goal_handle->is_executing() && !goal_handle->is_canceling() && !has_reached_destination) {
     // update feedback and result
-    action_feedback_->distance_traveled = distanceTraveled(latest_route_msg_);
-    action_feedback_->distance_remaining = distanceRemaining(latest_route_msg_);
+    action_feedback_->distance_traveled = distanceTraveled(latest_full_route_msg_);
+    action_feedback_->distance_remaining = distanceRemaining(latest_full_route_msg_);
     action_feedback_->time_traveled = this->now() - action_start_time_;
-    action_feedback_->time_remaining = rclcpp::Duration::from_seconds(estimateRemainingTime(latest_route_msg_));
+    action_feedback_->time_remaining = rclcpp::Duration::from_seconds(estimateRemainingTime(latest_full_route_msg_));
     action_result_->distance_traveled = action_feedback_->distance_traveled;
     action_result_->time_traveled = action_feedback_->time_traveled;
 
@@ -552,6 +562,7 @@ void Lanelet2RoutePlanning::buildGlobalRouteMessage() {
   auto resampling_result = resampleCenterlinesAlongPath(shortest_path, sampling_distance_, true);
   std::vector<Eigen::Vector3d> shortest_path_centerline_3d = resampling_result.centerline;
   std::vector<Eigen::Vector2d> shortest_path_centerline = to2d(shortest_path_centerline_3d);
+  latest_reference_line_ = shortest_path_centerline;
   latest_lanelet_idx_by_reference_line_point_idx_ = resampling_result.lanelet_idx_by_point;
 
   // fill route message with global reference line
@@ -608,63 +619,76 @@ void Lanelet2RoutePlanning::buildGlobalRouteMessage() {
       indexOfLineStringPointClosestToPoint(shortest_path_centerline, toEigen2d(destination_), true, false);
 
   has_enriched_route_ = false;
-  latest_route_msg_ = route_msg;
+  latest_route_msg_ = route_planning_msgs::msg::Route();
+  latest_full_route_msg_ = route_msg;
+
+  // simplify the global reference line without crossing lane-change discontinuities
+  std::vector<size_t> break_after_indices;
+  for (size_t c = 0; c + 1 < route_msg.route_elements.size(); ++c) {
+    if (route_msg.route_elements[c].will_change_suggested_lane) {
+      break_after_indices.push_back(c);
+    }
+  }
+  const std::vector<size_t> retained_indices =
+      simplifyLineString(shortest_path_centerline, global_route_max_lateral_error_, break_after_indices);
+  if (retained_indices.empty()) {
+    RCLCPP_WARN(this->get_logger(), "Global reference line is empty, not publishing it");
+    return;
+  }
+
+  const auto reference_line_msg = createReferenceLineMessage(route_msg.header, shortest_path_centerline, retained_indices);
+  publisher_global_route_->publish(reference_line_msg);
+  RCLCPP_INFO(this->get_logger(), "Published global reference line with %ld/%ld points", retained_indices.size(),
+              shortest_path_centerline.size());
 }
 
 void Lanelet2RoutePlanning::buildEnrichedRouteMessage() {
-  route_planning_msgs::msg::Route route_msg = latest_route_msg_;
-  std::vector<route_planning_msgs::msg::RouteElement>& route_elements = route_msg.route_elements;
-  if (latest_suggested_turn_signal_distance_ahead_by_route_element_by_lane_element_.size() != route_elements.size()) {
-    latest_suggested_turn_signal_distance_ahead_by_route_element_by_lane_element_ =
-        std::vector<std::vector<int>>(route_elements.size());
+  if (latest_full_route_msg_.route_elements.empty() || latest_reference_line_.empty()) {
+    return;
   }
 
   // find point of global reference line closest to and behind of ego position
   const Eigen::Vector2d ego_position = toEigen2d(egoPosition(latest_ego_data_));
-  const std::vector<Eigen::Vector2d> reference_line = to2d(suggestedReferenceLineToEigen(route_elements));
-  size_t c_closest_point = matchPointToLineString(reference_line, ego_position, route_msg.current_route_element_idx, true, true);
+  const size_t global_closest_point =
+      matchPointToLineString(latest_reference_line_, ego_position, latest_full_route_msg_.current_route_element_idx, true, true);
+  latest_full_route_msg_.current_route_element_idx = global_closest_point;
+  const auto& full_route_elements = latest_full_route_msg_.route_elements;
+  LocalRouteWindow local_route_window = extractLocalRouteWindow(
+      latest_full_route_msg_, global_closest_point, enrich_route_behind_ego_distance_, enrich_route_ahead_ego_distance_);
+  const size_t first_global_idx = local_route_window.first_global_idx;
+  route_planning_msgs::msg::Route route_msg = std::move(local_route_window.route);
+  std::vector<route_planning_msgs::msg::RouteElement>& route_elements = route_msg.route_elements;
+  if (route_elements.empty()) {
+    return;
+  }
 
-// loop over global reference line in parallel
+  latest_suggested_turn_signal_distance_ahead_by_route_element_by_lane_element_ =
+      std::vector<std::vector<int>>(route_elements.size());
+  const lanelet::routing::LaneletPath shortest_path = latest_route_.shortestPath();
+
+// loop over local reference line in parallel
 #pragma omp parallel for
   for (size_t c = 0; c < route_elements.size(); ++c) {
+    const size_t global_c = first_global_idx + c;
     route_planning_msgs::msg::RouteElement& route_element_msg = route_elements[c];
     route_planning_msgs::msg::LaneElement& lane_element_msg =
         route_element_msg.lane_elements[route_element_msg.suggested_lane_idx];
 
-    // only consider route elements within enrich_route_behind_ego_distance_ and enrich_route_ahead_ego_distance_ for local route
-    double distance_ahead = route_element_msg.s - route_elements[c_closest_point].s;
-    if (distance_ahead > enrich_route_ahead_ego_distance_ || distance_ahead < -enrich_route_behind_ego_distance_) {
-      // clear local route enriched information, if existing
-      route_element_msg = createMinimalRouteElement(lane_element_msg.reference_pose.position,
-                                                    lane_element_msg.reference_pose.orientation, route_element_msg.s,
-                                                    route_element_msg.will_change_suggested_lane, lane_element_msg.speed_limit);
-      latest_suggested_turn_signal_distance_ahead_by_route_element_by_lane_element_[c].clear();
-      continue;
-    }
-
-    // skip recomputation of local route if already enriched
-    if (route_element_msg.is_enriched) {
-      continue;
-    }
-
     // get current, previous and next centerline point
-    route_planning_msgs::msg::LaneElement prev_lane_element_msg, next_lane_element_msg;
-#pragma omp critical  // prevent race condition when accessing prev/next suggested lane element set by other threads
-    {
-      prev_lane_element_msg =
-          (c > 0) ? route_planning_msgs::route_access::getSuggestedLaneElement(route_elements[c - 1]) : lane_element_msg;
-      next_lane_element_msg = (c < route_elements.size() - 1)
-                                  ? route_planning_msgs::route_access::getSuggestedLaneElement(route_elements[c + 1])
-                                  : lane_element_msg;
-    }
+    const route_planning_msgs::msg::LaneElement prev_lane_element_msg =
+        (global_c > 0) ? route_planning_msgs::route_access::getSuggestedLaneElement(full_route_elements[global_c - 1])
+                       : lane_element_msg;
+    const route_planning_msgs::msg::LaneElement next_lane_element_msg =
+        (global_c + 1 < full_route_elements.size())
+            ? route_planning_msgs::route_access::getSuggestedLaneElement(full_route_elements[global_c + 1])
+            : lane_element_msg;
     const Eigen::Vector2d point = toEigen2d(lane_element_msg.reference_pose.position);
     const Eigen::Vector2d prev_point = toEigen2d(prev_lane_element_msg.reference_pose.position);
     const Eigen::Vector2d next_point = toEigen2d(next_lane_element_msg.reference_pose.position);
     const double point_z = lane_element_msg.reference_pose.position.z;  // assuming constant z across route elements
 
     // get lanelet corresponding to centerline point
-    lanelet::routing::LaneletPath shortest_path = latest_route_.shortestPath();
-    const lanelet::ConstLanelet& lanelet = shortest_path[latest_lanelet_idx_by_reference_line_point_idx_[c]];
+    const lanelet::ConstLanelet& lanelet = shortest_path[latest_lanelet_idx_by_reference_line_point_idx_[global_c]];
 
     // identify lane changes
     const bool changes_lane_from_prev_point =
@@ -695,14 +719,15 @@ void Lanelet2RoutePlanning::buildEnrichedRouteMessage() {
 
     // compute offset of lane element indices from current to next route element
     const lanelet::ConstLanelet& lanelet_of_next_point =
-        (c < route_elements.size() - 1) ? shortest_path[latest_lanelet_idx_by_reference_line_point_idx_[c + 1]] : lanelet;
+        (global_c + 1 < full_route_elements.size()) ? shortest_path[latest_lanelet_idx_by_reference_line_point_idx_[global_c + 1]]
+                                                    : lanelet;
     int following_lane_idx_offset = 0;
     if (auto result = computeFollowingLaneIdxOffset(lanelet, lanelet_of_next_point, routing_graph_)) {
       following_lane_idx_offset = *result;
     } else {
       RCLCPP_ERROR(this->get_logger(),
-                   "Failed to find following lane index offset for route element %ld on lanelet %ld, assuming no offset", c,
-                   lanelet.id());
+                   "Failed to find following lane index offset for route element %ld on lanelet %ld, assuming no offset",
+                   global_c, lanelet.id());
       following_lane_idx_offset = 0;
     }
 
@@ -808,8 +833,6 @@ void Lanelet2RoutePlanning::buildEnrichedRouteMessage() {
     }
   }
 
-  // split in traveled and remaining route elements
-  route_msg.current_route_element_idx = c_closest_point;
   route_msg.header.stamp = latest_ego_data_.header.stamp;
 
   // postprocess route message
