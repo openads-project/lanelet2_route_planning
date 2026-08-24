@@ -245,10 +245,8 @@ Visualization Manager:
         Opacity: 0.5
         Value: true
       Value: true
-    - Class: route_planning_msgs/ReferenceLine
-      Color: 255; 170; 0
+    - Class: route_planning_msgs/Route
       Enabled: true
-      Line Width: 0.15000000596046448
       Name: Global Route
       Topic:
         Depth: 1

@@ -14,7 +14,6 @@
 #include <rclcpp/rclcpp.hpp>
 #include <rclcpp_action/rclcpp_action.hpp>
 #include <route_planning_msgs/action/plan_route.hpp>
-#include <route_planning_msgs/msg/reference_line.hpp>
 #include <route_planning_msgs/msg/route.hpp>
 
 namespace lanelet2_route_planning {
@@ -200,7 +199,7 @@ class Lanelet2RoutePlanning : public rclcpp::Node {
   /**
    * @brief Transient-local publisher for the global reference line
    */
-  rclcpp::Publisher<route_planning_msgs::msg::ReferenceLine>::SharedPtr publisher_global_route_;
+  rclcpp::Publisher<route_planning_msgs::msg::Route>::SharedPtr publisher_global_route_;
 
   /**
    * @brief Timer for publishing route

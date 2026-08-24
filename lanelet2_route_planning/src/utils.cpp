@@ -992,11 +992,11 @@ ResampleCenterlinesAlongPathResult resampleCenterlinesAlongPath(const lanelet::r
 
 double distanceTraveled(const route_planning_msgs::msg::Route& route) {
   if (route.current_route_element_idx >= route.route_elements.size() ||
-      route.starting_route_element_idx >= route.route_elements.size()) {
+      route.start_route_element_idx >= route.route_elements.size()) {
     return 0.0;
   }
   double to_current = route.route_elements[route.current_route_element_idx].s;
-  double ahead_of_starting_point = route.route_elements[route.starting_route_element_idx].s;
+  double ahead_of_starting_point = route.route_elements[route.start_route_element_idx].s;
   double traveled = to_current - ahead_of_starting_point;
   return traveled;
 }

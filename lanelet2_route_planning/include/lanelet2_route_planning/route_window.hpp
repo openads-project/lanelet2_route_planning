@@ -7,7 +7,6 @@
 #include <cstddef>
 #include <cstdint>
 #include <iterator>
-#include <limits>
 
 #include <route_planning_msgs/msg/route.hpp>
 
@@ -24,8 +23,8 @@ struct LocalRouteWindow {
 /**
  * @brief Extracts a local route window while preserving absolute route data.
  *
- * Start and destination indices are remapped when present and set to UINT64_MAX
- * otherwise. The current index is always local and valid for a valid input.
+ * Start and destination indices are remapped when present and set to
+ * Route::INVALID_ROUTE_ELEMENT_IDX otherwise. The current index is always local and valid for a valid input.
  *
  * @param[in] full_route complete route
  * @param[in] current_global_idx current element index in full_route
@@ -57,10 +56,11 @@ inline LocalRouteWindow extractLocalRouteWindow(const route_planning_msgs::msg::
   result.route.route_elements.assign(first_it, last_it);
 
   const auto remap_global_idx = [first_global_idx = result.first_global_idx, last_global_idx](const uint64_t global_idx) {
-    return (global_idx >= first_global_idx && global_idx < last_global_idx) ? global_idx - first_global_idx
-                                                                            : std::numeric_limits<uint64_t>::max();
+    return (global_idx >= first_global_idx && global_idx < last_global_idx)
+               ? global_idx - first_global_idx
+               : route_planning_msgs::msg::Route::INVALID_ROUTE_ELEMENT_IDX;
   };
-  result.route.starting_route_element_idx = remap_global_idx(full_route.starting_route_element_idx);
+  result.route.start_route_element_idx = remap_global_idx(full_route.start_route_element_idx);
   result.route.current_route_element_idx = current_global_idx - result.first_global_idx;
   result.route.destination_route_element_idx = remap_global_idx(full_route.destination_route_element_idx);
   return result;

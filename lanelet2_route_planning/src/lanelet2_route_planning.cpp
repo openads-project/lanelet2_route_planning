@@ -20,7 +20,6 @@
 #include "lanelet2_route_planning/conversions.hpp"
 #include "lanelet2_route_planning/geometry.hpp"
 #include "lanelet2_route_planning/lanelet2_route_planning.hpp"
-#include "lanelet2_route_planning/reference_line.hpp"
 #include "lanelet2_route_planning/route_window.hpp"
 #include "lanelet2_route_planning/utils.hpp"
 
@@ -217,8 +216,8 @@ void Lanelet2RoutePlanning::setup() {
 
   // publishers
   publisher_route_ = this->create_publisher<route_planning_msgs::msg::Route>("~/route", 1);
-  publisher_global_route_ = this->create_publisher<route_planning_msgs::msg::ReferenceLine>(
-      "~/global_route", rclcpp::QoS(1).reliable().transient_local());
+  publisher_global_route_ =
+      this->create_publisher<route_planning_msgs::msg::Route>("~/global_route", rclcpp::QoS(1).reliable().transient_local());
   publish_timer_ = this->create_wall_timer(std::chrono::duration<double>(1.0 / publish_frequency_),
                                            std::bind(&Lanelet2RoutePlanning::publishTimerCallback, this));
   is_publishing_route_ = false;
@@ -551,9 +550,12 @@ void Lanelet2RoutePlanning::buildGlobalRouteMessage() {
   route_planning_msgs::msg::Route route_msg;
   route_msg.header.stamp = latest_ego_data_.header.stamp;
   route_msg.header.frame_id = ll2_interface_->map_frame_id_;
+  route_msg.start = starting_point_;
   route_msg.destination = destination_;
   route_msg.intermediate_destinations = intermediate_destinations_;
+  route_msg.has_route_elements = true;
   route_msg.route_elements = {};
+  route_msg.reference_line_deltas = {};
 
   // get shortest path
   lanelet::routing::LaneletPath shortest_path = latest_route_.shortestPath();
@@ -606,15 +608,15 @@ void Lanelet2RoutePlanning::buildGlobalRouteMessage() {
       destination = toRos(projectPointToLineString(toEigen(destination), shortest_path_centerline_3d));
     }
     destination_ = toRos(projectPointToLineString(toEigen(destination_), shortest_path_centerline_3d));
+    route_msg.start = starting_point_;
     route_msg.destination = destination_;
     route_msg.intermediate_destinations = intermediate_destinations_;
   }
 
   // determine starting/current/destination indices in route elements
-  route_msg.starting_route_element_idx =
-      matchPointToLineString(shortest_path_centerline, toEigen2d(starting_point_), 0, true, true);
+  route_msg.start_route_element_idx = matchPointToLineString(shortest_path_centerline, toEigen2d(starting_point_), 0, true, true);
   route_msg.current_route_element_idx = matchPointToLineString(shortest_path_centerline, toEigen2d(egoPosition(latest_ego_data_)),
-                                                               route_msg.starting_route_element_idx, true, true);
+                                                               route_msg.start_route_element_idx, true, true);
   route_msg.destination_route_element_idx =
       indexOfLineStringPointClosestToPoint(shortest_path_centerline, toEigen2d(destination_), true, false);
 
@@ -622,24 +624,56 @@ void Lanelet2RoutePlanning::buildGlobalRouteMessage() {
   latest_route_msg_ = route_planning_msgs::msg::Route();
   latest_full_route_msg_ = route_msg;
 
-  // simplify the global reference line without crossing lane-change discontinuities
+  // Build and simplify the global reference line only between the actual start and destination.
+  const size_t start_idx = route_msg.start_route_element_idx;
+  const size_t destination_idx = route_msg.destination_route_element_idx;
+  if (start_idx >= shortest_path_centerline.size() || destination_idx >= shortest_path_centerline.size() ||
+      start_idx > destination_idx) {
+    RCLCPP_WARN(this->get_logger(), "Invalid start or destination index, not publishing global route");
+    return;
+  }
+
+  std::vector<Eigen::Vector2d> global_reference_line = {toEigen2d(starting_point_)};
+  global_reference_line.insert(global_reference_line.end(), shortest_path_centerline.begin() + start_idx + 1,
+                               shortest_path_centerline.begin() + destination_idx);
+  global_reference_line.push_back(toEigen2d(destination_));
+
   std::vector<size_t> break_after_indices;
-  for (size_t c = 0; c + 1 < route_msg.route_elements.size(); ++c) {
+  for (size_t c = start_idx; c < destination_idx; ++c) {
     if (route_msg.route_elements[c].will_change_suggested_lane) {
-      break_after_indices.push_back(c);
+      break_after_indices.push_back(c - start_idx);
     }
   }
   const std::vector<size_t> retained_indices =
-      simplifyLineString(shortest_path_centerline, global_route_max_lateral_error_, break_after_indices);
+      simplifyLineString(global_reference_line, global_route_max_lateral_error_, break_after_indices);
   if (retained_indices.empty()) {
     RCLCPP_WARN(this->get_logger(), "Global reference line is empty, not publishing it");
     return;
   }
 
-  const auto reference_line_msg = createReferenceLineMessage(route_msg.header, shortest_path_centerline, retained_indices);
-  publisher_global_route_->publish(reference_line_msg);
+  route_planning_msgs::msg::Route global_route_msg;
+  global_route_msg.header = route_msg.header;
+  global_route_msg.start = route_msg.start;
+  global_route_msg.destination = route_msg.destination;
+  global_route_msg.intermediate_destinations = route_msg.intermediate_destinations;
+  global_route_msg.has_route_elements = false;
+  global_route_msg.route_elements = {};
+  global_route_msg.start_route_element_idx = route_planning_msgs::msg::Route::INVALID_ROUTE_ELEMENT_IDX;
+  global_route_msg.current_route_element_idx = route_planning_msgs::msg::Route::INVALID_ROUTE_ELEMENT_IDX;
+  global_route_msg.destination_route_element_idx = route_planning_msgs::msg::Route::INVALID_ROUTE_ELEMENT_IDX;
+  global_route_msg.reference_line_deltas.reserve(retained_indices.size() - 1);
+  Eigen::Vector2d previous_point = global_reference_line[retained_indices.front()];
+  for (auto retained_idx_it = retained_indices.begin() + 1; retained_idx_it != retained_indices.end(); ++retained_idx_it) {
+    const Eigen::Vector2d point = global_reference_line[*retained_idx_it];
+    route_planning_msgs::msg::Point2d32 delta_point;
+    delta_point.x = static_cast<float>(point.x() - previous_point.x());
+    delta_point.y = static_cast<float>(point.y() - previous_point.y());
+    global_route_msg.reference_line_deltas.push_back(delta_point);
+    previous_point = point;
+  }
+  publisher_global_route_->publish(global_route_msg);
   RCLCPP_INFO(this->get_logger(), "Published global reference line with %ld/%ld points", retained_indices.size(),
-              shortest_path_centerline.size());
+              global_reference_line.size());
 }
 
 void Lanelet2RoutePlanning::buildEnrichedRouteMessage() {

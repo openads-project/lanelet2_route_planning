@@ -8,7 +8,7 @@ Plans a route on a Lanelet2 map
 
 The `lanelet2_route_planning` node computes a shortest path route from a current ego position to a destination based on a Lanelet2 map. Progress along the route is continuously tracked and published as action feedback via the integrated action server, which is accepting a destination in the first place. A local route window is published at a constant frequency, allowing downstream planning tasks to incorporate enriched information about adjacent lanes, regulatory elements, and drivable space. The complete reference line is simplified within a configurable error bound and published once per successful plan with transient-local durability.
 
-The local `route_planning_msgs/msg/Route` retains absolute `s` values and the global destination. Its start or destination index is set to `UINT64_MAX` when that element is outside the local window. More information on the `Route` format is found in [planning_interfaces](https://github.com/ika-rwth-aachen/planning_interfaces?tab=readme-ov-file#overview-of-the-route_planning_msgs). The compact global message stores its first point as a double-precision origin; all following single-precision points are offsets from that origin, not from their predecessors.
+The local `route_planning_msgs/msg/Route` retains absolute `s` values and the global destination. Its start or destination index is set to `INVALID_ROUTE_ELEMENT_IDX` when that element is outside the local window. The global message has no route elements; its reference line starts at `start` and is reconstructed by accumulating the single-precision `reference_line_deltas`. More information on the `Route` format is found in [planning_interfaces](https://github.com/ika-rwth-aachen/planning_interfaces?tab=readme-ov-file#overview-of-the-route_planning_msgs).
 
 ```mermaid
 flowchart LR
@@ -31,7 +31,7 @@ flowchart LR
 | Topic | Type | Description |
 | --- | --- | --- |
 | `~/route` | `route_planning_msgs/msg/Route` | planned route |
-| `~/global_route` | `route_planning_msgs/msg/ReferenceLine` | complete simplified reference line, published once per successful plan |
+| `~/global_route` | `route_planning_msgs/msg/Route` | complete simplified start-to-destination reference line, published once per successful plan; `has_route_elements` is false and points are reconstructed by accumulating `reference_line_deltas` from `start` |
 
 #### Action Servers
 
