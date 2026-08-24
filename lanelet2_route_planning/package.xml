@@ -16,7 +16,6 @@
 
   <depend>lanelet2_core</depend>
   <depend>lanelet2_map_interface</depend>
-  <depend>lanelet2_route_planning_msgs</depend>
   <depend>lanelet2_routing</depend>
   <depend>lanelet2_traffic_rules</depend>
   <depend>perception_msgs_utils</depend>

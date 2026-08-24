@@ -7,7 +7,7 @@
 #include <vector>
 
 #include <Eigen/Core>
-#include <lanelet2_route_planning_msgs/msg/reference_line.hpp>
+#include <route_planning_msgs/msg/reference_line.hpp>
 #include <std_msgs/msg/header.hpp>
 
 namespace lanelet2_route_planning {
@@ -20,8 +20,8 @@ namespace lanelet2_route_planning {
  * @param[in] retained_indices selected indices into line_string
  * @return compact reference-line message
  */
-lanelet2_route_planning_msgs::msg::ReferenceLine createReferenceLineMessage(const std_msgs::msg::Header& header,
-                                                                            const std::vector<Eigen::Vector2d>& line_string,
-                                                                            const std::vector<size_t>& retained_indices);
+route_planning_msgs::msg::ReferenceLine createReferenceLineMessage(const std_msgs::msg::Header& header,
+                                                                   const std::vector<Eigen::Vector2d>& line_string,
+                                                                   const std::vector<size_t>& retained_indices);
 
 }  // namespace lanelet2_route_planning

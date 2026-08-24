@@ -8,7 +8,6 @@ endif()
 find_package(ament_cmake REQUIRED)
 find_package(lanelet2_core REQUIRED)
 find_package(lanelet2_map_interface REQUIRED)
-find_package(lanelet2_route_planning_msgs REQUIRED)
 find_package(lanelet2_routing REQUIRED)
 find_package(lanelet2_traffic_rules REQUIRED)
 find_package(OpenMP REQUIRED)
@@ -43,7 +42,6 @@ target_compile_features(${TARGET_NAME} PUBLIC c_std_99 cxx_std_17)
 ament_target_dependencies(${TARGET_NAME}
   lanelet2_core
   lanelet2_map_interface
-  lanelet2_route_planning_msgs
   lanelet2_routing
   lanelet2_traffic_rules
   OpenMP

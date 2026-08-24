@@ -11,10 +11,10 @@
 #include <tf2_ros/buffer.h>
 #include <tf2_ros/transform_listener.h>
 #include <lanelet2_map_interface/lanelet2_map_interface.hpp>
-#include <lanelet2_route_planning_msgs/msg/reference_line.hpp>
 #include <rclcpp/rclcpp.hpp>
 #include <rclcpp_action/rclcpp_action.hpp>
 #include <route_planning_msgs/action/plan_route.hpp>
+#include <route_planning_msgs/msg/reference_line.hpp>
 #include <route_planning_msgs/msg/route.hpp>
 
 namespace lanelet2_route_planning {
@@ -200,7 +200,7 @@ class Lanelet2RoutePlanning : public rclcpp::Node {
   /**
    * @brief Transient-local publisher for the global reference line
    */
-  rclcpp::Publisher<lanelet2_route_planning_msgs::msg::ReferenceLine>::SharedPtr publisher_global_route_;
+  rclcpp::Publisher<route_planning_msgs::msg::ReferenceLine>::SharedPtr publisher_global_route_;
 
   /**
    * @brief Timer for publishing route

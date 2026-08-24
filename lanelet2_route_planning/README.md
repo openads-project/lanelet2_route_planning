@@ -31,7 +31,7 @@ flowchart LR
 | Topic | Type | Description |
 | --- | --- | --- |
 | `~/route` | `route_planning_msgs/msg/Route` | planned route |
-| `~/global_route` | `lanelet2_route_planning_msgs/msg/ReferenceLine` | complete simplified reference line, published once per successful plan |
+| `~/global_route` | `route_planning_msgs/msg/ReferenceLine` | complete simplified reference line, published once per successful plan |
 
 #### Action Servers
 

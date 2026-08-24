@@ -217,7 +217,7 @@ void Lanelet2RoutePlanning::setup() {
 
   // publishers
   publisher_route_ = this->create_publisher<route_planning_msgs::msg::Route>("~/route", 1);
-  publisher_global_route_ = this->create_publisher<lanelet2_route_planning_msgs::msg::ReferenceLine>(
+  publisher_global_route_ = this->create_publisher<route_planning_msgs::msg::ReferenceLine>(
       "~/global_route", rclcpp::QoS(1).reliable().transient_local());
   publish_timer_ = this->create_wall_timer(std::chrono::duration<double>(1.0 / publish_frequency_),
                                            std::bind(&Lanelet2RoutePlanning::publishTimerCallback, this));
