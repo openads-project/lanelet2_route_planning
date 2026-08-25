@@ -357,7 +357,8 @@ void Lanelet2RoutePlanning::actionHandleAccepted(
   action_feedback_->distance_remaining = 0.0;
   action_feedback_->distance_remaining = distanceRemaining(latest_route_msg_);
   action_feedback_->time_traveled = rclcpp::Duration::from_seconds(0.0);
-  action_feedback_->time_remaining = rclcpp::Duration::from_seconds(estimateRemainingTime(latest_route_msg_));
+  action_feedback_->time_remaining =
+      rclcpp::Duration::from_seconds(route_planning_msgs::route_access::estimateRemainingTime(latest_route_msg_));
   action_result_ = std::make_shared<route_planning_msgs::action::PlanRoute::Result>();
   action_result_->distance_traveled = 0.0;
   action_result_->time_traveled = rclcpp::Duration::from_seconds(0.0);
@@ -381,7 +382,8 @@ void Lanelet2RoutePlanning::actionExecute(
     action_feedback_->distance_traveled = distanceTraveled(latest_route_msg_);
     action_feedback_->distance_remaining = distanceRemaining(latest_route_msg_);
     action_feedback_->time_traveled = this->now() - action_start_time_;
-    action_feedback_->time_remaining = rclcpp::Duration::from_seconds(estimateRemainingTime(latest_route_msg_));
+    action_feedback_->time_remaining =
+        rclcpp::Duration::from_seconds(route_planning_msgs::route_access::estimateRemainingTime(latest_route_msg_));
     action_result_->distance_traveled = action_feedback_->distance_traveled;
     action_result_->time_traveled = action_feedback_->time_traveled;
 

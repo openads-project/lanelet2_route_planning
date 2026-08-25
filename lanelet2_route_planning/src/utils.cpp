@@ -1012,22 +1012,6 @@ double distanceRemaining(const route_planning_msgs::msg::Route& route) {
   return remaining;
 }
 
-double estimateRemainingTime(const route_planning_msgs::msg::Route& route, const double reference_speed) {
-  double remaining_time = 0.0;
-  for (size_t r = route.current_route_element_idx; r < route.route_elements.size() - 1; ++r) {
-    const auto& route_element = route.route_elements[r];
-    const auto& next_route_element = route.route_elements[r + 1];
-    double speed_limit = route_planning_msgs::route_access::getSuggestedLaneElement(route_element).speed_limit;
-    if (speed_limit == 0) {
-      speed_limit = reference_speed;
-    }
-    if (speed_limit > 0) {
-      remaining_time += (next_route_element.s - route_element.s) / speed_limit;
-    }
-  }
-  return remaining_time;
-}
-
 void postprocessRouteMessage(
     route_planning_msgs::msg::Route& route_msg,
     std::vector<std::vector<int>>& suggested_turn_signal_distance_ahead_by_route_element_by_lane_element) {

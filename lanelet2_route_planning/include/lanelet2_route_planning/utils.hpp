@@ -482,15 +482,6 @@ double distanceTraveled(const route_planning_msgs::msg::Route& route);
 double distanceRemaining(const route_planning_msgs::msg::Route& route);
 
 /**
- * @brief Estimate remaining time for a route based on speed limits.
- *
- * @param[in] route route
- * @param[in] reference_speed reference speed if speed limit is not set [m/s]
- * @return estimated remaining time [s]
- */
-double estimateRemainingTime(const route_planning_msgs::msg::Route& route, const double reference_speed = 50.0 / 3.6);
-
-/**
  * @brief Postprocesses a route message, filling missing information that can be inferred from other message contents.
  *
  * This includes:
