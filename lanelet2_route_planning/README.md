@@ -6,9 +6,7 @@ Plans a route on a Lanelet2 map
 
 ### `lanelet2_route_planning`
 
-The `lanelet2_route_planning` node computes a shortest path route from a current ego position to a destination based on a Lanelet2 map. Progress along the route is continuously tracked and published as action feedback via the integrated action server, which is accepting a destination in the first place. A local route window is published at a constant frequency, allowing downstream planning tasks to incorporate enriched information about adjacent lanes, regulatory elements, and drivable space. The complete reference line is simplified within a configurable error bound and published once per successful plan with transient-local durability.
-
-The local `route_planning_msgs/msg/Route` retains absolute `s` values and the global destination. Its start or destination index is set to `INVALID_ROUTE_ELEMENT_IDX` when that element is outside the local window. The global message has no route elements; its reference line starts at `start` and is reconstructed by accumulating the single-precision `reference_line_deltas`. More information on the `Route` format is found in [planning_interfaces](https://github.com/ika-rwth-aachen/planning_interfaces?tab=readme-ov-file#overview-of-the-route_planning_msgs).
+The `lanelet2_route_planning` node computes a shortest path route from a current ego position to a destination based on a Lanelet2 map. Progress along the route is continuously tracked and published as action feedback via the integrated action server, which is accepting a destination in the first place. A local route window is published at a constant frequency, allowing downstream planning tasks to incorporate enriched information about adjacent lanes, regulatory elements, and drivable space. The node publishes an enriched local route at the configured high frequency and a complete non-enriched global route at a lower configurable frequency. The global route uses the same `route_planning_msgs/msg/Route` format, with adaptive sampling of its minimal route elements. Both messages retain absolute `s` values and normal route indices. More information on the `Route` format is found in [planning_interfaces](https://github.com/ika-rwth-aachen/planning_interfaces?tab=readme-ov-file#overview-of-the-route_planning_msgs).
 
 ```mermaid
 flowchart LR
@@ -31,7 +29,7 @@ flowchart LR
 | Topic | Type | Description |
 | --- | --- | --- |
 | `~/route` | `route_planning_msgs/msg/Route` | planned route |
-| `~/global_route` | `route_planning_msgs/msg/Route` | complete simplified start-to-destination reference line, published once per successful plan; `has_route_elements` is false and points are reconstructed by accumulating `reference_line_deltas` from `start` |
+| `~/global_route` | `route_planning_msgs/msg/Route` | complete adaptively sampled non-enriched route, published at `global_route_publish_frequency` |
 
 #### Action Servers
 
@@ -46,6 +44,7 @@ flowchart LR
 | `ll2_map_server_name` | `string` | `"lanelet2_map_server"` | Name of lanelet2_map_server node |
 | `publish_frequency` | `float` | `10.0` | Frequency of route publication [Hz] |
 | `action_feedback_frequency` | `float` | `1.0` | Frequency of action feedback publication [Hz] |
+| `global_route_publish_frequency` | `float` | `1.0` | Frequency of global route publication [Hz] |
 | `sampling_distance` | `float` | `1.0` | Distance between resampled points along route [m] |
 | `global_route_max_lateral_error` | `float` | `0.5` | Maximum lateral simplification error of the global reference line [m] (0 disables simplification) |
 | `project_destination_to_reference_line` | `bool` | `true` | Whether to project destination to reference line |

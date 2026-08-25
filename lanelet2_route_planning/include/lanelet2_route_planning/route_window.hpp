@@ -60,7 +60,7 @@ inline LocalRouteWindow extractLocalRouteWindow(const route_planning_msgs::msg::
                ? global_idx - first_global_idx
                : route_planning_msgs::msg::Route::INVALID_ROUTE_ELEMENT_IDX;
   };
-  result.route.start_route_element_idx = remap_global_idx(full_route.start_route_element_idx);
+  result.route.starting_route_element_idx = remap_global_idx(full_route.starting_route_element_idx);
   result.route.current_route_element_idx = current_global_idx - result.first_global_idx;
   result.route.destination_route_element_idx = remap_global_idx(full_route.destination_route_element_idx);
   return result;

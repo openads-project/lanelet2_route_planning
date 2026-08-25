@@ -106,6 +106,9 @@ class Lanelet2RoutePlanning : public rclcpp::Node {
    */
   void publishTimerCallback();
 
+  /** @brief Callback to periodically publish the adaptively sampled global route. */
+  void globalRoutePublishTimerCallback();
+
   /**
    * @brief Action goal callback: processes a route planning request
    *
@@ -197,14 +200,17 @@ class Lanelet2RoutePlanning : public rclcpp::Node {
   rclcpp::Publisher<route_planning_msgs::msg::Route>::SharedPtr publisher_route_;
 
   /**
-   * @brief Transient-local publisher for the global reference line
+   * @brief Publisher for the adaptively sampled global route
    */
   rclcpp::Publisher<route_planning_msgs::msg::Route>::SharedPtr publisher_global_route_;
 
   /**
-   * @brief Timer for publishing route
+   * @brief Timer for publishing the enriched route
    */
   rclcpp::TimerBase::SharedPtr publish_timer_;
+
+  /** @brief Timer for publishing the global route. */
+  rclcpp::TimerBase::SharedPtr global_route_publish_timer_;
 
   /**
    * @brief Action server
@@ -310,6 +316,9 @@ class Lanelet2RoutePlanning : public rclcpp::Node {
    */
   route_planning_msgs::msg::Route latest_full_route_msg_;
 
+  /** @brief Latest adaptively sampled non-enriched global route. */
+  route_planning_msgs::msg::Route latest_global_route_msg_;
+
   /**
    * @brief Latest complete dense reference line in the map frame
    */
@@ -345,6 +354,9 @@ class Lanelet2RoutePlanning : public rclcpp::Node {
    * @brief Frequency of action feedback publication [Hz] (parameter)
    */
   double action_feedback_frequency_ = 1.0;
+
+  /** @brief Frequency of global route publication [Hz] (parameter). */
+  double global_route_publish_frequency_ = 1.0;
 
   /**
    * @brief Distance between resampled points along route [m] (parameter)
