@@ -28,17 +28,19 @@ double pointToSegmentDistance(const Eigen::Vector2d& point,
   return (point - (segment_start + interpolation * segment)).norm();
 }
 
-void simplifyLineStringRange(const std::vector<Eigen::Vector2d>& line_string,
-                             const size_t first,
-                             const size_t last,
-                             const double max_lateral_error,
-                             std::vector<bool>& keep) {
+void adaptivelySampleLineStringRange(const std::vector<Eigen::Vector2d>& line_string,
+                                     const size_t first,
+                                     const size_t last,
+                                     const double max_lateral_error,
+                                     std::vector<bool>& keep) {
+  // retain the endpoints of each continuous range
   keep[first] = true;
   keep[last] = true;
   if (last <= first + 1) {
     return;
   }
 
+  // iteratively split ranges at their largest lateral deviation
   std::vector<std::pair<size_t, size_t>> ranges = {{first, last}};
   while (!ranges.empty()) {
     const auto [range_first, range_last] = ranges.back();
@@ -183,9 +185,9 @@ std::vector<Eigen::Vector3d> resampleLineString(const std::vector<Eigen::Vector3
   return resampled_line_string;
 }
 
-std::vector<size_t> simplifyLineString(const std::vector<Eigen::Vector2d>& line_string,
-                                       const double max_lateral_error,
-                                       const std::vector<size_t>& break_after_indices) {
+std::vector<size_t> adaptivelySampleLineString(const std::vector<Eigen::Vector2d>& line_string,
+                                               const double max_lateral_error,
+                                               const std::vector<size_t>& break_after_indices) {
   std::vector<size_t> retained_indices;
   if (line_string.empty()) {
     return retained_indices;
@@ -196,6 +198,7 @@ std::vector<size_t> simplifyLineString(const std::vector<Eigen::Vector2d>& line_
     return retained_indices;
   }
 
+  // retain discontinuities, such as lane changes, as separate ranges
   std::vector<size_t> valid_breaks;
   for (const size_t index : break_after_indices) {
     if (index < line_string.size() - 1) {
@@ -205,16 +208,17 @@ std::vector<size_t> simplifyLineString(const std::vector<Eigen::Vector2d>& line_
   std::sort(valid_breaks.begin(), valid_breaks.end());
   valid_breaks.erase(std::unique(valid_breaks.begin(), valid_breaks.end()), valid_breaks.end());
 
+  // sample each continuous range independently
   std::vector<bool> keep(line_string.size(), false);
   size_t segment_start = 0;
   for (const size_t break_after : valid_breaks) {
     if (break_after < segment_start) {
       continue;
     }
-    simplifyLineStringRange(line_string, segment_start, break_after, max_lateral_error, keep);
+    adaptivelySampleLineStringRange(line_string, segment_start, break_after, max_lateral_error, keep);
     segment_start = break_after + 1;
   }
-  simplifyLineStringRange(line_string, segment_start, line_string.size() - 1, max_lateral_error, keep);
+  adaptivelySampleLineStringRange(line_string, segment_start, line_string.size() - 1, max_lateral_error, keep);
 
   for (size_t i = 0; i < keep.size(); ++i) {
     if (keep[i]) {

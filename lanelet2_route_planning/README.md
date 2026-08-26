@@ -29,7 +29,7 @@ flowchart LR
 | Topic | Type | Description |
 | --- | --- | --- |
 | `~/route` | `route_planning_msgs/msg/Route` | planned route |
-| `~/global_route` | `route_planning_msgs/msg/Route` | complete adaptively sampled non-enriched route, published at `global_route_publish_frequency` |
+| `~/global_route` | `route_planning_msgs/msg/Route` | complete adaptively sampled non-enriched route, published at `publish_frequency_global` |
 
 #### Action Servers
 
@@ -43,10 +43,10 @@ flowchart LR
 | --- | --- | --- | --- |
 | `ll2_map_server_name` | `string` | `"lanelet2_map_server"` | Name of lanelet2_map_server node |
 | `publish_frequency` | `float` | `10.0` | Frequency of route publication [Hz] |
+| `publish_frequency_global` | `float` | `1.0` | Frequency of global route publication [Hz] |
 | `action_feedback_frequency` | `float` | `1.0` | Frequency of action feedback publication [Hz] |
-| `global_route_publish_frequency` | `float` | `1.0` | Frequency of global route publication [Hz] |
 | `sampling_distance` | `float` | `1.0` | Distance between resampled points along route [m] |
-| `global_route_max_lateral_error` | `float` | `0.5` | Maximum lateral simplification error of the global reference line [m] (0 disables simplification) |
+| `sampling_max_lateral_error_global` | `float` | `0.5` | Maximum lateral error of the adaptively sampled global reference line [m] |
 | `project_destination_to_reference_line` | `bool` | `true` | Whether to project destination to reference line |
 | `destination_distance_threshold` | `float` | `1.0` | Distance to destination where destination is considered reached [m] |
 | `required_traveled_distance_proportion` | `float` | `0.5` | Proportion of route length that must have been traveled before considering destination reached [0..1] |

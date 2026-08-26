@@ -209,7 +209,9 @@ class Lanelet2RoutePlanning : public rclcpp::Node {
    */
   rclcpp::TimerBase::SharedPtr publish_timer_;
 
-  /** @brief Timer for publishing the global route. */
+  /**
+   * @brief Timer for publishing the global route
+   */
   rclcpp::TimerBase::SharedPtr global_route_publish_timer_;
 
   /**
@@ -355,8 +357,10 @@ class Lanelet2RoutePlanning : public rclcpp::Node {
    */
   double action_feedback_frequency_ = 1.0;
 
-  /** @brief Frequency of global route publication [Hz] (parameter). */
-  double global_route_publish_frequency_ = 1.0;
+  /**
+   * @brief Frequency of global route publication [Hz] (parameter)
+   */
+  double publish_frequency_global_ = 1.0;
 
   /**
    * @brief Distance between resampled points along route [m] (parameter)
@@ -364,9 +368,9 @@ class Lanelet2RoutePlanning : public rclcpp::Node {
   double sampling_distance_ = 1.0;
 
   /**
-   * @brief Maximum lateral error of the simplified global reference line [m] (parameter)
+   * @brief Maximum lateral error of the adaptively sampled global reference line [m] (parameter)
    */
-  double global_route_max_lateral_error_ = 0.5;
+  double sampling_max_lateral_error_global_ = 0.5;
 
   /**
    * @brief Whether to project destination to reference line (parameter)

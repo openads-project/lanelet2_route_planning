@@ -105,9 +105,9 @@ std::vector<Eigen::Vector3d> resampleLineString(const std::vector<Eigen::Vector3
  * @param[in] break_after_indices indices after which to split the line
  * @return retained input indices in ascending order
  */
-std::vector<size_t> simplifyLineString(const std::vector<Eigen::Vector2d>& line_string,
-                                       double max_lateral_error,
-                                       const std::vector<size_t>& break_after_indices = {});
+std::vector<size_t> adaptivelySampleLineString(const std::vector<Eigen::Vector2d>& line_string,
+                                               double max_lateral_error,
+                                               const std::vector<size_t>& break_after_indices = {});
 
 /**
  * @brief Projects a point to the closest line segment of a line string.

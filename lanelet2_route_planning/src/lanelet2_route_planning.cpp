@@ -20,7 +20,6 @@
 #include "lanelet2_route_planning/conversions.hpp"
 #include "lanelet2_route_planning/geometry.hpp"
 #include "lanelet2_route_planning/lanelet2_route_planning.hpp"
-#include "lanelet2_route_planning/route_window.hpp"
 #include "lanelet2_route_planning/utils.hpp"
 
 namespace lanelet2_route_planning {
@@ -30,15 +29,15 @@ Lanelet2RoutePlanning::Lanelet2RoutePlanning() : Node("lanelet2_route_planning")
                                 true);
   this->declareAndLoadParameter("publish_frequency", publish_frequency_, "Frequency of route publication [Hz]", true, false,
                                 false, 0.1, 20.0);
+  this->declareAndLoadParameter("publish_frequency_global", publish_frequency_global_,
+                                "Frequency of global route publication [Hz]", true, false, false, 0.1, 20.0);
   this->declareAndLoadParameter("action_feedback_frequency", action_feedback_frequency_,
                                 "Frequency of action feedback publication [Hz]", true, false, false, 0.1, 20.0);
-  this->declareAndLoadParameter("global_route_publish_frequency", global_route_publish_frequency_,
-                                "Frequency of global route publication [Hz]", true, false, false, 0.1, 20.0);
   this->declareAndLoadParameter("sampling_distance", sampling_distance_, "Distance between resampled points along route [m]",
                                 true, false, false, 0.1, 3.0);
-  this->declareAndLoadParameter("global_route_max_lateral_error", global_route_max_lateral_error_,
-                                "Maximum lateral error of the simplified global reference line [m]", true, false, false, 0.0,
-                                10.0);
+  this->declareAndLoadParameter("sampling_max_lateral_error_global", sampling_max_lateral_error_global_,
+                                "Maximum lateral error of the adaptively sampled global reference line [m]", true, false, false,
+                                0.0, 100.0);
   this->declareAndLoadParameter("project_destination_to_reference_line", project_destination_to_reference_line_,
                                 "Whether to project destination to reference line", true, false, false);
   this->declareAndLoadParameter("destination_distance_threshold", destination_distance_threshold_,
@@ -173,10 +172,10 @@ rcl_interfaces::msg::SetParametersResult Lanelet2RoutePlanning::parametersCallba
       publish_timer_->cancel();
       publish_timer_ = this->create_wall_timer(std::chrono::duration<double>(1.0 / publish_frequency_),
                                                std::bind(&Lanelet2RoutePlanning::publishTimerCallback, this));
-    } else if (param.get_name() == "global_route_publish_frequency") {
+    } else if (param.get_name() == "publish_frequency_global") {
       global_route_publish_timer_->cancel();
       global_route_publish_timer_ =
-          this->create_wall_timer(std::chrono::duration<double>(1.0 / global_route_publish_frequency_),
+          this->create_wall_timer(std::chrono::duration<double>(1.0 / publish_frequency_global_),
                                   std::bind(&Lanelet2RoutePlanning::globalRoutePublishTimerCallback, this));
     }
   }
@@ -226,11 +225,11 @@ void Lanelet2RoutePlanning::setup() {
   publisher_global_route_ = this->create_publisher<route_planning_msgs::msg::Route>("~/global_route", 1);
   publish_timer_ = this->create_wall_timer(std::chrono::duration<double>(1.0 / publish_frequency_),
                                            std::bind(&Lanelet2RoutePlanning::publishTimerCallback, this));
-  global_route_publish_timer_ = this->create_wall_timer(std::chrono::duration<double>(1.0 / global_route_publish_frequency_),
+  global_route_publish_timer_ = this->create_wall_timer(std::chrono::duration<double>(1.0 / publish_frequency_global_),
                                                         std::bind(&Lanelet2RoutePlanning::globalRoutePublishTimerCallback, this));
   is_publishing_route_ = false;
-  RCLCPP_INFO(this->get_logger(), "Publishing to '%s'", publisher_route_->get_topic_name());
-  RCLCPP_INFO(this->get_logger(), "Publishing global route to '%s'", publisher_global_route_->get_topic_name());
+  RCLCPP_INFO(this->get_logger(), "Publishing enriched-only route to '%s'", publisher_route_->get_topic_name());
+  RCLCPP_INFO(this->get_logger(), "Publishing non-enriched global route to '%s'", publisher_global_route_->get_topic_name());
 
   // subscribers
   subscriber_ego_data_ = this->create_subscription<perception_msgs::msg::EgoData>(
@@ -574,12 +573,14 @@ bool Lanelet2RoutePlanning::planRoute(const geometry_msgs::msg::PointStamped& de
 }
 
 void Lanelet2RoutePlanning::buildGlobalRouteMessage() {
+  // initialize the complete minimal route before deriving local and global views
   route_planning_msgs::msg::Route route_msg;
   route_msg.header.stamp = latest_ego_data_.header.stamp;
   route_msg.header.frame_id = ll2_interface_->map_frame_id_;
   route_msg.destination = destination_;
   route_msg.intermediate_destinations = intermediate_destinations_;
 
+  // resample the shortest path to form the reference line
   const lanelet::routing::LaneletPath shortest_path = latest_route_.shortestPath();
   const auto resampling_result = resampleCenterlinesAlongPath(shortest_path, sampling_distance_, true);
   const std::vector<Eigen::Vector3d>& shortest_path_centerline_3d = resampling_result.centerline;
@@ -587,6 +588,7 @@ void Lanelet2RoutePlanning::buildGlobalRouteMessage() {
   latest_reference_line_ = shortest_path_centerline;
   latest_lanelet_idx_by_reference_line_point_idx_ = resampling_result.lanelet_idx_by_point;
 
+  // create one minimal route element for each reference-line point
   double accumulated_distance = 0.0;
   for (size_t c = 0; c < shortest_path_centerline.size(); ++c) {
     const Eigen::Vector2d& point = shortest_path_centerline[c];
@@ -604,6 +606,7 @@ void Lanelet2RoutePlanning::buildGlobalRouteMessage() {
                                                                  speedLimit(lanelet, point)));
   }
 
+  // optionally align route endpoints with the reference line
   if (project_destination_to_reference_line_) {
     starting_point_ = toRos(projectPointToLineString(toEigen(starting_point_), shortest_path_centerline_3d));
     for (auto& destination : intermediate_destinations_) {
@@ -613,6 +616,7 @@ void Lanelet2RoutePlanning::buildGlobalRouteMessage() {
   }
   route_msg.destination = destination_;
   route_msg.intermediate_destinations = intermediate_destinations_;
+  // locate the route endpoints and current position in the complete route
   route_msg.starting_route_element_idx =
       matchPointToLineString(shortest_path_centerline, toEigen2d(starting_point_), 0, true, true);
   route_msg.current_route_element_idx = matchPointToLineString(shortest_path_centerline, toEigen2d(egoPosition(latest_ego_data_)),
@@ -632,6 +636,7 @@ void Lanelet2RoutePlanning::buildGlobalRouteMessage() {
     return;
   }
 
+  // retain only the route segment from start to destination for the global route
   std::vector<Eigen::Vector2d> global_reference_line;
   global_reference_line.reserve(destination_idx - start_idx + 1);
   std::vector<size_t> break_after_indices;
@@ -641,8 +646,9 @@ void Lanelet2RoutePlanning::buildGlobalRouteMessage() {
       break_after_indices.push_back(c - start_idx);
     }
   }
+  // adaptively sample each continuous global-route segment
   const std::vector<size_t> retained_indices =
-      simplifyLineString(global_reference_line, global_route_max_lateral_error_, break_after_indices);
+      adaptivelySampleLineString(global_reference_line, sampling_max_lateral_error_global_, break_after_indices);
   if (retained_indices.empty()) {
     RCLCPP_WARN(this->get_logger(), "Global reference line is empty, not building global route");
     return;
@@ -654,6 +660,14 @@ void Lanelet2RoutePlanning::buildGlobalRouteMessage() {
   for (const size_t retained_idx : retained_indices) {
     latest_global_route_msg_.route_elements.push_back(route_msg.route_elements[start_idx + retained_idx]);
   }
+  // the global route contains one lane element per route element, which always continues in lane zero
+  for (size_t i = 0; i + 1 < latest_global_route_msg_.route_elements.size(); ++i) {
+    auto& lane_element = latest_global_route_msg_.route_elements[i].lane_elements[0];
+    lane_element.has_following_lane_idx = true;
+    lane_element.following_lane_idx = 0;
+  }
+  latest_global_route_msg_.route_elements.back().lane_elements[0].has_following_lane_idx = false;
+
   latest_global_route_msg_.starting_route_element_idx = 0;
   latest_global_route_msg_.destination_route_element_idx = latest_global_route_msg_.route_elements.size() - 1;
   latest_global_route_msg_.current_route_element_idx = 0;
@@ -685,7 +699,7 @@ void Lanelet2RoutePlanning::buildEnrichedRouteMessage() {
       std::vector<std::vector<int>>(route_elements.size());
   const lanelet::routing::LaneletPath shortest_path = latest_route_.shortestPath();
 
-// loop over local reference line in parallel
+// parallelize independent geometry, map, and regulatory-element extraction per local route element
 #pragma omp parallel for
   for (size_t c = 0; c < route_elements.size(); ++c) {
     const size_t global_c = first_global_idx + c;
