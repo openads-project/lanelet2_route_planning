@@ -626,7 +626,8 @@ void Lanelet2RoutePlanning::buildGlobalRouteMessage() {
 
   has_enriched_route_ = false;
   latest_route_msg_ = route_planning_msgs::msg::Route();
-  latest_full_route_msg_ = route_msg;
+  latest_full_route_msg_ = route_planning_msgs::msg::Route();
+  latest_global_route_msg_ = route_planning_msgs::msg::Route();
 
   const size_t start_idx = route_msg.starting_route_element_idx;
   const size_t destination_idx = route_msg.destination_route_element_idx;
@@ -635,6 +636,8 @@ void Lanelet2RoutePlanning::buildGlobalRouteMessage() {
     RCLCPP_WARN(this->get_logger(), "Invalid start or destination index, not building global route");
     return;
   }
+
+  latest_full_route_msg_ = route_msg;
 
   // retain only the route segment from start to destination for the global route
   std::vector<Eigen::Vector2d> global_reference_line;

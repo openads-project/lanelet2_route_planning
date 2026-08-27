@@ -1171,7 +1171,9 @@ LocalRouteWindow extractLocalRouteWindow(const route_planning_msgs::msg::Route& 
                                          const double distance_behind,
                                          const double distance_ahead) {
   LocalRouteWindow result;
-  result.route = full_route;
+  result.route.header = full_route.header;
+  result.route.destination = full_route.destination;
+  result.route.intermediate_destinations = full_route.intermediate_destinations;
   const auto& full_route_elements = full_route.route_elements;
   if (current_global_idx >= full_route_elements.size()) {
     result.route.route_elements.clear();
