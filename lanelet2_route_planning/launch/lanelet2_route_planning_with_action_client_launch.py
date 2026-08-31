@@ -17,7 +17,10 @@ def generate_launch_description():
 
     remappable_topics = [
         DeclareLaunchArgument("ego_data_topic", default_value="~/ego_data", description="ego data topic"),
-        DeclareLaunchArgument("route_topic", default_value="~/route", description="planned route topic"),
+        DeclareLaunchArgument("route_topic", default_value="~/route", description="topic of enriched-only route"),
+        DeclareLaunchArgument(
+            "global_route_topic", default_value="~/global_route", description="topic of non-enriched global route"
+        ),
         DeclareLaunchArgument("diagnostics_topic", default_value="/diagnostics", description="diagnostics topic"),
         DeclareLaunchArgument("goal_pose_topic", default_value="~/goal_pose", description="goal pose topic"),
     ]

@@ -94,6 +94,22 @@ std::vector<Eigen::Vector3d> resampleLineString(const std::vector<Eigen::Vector3
                                                 double& offset);
 
 /**
+ * @brief Simplifies a 2D line string within a maximum lateral error.
+ *
+ * Uses Ramer-Douglas-Peucker simplification and returns indices into the input.
+ * Breaks split the line after the given indices so discontinuities are retained.
+ * A maximum error of zero disables simplification.
+ *
+ * @param[in] line_string line string
+ * @param[in] max_lateral_error maximum perpendicular deviation [m]
+ * @param[in] break_after_indices indices after which to split the line
+ * @return retained input indices in ascending order
+ */
+std::vector<size_t> adaptivelySampleLineString(const std::vector<Eigen::Vector2d>& line_string,
+                                               double max_lateral_error,
+                                               const std::vector<size_t>& break_after_indices = {});
+
+/**
  * @brief Projects a point to the closest line segment of a line string.
  *
  * @param[in] point point

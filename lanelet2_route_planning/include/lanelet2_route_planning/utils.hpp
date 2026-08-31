@@ -4,6 +4,7 @@
 #pragma once
 
 #include <array>
+#include <cstddef>
 #include <cstdint>
 #include <optional>
 #include <utility>
@@ -17,9 +18,18 @@
 #include <geometry_msgs/msg/point.hpp>
 #include <geometry_msgs/msg/quaternion.hpp>
 #include <rclcpp/rclcpp.hpp>
+#include <route_planning_msgs/msg/route.hpp>
 #include <route_planning_msgs/msg/route_element.hpp>
 
 namespace lanelet2_route_planning {
+
+/**
+ * @brief A local route window and its offset in the complete route.
+ */
+struct LocalRouteWindow {
+  route_planning_msgs::msg::Route route;
+  size_t first_global_idx = 0;
+};
 
 /**
  * @brief Computes a route from start to destination along intermediate destinations.
@@ -30,6 +40,20 @@ namespace lanelet2_route_planning {
  */
 std::optional<lanelet::routing::Route> getRoute(const lanelet::routing::RoutingGraphUPtr& routing_graph,
                                                 const std::vector<lanelet::ConstLanelet>& route_lanelets);
+
+/**
+ * @brief Extracts a local route window while preserving absolute route data.
+ *
+ * @param[in] full_route complete route
+ * @param[in] current_global_idx current element index in full_route
+ * @param[in] distance_behind distance to include behind the current element [m]
+ * @param[in] distance_ahead distance to include ahead of the current element [m]
+ * @return extracted local route and its global offset
+ */
+LocalRouteWindow extractLocalRouteWindow(const route_planning_msgs::msg::Route& full_route,
+                                         size_t current_global_idx,
+                                         double distance_behind,
+                                         double distance_ahead);
 
 /**
  * @brief Finds the index of a point in a line string that is closest to another point.

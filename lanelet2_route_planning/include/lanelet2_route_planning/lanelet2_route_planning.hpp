@@ -137,6 +137,9 @@ class Lanelet2RoutePlanning : public rclcpp::Node {
    */
   void publishTimerCallback();
 
+  /** @brief Callback to periodically publish the adaptively sampled global route. */
+  void globalRoutePublishTimerCallback();
+
   /**
    * @brief Action goal callback: processes a route planning request
    *
@@ -237,9 +240,19 @@ class Lanelet2RoutePlanning : public rclcpp::Node {
   rclcpp::Publisher<route_planning_msgs::msg::Route>::SharedPtr publisher_route_;
 
   /**
-   * @brief Timer for publishing route
+   * @brief Publisher for the adaptively sampled global route
+   */
+  rclcpp::Publisher<route_planning_msgs::msg::Route>::SharedPtr publisher_global_route_;
+
+  /**
+   * @brief Timer for publishing the enriched route
    */
   rclcpp::TimerBase::SharedPtr publish_timer_;
+
+  /**
+   * @brief Timer for publishing the global route
+   */
+  rclcpp::TimerBase::SharedPtr global_route_publish_timer_;
 
   /**
    * @brief Action server
@@ -341,6 +354,19 @@ class Lanelet2RoutePlanning : public rclcpp::Node {
   route_planning_msgs::msg::Route latest_route_msg_;
 
   /**
+   * @brief Latest complete minimal route used internally for progress tracking
+   */
+  route_planning_msgs::msg::Route latest_full_route_msg_;
+
+  /** @brief Latest adaptively sampled non-enriched global route. */
+  route_planning_msgs::msg::Route latest_global_route_msg_;
+
+  /**
+   * @brief Latest complete dense reference line in the map frame
+   */
+  std::vector<Eigen::Vector2d> latest_reference_line_;
+
+  /**
    * @brief Latest mapping between global route reference line and lanelet indices
    *
    * Used to easily find lanelet for a given point on the global reference line.
@@ -372,9 +398,19 @@ class Lanelet2RoutePlanning : public rclcpp::Node {
   double action_feedback_frequency_ = 1.0;
 
   /**
+   * @brief Frequency of global route publication [Hz] (parameter)
+   */
+  double publish_frequency_global_ = 1.0;
+
+  /**
    * @brief Distance between resampled points along route [m] (parameter)
    */
   double sampling_distance_ = 1.0;
+
+  /**
+   * @brief Maximum lateral error of the adaptively sampled global reference line [m] (parameter)
+   */
+  double sampling_max_lateral_error_global_ = 0.5;
 
   /**
    * @brief Whether to project destination to reference line (parameter)

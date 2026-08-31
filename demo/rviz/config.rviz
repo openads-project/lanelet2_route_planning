@@ -245,6 +245,17 @@ Visualization Manager:
         Opacity: 0.5
         Value: true
       Value: true
+    - Class: route_planning_msgs/Route
+      Enabled: true
+      Name: Global Route
+      Topic:
+        Depth: 1
+        Durability Policy: Transient Local
+        Filter size: 10
+        History Policy: Keep Last
+        Reliability Policy: Reliable
+        Value: /planning/lanelet2_route_planning/global_route
+      Value: true
     - Background Alpha: 0.8999999761581421
       Background Color: 20; 20; 20
       Class: route_planning_msgs/RouteOverlay
