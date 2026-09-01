@@ -4,8 +4,11 @@ Panels:
     Name: Displays
     Property Tree Widget:
       Expanded:
-        - /Route1
-      Splitter Ratio: 0.37577003240585327
+        - /Enriched Local Route1
+        - /Global Route1
+        - /Global Route1/Suggested Lane1/Reference Line1
+        - /Global Route1/Suggested Lane1/Reference Line1/Line1
+      Splitter Ratio: 0.42915812134742737
     Tree Height: 720
   - Class: rviz_common/Selection
     Name: Selection
@@ -112,6 +115,7 @@ Visualization Manager:
         Char height: 4
         Value: false
         Velocity: true
+        Vertical offset: 1
       Timeout:
         Duration: 1
         Value: true
@@ -187,7 +191,11 @@ Visualization Manager:
           Value: false
         Value: false
       Enabled: true
-      Name: Route
+      Name: Enriched Local Route
+      Start:
+        Color: 255; 0; 255
+        Scale: 1
+        Value: true
       Suggested Lane:
         Boundaries:
           Lines:
@@ -245,7 +253,127 @@ Visualization Manager:
         Opacity: 0.5
         Value: true
       Value: true
-    - Background Alpha: 0.8999999761581421
+    - Adjacent Lanes:
+        Boundaries:
+          Lines:
+            Color: 255; 170; 0
+            Scale: 0.05000000074505806
+            Value: true
+          Points:
+            Color: 255; 170; 0
+            Scale: 0.20000000298023224
+            Value: false
+          Value: true
+        Reference Line:
+          Line:
+            Color: 255; 255; 0
+            Scale: 0.05000000074505806
+            Value: true
+          Poses:
+            Color: 255; 255; 0
+            Scale: 0.5
+            Value: false
+          Value: true
+        Regulatory Elements:
+          Default Color: 200; 200; 200
+          Positions: true
+          Scale: 0.10000000149011612
+          Validity stamp:
+            Color: 255; 255; 255
+            Scale: 0.5
+            Value: false
+          Value: true
+        Speed Limit:
+          Color: 255; 255; 255
+          Scale: 0.5
+          Value: false
+        Turn Signals:
+          Color: 255; 255; 0
+          Scale: 1
+          Value: false
+        Value: false
+      Class: route_planning_msgs/Route
+      Destination:
+        Color (final): 255; 0; 255
+        Color (intermediate): 150; 0; 255
+        Scale (final): 1
+        Scale (intermediate): 1
+        Value: false
+      Drivable Space:
+        Lines:
+          Color: 255; 0; 0
+          Scale: 0.10000000149011612
+          Value: true
+        Points:
+          Color: 255; 0; 0
+          Scale: 0.20000000298023224
+          Value: false
+        Value: false
+      Enabled: true
+      Name: Global Route
+      Start:
+        Color: 255; 0; 255
+        Scale: 1
+        Value: false
+      Suggested Lane:
+        Boundaries:
+          Lines:
+            Color: 0; 170; 0
+            Scale: 0.10000000149011612
+            Value: true
+          Points:
+            Color: 0; 170; 0
+            Scale: 0.25
+            Value: false
+          Value: false
+        Lane Change:
+          Color: 0; 255; 0
+          Scale: 0.20000000298023224
+          Value: true
+        Reference Line:
+          Line:
+            Color: 0; 170; 0
+            Scale: 0.10000000149011612
+            Value: true
+          Poses:
+            Color: 0; 255; 0
+            Scale: 0.5
+            Value: false
+          Value: true
+        Regulatory Elements:
+          Default Color: 200; 200; 200
+          Positions: true
+          Scale: 0.20000000298023224
+          Validity stamp:
+            Color: 255; 255; 255
+            Scale: 0.6000000238418579
+            Value: false
+          Value: false
+        Speed Limit:
+          Color: 255; 255; 255
+          Scale: 0.6000000238418579
+          Value: false
+        Turn Signals:
+          Color: 255; 255; 0
+          Scale: 1
+          Value: false
+        Value: true
+      Timeout:
+        Duration: 1
+        Value: true
+      Topic:
+        Depth: 5
+        Durability Policy: Volatile
+        Filter size: 10
+        History Policy: Keep Last
+        Reliability Policy: Reliable
+        Value: /planning/lanelet2_route_planning/global_route
+      Traveled Route:
+        Opacity: 0.5
+        Value: true
+      Value: true
+    - Action Feedback Topic: ""
+      Background Alpha: 0.8999999761581421
       Background Color: 20; 20; 20
       Class: route_planning_msgs/RouteOverlay
       Enabled: true
