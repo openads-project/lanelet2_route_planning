@@ -63,8 +63,10 @@ flowchart LR
 | `diagnostic_updater.ego_data_diagnostic.max_frequency` | `float` | `std::numeric_limits<double>::infinity()` | Maximum frequency for incoming ego data topic |
 | `diagnostic_updater.ego_data_diagnostic.min_acceptable_timestamp_delta` | `float` | `0.0` | Minimum acceptable timestamp delta for incoming ego data topic |
 | `diagnostic_updater.ego_data_diagnostic.max_acceptable_timestamp_delta` | `float` | `std::numeric_limits<double>::infinity()` | Maximum acceptable timestamp delta for incoming ego data topic |
-| `diagnostic_updater.timer_diagnostic.min_frequency` | `float` | `0.0` | Minimum frequency for timer |
-| `diagnostic_updater.timer_diagnostic.max_frequency` | `float` | `std::numeric_limits<double>::infinity()` | Maximum frequency for timer |
+| `diagnostic_updater.route_timer_diagnostic.min_frequency` | `float` | `0.0` | Minimum frequency for route timer |
+| `diagnostic_updater.route_timer_diagnostic.max_frequency` | `float` | `std::numeric_limits<double>::infinity()` | Maximum frequency for route timer |
+| `diagnostic_updater.global_route_timer_diagnostic.min_frequency` | `float` | `0.0` | Minimum frequency for global route timer |
+| `diagnostic_updater.global_route_timer_diagnostic.max_frequency` | `float` | `std::numeric_limits<double>::infinity()` | Maximum frequency for global route timer |
 
 ## Launch Files
 

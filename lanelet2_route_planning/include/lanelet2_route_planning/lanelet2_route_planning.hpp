@@ -488,9 +488,14 @@ class Lanelet2RoutePlanning : public rclcpp::Node {
   std::unique_ptr<diagnostic_updater::TopicDiagnostic> ego_data_diagnostic_;
 
   /**
-   * @brief Diagnostic to auto-diagnose timer frequency
+   * @brief Diagnostic to auto-diagnose route timer frequency
    */
-  std::unique_ptr<diagnostic_updater::HeaderlessTopicDiagnostic> timer_diagnostic_;
+  std::unique_ptr<diagnostic_updater::HeaderlessTopicDiagnostic> route_timer_diagnostic_;
+
+  /**
+   * @brief Diagnostic to auto-diagnose global route timer frequency
+   */
+  std::unique_ptr<diagnostic_updater::HeaderlessTopicDiagnostic> global_route_timer_diagnostic_;
 
   /**
    * @brief Configuration for auto-diagnosed ego data topic
@@ -498,9 +503,14 @@ class Lanelet2RoutePlanning : public rclcpp::Node {
   TopicDiagnosticConfig ego_data_diagnostic_config_ = {45.45, 55.55, 0.0, 0.002};
 
   /**
-   * @brief Configuration for auto-diagnosed timer
+   * @brief Configuration for auto-diagnosed route timer
    */
-  TopicDiagnosticConfig timer_diagnostic_config_ = {18.18, 22.22};
+  TopicDiagnosticConfig route_timer_diagnostic_config_ = {18.18, 22.22};
+
+  /**
+   * @brief Configuration for auto-diagnosed global route timer
+   */
+  TopicDiagnosticConfig global_route_timer_diagnostic_config_ = {0.91, 1.11};
 };
 
 }  // namespace lanelet2_route_planning

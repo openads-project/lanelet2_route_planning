@@ -88,10 +88,18 @@ Lanelet2RoutePlanning::Lanelet2RoutePlanning() : Node("lanelet2_route_planning")
   this->declareAndLoadParameter("diagnostic_updater.ego_data_diagnostic.max_acceptable_timestamp_delta",
                                 ego_data_diagnostic_config_.max_acceptable_timestamp_delta,
                                 "Maximum acceptable timestamp delta for incoming ego data topic", false, false, false);
-  this->declareAndLoadParameter("diagnostic_updater.timer_diagnostic.min_frequency", timer_diagnostic_config_.min_frequency,
-                                "Minimum frequency for timer", false, false, false);
-  this->declareAndLoadParameter("diagnostic_updater.timer_diagnostic.max_frequency", timer_diagnostic_config_.max_frequency,
-                                "Maximum frequency for timer", false, false, false);
+  this->declareAndLoadParameter("diagnostic_updater.route_timer_diagnostic.min_frequency",
+                                route_timer_diagnostic_config_.min_frequency, "Minimum frequency for route timer", false, false,
+                                false);
+  this->declareAndLoadParameter("diagnostic_updater.route_timer_diagnostic.max_frequency",
+                                route_timer_diagnostic_config_.max_frequency, "Maximum frequency for route timer", false, false,
+                                false);
+  this->declareAndLoadParameter("diagnostic_updater.global_route_timer_diagnostic.min_frequency",
+                                global_route_timer_diagnostic_config_.min_frequency, "Minimum frequency for global route timer",
+                                false, false, false);
+  this->declareAndLoadParameter("diagnostic_updater.global_route_timer_diagnostic.max_frequency",
+                                global_route_timer_diagnostic_config_.max_frequency, "Maximum frequency for global route timer",
+                                false, false, false);
 
   this->setup();
 }
@@ -274,10 +282,14 @@ void Lanelet2RoutePlanning::setup() {
                                                &ego_data_diagnostic_config_.max_frequency, 0.0, 1),
       diagnostic_updater::TimeStampStatusParam(ego_data_diagnostic_config_.min_acceptable_timestamp_delta,
                                                ego_data_diagnostic_config_.max_acceptable_timestamp_delta));
-  timer_diagnostic_ = std::make_unique<diagnostic_updater::HeaderlessTopicDiagnostic>(
-      "timer", diagnostic_updater_,
-      diagnostic_updater::FrequencyStatusParam(&timer_diagnostic_config_.min_frequency, &timer_diagnostic_config_.max_frequency,
-                                               0.0, 1));
+  route_timer_diagnostic_ = std::make_unique<diagnostic_updater::HeaderlessTopicDiagnostic>(
+      "route_timer", diagnostic_updater_,
+      diagnostic_updater::FrequencyStatusParam(&route_timer_diagnostic_config_.min_frequency,
+                                               &route_timer_diagnostic_config_.max_frequency, 0.0, 1));
+  global_route_timer_diagnostic_ = std::make_unique<diagnostic_updater::HeaderlessTopicDiagnostic>(
+      "global_route_timer", diagnostic_updater_,
+      diagnostic_updater::FrequencyStatusParam(&global_route_timer_diagnostic_config_.min_frequency,
+                                               &global_route_timer_diagnostic_config_.max_frequency, 0.0, 1));
 }
 
 bool Lanelet2RoutePlanning::buildRoutingGraph() {
@@ -345,7 +357,7 @@ void Lanelet2RoutePlanning::egoDataCallback(const perception_msgs::msg::EgoData:
 }
 
 void Lanelet2RoutePlanning::publishTimerCallback() {
-  timer_diagnostic_->tick();
+  route_timer_diagnostic_->tick();
   if (is_publishing_route_ && has_enriched_route_) {
     publisher_route_->publish(latest_route_msg_);
   }
@@ -392,6 +404,7 @@ void Lanelet2RoutePlanning::publishTimerCallback() {
 }
 
 void Lanelet2RoutePlanning::globalRoutePublishTimerCallback() {
+  global_route_timer_diagnostic_->tick();
   if (!is_publishing_route_ || latest_global_route_msg_.route_elements.empty()) {
     return;
   }
