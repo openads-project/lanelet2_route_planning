@@ -744,7 +744,8 @@ void Lanelet2RoutePlanning::buildGlobalRouteMessage() {
     const Eigen::Vector2d& prev_point = c > 0 ? shortest_path_centerline[c - 1] : point;
     const Eigen::Vector2d& next_point = c + 1 < shortest_path_centerline.size() ? shortest_path_centerline[c + 1] : point;
     const lanelet::ConstLanelet& lanelet = shortest_path[latest_lanelet_idx_by_reference_line_point_idx_[c]];
-    const bool changes_lane_from_prev_point = changesLaneFromPointToPoint(prev_point, point, sampling_distance_);
+    const bool changes_lane_from_prev_point =
+        changesLaneFromPointToPoint(prev_point, point, sampling_distance_);  // NOLINT(readability-suspicious-call-argument)
     const bool changes_lane_to_next_point = changesLaneFromPointToPoint(point, next_point, sampling_distance_);
     const Eigen::Vector2d orientation = tangentOfPointAlongLineString(point, changes_lane_from_prev_point ? point : prev_point,
                                                                       changes_lane_to_next_point ? point : next_point);
