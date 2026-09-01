@@ -14,6 +14,7 @@ flowchart LR
     S0:::hidden -->|~/ego_data| NODE
     NODE -->|~/route| P0:::hidden
     NODE -->|~/global_route| P1:::hidden
+    NODE -->|/diagnostics| P2:::hidden
     AS0:::hidden o-.-o|~/plan_route| NODE
     classDef hidden display: none;
 ```
@@ -30,6 +31,7 @@ flowchart LR
 | --- | --- | --- |
 | `~/route` | `route_planning_msgs/msg/Route` | planned route |
 | `~/global_route` | `route_planning_msgs/msg/Route` | complete adaptively sampled non-enriched route, published at `publish_frequency_global` |
+| `/diagnostics` | `diagnostic_msgs/msg/DiagnosticArray` | diagnostics topic |
 
 #### Action Servers
 
@@ -57,6 +59,14 @@ flowchart LR
 | `max_drivable_space_radius` | `float` | `50.0` | Maximum distance to left/right drivable space bounds, if not otherwise restricted [m] |
 | `max_num_threads` | `int` | `0` | Maximum number of threads for parallel processing (0=max available) |
 | `transform_timeout` | `float` | `0.02` | How long to wait for a transform to be available [s] |
+| `diagnostic_updater.ego_data_diagnostic.min_frequency` | `float` | `0.0` | Minimum frequency for incoming ego data topic |
+| `diagnostic_updater.ego_data_diagnostic.max_frequency` | `float` | `std::numeric_limits<double>::infinity()` | Maximum frequency for incoming ego data topic |
+| `diagnostic_updater.ego_data_diagnostic.min_acceptable_timestamp_delta` | `float` | `0.0` | Minimum acceptable timestamp delta for incoming ego data topic |
+| `diagnostic_updater.ego_data_diagnostic.max_acceptable_timestamp_delta` | `float` | `std::numeric_limits<double>::infinity()` | Maximum acceptable timestamp delta for incoming ego data topic |
+| `diagnostic_updater.route_timer_diagnostic.min_frequency` | `float` | `0.0` | Minimum frequency for route timer |
+| `diagnostic_updater.route_timer_diagnostic.max_frequency` | `float` | `std::numeric_limits<double>::infinity()` | Maximum frequency for route timer |
+| `diagnostic_updater.global_route_timer_diagnostic.min_frequency` | `float` | `0.0` | Minimum frequency for global route timer |
+| `diagnostic_updater.global_route_timer_diagnostic.max_frequency` | `float` | `std::numeric_limits<double>::infinity()` | Maximum frequency for global route timer |
 
 ## Launch Files
 
@@ -67,6 +77,7 @@ flowchart LR
 | `ego_data_topic` | `"~/ego_data"` | ego data topic |
 | `route_topic` | `"~/route"` | planned route topic |
 | `global_route_topic` | `"~/global_route"` | global reference line topic |
+| `diagnostics_topic` | `"/diagnostics"` | diagnostics topic |
 | `name` | `"lanelet2_route_planning"` | node name |
 | `namespace` | `""` | node namespace |
 | `params` | `os.path.join(get_package_share_directory("lanelet2_route_planning"), "config", "params.yml")` | path to parameter file |
@@ -80,6 +91,7 @@ flowchart LR
 | `ego_data_topic` | `"~/ego_data"` | ego data topic |
 | `route_topic` | `"~/route"` | planned route topic |
 | `global_route_topic` | `"~/global_route"` | global reference line topic |
+| `diagnostics_topic` | `"/diagnostics"` | diagnostics topic |
 | `goal_pose_topic` | `"~/goal_pose"` | goal pose topic |
 | `name` | `"lanelet2_route_planning"` | node name |
 | `namespace` | `""` | node namespace |

@@ -21,6 +21,7 @@ def generate_launch_description():
         DeclareLaunchArgument(
             "global_route_topic", default_value="~/global_route", description="topic of non-enriched global route"
         ),
+        DeclareLaunchArgument("diagnostics_topic", default_value="/diagnostics", description="diagnostics topic"),
         DeclareLaunchArgument("goal_pose_topic", default_value="~/goal_pose", description="goal pose topic"),
     ]
 

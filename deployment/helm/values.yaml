@@ -10,6 +10,7 @@ openadservice:
     # --- outputs ---
     ROUTE_TOPIC: ~/route
     GLOBAL_ROUTE_TOPIC: ~/global_route
+    DIAGNOSTICS_TOPIC: /diagnostics
     # --- other -----
     LOG_LEVEL: info
     USE_SIM_TIME: false
@@ -26,6 +27,7 @@ openadservice:
       params:=${PARAMS} \
       ego_data_topic:=${EGO_DATA_TOPIC} \
       route_topic:=${ROUTE_TOPIC} \
-      global_route_topic:=${GLOBAL_ROUTE_TOPIC}
+      global_route_topic:=${GLOBAL_ROUTE_TOPIC} \
+      diagnostics_topic:=${DIAGNOSTICS_TOPIC}
   rosParamFileMountPath: /docker-ros/ws/install/lanelet2_route_planning/share/lanelet2_route_planning/config/params.yml
   rosParamFileData: null
