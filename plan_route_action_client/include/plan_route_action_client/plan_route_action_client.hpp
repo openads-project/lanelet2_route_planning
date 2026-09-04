@@ -15,6 +15,7 @@
 #include <rclcpp/rclcpp.hpp>
 #include <rclcpp_action/rclcpp_action.hpp>
 #include <route_planning_msgs/action/plan_route.hpp>
+#include <route_planning_msgs/msg/route.hpp>
 
 namespace plan_route_action_client {
 
@@ -88,6 +89,13 @@ class PlanRouteActionClient : public rclcpp::Node {
   void goalPoseCallback(const geometry_msgs::msg::PoseStamped::SharedPtr msg);
 
   /**
+   * @brief Callback for the global route
+   *
+   * @param[in] msg global route
+   */
+  void globalRouteCallback(const route_planning_msgs::msg::Route::SharedPtr msg);
+
+  /**
    * @brief Callback for automatically planning a route, e.g., if waypoints are given
    *
    * Does nothing, if no waypoints are given and random planning is disabled.
@@ -152,6 +160,11 @@ class PlanRouteActionClient : public rclcpp::Node {
   rclcpp::Subscription<geometry_msgs::msg::PoseStamped>::SharedPtr goal_pose_subscriber_;
 
   /**
+   * @brief Subscriber for the complete global route
+   */
+  rclcpp::Subscription<route_planning_msgs::msg::Route>::SharedPtr global_route_subscriber_;
+
+  /**
    * @brief Action client
    */
   rclcpp_action::Client<PlanRoute>::SharedPtr action_client_;
@@ -160,6 +173,11 @@ class PlanRouteActionClient : public rclcpp::Node {
    * @brief Goal handle
    */
   std::shared_future<GoalHandlePlanRoute::SharedPtr> goal_handle_future_;
+
+  /**
+   * @brief Latest complete global route
+   */
+  route_planning_msgs::msg::Route latest_global_route_;
 
   /**
    * @brief Timer to automatically plan route, e.g., if waypoints are given
@@ -197,6 +215,39 @@ class PlanRouteActionClient : public rclcpp::Node {
   double active_waypoint_wait_time_s_ = 0.0;
 
   /**
+   * @brief Ordered waypoints of the active route, including its destination
+   */
+  std::vector<geometry_msgs::msg::PointStamped> active_route_waypoints_;
+
+  /**
+   * @brief Indices in the configured waypoint list for the active route
+   */
+  std::vector<size_t> active_route_waypoint_indices_;
+
+  /**
+   * @brief Route state to activate once a continuous replanning goal is accepted
+   */
+  std::vector<geometry_msgs::msg::PointStamped> pending_route_waypoints_;
+  std::vector<size_t> pending_route_waypoint_indices_;
+  size_t pending_next_waypoint_idx_ = 0;
+  double pending_waypoint_wait_time_s_ = 0.0;
+
+  /**
+   * @brief Whether a continuous replanning goal is awaiting a response
+   */
+  bool continuous_replanning_pending_ = false;
+
+  /**
+   * @brief Goal ID expected to be aborted after continuous replanning
+   */
+  std::optional<rclcpp_action::GoalUUID> replaced_goal_id_;
+
+  /**
+   * @brief Goal ID currently providing authoritative feedback
+   */
+  std::optional<rclcpp_action::GoalUUID> active_goal_id_;
+
+  /**
    * @brief Earliest wall-clock time at which automatic planning may continue
    */
   double auto_planning_resume_time_s_ = 0.0;
@@ -229,6 +280,12 @@ class PlanRouteActionClient : public rclcpp::Node {
    * Either to the next waypoint or to a random destination, if enabled
    */
   bool enable_continuous_planning_ = false;
+
+  /**
+   * @brief Traveled route proportion at which continuous replanning starts
+   * (parameter)
+   */
+  double continuous_planning_replanning_proportion_ = 0.75;
 
   /**
    * @brief Flag to cancel the route planning action (parameter)
