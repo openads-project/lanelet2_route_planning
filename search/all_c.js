@@ -23,7 +23,10 @@ var searchData=
   ['projectpointtolinestringalongaxisresult_20',['ProjectPointToLineStringAlongAxisResult',['../structlanelet2__route__planning_1_1ProjectPointToLineStringAlongAxisResult.html',1,'lanelet2_route_planning']]],
   ['projectpointtolinestringalongnormal_21',['projectPointToLineStringAlongNormal',['../namespacelanelet2__route__planning.html#a098e486d3e58fa8c6a4f843786b8d2b0',1,'lanelet2_route_planning']]],
   ['publish_5ffrequency_5f_22',['publish_frequency_',['../classlanelet2__route__planning_1_1Lanelet2RoutePlanning.html#a6334434b178204bba9ff63dec3943b64',1,'lanelet2_route_planning::Lanelet2RoutePlanning']]],
-  ['publish_5ftimer_5f_23',['publish_timer_',['../classlanelet2__route__planning_1_1Lanelet2RoutePlanning.html#a1b81fcd51c17bb497ebeaf7c61ec18be',1,'lanelet2_route_planning::Lanelet2RoutePlanning']]],
-  ['publisher_5froute_5f_24',['publisher_route_',['../classlanelet2__route__planning_1_1Lanelet2RoutePlanning.html#a56702d6d9acb083c5f344c4a30227b39',1,'lanelet2_route_planning::Lanelet2RoutePlanning']]],
-  ['publishtimercallback_25',['publishTimerCallback',['../classlanelet2__route__planning_1_1Lanelet2RoutePlanning.html#ad3fec36c1866ce22291b4741408c5602',1,'lanelet2_route_planning::Lanelet2RoutePlanning']]]
+  ['publish_5ffrequency_5fglobal_5f_23',['publish_frequency_global_',['../classlanelet2__route__planning_1_1Lanelet2RoutePlanning.html#a3e7529a96d8d4d397deff5ab9bed83d4',1,'lanelet2_route_planning::Lanelet2RoutePlanning']]],
+  ['publish_5ftimer_5f_24',['publish_timer_',['../classlanelet2__route__planning_1_1Lanelet2RoutePlanning.html#a1b81fcd51c17bb497ebeaf7c61ec18be',1,'lanelet2_route_planning::Lanelet2RoutePlanning']]],
+  ['publisher_5fglobal_5froute_5f_25',['publisher_global_route_',['../classlanelet2__route__planning_1_1Lanelet2RoutePlanning.html#aefc1080ac9cbc49d50ec0688756cb807',1,'lanelet2_route_planning::Lanelet2RoutePlanning']]],
+  ['publisher_5froute_5f_26',['publisher_route_',['../classlanelet2__route__planning_1_1Lanelet2RoutePlanning.html#a56702d6d9acb083c5f344c4a30227b39',1,'lanelet2_route_planning::Lanelet2RoutePlanning']]],
+  ['publishhealth_27',['publishHealth',['../classlanelet2__route__planning_1_1Lanelet2RoutePlanning.html#ab5b893c5b83779d7c34bfc31063853ed',1,'lanelet2_route_planning::Lanelet2RoutePlanning']]],
+  ['publishtimercallback_28',['publishTimerCallback',['../classlanelet2__route__planning_1_1Lanelet2RoutePlanning.html#ad3fec36c1866ce22291b4741408c5602',1,'lanelet2_route_planning::Lanelet2RoutePlanning']]]
 ];

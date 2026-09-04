@@ -28,7 +28,7 @@
  <tbody>
  <tr id="projectrow">
   <td id="projectalign">
-   <div id="projectname">lanelet2_route_planning<span id="projectnumber">&#160;v1.2.0</span>
+   <div id="projectname">lanelet2_route_planning<span id="projectnumber">&#160;v2.0.0</span>
    </div>
   </td>
  </tr>
@@ -103,8 +103,11 @@ $(function(){initNavTree('geometry_8cpp.html',''); initResizable(true); });
   <div class="headertitle"><div class="title">geometry.cpp File Reference</div></div>
 </div><!--header-->
 <div class="contents">
-<div class="textblock"><code>#include &lt;cmath&gt;</code><br />
+<div class="textblock"><code>#include &lt;algorithm&gt;</code><br />
+<code>#include &lt;cmath&gt;</code><br />
 <code>#include &lt;limits&gt;</code><br />
+<code>#include &lt;numeric&gt;</code><br />
+<code>#include &lt;utility&gt;</code><br />
 <code>#include &lt;lanelet2_core/geometry/LineString.h&gt;</code><br />
 <code>#include &lt;rclcpp/rclcpp.hpp&gt;</code><br />
 <code>#include &quot;<a class="el" href="conversions_8hpp_source.html">lanelet2_route_planning/conversions.hpp</a>&quot;</code><br />
@@ -137,6 +140,9 @@ Functions</h2></td></tr>
 <tr class="memitem:a8eac3c578baf293904b5ece481f37927" id="r_a8eac3c578baf293904b5ece481f37927"><td class="memItemLeft" align="right" valign="top">std::vector&lt; Eigen::Vector3d &gt;&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="namespacelanelet2__route__planning.html#a8eac3c578baf293904b5ece481f37927">lanelet2_route_planning::resampleLineString</a> (const std::vector&lt; Eigen::Vector3d &gt; &amp;line_string, const double delta, double &amp;offset)</td></tr>
 <tr class="memdesc:a8eac3c578baf293904b5ece481f37927"><td class="mdescLeft">&#160;</td><td class="mdescRight">Resamples a 3D line string with a constant sampling distance.  <br /></td></tr>
 <tr class="separator:a8eac3c578baf293904b5ece481f37927"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a5854bb0375b0cd622732c587f81ad8e8" id="r_a5854bb0375b0cd622732c587f81ad8e8"><td class="memItemLeft" align="right" valign="top">std::vector&lt; size_t &gt;&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="namespacelanelet2__route__planning.html#a5854bb0375b0cd622732c587f81ad8e8">lanelet2_route_planning::adaptivelySampleLineString</a> (const std::vector&lt; Eigen::Vector2d &gt; &amp;line_string, double max_lateral_error, const std::vector&lt; size_t &gt; &amp;break_after_indices={})</td></tr>
+<tr class="memdesc:a5854bb0375b0cd622732c587f81ad8e8"><td class="mdescLeft">&#160;</td><td class="mdescRight">Simplifies a 2D line string within a maximum lateral error.  <br /></td></tr>
+<tr class="separator:a5854bb0375b0cd622732c587f81ad8e8"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a4dbf78b9e5e4ea873be8a22dacf7476f" id="r_a4dbf78b9e5e4ea873be8a22dacf7476f"><td class="memItemLeft" align="right" valign="top">Eigen::Vector2d&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="namespacelanelet2__route__planning.html#a4dbf78b9e5e4ea873be8a22dacf7476f">lanelet2_route_planning::projectPointToLineString</a> (const Eigen::Vector2d &amp;point, const std::vector&lt; Eigen::Vector2d &gt; &amp;line_string)</td></tr>
 <tr class="memdesc:a4dbf78b9e5e4ea873be8a22dacf7476f"><td class="mdescLeft">&#160;</td><td class="mdescRight">Projects a point to the closest line segment of a line string.  <br /></td></tr>
 <tr class="separator:a4dbf78b9e5e4ea873be8a22dacf7476f"><td class="memSeparator" colspan="2">&#160;</td></tr>

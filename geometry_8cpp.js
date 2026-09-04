@@ -1,5 +1,6 @@
 var geometry_8cpp =
 [
+    [ "adaptivelySampleLineString", "geometry_8cpp.html#a5854bb0375b0cd622732c587f81ad8e8", null ],
     [ "angleBetweenVectors", "geometry_8cpp.html#a24f5323a0ff841e02c1ae138ee955327", null ],
     [ "intersectionOfLines", "geometry_8cpp.html#ac7f321bb35826dde5ed3afe69ff53c12", null ],
     [ "normalOfPointAlongLineString", "geometry_8cpp.html#a8ca6e8b25f2f8a23d68be5986873a803", null ],

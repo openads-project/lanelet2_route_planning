@@ -6,7 +6,8 @@ var searchData=
   ['details_3',['Implementation Details',['../md_docs_2IMPLEMENTATION.html',1,'']]],
   ['development_4',['💻 Development',['../index.html#autotoc_md2',1,'']]],
   ['development_20environment_5',['Set up Development Environment',['../index.html#autotoc_md3',1,'']]],
-  ['distanceremaining_6',['distanceRemaining',['../namespacelanelet2__route__planning.html#afa3a83bc8ca8d36274f8b6408bd8ce2e',1,'lanelet2_route_planning']]],
-  ['distancetraveled_7',['distanceTraveled',['../namespacelanelet2__route__planning.html#a24300575238bc61fe1bdfd2c1aea7ed1',1,'lanelet2_route_planning']]],
-  ['documentation_8',['📝 Documentation',['../index.html#autotoc_md6',1,'']]]
+  ['diagnostic_5fupdater_5f_6',['diagnostic_updater_',['../classlanelet2__route__planning_1_1Lanelet2RoutePlanning.html#a513d0aba82817dc8d01dfc379aa0232b',1,'lanelet2_route_planning::Lanelet2RoutePlanning']]],
+  ['distanceremaining_7',['distanceRemaining',['../namespacelanelet2__route__planning.html#afa3a83bc8ca8d36274f8b6408bd8ce2e',1,'lanelet2_route_planning']]],
+  ['distancetraveled_8',['distanceTraveled',['../namespacelanelet2__route__planning.html#a24300575238bc61fe1bdfd2c1aea7ed1',1,'lanelet2_route_planning']]],
+  ['documentation_9',['📝 Documentation',['../index.html#autotoc_md6',1,'']]]
 ];

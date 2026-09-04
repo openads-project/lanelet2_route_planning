@@ -28,7 +28,7 @@
  <tbody>
  <tr id="projectrow">
   <td id="projectalign">
-   <div id="projectname">lanelet2_route_planning<span id="projectnumber">&#160;v1.2.0</span>
+   <div id="projectname">lanelet2_route_planning<span id="projectnumber">&#160;v2.0.0</span>
    </div>
   </td>
  </tr>
@@ -105,6 +105,7 @@ $(function(){initNavTree('utils_8hpp.html',''); initResizable(true); });
 </div><!--header-->
 <div class="contents">
 <div class="textblock"><code>#include &lt;array&gt;</code><br />
+<code>#include &lt;cstddef&gt;</code><br />
 <code>#include &lt;cstdint&gt;</code><br />
 <code>#include &lt;optional&gt;</code><br />
 <code>#include &lt;utility&gt;</code><br />
@@ -117,12 +118,16 @@ $(function(){initNavTree('utils_8hpp.html',''); initResizable(true); });
 <code>#include &lt;geometry_msgs/msg/point.hpp&gt;</code><br />
 <code>#include &lt;geometry_msgs/msg/quaternion.hpp&gt;</code><br />
 <code>#include &lt;rclcpp/rclcpp.hpp&gt;</code><br />
+<code>#include &lt;route_planning_msgs/msg/route.hpp&gt;</code><br />
 <code>#include &lt;route_planning_msgs/msg/route_element.hpp&gt;</code><br />
 </div>
 <p><a href="utils_8hpp_source.html">Go to the source code of this file.</a></p>
 <table class="memberdecls">
 <tr class="heading"><td colspan="2"><h2 class="groupheader"><a id="nested-classes" name="nested-classes"></a>
 Classes</h2></td></tr>
+<tr class="memitem:"><td class="memItemLeft" align="right" valign="top">struct &#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structlanelet2__route__planning_1_1LocalRouteWindow.html">lanelet2_route_planning::LocalRouteWindow</a></td></tr>
+<tr class="memdesc:"><td class="mdescLeft">&#160;</td><td class="mdescRight">A local route window and its offset in the complete route.  <a href="structlanelet2__route__planning_1_1LocalRouteWindow.html#details">More...</a><br /></td></tr>
+<tr class="separator:"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:"><td class="memItemLeft" align="right" valign="top">struct &#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structlanelet2__route__planning_1_1ProjectedLaneletPoints.html">lanelet2_route_planning::ProjectedLaneletPoints</a></td></tr>
 <tr class="memdesc:"><td class="mdescLeft">&#160;</td><td class="mdescRight">Projected lanelet points.  <a href="structlanelet2__route__planning_1_1ProjectedLaneletPoints.html#details">More...</a><br /></td></tr>
 <tr class="separator:"><td class="memSeparator" colspan="2">&#160;</td></tr>
@@ -146,6 +151,9 @@ Functions</h2></td></tr>
 <tr class="memitem:a3291e169e7c526a7a3ec09a96ef17c3a" id="r_a3291e169e7c526a7a3ec09a96ef17c3a"><td class="memItemLeft" align="right" valign="top">std::optional&lt; lanelet::routing::Route &gt;&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="namespacelanelet2__route__planning.html#a3291e169e7c526a7a3ec09a96ef17c3a">lanelet2_route_planning::getRoute</a> (const lanelet::routing::RoutingGraphUPtr &amp;routing_graph, const std::vector&lt; lanelet::ConstLanelet &gt; &amp;route_lanelets)</td></tr>
 <tr class="memdesc:a3291e169e7c526a7a3ec09a96ef17c3a"><td class="mdescLeft">&#160;</td><td class="mdescRight">Computes a route from start to destination along intermediate destinations.  <br /></td></tr>
 <tr class="separator:a3291e169e7c526a7a3ec09a96ef17c3a"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a4e2950a524f622b7e1d5a5a987af8ad0" id="r_a4e2950a524f622b7e1d5a5a987af8ad0"><td class="memItemLeft" align="right" valign="top"><a class="el" href="structlanelet2__route__planning_1_1LocalRouteWindow.html">LocalRouteWindow</a>&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="namespacelanelet2__route__planning.html#a4e2950a524f622b7e1d5a5a987af8ad0">lanelet2_route_planning::extractLocalRouteWindow</a> (const route_planning_msgs::msg::Route &amp;full_route, size_t current_global_idx, double distance_behind, double distance_ahead)</td></tr>
+<tr class="memdesc:a4e2950a524f622b7e1d5a5a987af8ad0"><td class="mdescLeft">&#160;</td><td class="mdescRight">Extracts a local route window while preserving absolute route data.  <br /></td></tr>
+<tr class="separator:a4e2950a524f622b7e1d5a5a987af8ad0"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:aa3a00c3677dcf9838bee514100e5f9a5" id="r_aa3a00c3677dcf9838bee514100e5f9a5"><td class="memItemLeft" align="right" valign="top">size_t&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="namespacelanelet2__route__planning.html#aa3a00c3677dcf9838bee514100e5f9a5">lanelet2_route_planning::indexOfLineStringPointClosestToPoint</a> (const std::vector&lt; Eigen::Vector2d &gt; &amp;line_string, const Eigen::Vector2d &amp;point, const bool consider_order=false, const bool behind=true)</td></tr>
 <tr class="memdesc:aa3a00c3677dcf9838bee514100e5f9a5"><td class="mdescLeft">&#160;</td><td class="mdescRight">Finds the index of a point in a line string that is closest to another point.  <br /></td></tr>
 <tr class="separator:aa3a00c3677dcf9838bee514100e5f9a5"><td class="memSeparator" colspan="2">&#160;</td></tr>

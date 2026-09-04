@@ -12,5 +12,6 @@ var searchData=
   ['projectpointtolinestring_9',['projectPointToLineString',['../namespacelanelet2__route__planning.html#a4dbf78b9e5e4ea873be8a22dacf7476f',1,'lanelet2_route_planning::projectPointToLineString(const Eigen::Vector2d &amp;point, const std::vector&lt; Eigen::Vector2d &gt; &amp;line_string)'],['../namespacelanelet2__route__planning.html#a7eb32612ad65250105910ecccd0bde7c',1,'lanelet2_route_planning::projectPointToLineString(const Eigen::Vector3d &amp;point, const std::vector&lt; Eigen::Vector3d &gt; &amp;line_string)']]],
   ['projectpointtolinestringalongaxis_10',['projectPointToLineStringAlongAxis',['../namespacelanelet2__route__planning.html#a085a3192b166c67f8af09f13c4a96f5c',1,'lanelet2_route_planning']]],
   ['projectpointtolinestringalongnormal_11',['projectPointToLineStringAlongNormal',['../namespacelanelet2__route__planning.html#a098e486d3e58fa8c6a4f843786b8d2b0',1,'lanelet2_route_planning']]],
-  ['publishtimercallback_12',['publishTimerCallback',['../classlanelet2__route__planning_1_1Lanelet2RoutePlanning.html#ad3fec36c1866ce22291b4741408c5602',1,'lanelet2_route_planning::Lanelet2RoutePlanning']]]
+  ['publishhealth_12',['publishHealth',['../classlanelet2__route__planning_1_1Lanelet2RoutePlanning.html#ab5b893c5b83779d7c34bfc31063853ed',1,'lanelet2_route_planning::Lanelet2RoutePlanning']]],
+  ['publishtimercallback_13',['publishTimerCallback',['../classlanelet2__route__planning_1_1Lanelet2RoutePlanning.html#ad3fec36c1866ce22291b4741408c5602',1,'lanelet2_route_planning::Lanelet2RoutePlanning']]]
 ];

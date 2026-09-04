@@ -2,6 +2,7 @@ var geometry_8hpp =
 [
     [ "lanelet2_route_planning::IntersectionOfLinesResult", "structlanelet2__route__planning_1_1IntersectionOfLinesResult.html", "structlanelet2__route__planning_1_1IntersectionOfLinesResult" ],
     [ "lanelet2_route_planning::ProjectPointToLineStringAlongAxisResult", "structlanelet2__route__planning_1_1ProjectPointToLineStringAlongAxisResult.html", "structlanelet2__route__planning_1_1ProjectPointToLineStringAlongAxisResult" ],
+    [ "adaptivelySampleLineString", "geometry_8hpp.html#a5854bb0375b0cd622732c587f81ad8e8", null ],
     [ "angleBetweenVectors", "geometry_8hpp.html#a24f5323a0ff841e02c1ae138ee955327", null ],
     [ "intersectionOfLines", "geometry_8hpp.html#ac7f321bb35826dde5ed3afe69ff53c12", null ],
     [ "normalOfPointAlongLineString", "geometry_8hpp.html#a8ca6e8b25f2f8a23d68be5986873a803", null ],

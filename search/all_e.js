@@ -14,9 +14,12 @@ var searchData=
   ['resamplelinestring_11',['resampleLineString',['../namespacelanelet2__route__planning.html#a8eac3c578baf293904b5ece481f37927',1,'lanelet2_route_planning']]],
   ['resultcallback_12',['resultCallback',['../classplan__route__action__client_1_1PlanRouteActionClient.html#a44997574d616fb70be6f4d073bf77b65',1,'plan_route_action_client::PlanRouteActionClient']]],
   ['right_5fbound_5fpoint_13',['right_bound_point',['../structlanelet2__route__planning_1_1ProjectedLaneletPoints.html#ad4e38629474316ccd71018a940c90fd6',1,'lanelet2_route_planning::ProjectedLaneletPoints']]],
-  ['route_20message_20format_14',['Route Message Format',['../md_docs_2IMPLEMENTATION.html#autotoc_md10',1,'']]],
-  ['route_5fovershoot_5fdistance_5f_15',['route_overshoot_distance_',['../classlanelet2__route__planning_1_1Lanelet2RoutePlanning.html#a33eb8f82052efce77e1a484832e94c84',1,'lanelet2_route_planning::Lanelet2RoutePlanning']]],
-  ['route_5fundershoot_5fdistance_5f_16',['route_undershoot_distance_',['../classlanelet2__route__planning_1_1Lanelet2RoutePlanning.html#ab1ff42b7100d5814ac49ff87addbc25a',1,'lanelet2_route_planning::Lanelet2RoutePlanning']]],
-  ['routing_5fgraph_5f_17',['routing_graph_',['../classlanelet2__route__planning_1_1Lanelet2RoutePlanning.html#aa2add726e83c36cdacb75cc491c42d6f',1,'lanelet2_route_planning::Lanelet2RoutePlanning']]],
-  ['run_20tests_18',['Run Tests',['../index.html#autotoc_md5',1,'']]]
+  ['route_14',['route',['../structlanelet2__route__planning_1_1LocalRouteWindow.html#a571dcd25fff28175f4bede27192d87c3',1,'lanelet2_route_planning::LocalRouteWindow']]],
+  ['route_20message_20format_15',['Route Message Format',['../md_docs_2IMPLEMENTATION.html#autotoc_md10',1,'']]],
+  ['route_5fovershoot_5fdistance_5f_16',['route_overshoot_distance_',['../classlanelet2__route__planning_1_1Lanelet2RoutePlanning.html#a33eb8f82052efce77e1a484832e94c84',1,'lanelet2_route_planning::Lanelet2RoutePlanning']]],
+  ['route_5ftimer_5fdiagnostic_5f_17',['route_timer_diagnostic_',['../classlanelet2__route__planning_1_1Lanelet2RoutePlanning.html#a5c0a359bef0d862f6728ae9a1557b25c',1,'lanelet2_route_planning::Lanelet2RoutePlanning']]],
+  ['route_5ftimer_5fdiagnostic_5fconfig_5f_18',['route_timer_diagnostic_config_',['../classlanelet2__route__planning_1_1Lanelet2RoutePlanning.html#ab8f967d84c88231b10b38b2c14394f67',1,'lanelet2_route_planning::Lanelet2RoutePlanning']]],
+  ['route_5fundershoot_5fdistance_5f_19',['route_undershoot_distance_',['../classlanelet2__route__planning_1_1Lanelet2RoutePlanning.html#ab1ff42b7100d5814ac49ff87addbc25a',1,'lanelet2_route_planning::Lanelet2RoutePlanning']]],
+  ['routing_5fgraph_5f_20',['routing_graph_',['../classlanelet2__route__planning_1_1Lanelet2RoutePlanning.html#aa2add726e83c36cdacb75cc491c42d6f',1,'lanelet2_route_planning::Lanelet2RoutePlanning']]],
+  ['run_20tests_21',['Run Tests',['../index.html#autotoc_md5',1,'']]]
 ];

@@ -1,5 +1,6 @@
 var utils_8hpp =
 [
+    [ "lanelet2_route_planning::LocalRouteWindow", "structlanelet2__route__planning_1_1LocalRouteWindow.html", "structlanelet2__route__planning_1_1LocalRouteWindow" ],
     [ "lanelet2_route_planning::ProjectedLaneletPoints", "structlanelet2__route__planning_1_1ProjectedLaneletPoints.html", "structlanelet2__route__planning_1_1ProjectedLaneletPoints" ],
     [ "lanelet2_route_planning::PointSequence", "structlanelet2__route__planning_1_1PointSequence.html", "structlanelet2__route__planning_1_1PointSequence" ],
     [ "lanelet2_route_planning::ExtractRegulatoryElementsResult", "structlanelet2__route__planning_1_1ExtractRegulatoryElementsResult.html", "structlanelet2__route__planning_1_1ExtractRegulatoryElementsResult" ],
@@ -13,6 +14,7 @@ var utils_8hpp =
     [ "distanceTraveled", "utils_8hpp.html#a24300575238bc61fe1bdfd2c1aea7ed1", null ],
     [ "estimateRemainingTime", "utils_8hpp.html#a63c9b92787d976e6ea0ef02032583c4d", null ],
     [ "extractDrivableSpace", "utils_8hpp.html#ae0d6c98c54442b5b8350fb8cce4a2f88", null ],
+    [ "extractLocalRouteWindow", "utils_8hpp.html#a4e2950a524f622b7e1d5a5a987af8ad0", null ],
     [ "extractRegulatoryElements", "utils_8hpp.html#a5d148b84f9326901047b60e0b8bd9dfa", null ],
     [ "followLaneletsAlongRoutingGraph", "utils_8hpp.html#a20f5f2a4f1b1551c35142e1a78be8b12", null ],
     [ "getRoute", "utils_8hpp.html#a3291e169e7c526a7a3ec09a96ef17c3a", null ],

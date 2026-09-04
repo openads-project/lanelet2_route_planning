@@ -9,6 +9,7 @@ var utils_8cpp =
     [ "distanceTraveled", "utils_8cpp.html#a24300575238bc61fe1bdfd2c1aea7ed1", null ],
     [ "estimateRemainingTime", "utils_8cpp.html#a63c9b92787d976e6ea0ef02032583c4d", null ],
     [ "extractDrivableSpace", "utils_8cpp.html#ae0d6c98c54442b5b8350fb8cce4a2f88", null ],
+    [ "extractLocalRouteWindow", "utils_8cpp.html#a4e2950a524f622b7e1d5a5a987af8ad0", null ],
     [ "extractRegulatoryElements", "utils_8cpp.html#a5d148b84f9326901047b60e0b8bd9dfa", null ],
     [ "followLaneletsAlongRoutingGraph", "utils_8cpp.html#a20f5f2a4f1b1551c35142e1a78be8b12", null ],
     [ "getRoute", "utils_8cpp.html#a3291e169e7c526a7a3ec09a96ef17c3a", null ],

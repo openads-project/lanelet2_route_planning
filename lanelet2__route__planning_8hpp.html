@@ -28,7 +28,7 @@
  <tbody>
  <tr id="projectrow">
   <td id="projectalign">
-   <div id="projectname">lanelet2_route_planning<span id="projectnumber">&#160;v1.2.0</span>
+   <div id="projectname">lanelet2_route_planning<span id="projectnumber">&#160;v2.0.0</span>
    </div>
   </td>
  </tr>
@@ -104,12 +104,18 @@ $(function(){initNavTree('lanelet2__route__planning_8hpp.html',''); initResizabl
   <div class="headertitle"><div class="title">lanelet2_route_planning.hpp File Reference</div></div>
 </div><!--header-->
 <div class="contents">
-<div class="textblock"><code>#include &lt;memory&gt;</code><br />
+<div class="textblock"><code>#include &lt;limits&gt;</code><br />
+<code>#include &lt;map&gt;</code><br />
+<code>#include &lt;memory&gt;</code><br />
+<code>#include &lt;mutex&gt;</code><br />
 <code>#include &lt;string&gt;</code><br />
 <code>#include &lt;vector&gt;</code><br />
 <code>#include &lt;lanelet2_routing/Route.h&gt;</code><br />
 <code>#include &lt;tf2_ros/buffer.h&gt;</code><br />
 <code>#include &lt;tf2_ros/transform_listener.h&gt;</code><br />
+<code>#include &lt;diagnostic_msgs/msg/diagnostic_array.hpp&gt;</code><br />
+<code>#include &lt;diagnostic_updater/diagnostic_updater.hpp&gt;</code><br />
+<code>#include &lt;diagnostic_updater/publisher.hpp&gt;</code><br />
 <code>#include &lt;lanelet2_map_interface/lanelet2_map_interface.hpp&gt;</code><br />
 <code>#include &lt;rclcpp/rclcpp.hpp&gt;</code><br />
 <code>#include &lt;rclcpp_action/rclcpp_action.hpp&gt;</code><br />
@@ -123,6 +129,9 @@ Classes</h2></td></tr>
 <tr class="memitem:"><td class="memItemLeft" align="right" valign="top">struct &#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structlanelet2__route__planning_1_1is__vector.html">lanelet2_route_planning::is_vector&lt; C &gt;</a></td></tr>
 <tr class="separator:"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:"><td class="memItemLeft" align="right" valign="top">struct &#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structlanelet2__route__planning_1_1is__vector_3_01std_1_1vector_3_01T_00_01A_01_4_01_4.html">lanelet2_route_planning::is_vector&lt; std::vector&lt; T, A &gt; &gt;</a></td></tr>
+<tr class="separator:"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:"><td class="memItemLeft" align="right" valign="top">struct &#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structlanelet2__route__planning_1_1TopicDiagnosticConfig.html">lanelet2_route_planning::TopicDiagnosticConfig</a></td></tr>
+<tr class="memdesc:"><td class="mdescLeft">&#160;</td><td class="mdescRight">Configuration parameters for topic diagnostics.  <a href="structlanelet2__route__planning_1_1TopicDiagnosticConfig.html#details">More...</a><br /></td></tr>
 <tr class="separator:"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:"><td class="memItemLeft" align="right" valign="top">class &#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classlanelet2__route__planning_1_1Lanelet2RoutePlanning.html">lanelet2_route_planning::Lanelet2RoutePlanning</a></td></tr>
 <tr class="memdesc:"><td class="mdescLeft">&#160;</td><td class="mdescRight">Lanelet2 route planning node.  <a href="classlanelet2__route__planning_1_1Lanelet2RoutePlanning.html#details">More...</a><br /></td></tr>
