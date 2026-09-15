@@ -285,7 +285,7 @@ class PlanRouteActionClient : public rclcpp::Node {
    * @brief Traveled route proportion at which continuous replanning starts
    * (parameter)
    */
-  double continuous_planning_replanning_proportion_ = 0.75;
+  double continuous_planning_replanning_proportion_ = 0.6;
 
   /**
    * @brief Flag to cancel the route planning action (parameter)
