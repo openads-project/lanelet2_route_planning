@@ -213,7 +213,8 @@ void PlanRouteActionClient::setup() {
       "~/goal_pose", 10, std::bind(&PlanRouteActionClient::goalPoseCallback, this, std::placeholders::_1));
   RCLCPP_INFO(this->get_logger(), "Subscribed to '%s'", goal_pose_subscriber_->get_topic_name());
   global_route_subscriber_ = this->create_subscription<route_planning_msgs::msg::Route>(
-      "~/global_route", 1, std::bind(&PlanRouteActionClient::globalRouteCallback, this, std::placeholders::_1));
+      "/planning/lanelet2_route_planning/global_route", 1,
+      std::bind(&PlanRouteActionClient::globalRouteCallback, this, std::placeholders::_1));
   RCLCPP_INFO(this->get_logger(), "Subscribed to '%s'", global_route_subscriber_->get_topic_name());
 
   // action client
