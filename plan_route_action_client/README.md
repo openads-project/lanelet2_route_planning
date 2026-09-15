@@ -11,7 +11,7 @@ Action client to plan a route_planning_msgs/action/Route based on clicked RViz p
 
 The `plan_route_action_client` node is an action client interacting with the `lanelet2_route_planning` action server. It primarily offers three different modes of route planning:
 1. goal pose subscriber: plans a route to a `/goal_pose` published by RViz's goal pose plugin; the suggested way of interactively planning routes in RViz is to use the [PlanRouteTool](https://github.com/ika-rwth-aachen/planning_interfaces/tree/main/route_planning_msgs_rviz_plugins) RViz tool plugin though
-2. waypoints: plans routes to pre-defined waypoints, one after the other
+2. waypoints: plans routes to pre-defined waypoints, one after the other; with continuous planning enabled, already passed waypoints are moved to the end of the route once the configured route proportion is reached, allowing the vehicle to drive the waypoints as a closed loop without stopping (waypoints with a positive `WAIT_TIME_S` remain designated stops: each is reached as a route destination and its configured wait time is completed before planning continues)
 3. random: plans a route to a random destination on the map
 
 ```mermaid
