@@ -9,4 +9,6 @@ on:
 jobs:
   consistency:
     uses: openads-project/openads-dev-environment/.github/workflows/consistency.yml@main
+    with:
+      skip-checks: ros_pubsub_topics_private_namespace # needed because of the plan_route_action_client; remove it once the plan_route_action_client has its own repository
     secrets: inherit
