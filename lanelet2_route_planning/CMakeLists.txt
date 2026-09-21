@@ -82,6 +82,30 @@ if(BUILD_TESTING)
   set(ament_cmake_clang_tidy_CONFIG_FILE ${CMAKE_CURRENT_SOURCE_DIR}/../.vscode/lint/.clang-tidy)
   set(ament_cmake_flake8_CONFIG_FILE ${CMAKE_CURRENT_SOURCE_DIR}/../.vscode/lint/ament_flake8.ini)
   ament_lint_auto_find_test_dependencies()
+
+  find_package(ament_cmake_gtest REQUIRED)
+  ament_add_gtest(test_utils
+    test/test_utils.cpp
+    src/conversions.cpp
+    src/geometry.cpp
+    src/utils.cpp
+  )
+  target_include_directories(test_utils PUBLIC
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+    $<INSTALL_INTERFACE:include>
+  )
+  target_compile_features(test_utils PUBLIC c_std_99 cxx_std_17)
+  ament_target_dependencies(test_utils
+    lanelet2_core
+    lanelet2_routing
+    lanelet2_traffic_rules
+    perception_msgs
+    perception_msgs_utils
+    rclcpp
+    route_planning_msgs
+    route_planning_msgs_utils
+  )
+  target_dependencies_as_system(test_utils)
 endif()
 
 ament_package()
