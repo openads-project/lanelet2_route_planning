@@ -2,10 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 
 #include <algorithm>
-#include <array>
 #include <cmath>
 #include <limits>
-#include <memory>
 #include <optional>
 #include <regex>
 #include <tuple>
@@ -25,59 +23,6 @@
 #include "lanelet2_route_planning/utils.hpp"
 
 namespace lanelet2_route_planning {
-
-namespace {
-
-std::optional<std::array<geometry_msgs::msg::Point, 2>> lineStringEndpoints(const lanelet::ConstLineString3d& line_string) {
-  if (line_string.size() < 2) {
-    return std::nullopt;
-  }
-  return std::array<geometry_msgs::msg::Point, 2>{toRos(line_string.front().basicPoint()),
-                                                  toRos(line_string.back().basicPoint())};
-}
-
-std::optional<std::array<geometry_msgs::msg::Point, 2>> laneletEndLine(const lanelet::ConstLanelet& lanelet) {
-  if (lanelet.leftBound().empty() || lanelet.rightBound().empty()) {
-    return std::nullopt;
-  }
-  return std::array<geometry_msgs::msg::Point, 2>{toRos(lanelet.leftBound().back().basicPoint()),
-                                                  toRos(lanelet.rightBound().back().basicPoint())};
-}
-
-std::optional<std::array<geometry_msgs::msg::Point, 2>> regulatoryElementReferenceLineForLanelet(
-    const std::shared_ptr<const lanelet::RegulatoryElement>& regulatory_element, const lanelet::ConstLanelet& lanelet) {
-  if (auto right_of_way = std::dynamic_pointer_cast<const lanelet::RightOfWay>(regulatory_element)) {
-    if (right_of_way->getManeuver(lanelet) != lanelet::ManeuverType::Yield) {
-      return std::nullopt;
-    }
-    if (auto stop_line = right_of_way->stopLine()) {
-      return lineStringEndpoints(*stop_line);
-    }
-    return laneletEndLine(lanelet);
-  }
-
-  if (auto all_way_stop = std::dynamic_pointer_cast<const lanelet::AllWayStop>(regulatory_element)) {
-    const auto lanelets = all_way_stop->lanelets();
-    if (std::find(lanelets.begin(), lanelets.end(), lanelet) == lanelets.end()) {
-      return std::nullopt;
-    }
-    if (auto stop_line = all_way_stop->getStopLine(lanelet)) {
-      return lineStringEndpoints(*stop_line);
-    }
-    return laneletEndLine(lanelet);
-  }
-
-  if (auto traffic_light = std::dynamic_pointer_cast<const lanelet::TrafficLight>(regulatory_element)) {
-    if (auto stop_line = traffic_light->stopLine()) {
-      return lineStringEndpoints(*stop_line);
-    }
-    return laneletEndLine(lanelet);
-  }
-
-  return regulatoryElementReferenceLine(regulatory_element);
-}
-
-}  // namespace
 
 std::optional<lanelet::routing::Route> getRoute(const lanelet::routing::RoutingGraphUPtr& routing_graph,
                                                 const std::vector<lanelet::ConstLanelet>& route_lanelets) {
@@ -556,31 +501,37 @@ ExtractRegulatoryElementsResult extractRegulatoryElements(const lanelet::ConstLa
     // loop over regulatory elements of lanelet
     const auto regulatory_elements = current_lanelet.regulatoryElements();
     for (const auto& regulatory_element : regulatory_elements) {
+      if (auto right_of_way = std::dynamic_pointer_cast<const lanelet::RightOfWay>(regulatory_element)) {
+        if (right_of_way->getManeuver(current_lanelet) != lanelet::ManeuverType::Yield) {
+          continue;
+        }
+      }
+
       // create RegulatoryElement
       route_planning_msgs::msg::RegulatoryElement regulatory_element_msg;
       regulatory_element_msg.has_validity_stamp = false;
       regulatory_element_msg.validity_stamp = builtin_interfaces::msg::Time();
 
       // extract reference line
-      const auto reference_line = regulatoryElementReferenceLineForLanelet(regulatory_element, current_lanelet);
-      if (!reference_line) {
-        continue;
-      }
-      regulatory_element_msg.reference_line = *reference_line;
+      if (auto reference_line = regulatoryElementReferenceLine(regulatory_element)) {
+        regulatory_element_msg.reference_line = *reference_line;
 
-      // Only consider a reference line that crosses one of the route segments at this point.
-      const std::vector<Eigen::Vector2d> reference_line_2d = {toEigen2d(reference_line->at(0)), toEigen2d(reference_line->at(1))};
-      bool intersects_route = false;
-      for (const auto& point : {point_sequence.prev, point_sequence.next}) {
-        const std::vector<Eigen::Vector2d> route_segment = {point_sequence.current, point};
-        if (auto intersection = intersectionOfLines(reference_line_2d, route_segment)) {
-          if (intersection->intersects_line1 && intersection->intersects_line2) {
-            intersects_route = true;
-            break;
+        // only consider regulatory element if reference line intersects with point sequence
+        std::vector<Eigen::Vector2d> reference_line_2d = {toEigen2d(reference_line->at(0)), toEigen2d(reference_line->at(1))};
+        bool intersects_point_sequence = false;
+        for (const auto& point : {point_sequence.prev, point_sequence.next}) {
+          const std::vector<Eigen::Vector2d> route_segment = {point_sequence.current, point};
+          if (auto intersection = intersectionOfLines(reference_line_2d, route_segment)) {
+            if (intersection->intersects_line1 && intersection->intersects_line2) {
+              intersects_point_sequence = true;
+              break;
+            }
           }
         }
-      }
-      if (!intersects_route) {
+        if (!intersects_point_sequence) {
+          continue;
+        }
+      } else {
         continue;
       }
 
@@ -590,15 +541,7 @@ ExtractRegulatoryElementsResult extractRegulatoryElements(const lanelet::ConstLa
 
       // check if regulatory element has already been extracted (by another lanelet)
       size_t regulatory_element_msg_idx = 0;
-      bool reuse_regulatory_element = true;
-      if (auto right_of_way = std::dynamic_pointer_cast<const lanelet::RightOfWay>(regulatory_element)) {
-        reuse_regulatory_element = static_cast<bool>(right_of_way->stopLine());
-      } else if (std::dynamic_pointer_cast<const lanelet::AllWayStop>(regulatory_element)) {
-        reuse_regulatory_element = false;
-      } else if (auto traffic_light = std::dynamic_pointer_cast<const lanelet::TrafficLight>(regulatory_element)) {
-        reuse_regulatory_element = static_cast<bool>(traffic_light->stopLine());
-      }
-      if (reuse_regulatory_element && regulatory_element_msg_idx_by_id.count(regulatory_element->id()) > 0) {
+      if (regulatory_element_msg_idx_by_id.count(regulatory_element->id()) > 0) {
         regulatory_element_msg_idx = regulatory_element_msg_idx_by_id[regulatory_element->id()];
       } else {
         // add regulatory element to result
