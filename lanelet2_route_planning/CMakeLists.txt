@@ -82,6 +82,7 @@ if(BUILD_TESTING)
   set(ament_cmake_clang_tidy_CONFIG_FILE ${CMAKE_CURRENT_SOURCE_DIR}/../.vscode/lint/.clang-tidy)
   set(ament_cmake_flake8_CONFIG_FILE ${CMAKE_CURRENT_SOURCE_DIR}/../.vscode/lint/ament_flake8.ini)
   ament_lint_auto_find_test_dependencies()
+  set(ament_cmake_clang_tidy_JOBS 2)
 
   find_package(ament_cmake_gtest REQUIRED)
   ament_add_gtest(test_utils
