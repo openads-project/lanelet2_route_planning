@@ -497,6 +497,13 @@ ExtractRegulatoryElementsResult extractRegulatoryElements(const lanelet::ConstLa
   std::unordered_map<size_t, size_t> regulatory_element_msg_idx_by_id;
   for (size_t l = 0; l < lanelets.size(); ++l) {
     const auto& current_lanelet = lanelets[l];
+    PointSequence lanelet_point_sequence = point_sequence;
+    if (current_lanelet.id() != lanelet.id()) {
+      const auto centerline = toEigen(current_lanelet.centerline2d().basicLineString());
+      lanelet_point_sequence = {projectPointToLineString(point_sequence.prev, centerline),
+                                projectPointToLineString(point_sequence.current, centerline),
+                                projectPointToLineString(point_sequence.next, centerline)};
+    }
 
     // loop over regulatory elements of lanelet
     const auto regulatory_elements = current_lanelet.regulatoryElements();
@@ -556,8 +563,8 @@ ExtractRegulatoryElementsResult extractRegulatoryElements(const lanelet::ConstLa
       // only consider regulatory element if reference line intersects with point sequence
       std::vector<Eigen::Vector2d> reference_line_2d = {toEigen2d(reference_line->at(0)), toEigen2d(reference_line->at(1))};
       bool intersects_point_sequence = false;
-      for (const auto& point : {point_sequence.prev, point_sequence.next}) {
-        const std::vector<Eigen::Vector2d> route_segment = {point_sequence.current, point};
+      for (const auto& point : {lanelet_point_sequence.prev, lanelet_point_sequence.next}) {
+        const std::vector<Eigen::Vector2d> route_segment = {lanelet_point_sequence.current, point};
         if (auto intersection = intersectionOfLines(reference_line_2d, route_segment)) {
           if (intersection->intersects_line1 && intersection->intersects_line2) {
             intersects_point_sequence = true;

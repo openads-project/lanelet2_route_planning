@@ -47,6 +47,21 @@ TEST_F(ExtractRegulatoryElementsTest, AssignsRightOfWayRuleOnlyToYieldLanelet) {
   EXPECT_EQ(result.regulatory_element_msgs.front().type, route_planning_msgs::msg::RegulatoryElement::TYPE_YIELD);
 }
 
+TEST_F(ExtractRegulatoryElementsTest, AssignsAdjacentLaneRuleUsingOwnCenterline) {  // NOLINT
+  auto priority_lanelet = makeLanelet(100, 4.0);
+  auto yield_lanelet = makeLanelet(200, -4.0);
+  auto stop_line = makeLine(300, 8.0, -5.0, 8.0, -3.0);
+  auto right_of_way = lanelet::RightOfWay::make(400, lanelet::AttributeMap(), {priority_lanelet}, {yield_lanelet}, stop_line);
+  yield_lanelet.addRegulatoryElement(right_of_way);
+
+  const auto result = extractRegulatoryElements(priority_lanelet, {}, {yield_lanelet}, makePointSequence(0.0));
+
+  ASSERT_EQ(result.regulatory_element_msgs.size(), 1U);
+  EXPECT_TRUE(result.regulatory_element_idcs.empty());
+  ASSERT_EQ(result.adjacent_right_regulatory_element_idcs.size(), 1U);
+  EXPECT_EQ(result.adjacent_right_regulatory_element_idcs.front(), std::vector<uint8_t>({0U}));
+}
+
 TEST_F(ExtractRegulatoryElementsTest, IgnoresStopLineOutsideRouteSegment) {  // NOLINT
   auto priority_lanelet = makeLanelet(100, 4.0);
   auto yield_lanelet = makeLanelet(200, 0.0);

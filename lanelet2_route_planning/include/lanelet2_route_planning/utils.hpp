@@ -292,8 +292,8 @@ struct ExtractRegulatoryElementsResult {
  *
  * Regulatory elements are queried from a lanelet and its adjacent lanelets. They are only considered if their reference
  * line intersects with the given point sequence, which should be the centerline of the main lanelet. This way,
- * regulatory elements are assignable to the closest route element. Note that the assignment to adjacent lanes is also
- * based on the intersection with the single given point sequence.
+ * regulatory elements are assignable to the closest route element. Adjacent lanes use their own centerlines projected
+ * from the given point sequence for this intersection check.
  * Right-of-way rules apply only to yielding lanelets. All-way-stop rules use each lanelet's own stop line. For
  * right-of-way, all-way-stop, and traffic-light rules without a stop line, the lanelet end is used.
  *
