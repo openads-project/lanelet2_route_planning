@@ -82,7 +82,6 @@ if(BUILD_TESTING)
   set(ament_cmake_clang_tidy_CONFIG_FILE ${CMAKE_CURRENT_SOURCE_DIR}/../.vscode/lint/.clang-tidy)
   set(ament_cmake_flake8_CONFIG_FILE ${CMAKE_CURRENT_SOURCE_DIR}/../.vscode/lint/ament_flake8.ini)
   ament_lint_auto_find_test_dependencies()
-  set(ament_cmake_clang_tidy_JOBS 2)
 
   find_package(ament_cmake_gtest REQUIRED)
   ament_add_gtest(test_utils
@@ -91,6 +90,8 @@ if(BUILD_TESTING)
     src/geometry.cpp
     src/utils.cpp
   )
+  # The production sources are already exported by the node target; avoid duplicate clang-tidy work.
+  set_property(TARGET test_utils PROPERTY EXPORT_COMPILE_COMMANDS OFF)
   target_include_directories(test_utils PUBLIC
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
     $<INSTALL_INTERFACE:include>
