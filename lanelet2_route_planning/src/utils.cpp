@@ -560,19 +560,16 @@ ExtractRegulatoryElementsResult extractRegulatoryElements(const lanelet::ConstLa
       }
       regulatory_element_msg.reference_line = *reference_line;
 
-      // only consider regulatory element if reference line intersects with point sequence
+      // only consider regulatory elements on this route element's forward segment
       std::vector<Eigen::Vector2d> reference_line_2d = {toEigen2d(reference_line->at(0)), toEigen2d(reference_line->at(1))};
-      bool intersects_point_sequence = false;
-      for (const auto& point : {lanelet_point_sequence.prev, lanelet_point_sequence.next}) {
-        const std::vector<Eigen::Vector2d> route_segment = {lanelet_point_sequence.current, point};
-        if (auto intersection = intersectionOfLines(reference_line_2d, route_segment)) {
-          if (intersection->intersects_line1 && intersection->intersects_line2) {
-            intersects_point_sequence = true;
-            break;
-          }
+      const std::vector<Eigen::Vector2d> route_segment = {lanelet_point_sequence.current, lanelet_point_sequence.next};
+      bool intersects_route_segment = false;
+      if (auto intersection = intersectionOfLines(reference_line_2d, route_segment)) {
+        if (intersection->intersects_line1 && intersection->intersects_line2) {
+          intersects_route_segment = true;
         }
       }
-      if (!intersects_point_sequence) {
+      if (!intersects_route_segment) {
         continue;
       }
 
