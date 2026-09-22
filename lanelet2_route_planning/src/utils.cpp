@@ -501,37 +501,71 @@ ExtractRegulatoryElementsResult extractRegulatoryElements(const lanelet::ConstLa
     // loop over regulatory elements of lanelet
     const auto regulatory_elements = current_lanelet.regulatoryElements();
     for (const auto& regulatory_element : regulatory_elements) {
-      if (auto right_of_way = std::dynamic_pointer_cast<const lanelet::RightOfWay>(regulatory_element)) {
-        if (right_of_way->getManeuver(current_lanelet) != lanelet::ManeuverType::Yield) {
-          continue;
-        }
+      const auto right_of_way = std::dynamic_pointer_cast<const lanelet::RightOfWay>(regulatory_element);
+      if (right_of_way && right_of_way->getManeuver(current_lanelet) != lanelet::ManeuverType::Yield) {
+        continue;
       }
+      const auto all_way_stop = std::dynamic_pointer_cast<const lanelet::AllWayStop>(regulatory_element);
+      const auto traffic_light = std::dynamic_pointer_cast<const lanelet::TrafficLight>(regulatory_element);
 
       // create RegulatoryElement
       route_planning_msgs::msg::RegulatoryElement regulatory_element_msg;
       regulatory_element_msg.has_validity_stamp = false;
       regulatory_element_msg.validity_stamp = builtin_interfaces::msg::Time();
 
-      // extract reference line
-      if (auto reference_line = regulatoryElementReferenceLine(regulatory_element)) {
-        regulatory_element_msg.reference_line = *reference_line;
-
-        // only consider regulatory element if reference line intersects with point sequence
-        std::vector<Eigen::Vector2d> reference_line_2d = {toEigen2d(reference_line->at(0)), toEigen2d(reference_line->at(1))};
-        bool intersects_point_sequence = false;
-        for (const auto& point : {point_sequence.prev, point_sequence.next}) {
-          const std::vector<Eigen::Vector2d> route_segment = {point_sequence.current, point};
-          if (auto intersection = intersectionOfLines(reference_line_2d, route_segment)) {
-            if (intersection->intersects_line1 && intersection->intersects_line2) {
-              intersects_point_sequence = true;
-              break;
-            }
-          }
-        }
-        if (!intersects_point_sequence) {
+      // select the stop line for this lanelet, or use its end when Lanelet2 defines an implicit stop line
+      auto reference_line = regulatoryElementReferenceLine(regulatory_element);
+      bool has_stop_line = false;
+      bool lanelet_specific_reference_line = false;
+      if (all_way_stop) {
+        const auto participants = all_way_stop->lanelets();
+        if (std::find(participants.begin(), participants.end(), current_lanelet) == participants.end()) {
           continue;
         }
-      } else {
+        lanelet_specific_reference_line = true;
+        reference_line = std::nullopt;
+        if (auto stop_line = all_way_stop->getStopLine(current_lanelet)) {
+          has_stop_line = true;
+          if (stop_line->size() < 2) {
+            continue;
+          }
+          reference_line = std::array<geometry_msgs::msg::Point, 2>{toRos(stop_line->front().basicPoint()),
+                                                                    toRos(stop_line->back().basicPoint())};
+        }
+      } else if (right_of_way) {
+        has_stop_line = static_cast<bool>(right_of_way->stopLine());
+      } else if (traffic_light) {
+        has_stop_line = static_cast<bool>(traffic_light->stopLine());
+      }
+      if (has_stop_line && !reference_line) {
+        continue;
+      }
+      if (!has_stop_line && (right_of_way || all_way_stop || traffic_light)) {
+        if (current_lanelet.leftBound().empty() || current_lanelet.rightBound().empty()) {
+          continue;
+        }
+        reference_line = std::array<geometry_msgs::msg::Point, 2>{toRos(current_lanelet.leftBound().back().basicPoint()),
+                                                                  toRos(current_lanelet.rightBound().back().basicPoint())};
+        lanelet_specific_reference_line = true;
+      }
+      if (!reference_line) {
+        continue;
+      }
+      regulatory_element_msg.reference_line = *reference_line;
+
+      // only consider regulatory element if reference line intersects with point sequence
+      std::vector<Eigen::Vector2d> reference_line_2d = {toEigen2d(reference_line->at(0)), toEigen2d(reference_line->at(1))};
+      bool intersects_point_sequence = false;
+      for (const auto& point : {point_sequence.prev, point_sequence.next}) {
+        const std::vector<Eigen::Vector2d> route_segment = {point_sequence.current, point};
+        if (auto intersection = intersectionOfLines(reference_line_2d, route_segment)) {
+          if (intersection->intersects_line1 && intersection->intersects_line2) {
+            intersects_point_sequence = true;
+            break;
+          }
+        }
+      }
+      if (!intersects_point_sequence) {
         continue;
       }
 
@@ -541,7 +575,7 @@ ExtractRegulatoryElementsResult extractRegulatoryElements(const lanelet::ConstLa
 
       // check if regulatory element has already been extracted (by another lanelet)
       size_t regulatory_element_msg_idx = 0;
-      if (regulatory_element_msg_idx_by_id.count(regulatory_element->id()) > 0) {
+      if (!lanelet_specific_reference_line && regulatory_element_msg_idx_by_id.count(regulatory_element->id()) > 0) {
         regulatory_element_msg_idx = regulatory_element_msg_idx_by_id[regulatory_element->id()];
       } else {
         // add regulatory element to result
