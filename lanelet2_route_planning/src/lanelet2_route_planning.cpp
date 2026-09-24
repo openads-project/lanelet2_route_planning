@@ -802,7 +802,8 @@ void Lanelet2RoutePlanning::buildGlobalRouteMessage() {
 
   latest_full_route_msg_ = route_msg;
   latest_main_regulatory_elements_by_route_element_ =
-      regulatoryElementsAlongRoute(shortest_path, shortest_path_centerline, latest_lanelet_idx_by_reference_line_point_idx_);
+      regulatoryElementsAlongRoute(shortest_path, shortest_path_centerline, latest_lanelet_idx_by_reference_line_point_idx_,
+                                   routing_graph_, ll2_interface_->getMapPtr());
 
   // retain only the route segment from start to destination for the global route
   std::vector<Eigen::Vector2d> global_reference_line;

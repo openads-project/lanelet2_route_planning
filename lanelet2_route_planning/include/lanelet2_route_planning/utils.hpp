@@ -11,6 +11,8 @@
 #include <utility>
 #include <vector>
 
+#include <lanelet2_core/LaneletMap.h>
+#include <lanelet2_core/primitives/BasicRegulatoryElements.h>
 #include <lanelet2_core/primitives/Lanelet.h>
 #include <lanelet2_routing/LaneletPath.h>
 #include <lanelet2_routing/RoutingGraph.h>
@@ -299,22 +301,57 @@ struct RegulatoryElementCandidate {
 };
 
 /**
+ * @brief Keeps a RightOfWay Yield unless every priority path through the intersection polygon misses the chosen route.
+ *
+ * The first route successor must overlap exactly one `intersection_area` polygon. Missing or ambiguous polygons,
+ * unfinished traversals, and search limits retain the Yield rule.
+ *
+ * @param[in] path selected route through the intersection
+ * @param[in] yield_lanelet_idx index of the yielding approach in path
+ * @param[in] right_of_way relation that lists the priority approaches
+ * @param[in] routing_graph graph used to follow every priority maneuver
+ * @param[in] map lanelet map containing the intersection polygons
+ * @return true if Yield must remain in the route message
+ */
+bool keepYieldForRoute(const lanelet::routing::LaneletPath& path,
+                       size_t yield_lanelet_idx,
+                       const lanelet::RightOfWay& right_of_way,
+                       const lanelet::routing::RoutingGraphUPtr& routing_graph,
+                       const lanelet::LaneletMapConstPtr& map);
+
+/**
  * @brief Selects a rule that applies to the given lanelet and determines its effect line.
  *
  * Yield, stop, and traffic-light rules without an explicit line use the end of the affected lanelet.
  * Speed limits require an explicit line to appear as regulatory-element messages; lanelet-wide limits
  * remain available through LaneElement.speed_limit.
+ *
+ * @param[in] lanelet lanelet affected by the rule
+ * @param[in] regulatory_element rule to extract
+ * @return rule and effect line, if applicable
  */
 std::optional<RegulatoryElementCandidate> regulatoryElementCandidate(
     const lanelet::ConstLanelet& lanelet, const std::shared_ptr<const lanelet::RegulatoryElement>& regulatory_element);
 
 /**
  * @brief Assigns rules on the shortest path to the route element before their first effect-line crossing.
+ *
+ * A yield rule is omitted only when the intersection polygon can be traversed completely and no priority
+ * approach in its RightOfWay relation can overlap the selected route through that intersection.
+ *
+ * @param[in] path shortest path lanelets
+ * @param[in] reference_line route centerline points
+ * @param[in] lanelet_idx_by_point path index for each reference-line point
+ * @param[in] routing_graph graph used to follow priority maneuvers
+ * @param[in] map lanelet map containing the intersection polygons
+ * @return regulatory elements for each reference-line point
  */
 std::vector<std::vector<RegulatoryElementCandidate>> regulatoryElementsAlongRoute(
     const lanelet::routing::LaneletPath& path,
     const std::vector<Eigen::Vector2d>& reference_line,
-    const std::vector<size_t>& lanelet_idx_by_point);
+    const std::vector<size_t>& lanelet_idx_by_point,
+    const lanelet::routing::RoutingGraphUPtr& routing_graph,
+    const lanelet::LaneletMapConstPtr& map);
 
 /**
  * @brief Extracts regulatory element information for a route element.
