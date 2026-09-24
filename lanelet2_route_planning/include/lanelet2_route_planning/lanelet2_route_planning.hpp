@@ -22,6 +22,8 @@
 #include <route_planning_msgs/action/plan_route.hpp>
 #include <route_planning_msgs/msg/route.hpp>
 
+#include "lanelet2_route_planning/utils.hpp"
+
 namespace lanelet2_route_planning {
 
 template <typename C>
@@ -373,6 +375,9 @@ class Lanelet2RoutePlanning : public rclcpp::Node {
    * Indexes into latest_route_.shortestPath().
    */
   std::vector<size_t> latest_lanelet_idx_by_reference_line_point_idx_;
+
+  /** @brief Regulatory elements on the shortest path, indexed by complete route element. */
+  std::vector<std::vector<RegulatoryElementCandidate>> latest_main_regulatory_elements_by_route_element_;
 
   /**
    * @brief Latest suggested turn signal distance ahead by route element by lane element

@@ -790,6 +790,7 @@ void Lanelet2RoutePlanning::buildGlobalRouteMessage() {
   latest_route_msg_ = route_planning_msgs::msg::Route();
   latest_full_route_msg_ = route_planning_msgs::msg::Route();
   latest_global_route_msg_ = route_planning_msgs::msg::Route();
+  latest_main_regulatory_elements_by_route_element_.clear();
 
   const size_t start_idx = route_msg.starting_route_element_idx;
   const size_t destination_idx = route_msg.destination_route_element_idx;
@@ -800,6 +801,9 @@ void Lanelet2RoutePlanning::buildGlobalRouteMessage() {
   }
 
   latest_full_route_msg_ = route_msg;
+  latest_main_regulatory_elements_by_route_element_ =
+      regulatoryElementsAlongRoute(shortest_path, shortest_path_centerline, latest_lanelet_idx_by_reference_line_point_idx_,
+                                   routing_graph_, ll2_interface_->getMapPtr());
 
   // retain only the route segment from start to destination for the global route
   std::vector<Eigen::Vector2d> global_reference_line;
@@ -936,8 +940,23 @@ void Lanelet2RoutePlanning::buildEnrichedRouteMessage() {
                              {prev_point_for_projection, point, next_point_for_projection}, max_drivable_space_radius_);
 
     // extract regulatory elements
-    auto regulatory_element_extraction =
-        extractRegulatoryElements(lanelet, adjacent_left_lanelets, adjacent_right_lanelets, {prev_point, point, next_point});
+    auto regulatory_element_extraction = extractRegulatoryElements(lanelet, adjacent_left_lanelets, adjacent_right_lanelets,
+                                                                   {prev_point, point, next_point}, false);
+    for (const auto& candidate : latest_main_regulatory_elements_by_route_element_[global_c]) {
+      size_t regulatory_element_idx = regulatory_element_extraction.regulatory_element_msgs.size();
+      if (!candidate.lanelet_specific_reference_line) {
+        const auto existing = std::find(regulatory_element_extraction.regulatory_element_ids.begin(),
+                                        regulatory_element_extraction.regulatory_element_ids.end(), candidate.id);
+        if (existing != regulatory_element_extraction.regulatory_element_ids.end()) {
+          regulatory_element_idx = std::distance(regulatory_element_extraction.regulatory_element_ids.begin(), existing);
+        }
+      }
+      if (regulatory_element_idx == regulatory_element_extraction.regulatory_element_msgs.size()) {
+        regulatory_element_extraction.regulatory_element_msgs.push_back(candidate.message);
+        regulatory_element_extraction.regulatory_element_ids.push_back(candidate.id);
+      }
+      regulatory_element_extraction.regulatory_element_idcs.push_back(regulatory_element_idx);
+    }
 
 // enrich RouteElement with local route information
 #pragma omp critical  // prevent race condition when accessing prev/next suggested lane element set by other threads
