@@ -11,7 +11,6 @@
 #include <stdexcept>
 #include <utility>
 
-#include <QAbstractItemView>
 #include <QCheckBox>
 #include <QComboBox>
 #include <QDoubleSpinBox>
@@ -24,7 +23,6 @@
 #include <QProgressBar>
 #include <QPushButton>
 #include <QScrollArea>
-#include <QTableWidget>
 #include <QVBoxLayout>
 #include <ament_index_cpp/get_package_share_directory.hpp>
 #include <pluginlib/class_list_macros.hpp>
@@ -68,29 +66,6 @@ std::string goalId(const std::array<uint8_t, 16>& uuid) {
   return std::string(reinterpret_cast<const char*>(uuid.data()), uuid.size());
 }
 
-QDoubleSpinBox* coordinateSpin(QWidget* parent, double min, double max, double value) {
-  auto* spin = new QDoubleSpinBox(parent);
-  spin->setRange(min, max);
-  spin->setDecimals(9);
-  spin->setSingleStep(0.00001);
-  spin->setValue(value);
-  return spin;
-}
-
-QDoubleSpinBox* cellSpin(QTableWidget* table, int row, int column) {
-  return qobject_cast<QDoubleSpinBox*>(table->cellWidget(row, column));
-}
-
-Waypoint rowValue(QTableWidget* table, int row) {
-  return {cellSpin(table, row, 0)->value(), cellSpin(table, row, 1)->value(), cellSpin(table, row, 2)->value()};
-}
-
-void setRowValue(QTableWidget* table, int row, const Waypoint& waypoint) {
-  cellSpin(table, row, 0)->setValue(waypoint.latitude);
-  cellSpin(table, row, 1)->setValue(waypoint.longitude);
-  cellSpin(table, row, 2)->setValue(waypoint.wait_time_s);
-}
-
 bool parseWaypoint(const std::string& value, Waypoint& waypoint) {
   const auto fields = QString::fromStdString(value).split(',');
   if (fields.size() < 2 || fields.size() > 3) return false;
@@ -110,6 +85,41 @@ std::string serializeWaypoint(const Waypoint& waypoint) {
   return out.str();
 }
 
+std::string routesFilePath() {
+  return ament_index_cpp::get_package_share_directory("plan_route_panel") + "/config/routes.yml";
+}
+
+std::vector<Waypoint> readRoute(const std::string& name) {
+  const auto root = YAML::LoadFile(routesFilePath());
+  const auto routes = root["routes"];
+  if (!routes || !routes.IsMap()) throw std::runtime_error("'routes' must be a map");
+  const auto route = routes[name];
+  if (!route || !route.IsSequence()) throw std::runtime_error("Selected route is not a waypoint list");
+
+  std::vector<Waypoint> waypoints;
+  for (const auto& entry : route) {
+    Waypoint waypoint;
+    if (entry.IsScalar()) {
+      if (!parseWaypoint(entry.as<std::string>(), waypoint)) {
+        throw std::runtime_error("Route contains an invalid waypoint string");
+      }
+    } else if (entry.IsMap()) {
+      waypoint = {entry["latitude"].as<double>(), entry["longitude"].as<double>(),
+                  entry["wait_time_s"] ? entry["wait_time_s"].as<double>() : 0.0};
+    } else {
+      throw std::runtime_error("Route waypoints must be strings or coordinate maps");
+    }
+    if (!std::isfinite(waypoint.latitude) || !std::isfinite(waypoint.longitude) || !std::isfinite(waypoint.wait_time_s) ||
+        std::abs(waypoint.latitude) > 90.0 || std::abs(waypoint.longitude) > 180.0) {
+      throw std::runtime_error("Route contains an invalid waypoint");
+    }
+    waypoints.push_back(waypoint);
+  }
+  if (waypoints.empty()) throw std::runtime_error("Selected route is empty");
+  if (waypoints.back().wait_time_s < 0.0) throw std::runtime_error("Last waypoint must be a stop");
+  return waypoints;
+}
+
 }  // namespace
 
 PlanRoutePanel::PlanRoutePanel(QWidget* parent) : rviz_common::Panel(parent), callback_bridge_(std::make_shared<CallbackBridge>()) {
@@ -120,7 +130,7 @@ PlanRoutePanel::PlanRoutePanel(QWidget* parent) : rviz_common::Panel(parent), ca
   auto* content = new QWidget(scroll);
   auto* layout = new QVBoxLayout(content);
   scroll->setWidget(content);
-  outer->addWidget(scroll);
+  outer->addWidget(scroll, 1);
 
   auto* parameters = new QGroupBox(tr("Route Parameters"), content);
   auto* form = new QFormLayout(parameters);
@@ -130,10 +140,6 @@ PlanRoutePanel::PlanRoutePanel(QWidget* parent) : rviz_common::Panel(parent), ca
   client_row->addWidget(client_name_);
   client_row->addWidget(refresh);
   form->addRow(tr("Action client node"), client_row);
-  map_server_name_ = new QLineEdit("ll2_map_server", parameters);
-  map_server_name_->setToolTip(tr("The running client only reads this setting at startup. Restart it after changing the name."));
-  form->addRow(tr("Map server name"), map_server_name_);
-  form->addRow(new QLabel(tr("Map server changes require an action client restart."), parameters));
   random_destination_ = new QCheckBox(tr("Random destination"), parameters);
   continuous_planning_ = new QCheckBox(tr("Continuous planning"), parameters);
   form->addRow(random_destination_);
@@ -146,76 +152,37 @@ PlanRoutePanel::PlanRoutePanel(QWidget* parent) : rviz_common::Panel(parent), ca
   form->addRow(tr("Replan after fraction"), replanning_proportion_);
   layout->addWidget(parameters);
 
-  auto* waypoint_group = new QGroupBox(tr("Waypoints (WGS84, in route order)"), content);
-  auto* waypoint_layout = new QVBoxLayout(waypoint_group);
-  waypoints_ = new QTableWidget(0, 3, waypoint_group);
-  waypoints_->setHorizontalHeaderLabels({tr("Latitude"), tr("Longitude"), tr("Wait (s)")});
-  waypoints_->setSelectionBehavior(QAbstractItemView::SelectRows);
-  waypoints_->setSelectionMode(QAbstractItemView::SingleSelection);
-  waypoint_layout->addWidget(waypoints_);
-  waypoint_layout->addWidget(new QLabel(tr("Negative wait = intermediate destination; last waypoint must be a stop."), waypoint_group));
-  auto* waypoint_buttons = new QHBoxLayout;
-  auto* add = new QPushButton(tr("Add"), waypoint_group);
-  auto* remove = new QPushButton(tr("Remove"), waypoint_group);
-  auto* up = new QPushButton(tr("Up"), waypoint_group);
-  auto* down = new QPushButton(tr("Down"), waypoint_group);
-  for (auto* button : {add, remove, up, down}) waypoint_buttons->addWidget(button);
-  waypoint_layout->addLayout(waypoint_buttons);
-  layout->addWidget(waypoint_group);
-
   auto* presets_group = new QGroupBox(tr("Saved Routes"), content);
   auto* presets_layout = new QHBoxLayout(presets_group);
   presets_ = new QComboBox(presets_group);
-  auto* reload = new QPushButton(tr("Reload"), presets_group);
-  auto* apply = new QPushButton(tr("Use Route"), presets_group);
   presets_layout->addWidget(presets_, 1);
-  presets_layout->addWidget(reload);
-  presets_layout->addWidget(apply);
   layout->addWidget(presets_group);
+  layout->addStretch();
 
   auto* action_buttons = new QHBoxLayout;
-  plan_button_ = new QPushButton(tr("Plan Route"), content);
-  cancel_button_ = new QPushButton(tr("Cancel"), content);
+  plan_button_ = new QPushButton(tr("Plan Route"), this);
+  cancel_button_ = new QPushButton(tr("Cancel"), this);
   plan_button_->setEnabled(false);
   cancel_button_->setEnabled(false);
   action_buttons->addWidget(plan_button_);
   action_buttons->addWidget(cancel_button_);
-  layout->addLayout(action_buttons);
-  status_ = new QLabel(tr("Status: Idle"), content);
-  detail_ = new QLabel(content);
+  outer->addLayout(action_buttons);
+  status_ = new QLabel(tr("Status: Idle"), this);
+  detail_ = new QLabel(this);
   detail_->setWordWrap(true);
-  progress_ = new QProgressBar(content);
+  progress_ = new QProgressBar(this);
   progress_->setRange(0, 1);
   progress_->setValue(0);
   progress_->setTextVisible(false);
-  layout->addWidget(status_);
-  layout->addWidget(detail_);
-  layout->addWidget(progress_);
-  layout->addStretch();
+  outer->addWidget(status_);
+  outer->addWidget(detail_);
+  outer->addWidget(progress_);
 
   connect(refresh, &QPushButton::clicked, this, [this] { connectToClient(); refreshParameters(); });
-  connect(add, &QPushButton::clicked, this, [this] { addWaypoint(); });
-  connect(remove, &QPushButton::clicked, this, [this] {
-    if (waypoints_->currentRow() >= 0) waypoints_->removeRow(waypoints_->currentRow());
+  connect(random_destination_, &QCheckBox::toggled, this, [this](bool random) {
+    presets_->setEnabled(!random);
+    if (node_ && !parameter_update_pending_) plan_button_->setEnabled(random || presets_->count() > 0);
   });
-  connect(up, &QPushButton::clicked, this, [this] {
-    const int row = waypoints_->currentRow();
-    if (row <= 0) return;
-    const auto a = rowValue(waypoints_, row);
-    setRowValue(waypoints_, row, rowValue(waypoints_, row - 1));
-    setRowValue(waypoints_, row - 1, a);
-    waypoints_->selectRow(row - 1);
-  });
-  connect(down, &QPushButton::clicked, this, [this] {
-    const int row = waypoints_->currentRow();
-    if (row < 0 || row >= waypoints_->rowCount() - 1) return;
-    const auto a = rowValue(waypoints_, row);
-    setRowValue(waypoints_, row, rowValue(waypoints_, row + 1));
-    setRowValue(waypoints_, row + 1, a);
-    waypoints_->selectRow(row + 1);
-  });
-  connect(reload, &QPushButton::clicked, this, [this] { loadPresets(); });
-  connect(apply, &QPushButton::clicked, this, [this] { applyPreset(); });
   connect(plan_button_, &QPushButton::clicked, this, [this] { planRoute(); });
   connect(cancel_button_, &QPushButton::clicked, this, [this] { cancelRoute(); });
   loadPresets();
@@ -250,7 +217,7 @@ void PlanRoutePanel::onInitialize() {
       std::string(kActionName) + "/_action/get_result");
   connectToClient();
   refreshParameters();
-  plan_button_->setEnabled(true);
+  plan_button_->setEnabled(random_destination_->isChecked() || presets_->count() > 0);
   cancel_button_->setEnabled(true);
 }
 
@@ -285,7 +252,7 @@ void PlanRoutePanel::refreshParameters() {
   }
   const auto requested_client = clientName();
   auto request = std::make_shared<rcl_interfaces::srv::GetParameters::Request>();
-  request->names = {"ll2_map_server_name", "waypoints", "enable_random_destination", "enable_continuous_planning",
+  request->names = {"enable_random_destination", "enable_continuous_planning",
                     "continuous_planning_replanning_proportion"};
   const std::weak_ptr<CallbackBridge> weak_bridge = callback_bridge_;
   get_client_->async_send_request(
@@ -293,32 +260,15 @@ void PlanRoutePanel::refreshParameters() {
     try {
       const auto values = future.get()->values;
       postToPanel(weak_bridge, [values, requested_client](PlanRoutePanel* panel) {
-        if (panel->clientName() != requested_client || values.size() != 5) return;
-        if (values[0].type == rcl_interfaces::msg::ParameterType::PARAMETER_STRING) {
-          panel->loaded_map_server_name_ = values[0].string_value;
-          panel->map_server_name_->setText(QString::fromStdString(values[0].string_value));
+        if (panel->clientName() != requested_client || values.size() != 3) return;
+        if (values[0].type == rcl_interfaces::msg::ParameterType::PARAMETER_BOOL) {
+          panel->random_destination_->setChecked(values[0].bool_value);
         }
-        if (values[1].type == rcl_interfaces::msg::ParameterType::PARAMETER_STRING_ARRAY) {
-          std::vector<Waypoint> parsed;
-          for (const auto& value : values[1].string_array_value) {
-            Waypoint waypoint;
-            if (!parseWaypoint(value, waypoint)) {
-              panel->showStatus(QObject::tr("Failed"), QObject::tr("Client contains an invalid waypoint."));
-              return;
-            }
-            parsed.push_back(waypoint);
-          }
-          panel->waypoints_->setRowCount(0);
-          for (const auto& waypoint : parsed) panel->addWaypoint(waypoint.latitude, waypoint.longitude, waypoint.wait_time_s);
+        if (values[1].type == rcl_interfaces::msg::ParameterType::PARAMETER_BOOL) {
+          panel->continuous_planning_->setChecked(values[1].bool_value);
         }
-        if (values[2].type == rcl_interfaces::msg::ParameterType::PARAMETER_BOOL) {
-          panel->random_destination_->setChecked(values[2].bool_value);
-        }
-        if (values[3].type == rcl_interfaces::msg::ParameterType::PARAMETER_BOOL) {
-          panel->continuous_planning_->setChecked(values[3].bool_value);
-        }
-        if (values[4].type == rcl_interfaces::msg::ParameterType::PARAMETER_DOUBLE) {
-          panel->replanning_proportion_->setValue(values[4].double_value);
+        if (values[2].type == rcl_interfaces::msg::ParameterType::PARAMETER_DOUBLE) {
+          panel->replanning_proportion_->setValue(values[2].double_value);
         }
         if (!panel->awaiting_goal_ && panel->tracked_goal_id_.empty()) {
           panel->showStatus(QObject::tr("Idle"), QObject::tr("Loaded parameters from action client."));
@@ -357,30 +307,29 @@ void PlanRoutePanel::sendParameters(const std::vector<rclcpp::Parameter>& parame
 
 void PlanRoutePanel::planRoute() {
   connectToClient();
-  if (!random_destination_->isChecked() && waypoints_->rowCount() == 0) {
-    showStatus(tr("Failed"), tr("Add at least one waypoint or enable random destination."));
+  const bool random = random_destination_->isChecked();
+  if (!random && presets_->currentIndex() < 0) {
+    showStatus(tr("Failed"), tr("Select a saved route."));
     return;
   }
-  if (!random_destination_->isChecked() && rowValue(waypoints_, waypoints_->rowCount() - 1).wait_time_s < 0.0) {
-    showStatus(tr("Failed"), tr("The final waypoint must have a nonnegative wait time."));
-    return;
+  std::vector<Waypoint> route;
+  if (!random) {
+    try {
+      route = readRoute(presets_->currentText().toStdString());
+    } catch (const std::exception& e) {
+      showStatus(tr("Failed"), QString::fromUtf8(e.what()));
+      return;
+    }
   }
   std::vector<std::string> waypoints;
-  remaining_goals_ = random_destination_->isChecked() ? 1 : 0;
-  for (int row = 0; row < waypoints_->rowCount(); ++row) {
-    const auto waypoint = rowValue(waypoints_, row);
+  remaining_goals_ = random ? 1 : 0;
+  for (const auto& waypoint : route) {
     waypoints.push_back(serializeWaypoint(waypoint));
-    if (!random_destination_->isChecked() && waypoint.wait_time_s >= 0.0) ++remaining_goals_;
-  }
-  const auto map_name = map_server_name_->text().trimmed().toStdString();
-  if (map_name.empty()) {
-    showStatus(tr("Failed"), tr("Enter a map server name."));
-    return;
+    if (waypoint.wait_time_s >= 0.0) ++remaining_goals_;
   }
   std::vector<rclcpp::Parameter> parameters;
   parameters.emplace_back("cancel_route", false);
-  parameters.emplace_back("ll2_map_server_name", map_name);
-  parameters.emplace_back("enable_random_destination", random_destination_->isChecked());
+  parameters.emplace_back("enable_random_destination", random);
   parameters.emplace_back("enable_continuous_planning", continuous_planning_->isChecked());
   parameters.emplace_back("continuous_planning_replanning_proportion", replanning_proportion_->value());
   parameters.emplace_back("waypoints", waypoints);
@@ -392,9 +341,11 @@ void PlanRoutePanel::planRoute() {
   failed_destination_goal_id_.clear();
   showStatus(tr("Sending"), tr("Updating the existing action client; waiting for its goal."));
   progress_->setRange(0, 0);
+  parameter_update_pending_ = true;
   plan_button_->setEnabled(false);
-  sendParameters(parameters, [this, map_name](bool success, const QString& reason) {
-    plan_button_->setEnabled(true);
+  sendParameters(parameters, [this](bool success, const QString& reason) {
+    parameter_update_pending_ = false;
+    plan_button_->setEnabled(random_destination_->isChecked() || presets_->count() > 0);
     if (!success) {
       awaiting_goal_ = false;
       tracked_goal_id_.clear();
@@ -402,10 +353,6 @@ void PlanRoutePanel::planRoute() {
       progress_->setValue(0);
       showStatus(tr("Failed"), reason.isEmpty() ? tr("Parameter update rejected.") : reason);
       return;
-    }
-    if (map_name != loaded_map_server_name_) {
-      showStatus(tracked_goal_id_.empty() ? tr("Sending") : tr("Running"),
-                 tr("Parameters updated. Restart the action client to apply the new map server name."));
     }
   });
 }
@@ -434,63 +381,14 @@ void PlanRoutePanel::cancelRoute() {
                  });
 }
 
-void PlanRoutePanel::addWaypoint(double latitude, double longitude, double wait_time_s) {
-  const int row = waypoints_->rowCount();
-  waypoints_->insertRow(row);
-  waypoints_->setCellWidget(row, 0, coordinateSpin(waypoints_, -90.0, 90.0, latitude));
-  waypoints_->setCellWidget(row, 1, coordinateSpin(waypoints_, -180.0, 180.0, longitude));
-  auto* wait = coordinateSpin(waypoints_, -1000000.0, 1000000.0, wait_time_s);
-  wait->setDecimals(3);
-  wait->setSingleStep(1.0);
-  waypoints_->setCellWidget(row, 2, wait);
-  waypoints_->selectRow(row);
-}
-
 void PlanRoutePanel::loadPresets() {
   presets_->clear();
   try {
-    const auto path = ament_index_cpp::get_package_share_directory("plan_route_panel") + "/config/routes.yml";
-    const auto root = YAML::LoadFile(path);
+    const auto root = YAML::LoadFile(routesFilePath());
     const auto routes = root["routes"];
     if (!routes || !routes.IsMap()) throw std::runtime_error("'routes' must be a map");
     for (const auto& route : routes) presets_->addItem(QString::fromStdString(route.first.as<std::string>()));
-    if (presets_->count() == 0) presets_->addItem(tr("No saved routes"));
-  } catch (const std::exception& e) {
-    presets_->addItem(tr("Could not load routes"));
-    showStatus(tr("Failed"), QString::fromUtf8(e.what()));
-  }
-}
-
-void PlanRoutePanel::applyPreset() {
-  try {
-    const auto path = ament_index_cpp::get_package_share_directory("plan_route_panel") + "/config/routes.yml";
-    const auto root = YAML::LoadFile(path);
-    const auto route = root["routes"][presets_->currentText().toStdString()];
-    if (!route || !route.IsSequence()) throw std::runtime_error("Selected route is not a waypoint list");
-    std::vector<Waypoint> parsed;
-    for (const auto& entry : route) {
-      Waypoint waypoint;
-      if (entry.IsScalar()) {
-        if (!parseWaypoint(entry.as<std::string>(), waypoint)) {
-          throw std::runtime_error("Route contains an invalid waypoint string");
-        }
-      } else if (entry.IsMap()) {
-        waypoint = {entry["latitude"].as<double>(), entry["longitude"].as<double>(),
-                    entry["wait_time_s"] ? entry["wait_time_s"].as<double>() : 0.0};
-      } else {
-        throw std::runtime_error("Route waypoints must be strings or coordinate maps");
-      }
-      if (!std::isfinite(waypoint.latitude) || !std::isfinite(waypoint.longitude) || !std::isfinite(waypoint.wait_time_s) ||
-          std::abs(waypoint.latitude) > 90.0 || std::abs(waypoint.longitude) > 180.0) {
-        throw std::runtime_error("Route contains an invalid waypoint");
-      }
-      parsed.push_back(waypoint);
-    }
-    if (parsed.empty()) throw std::runtime_error("Selected route is empty");
-    if (parsed.back().wait_time_s < 0.0) throw std::runtime_error("Last waypoint must be a stop");
-    waypoints_->setRowCount(0);
-    for (const auto& waypoint : parsed) addWaypoint(waypoint.latitude, waypoint.longitude, waypoint.wait_time_s);
-    showStatus(tr("Idle"), tr("Saved route loaded into the waypoint table."));
+    if (presets_->count() == 0) showStatus(tr("Failed"), tr("No saved routes configured."));
   } catch (const std::exception& e) {
     showStatus(tr("Failed"), QString::fromUtf8(e.what()));
   }

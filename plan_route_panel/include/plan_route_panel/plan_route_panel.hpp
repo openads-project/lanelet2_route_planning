@@ -23,7 +23,6 @@ class QLabel;
 class QLineEdit;
 class QProgressBar;
 class QPushButton;
-class QTableWidget;
 
 namespace plan_route_panel {
 
@@ -45,8 +44,6 @@ private:
   void planRoute();
   void cancelRoute();
   void loadPresets();
-  void applyPreset();
-  void addWaypoint(double latitude = 0.0, double longitude = 0.0, double wait_time_s = 0.0);
   void showStatus(const QString& status, const QString& detail = {});
   void updateGoalStatus(const action_msgs::msg::GoalStatusArray& msg);
   void updateFeedback(const std::string& goal_id, const route_planning_msgs::action::PlanRoute::Feedback& feedback);
@@ -63,11 +60,9 @@ private:
   std::shared_ptr<CallbackBridge> callback_bridge_;
 
   QLineEdit* client_name_;
-  QLineEdit* map_server_name_;
   QCheckBox* random_destination_;
   QCheckBox* continuous_planning_;
   QDoubleSpinBox* replanning_proportion_;
-  QTableWidget* waypoints_;
   QComboBox* presets_;
   QLabel* status_;
   QLabel* detail_;
@@ -82,10 +77,10 @@ private:
   std::string failed_destination_goal_id_;
   bool awaiting_goal_ = false;
   bool cancel_requested_ = false;
+  bool parameter_update_pending_ = false;
   bool continuous_run_ = false;
   int remaining_goals_ = 0;
   std::string connected_client_name_;
-  std::string loaded_map_server_name_ = "ll2_map_server";
 };
 
 }  // namespace plan_route_panel
