@@ -1,0 +1,23 @@
+<?xml version="1.0"?>
+<package format="3">
+  <name>plan_route_panel</name>
+  <version>0.1.0</version>
+  <description>RViz panel for controlling the Lanelet2 route planning action client</description>
+  <maintainer email="lennart.reiher@rwth-aachen.de">Lennart Reiher</maintainer>
+  <license>Apache-2.0</license>
+
+  <buildtool_depend>ament_cmake</buildtool_depend>
+  <depend>ament_index_cpp</depend>
+  <depend>action_msgs</depend>
+  <depend>pluginlib</depend>
+  <depend>rclcpp</depend>
+  <depend>rcl_interfaces</depend>
+  <depend>route_planning_msgs</depend>
+  <depend>rviz_common</depend>
+  <depend>yaml-cpp</depend>
+  <build_depend>qtbase5-dev</build_depend>
+
+  <export>
+    <build_type>ament_cmake</build_type>
+  </export>
+</package>
