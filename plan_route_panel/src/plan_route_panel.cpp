@@ -132,14 +132,15 @@ PlanRoutePanel::PlanRoutePanel(QWidget* parent) : rviz_common::Panel(parent), ca
   scroll->setWidget(content);
   outer->addWidget(scroll, 1);
 
-  auto* parameters = new QGroupBox(tr("Route Parameters"), content);
+  auto* parameters = new QGroupBox(content);
   auto* form = new QFormLayout(parameters);
   client_name_ = new QLineEdit("/plan_route_action_client", parameters);
   auto* refresh = new QPushButton(tr("Refresh"), parameters);
   auto* client_row = new QHBoxLayout;
   client_row->addWidget(client_name_);
   client_row->addWidget(refresh);
-  form->addRow(tr("Action client node"), client_row);
+  auto* client_label = new QLabel(tr("Action client node"), parameters);
+  form->addRow(client_label, client_row);
   random_destination_ = new QCheckBox(tr("Random destination"), parameters);
   continuous_planning_ = new QCheckBox(tr("Continuous planning"), parameters);
   form->addRow(random_destination_);
@@ -150,13 +151,15 @@ PlanRoutePanel::PlanRoutePanel(QWidget* parent) : rviz_common::Panel(parent), ca
   replanning_proportion_->setDecimals(2);
   replanning_proportion_->setValue(0.6);
   form->addRow(tr("Replan after fraction"), replanning_proportion_);
+  auto* replanning_label = form->labelForField(replanning_proportion_);
+  presets_ = new QComboBox(parameters);
+  auto* saved_routes_label = new QLabel(tr("Saved Routes"), parameters);
+  form->addRow(saved_routes_label, presets_);
+  const int label_width = std::max({client_label->sizeHint().width(), replanning_label->sizeHint().width(),
+                                    saved_routes_label->sizeHint().width()});
+  client_label->setMinimumWidth(label_width);
+  saved_routes_label->setMinimumWidth(label_width);
   layout->addWidget(parameters);
-
-  auto* presets_group = new QGroupBox(tr("Saved Routes"), content);
-  auto* presets_layout = new QHBoxLayout(presets_group);
-  presets_ = new QComboBox(presets_group);
-  presets_layout->addWidget(presets_, 1);
-  layout->addWidget(presets_group);
   layout->addStretch();
 
   auto* action_buttons = new QHBoxLayout;
@@ -178,13 +181,24 @@ PlanRoutePanel::PlanRoutePanel(QWidget* parent) : rviz_common::Panel(parent), ca
   outer->addWidget(detail_);
   outer->addWidget(progress_);
 
+  auto update_replanning_visibility = [this, replanning_label] {
+    const bool visible = continuous_planning_->isChecked() && !random_destination_->isChecked();
+    replanning_label->setVisible(visible);
+    replanning_proportion_->setVisible(visible);
+  };
   connect(refresh, &QPushButton::clicked, this, [this] { connectToClient(); refreshParameters(); });
-  connect(random_destination_, &QCheckBox::toggled, this, [this](bool random) {
+  connect(random_destination_, &QCheckBox::toggled, this, [this, update_replanning_visibility](bool random) {
+    if (random) continuous_planning_->setChecked(false);
+    continuous_planning_->setEnabled(!random);
     presets_->setEnabled(!random);
+    update_replanning_visibility();
     if (node_ && !parameter_update_pending_) plan_button_->setEnabled(random || presets_->count() > 0);
   });
+  connect(continuous_planning_, &QCheckBox::toggled, this,
+          [update_replanning_visibility](bool) { update_replanning_visibility(); });
   connect(plan_button_, &QPushButton::clicked, this, [this] { planRoute(); });
   connect(cancel_button_, &QPushButton::clicked, this, [this] { cancelRoute(); });
+  update_replanning_visibility();
   loadPresets();
 }
 
@@ -261,12 +275,15 @@ void PlanRoutePanel::refreshParameters() {
       const auto values = future.get()->values;
       postToPanel(weak_bridge, [values, requested_client](PlanRoutePanel* panel) {
         if (panel->clientName() != requested_client || values.size() != 3) return;
-        if (values[0].type == rcl_interfaces::msg::ParameterType::PARAMETER_BOOL) {
-          panel->random_destination_->setChecked(values[0].bool_value);
-        }
+        const bool random = values[0].type == rcl_interfaces::msg::ParameterType::PARAMETER_BOOL
+                                ? values[0].bool_value
+                                : panel->random_destination_->isChecked();
         if (values[1].type == rcl_interfaces::msg::ParameterType::PARAMETER_BOOL) {
-          panel->continuous_planning_->setChecked(values[1].bool_value);
+          panel->continuous_planning_->setChecked(values[1].bool_value && !random);
         }
+        panel->random_destination_->setChecked(random);
+        panel->continuous_planning_->setEnabled(!random);
+        panel->presets_->setEnabled(!random);
         if (values[2].type == rcl_interfaces::msg::ParameterType::PARAMETER_DOUBLE) {
           panel->replanning_proportion_->setValue(values[2].double_value);
         }
@@ -308,6 +325,7 @@ void PlanRoutePanel::sendParameters(const std::vector<rclcpp::Parameter>& parame
 void PlanRoutePanel::planRoute() {
   connectToClient();
   const bool random = random_destination_->isChecked();
+  const bool continuous = !random && continuous_planning_->isChecked();
   if (!random && presets_->currentIndex() < 0) {
     showStatus(tr("Failed"), tr("Select a saved route."));
     return;
@@ -330,12 +348,12 @@ void PlanRoutePanel::planRoute() {
   std::vector<rclcpp::Parameter> parameters;
   parameters.emplace_back("cancel_route", false);
   parameters.emplace_back("enable_random_destination", random);
-  parameters.emplace_back("enable_continuous_planning", continuous_planning_->isChecked());
+  parameters.emplace_back("enable_continuous_planning", continuous);
   parameters.emplace_back("continuous_planning_replanning_proportion", replanning_proportion_->value());
   parameters.emplace_back("waypoints", waypoints);
   awaiting_goal_ = true;
   cancel_requested_ = false;
-  continuous_run_ = continuous_planning_->isChecked();
+  continuous_run_ = continuous;
   tracked_goal_id_.clear();
   result_goal_id_.clear();
   failed_destination_goal_id_.clear();
