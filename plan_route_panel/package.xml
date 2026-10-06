@@ -15,8 +15,7 @@
   <depend>rcl_interfaces</depend>
   <depend>route_planning_msgs</depend>
   <depend>rviz_common</depend>
-  <depend>rviz_ogre_vendor</depend>
-  <depend>rviz_rendering</depend>
+  <exec_depend>rviz_default_plugins</exec_depend>
   <depend>yaml-cpp</depend>
   <build_depend>qtbase5-dev</build_depend>
 

@@ -4,9 +4,4 @@
          base_class_type="rviz_common::Panel">
     <description>Control and monitor the Lanelet2 route planning action client.</description>
   </class>
-  <class name="plan_route_panel/SetGoalPoint"
-         type="plan_route_panel::SetGoalPointTool"
-         base_class_type="rviz_common::Tool">
-    <description>Send a destination to the action client's goal pose topic with one click in RViz.</description>
-  </class>
 </library>
