@@ -1,9 +1,11 @@
+// Copyright Institute for Automotive Engineering (ika), RWTH Aachen University
+// SPDX-License-Identifier: Apache-2.0
+
 #include "plan_route_panel/plan_route_panel.hpp"
 
 #include <algorithm>
 #include <array>
 #include <cmath>
-#include <future>
 #include <iomanip>
 #include <locale>
 #include <mutex>
@@ -57,6 +59,7 @@ struct Waypoint {
 
 template <typename F>
 void postToPanel(const std::weak_ptr<CallbackBridge>& weak_bridge, F&& callback) {
+  // ROS callbacks must only touch widgets on the Qt thread, and never after panel destruction.
   auto bridge = weak_bridge.lock();
   if (!bridge) return;
   std::lock_guard<std::mutex> lock(bridge->mutex);
@@ -80,9 +83,8 @@ bool parseWaypoint(const std::string& value, Waypoint& waypoint) {
   waypoint.latitude = fields[0].trimmed().toDouble(&lat_ok);
   waypoint.longitude = fields[1].trimmed().toDouble(&lon_ok);
   waypoint.wait_time_s = fields.size() == 3 ? fields[2].trimmed().toDouble(&wait_ok) : 0.0;
-  return lat_ok && lon_ok && wait_ok && std::isfinite(waypoint.latitude) && std::isfinite(waypoint.longitude) &&
-         std::isfinite(waypoint.wait_time_s) && std::abs(waypoint.latitude) <= 90.0 &&
-         std::abs(waypoint.longitude) <= 180.0;
+  // Coordinate ranges and finiteness are checked for both YAML formats in readRoute().
+  return lat_ok && lon_ok && wait_ok;
 }
 
 std::string serializeWaypoint(const Waypoint& waypoint) {
@@ -375,11 +377,7 @@ void PlanRoutePanel::updateGoalTopic() {
 void PlanRoutePanel::connectToAction() {
   if (!node_) return;
   const auto action = action_name_->text().trimmed().toStdString();
-  const auto status_topic = action + "/_action/status";
-  const auto feedback_topic = action + "/_action/feedback";
-  const auto result_service = action + "/_action/get_result";
-  const auto connection = action;
-  if (connection == connected_action_name_ && status_sub_ && feedback_sub_ && result_client_) return;
+  if (action == connected_action_name_ && status_sub_ && feedback_sub_ && result_client_) return;
   status_sub_.reset();
   feedback_sub_.reset();
   result_client_.reset();
@@ -390,24 +388,24 @@ void PlanRoutePanel::connectToAction() {
   if (action.empty()) return;
   const std::weak_ptr<CallbackBridge> weak_bridge = callback_bridge_;
   status_sub_ = node_->create_subscription<action_msgs::msg::GoalStatusArray>(
-      status_topic, rclcpp::QoS(10).reliable().transient_local(),
-      [weak_bridge, connection](action_msgs::msg::GoalStatusArray::ConstSharedPtr msg) {
-        postToPanel(weak_bridge, [msg, connection](PlanRoutePanel* panel) {
-          if (panel->connected_action_name_ == connection) panel->updateGoalStatus(*msg);
+      action + "/_action/status", rclcpp::QoS(10).reliable().transient_local(),
+      [weak_bridge, action](action_msgs::msg::GoalStatusArray::ConstSharedPtr msg) {
+        postToPanel(weak_bridge, [msg, action](PlanRoutePanel* panel) {
+          if (panel->connected_action_name_ == action) panel->updateGoalStatus(*msg);
         });
       });
   feedback_sub_ = node_->create_subscription<route_planning_msgs::action::PlanRoute::Impl::FeedbackMessage>(
-      feedback_topic, rclcpp::QoS(10),
-      [weak_bridge, connection](route_planning_msgs::action::PlanRoute::Impl::FeedbackMessage::ConstSharedPtr msg) {
+      action + "/_action/feedback", rclcpp::QoS(10),
+      [weak_bridge, action](route_planning_msgs::action::PlanRoute::Impl::FeedbackMessage::ConstSharedPtr msg) {
         const auto id = goalId(msg->goal_id.uuid);
         const auto feedback = msg->feedback;
-        postToPanel(weak_bridge, [id, feedback, connection](PlanRoutePanel* panel) {
-          if (panel->connected_action_name_ == connection) panel->updateFeedback(id, feedback);
+        postToPanel(weak_bridge, [id, feedback, action](PlanRoutePanel* panel) {
+          if (panel->connected_action_name_ == action) panel->updateFeedback(id, feedback);
         });
       });
   result_client_ = node_->create_client<route_planning_msgs::action::PlanRoute::Impl::GetResultService>(
-      result_service);
-  connected_action_name_ = connection;
+      action + "/_action/get_result");
+  connected_action_name_ = action;
 }
 
 std::string PlanRoutePanel::clientName() const {
@@ -453,6 +451,7 @@ void PlanRoutePanel::refreshParameters() {
     try {
       const auto values = future.get()->values;
       postToPanel(weak_bridge, [values, requested_client](PlanRoutePanel* panel) {
+        // Ignore replies from a client that was selected before the request completed.
         if (panel->clientName() != requested_client || values.size() != 3) return;
         const bool random = values[0].type == rcl_interfaces::msg::ParameterType::PARAMETER_BOOL
                                 ? values[0].bool_value
@@ -620,6 +619,7 @@ void PlanRoutePanel::showStatus(const QString& status, const QString& detail) {
 bool PlanRoutePanel::rememberGoal(const std::string& goal_id) {
   if (!seen_goal_ids_.insert(goal_id).second) return false;
   seen_goal_order_.push_back(goal_id);
+  // Action status can retain old goals; keep only a bounded history for deduplication.
   if (seen_goal_order_.size() > 1024) {
     seen_goal_ids_.erase(seen_goal_order_.front());
     seen_goal_order_.pop_front();
@@ -670,6 +670,7 @@ void PlanRoutePanel::updateGoalStatus(const action_msgs::msg::GoalStatusArray& m
   for (const auto& goal : msg.status_list) {
     const auto id = goalId(goal.goal_info.goal_id.uuid);
     const bool is_new = rememberGoal(id);
+    // The action status has no sender ID, so the first new goal is only a best-effort match.
     if (awaiting_goal_ && tracked_goal_id_.empty() && is_new &&
         goal.status != action_msgs::msg::GoalStatus::STATUS_UNKNOWN) {
       tracked_goal_id_ = id;
@@ -724,6 +725,7 @@ void PlanRoutePanel::updateGoalStatus(const action_msgs::msg::GoalStatusArray& m
 
 void PlanRoutePanel::updateFeedback(const std::string& goal_id,
                                     const route_planning_msgs::action::PlanRoute::Feedback& feedback) {
+  // Feedback may arrive before the corresponding status update.
   if (tracked_goal_id_.empty() && awaiting_goal_ && !seen_goal_ids_.count(goal_id)) {
     tracked_goal_id_ = goal_id;
     awaiting_goal_ = false;

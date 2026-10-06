@@ -1,11 +1,47 @@
-# Plan Route RViz Panel
+# `plan_route_panel`
 
-Add `plan_route_panel/PlanRoutePanel` through RViz's **Panels → Add New Panel** menu. The panel uses the running `plan_route_action_client` node (default `/plan_route_action_client`). Set the node name and press **Refresh** to load its current random-destination and continuous-planning settings.
+RViz panel for configuring and monitoring the existing `plan_route_action_client`. It does not start that node or send `PlanRoute` action goals itself. The client and the Lanelet2 route planning server must already be running.
 
-Select a saved route and click **Plan Route**. The panel reads that route from `config/routes.yml`, validates its WGS84 waypoints, then writes the waypoints and planning settings to the existing client. To plan to a random destination instead, check **Random destination**; the saved-route dropdown is disabled, **Continuous planning** is turned off, and the panel sends an empty waypoint list. The client converts coordinates and sends the `PlanRoute` action goal. **Cancel** remains visible below the route controls; it disables further automatic planning, clears the client's waypoints, and asks the client to cancel goals on the shared action server. The client's current implementation calls `async_cancel_all_goals`, so other clients' goals can also be affected.
+## Add the panel
 
-Named routes live in `config/routes.yml`, separately from the client's `params.yml`. Each route is a list of the same waypoint strings accepted by the client's `waypoints` parameter, for example `"50.787524, 6.050095, -1"` and `"50.787801, 6.046555"`. The older `{latitude, longitude, wait_time_s}` map format remains supported. A negative wait time marks an intermediate destination; the final waypoint must be a stop. Restart RViz after changing the list of route names in the installed YAML file.
+In RViz, select **Panels → Add New Panel → plan_route_panel/PlanRoutePanel**. The default client node is `/plan_route_action_client`. Configure endpoint names in the collapsed **Settings** section at the bottom of the panel if your setup uses different names. RViz saves these fields in its configuration.
 
-The status area observes the action's status and feedback topics and requests the tracked goal's result, including `destination_reached`. It shows the reported distance and remaining time without estimating a percentage. Because the panel controls another node through parameters, it cannot identify that node as the sender of a goal; concurrent goals sent by other clients on the same action can be shown as the panel's goal. A goal that is rejected before it appears on the action status topic is not visible to the panel.
+## Planning modes
 
-The client loads `ll2_map_server_name` from its own configuration at startup; the panel does not change it. The client also does not reset its internal waypoint index when `waypoints` changes. After a route has been completed, pressing **Plan Route** again with the same or a new route may not start another route. Fixing repeated starts requires the client to reset that index when a new route is requested, or to expose an explicit start command. This package leaves the client unchanged.
+Select one mode from the dropdown:
+
+| Mode | Primary button | Behavior |
+| --- | --- | --- |
+| **Waypoints** | **Plan Route** | Sends the selected saved route to the client's `waypoints` parameter. **Continuous planning** loops/replans the route; **Replan after fraction** sets `continuous_planning_replanning_proportion` (0–1). |
+| **Random Destination** | **Plan Route** | Enables the client's random destination mode, disables continuous planning, and clears its waypoints. |
+| **Destination (Click)** | **Set Destination** | Selects RViz's built-in Goal Pose tool. Click a destination in the RViz view; the tool publishes a `PoseStamped` to the configured goal pose topic and the client handles it. |
+
+**Cancel Route** disables automatic planning, clears the client's waypoints, and requests cancellation of active goals. The client uses `async_cancel_all_goals`, which can also affect goals from other clients connected to the same action server. The panel's status is based on the configured action's status, feedback, and result endpoints. It reports route progress when feedback arrives; the progress bar appears only while a goal is pending or running. Rejected goals may not appear in action status.
+
+**Destination (Click)** does not change the client's random destination, continuous planning, or waypoint parameters. If those modes are still active, the client can subsequently issue another goal. Clear the previous mode before using a clicked destination.
+
+## Saved routes
+
+Edit the installed `share/plan_route_panel/config/routes.yml` file to add named routes. Each route is an ordered list of the same WGS84 waypoint strings accepted by the client's `waypoints` parameter:
+
+```yaml
+routes:
+  example_route:
+    - "50.787524, 6.050095, -1"
+    - "50.779794, 6.050634, -1"
+    - "50.784935, 6.043669, -1"
+    - "50.787801, 6.046555"
+```
+
+The format is `latitude, longitude[, wait_time_s]`. A negative wait time marks an intermediate waypoint; the final waypoint must have a nonnegative wait time or omit it. The panel also accepts the older `{latitude, longitude, wait_time_s}` mapping format. Restart RViz after changing the route names, since the dropdown is populated when the panel is created. Route contents are read again when **Plan Route** is pressed.
+
+## Settings and ROS connections
+
+| Setting | Purpose |
+| --- | --- |
+| **LL2 Map Server Name** | Display/configuration field only. The client reads `ll2_map_server_name` at startup; editing this field does not reconfigure it. |
+| **Action Client Node** | Node whose `get_parameters` and `set_parameters_atomically` services the panel uses. |
+| **Goal Pose Topic** | Topic assigned to RViz's Goal Pose tool in click mode; the client must subscribe to the same topic. |
+| **Status Action** | Base name of the `PlanRoute` action. The panel derives `/_action/status`, `/_action/feedback`, and `/_action/get_result` from it. |
+
+The panel reads client parameters when RViz initializes, when the client parameter service becomes available, or when the client node name changes. It does not continually poll parameter values. The action server's goal IDs do not identify the client that sent each goal, so goals from another client on the same action can appear as the panel's current goal.
