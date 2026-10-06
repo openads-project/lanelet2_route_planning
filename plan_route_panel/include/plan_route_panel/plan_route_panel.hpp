@@ -83,9 +83,6 @@ private:
   QLineEdit* client_name_;
   QLineEdit* goal_topic_;
   QLineEdit* action_name_;
-  QLineEdit* status_topic_;
-  QLineEdit* feedback_topic_;
-  QLineEdit* result_service_;
   bool selecting_destination_ = false;
 
   std::set<std::string> seen_goal_ids_;

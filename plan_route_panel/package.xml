@@ -1,12 +1,18 @@
 <?xml version="1.0"?>
+<?xml-model href="http://download.ros.org/schema/package_format3.xsd" schematypens="http://www.w3.org/2001/XMLSchema"?>
 <package format="3">
+
   <name>plan_route_panel</name>
   <version>0.1.0</version>
   <description>RViz panel for controlling the Lanelet2 route planning action client</description>
-  <maintainer email="lennart.reiher@rwth-aachen.de">Lennart Reiher</maintainer>
+  
+  <maintainer email="jean-pierre.busch@rwth-aachen.de">Jean-Pierre Busch</maintainer>
+  <author email="emre.karincali@rwth-aachen.de">Emre Karincali</author>
+  
   <license>Apache-2.0</license>
 
   <buildtool_depend>ament_cmake</buildtool_depend>
+  
   <depend>ament_index_cpp</depend>
   <depend>action_msgs</depend>
   <depend>geometry_msgs</depend>
@@ -16,10 +22,12 @@
   <depend>route_planning_msgs</depend>
   <depend>rviz_common</depend>
   <exec_depend>rviz_default_plugins</exec_depend>
+  
   <depend>yaml-cpp</depend>
   <build_depend>qtbase5-dev</build_depend>
 
   <export>
     <build_type>ament_cmake</build_type>
   </export>
+
 </package>

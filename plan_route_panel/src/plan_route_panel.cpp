@@ -202,17 +202,11 @@ PlanRoutePanel::PlanRoutePanel(QWidget* parent) : rviz_common::Panel(parent), ca
   client_name_ = new QLineEdit("/plan_route_action_client", settings);
   goal_topic_ = new QLineEdit("/plan_route_action_client/goal_pose", settings);
   action_name_ = new QLineEdit(kActionName, settings);
-  status_topic_ = new QLineEdit(QString(kActionName) + "/_action/status", settings);
-  feedback_topic_ = new QLineEdit(QString(kActionName) + "/_action/feedback", settings);
-  result_service_ = new QLineEdit(QString(kActionName) + "/_action/get_result", settings);
   map_server_name_->setToolTip(tr("Client startup parameter; changing this field does not reconfigure a running client."));
   settings_form->addRow(tr("LL2 Map Server Name"), map_server_name_);
   settings_form->addRow(tr("Action Client Node"), client_name_);
   settings_form->addRow(tr("Goal Pose Topic"), goal_topic_);
   settings_form->addRow(tr("Status Action"), action_name_);
-  settings_form->addRow(tr("Status Topic"), status_topic_);
-  settings_form->addRow(tr("Feedback Topic"), feedback_topic_);
-  settings_form->addRow(tr("Result Service"), result_service_);
   settings->hide();
   layout->addWidget(settings);
   connect(settings_toggle, &QToolButton::toggled, this, [settings_toggle, settings](bool open) {
@@ -287,12 +281,10 @@ PlanRoutePanel::PlanRoutePanel(QWidget* parent) : rviz_common::Panel(parent), ca
     updateGoalTopic();
     Q_EMIT configChanged();
   });
-  for (auto* field : {action_name_, status_topic_, feedback_topic_, result_service_}) {
-    connect(field, &QLineEdit::editingFinished, this, [this] {
-      connectToAction();
-      Q_EMIT configChanged();
-    });
-  }
+  connect(action_name_, &QLineEdit::editingFinished, this, [this] {
+    connectToAction();
+    Q_EMIT configChanged();
+  });
   connect(map_server_name_, &QLineEdit::editingFinished, this, [this] { Q_EMIT configChanged(); });
   loadPresets();
   update_mode();
@@ -307,9 +299,7 @@ void PlanRoutePanel::load(const rviz_common::Config& config) {
   rviz_common::Panel::load(config);
   const std::pair<const char*, QLineEdit*> fields[] = {
       {"LL2 Map Server Name", map_server_name_}, {"Action Client Node", client_name_},
-      {"Goal Pose Topic", goal_topic_}, {"Status Action", action_name_},
-      {"Status Topic", status_topic_}, {"Feedback Topic", feedback_topic_},
-      {"Result Service", result_service_}};
+      {"Goal Pose Topic", goal_topic_}, {"Status Action", action_name_}};
   for (const auto& [key, field] : fields) {
     QString value;
     if (config.mapGetString(key, &value)) field->setText(value);
@@ -326,9 +316,7 @@ void PlanRoutePanel::save(rviz_common::Config config) const {
   rviz_common::Panel::save(config);
   const std::pair<const char*, QLineEdit*> fields[] = {
       {"LL2 Map Server Name", map_server_name_}, {"Action Client Node", client_name_},
-      {"Goal Pose Topic", goal_topic_}, {"Status Action", action_name_},
-      {"Status Topic", status_topic_}, {"Feedback Topic", feedback_topic_},
-      {"Result Service", result_service_}};
+      {"Goal Pose Topic", goal_topic_}, {"Status Action", action_name_}};
   for (const auto& [key, field] : fields) config.mapSetValue(key, field->text());
 }
 
@@ -387,10 +375,10 @@ void PlanRoutePanel::updateGoalTopic() {
 void PlanRoutePanel::connectToAction() {
   if (!node_) return;
   const auto action = action_name_->text().trimmed().toStdString();
-  const auto status_topic = status_topic_->text().trimmed().toStdString();
-  const auto feedback_topic = feedback_topic_->text().trimmed().toStdString();
-  const auto result_service = result_service_->text().trimmed().toStdString();
-  const auto connection = action + "\n" + status_topic + "\n" + feedback_topic + "\n" + result_service;
+  const auto status_topic = action + "/_action/status";
+  const auto feedback_topic = action + "/_action/feedback";
+  const auto result_service = action + "/_action/get_result";
+  const auto connection = action;
   if (connection == connected_action_name_ && status_sub_ && feedback_sub_ && result_client_) return;
   status_sub_.reset();
   feedback_sub_.reset();
@@ -399,7 +387,7 @@ void PlanRoutePanel::connectToAction() {
   tracked_goal_id_.clear();
   result_goal_id_.clear();
   awaiting_goal_ = false;
-  if (status_topic.empty() || feedback_topic.empty() || result_service.empty()) return;
+  if (action.empty()) return;
   const std::weak_ptr<CallbackBridge> weak_bridge = callback_bridge_;
   status_sub_ = node_->create_subscription<action_msgs::msg::GoalStatusArray>(
       status_topic, rclcpp::QoS(10).reliable().transient_local(),
