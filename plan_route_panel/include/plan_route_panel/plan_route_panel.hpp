@@ -8,6 +8,7 @@
 #include <vector>
 
 #include <QWidget>
+#include <QPointer>
 #include <QString>
 #include <rviz_common/panel.hpp>
 #include <rclcpp/rclcpp.hpp>
@@ -20,13 +21,13 @@ class QCheckBox;
 class QComboBox;
 class QDoubleSpinBox;
 class QLabel;
-class QLineEdit;
 class QProgressBar;
 class QPushButton;
 
 namespace plan_route_panel {
 
 struct CallbackBridge;
+class SetGoalPointTool;
 
 class PlanRoutePanel : public rviz_common::Panel {
   Q_OBJECT
@@ -38,12 +39,15 @@ public:
 
 private:
   void connectToClient();
+  void connectToAction();
+  SetGoalPointTool* ensureGoalTool();
   void refreshParameters();
   void sendParameters(const std::vector<rclcpp::Parameter>& parameters,
                       std::function<void(bool, const QString&)> done);
   void planRoute();
   void cancelRoute();
   void loadPresets();
+  void updatePlanButton();
   void showStatus(const QString& status, const QString& detail = {});
   void updateGoalStatus(const action_msgs::msg::GoalStatusArray& msg);
   void updateFeedback(const std::string& goal_id, const route_planning_msgs::action::PlanRoute::Feedback& feedback);
@@ -58,9 +62,11 @@ private:
   rclcpp::Subscription<action_msgs::msg::GoalStatusArray>::SharedPtr status_sub_;
   rclcpp::Subscription<route_planning_msgs::action::PlanRoute::Impl::FeedbackMessage>::SharedPtr feedback_sub_;
   std::shared_ptr<CallbackBridge> callback_bridge_;
+  QPointer<SetGoalPointTool> goal_tool_;
 
-  QLineEdit* client_name_;
+  QCheckBox* waypoints_mode_;
   QCheckBox* random_destination_;
+  QCheckBox* destination_mode_;
   QCheckBox* continuous_planning_;
   QDoubleSpinBox* replanning_proportion_;
   QComboBox* presets_;
@@ -68,7 +74,7 @@ private:
   QLabel* detail_;
   QProgressBar* progress_;
   QPushButton* plan_button_;
-  QPushButton* cancel_button_;
+  bool action_active_ = false;
 
   std::set<std::string> seen_goal_ids_;
   std::deque<std::string> seen_goal_order_;
@@ -81,6 +87,8 @@ private:
   bool continuous_run_ = false;
   int remaining_goals_ = 0;
   std::string connected_client_name_;
+  std::string connected_action_name_;
+  bool client_ready_ = false;
 };
 
 }  // namespace plan_route_panel
