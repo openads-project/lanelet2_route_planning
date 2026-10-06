@@ -1,5 +1,6 @@
 #pragma once
 
+#include <functional>
 #include <string>
 
 #include <geometry_msgs/msg/pose_stamped.hpp>
@@ -16,6 +17,7 @@ public:
   void deactivate() override {}
   int processMouseEvent(rviz_common::ViewportMouseEvent& event) override;
   void setClientName(const std::string& client_name);
+  void setGoalSentCallback(std::function<void(bool)> callback);
 
 private:
   rviz_rendering::ViewportProjectionFinder projection_finder_;
@@ -23,6 +25,7 @@ private:
   rclcpp::Clock::SharedPtr clock_;
   rclcpp::Publisher<geometry_msgs::msg::PoseStamped>::SharedPtr public_publisher_;
   rclcpp::Publisher<geometry_msgs::msg::PoseStamped>::SharedPtr client_publisher_;
+  std::function<void(bool)> goal_sent_callback_;
 };
 
 }  // namespace plan_route_panel

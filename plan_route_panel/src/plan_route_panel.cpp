@@ -198,8 +198,10 @@ PlanRoutePanel::PlanRoutePanel(QWidget* parent) : rviz_common::Panel(parent), ca
     update_replanning_visibility();
     if (node_ && !parameter_update_pending_) plan_button_->setEnabled(random || presets_->count() > 0);
   });
-  connect(continuous_planning_, &QCheckBox::toggled, this,
-          [update_replanning_visibility](bool) { update_replanning_visibility(); });
+  connect(continuous_planning_, &QCheckBox::toggled, this, [this, update_replanning_visibility](bool continuous) {
+    random_destination_->setEnabled(!continuous);
+    update_replanning_visibility();
+  });
   connect(set_goal_point, &QPushButton::clicked, this, [this] {
     auto* manager = getDisplayContext()->getToolManager();
     if (!manager) {
@@ -221,6 +223,22 @@ PlanRoutePanel::PlanRoutePanel(QWidget* parent) : rviz_common::Panel(parent), ca
       return;
     }
     goal_tool->setClientName(clientName());
+    const std::weak_ptr<CallbackBridge> weak_bridge = callback_bridge_;
+    goal_tool->setGoalSentCallback([weak_bridge](bool has_subscriber) {
+      postToPanel(weak_bridge, [has_subscriber](PlanRoutePanel* panel) {
+        panel->awaiting_goal_ = has_subscriber;
+        panel->cancel_requested_ = false;
+        panel->continuous_run_ = false;
+        panel->remaining_goals_ = has_subscriber ? 1 : 0;
+        panel->tracked_goal_id_.clear();
+        panel->result_goal_id_.clear();
+        panel->failed_destination_goal_id_.clear();
+        panel->progress_->setRange(0, has_subscriber ? 0 : 1);
+        panel->showStatus(has_subscriber ? QObject::tr("Sending") : QObject::tr("Failed"),
+                          has_subscriber ? QObject::tr("Destination sent; waiting for route goal.")
+                                         : QObject::tr("No subscriber for the destination topic."));
+      });
+    });
     manager->setCurrentTool(tool);
     showStatus(tr("Selecting"), tr("Click once in RViz to set a destination."));
   });

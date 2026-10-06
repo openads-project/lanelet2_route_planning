@@ -1,5 +1,7 @@
 #include "plan_route_panel/set_goal_point_tool.hpp"
 
+#include <utility>
+
 #include <rviz_common/display_context.hpp>
 #include <rviz_common/render_panel.hpp>
 #include <rviz_common/viewport_mouse_event.hpp>
@@ -23,6 +25,10 @@ void SetGoalPointTool::setClientName(const std::string& client_name) {
   }
 }
 
+void SetGoalPointTool::setGoalSentCallback(std::function<void(bool)> callback) {
+  goal_sent_callback_ = std::move(callback);
+}
+
 void SetGoalPointTool::activate() {
   setStatus("Click once to set a destination.");
 }
@@ -44,6 +50,7 @@ int SetGoalPointTool::processMouseEvent(rviz_common::ViewportMouseEvent& event) 
   if (publisher->get_subscription_count() == 0 && public_publisher_->get_subscription_count() > 0) {
     publisher = public_publisher_;
   }
+  if (goal_sent_callback_) goal_sent_callback_(publisher->get_subscription_count() > 0);
   publisher->publish(goal);
 
   setStatus(QString("Destination sent to %1").arg(QString::fromUtf8(publisher->get_topic_name())));
