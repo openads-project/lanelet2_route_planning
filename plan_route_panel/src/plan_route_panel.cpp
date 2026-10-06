@@ -156,8 +156,6 @@ PlanRoutePanel::PlanRoutePanel(QWidget* parent) : rviz_common::Panel(parent), ca
   presets_ = new QComboBox(parameters);
   auto* saved_routes_label = new QLabel(tr("Saved Routes"), parameters);
   form->addRow(saved_routes_label, presets_);
-  auto* select_points = new QPushButton(tr("Select points in RViz"), parameters);
-  form->addRow(select_points);
   const int label_width = std::max({client_label->sizeHint().width(), replanning_label->sizeHint().width(),
                                     saved_routes_label->sizeHint().width()});
   client_label->setMinimumWidth(label_width);
@@ -167,10 +165,12 @@ PlanRoutePanel::PlanRoutePanel(QWidget* parent) : rviz_common::Panel(parent), ca
 
   auto* action_buttons = new QHBoxLayout;
   plan_button_ = new QPushButton(tr("Plan Route"), this);
+  auto* select_points = new QPushButton(tr("Select points in RViz"), this);
   cancel_button_ = new QPushButton(tr("Cancel"), this);
   plan_button_->setEnabled(false);
   cancel_button_->setEnabled(false);
   action_buttons->addWidget(plan_button_);
+  action_buttons->addWidget(select_points);
   action_buttons->addWidget(cancel_button_);
   outer->addLayout(action_buttons);
   status_ = new QLabel(tr("Status: Idle"), this);
