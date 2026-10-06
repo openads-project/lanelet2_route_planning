@@ -29,6 +29,7 @@
 #include <rcl_interfaces/msg/parameter_type.hpp>
 #include <rviz_common/display_context.hpp>
 #include <rviz_common/ros_integration/ros_node_abstraction_iface.hpp>
+#include <rviz_common/tool_manager.hpp>
 #include <yaml-cpp/yaml.h>
 
 namespace plan_route_panel {
@@ -155,6 +156,8 @@ PlanRoutePanel::PlanRoutePanel(QWidget* parent) : rviz_common::Panel(parent), ca
   presets_ = new QComboBox(parameters);
   auto* saved_routes_label = new QLabel(tr("Saved Routes"), parameters);
   form->addRow(saved_routes_label, presets_);
+  auto* select_points = new QPushButton(tr("Select points in RViz"), parameters);
+  form->addRow(select_points);
   const int label_width = std::max({client_label->sizeHint().width(), replanning_label->sizeHint().width(),
                                     saved_routes_label->sizeHint().width()});
   client_label->setMinimumWidth(label_width);
@@ -196,6 +199,24 @@ PlanRoutePanel::PlanRoutePanel(QWidget* parent) : rviz_common::Panel(parent), ca
   });
   connect(continuous_planning_, &QCheckBox::toggled, this,
           [update_replanning_visibility](bool) { update_replanning_visibility(); });
+  connect(select_points, &QPushButton::clicked, this, [this] {
+    auto* manager = getDisplayContext()->getToolManager();
+    if (!manager) {
+      showStatus(tr("Failed"), tr("RViz tool manager is unavailable."));
+      return;
+    }
+    rviz_common::Tool* tool = nullptr;
+    for (int index = 0; index < manager->numTools(); ++index) {
+      auto* candidate = manager->getTool(index);
+      if (candidate->getClassId() == "route_planning_msgs/PlanRoute") {
+        tool = candidate;
+        break;
+      }
+    }
+    if (!tool) tool = manager->addTool("route_planning_msgs/PlanRoute");
+    manager->setCurrentTool(tool);
+    showStatus(tr("Selecting"), tr("Right click: waypoint · Middle click: undo · Left click: plan route."));
+  });
   connect(plan_button_, &QPushButton::clicked, this, [this] { planRoute(); });
   connect(cancel_button_, &QPushButton::clicked, this, [this] { cancelRoute(); });
   update_replanning_visibility();
