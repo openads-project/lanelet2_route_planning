@@ -14,6 +14,7 @@
 
 #include <QCheckBox>
 #include <QButtonGroup>
+#include <QColor>
 #include <QComboBox>
 #include <QDoubleSpinBox>
 #include <QFormLayout>
@@ -21,6 +22,7 @@
 #include <QHBoxLayout>
 #include <QLabel>
 #include <QMetaObject>
+#include <QPalette>
 #include <QProgressBar>
 #include <QPushButton>
 #include <QScrollArea>
@@ -174,28 +176,28 @@ PlanRoutePanel::PlanRoutePanel(QWidget* parent) : rviz_common::Panel(parent), ca
   mode_row->addWidget(random_destination_);
   mode_row->addWidget(destination_mode_);
   layout->addWidget(parameters);
-  layout->addStretch();
 
   auto* action_buttons = new QHBoxLayout;
-  plan_button_ = new QPushButton(this);
+  plan_button_ = new QPushButton(content);
   plan_button_->setFixedSize(44, 44);
   plan_button_->setIconSize(QSize(24, 24));
   plan_button_->setEnabled(false);
   action_buttons->addStretch();
   action_buttons->addWidget(plan_button_);
   action_buttons->addStretch();
-  outer->addLayout(action_buttons);
-  status_ = new QLabel(tr("Status: Idle"), this);
-  detail_ = new QLabel(this);
+  layout->addLayout(action_buttons);
+  status_ = new QLabel(tr("Status: Idle"), content);
+  detail_ = new QLabel(content);
   detail_->setWordWrap(true);
-  progress_ = new QProgressBar(this);
+  progress_ = new QProgressBar(content);
   progress_->setRange(0, 1);
   progress_->setValue(0);
   progress_->setTextVisible(false);
   progress_->hide();
-  outer->addWidget(status_);
-  outer->addWidget(detail_);
-  outer->addWidget(progress_);
+  layout->addWidget(status_);
+  layout->addWidget(detail_);
+  layout->addWidget(progress_);
+  layout->addStretch();
 
   auto update_mode = [this, waypoint_options, replanning_label] {
     const bool waypoints = waypoints_mode_->isChecked();
@@ -258,7 +260,6 @@ void PlanRoutePanel::onInitialize() {
   connect(retry_timer, &QTimer::timeout, this, [this] {
     if (!get_client_) return;
     if (!get_client_->service_is_ready()) {
-      if (client_ready_ && goal_tool_) goal_tool_->setMapServerName("Not connected");
       client_ready_ = false;
     } else if (!client_ready_) {
       refreshParameters();
@@ -313,7 +314,11 @@ SetGoalPointTool* PlanRoutePanel::ensureGoalTool() {
 void PlanRoutePanel::connectToAction() {
   if (!node_) return;
   const auto action = goal_tool_ ? goal_tool_->actionName() : std::string(kActionName);
-  if (action == connected_action_name_ && status_sub_ && feedback_sub_ && result_client_) return;
+  const auto status_topic = goal_tool_ ? goal_tool_->statusTopic() : action + "/_action/status";
+  const auto feedback_topic = goal_tool_ ? goal_tool_->feedbackTopic() : action + "/_action/feedback";
+  const auto result_service = goal_tool_ ? goal_tool_->resultService() : action + "/_action/get_result";
+  const auto connection = action + "\n" + status_topic + "\n" + feedback_topic + "\n" + result_service;
+  if (connection == connected_action_name_ && status_sub_ && feedback_sub_ && result_client_) return;
   status_sub_.reset();
   feedback_sub_.reset();
   result_client_.reset();
@@ -321,27 +326,27 @@ void PlanRoutePanel::connectToAction() {
   tracked_goal_id_.clear();
   result_goal_id_.clear();
   awaiting_goal_ = false;
-  if (action.empty()) return;
+  if (status_topic.empty() || feedback_topic.empty() || result_service.empty()) return;
   const std::weak_ptr<CallbackBridge> weak_bridge = callback_bridge_;
   status_sub_ = node_->create_subscription<action_msgs::msg::GoalStatusArray>(
-      action + "/_action/status", rclcpp::QoS(10).reliable().transient_local(),
-      [weak_bridge, action](action_msgs::msg::GoalStatusArray::ConstSharedPtr msg) {
-        postToPanel(weak_bridge, [msg, action](PlanRoutePanel* panel) {
-          if (panel->connected_action_name_ == action) panel->updateGoalStatus(*msg);
+      status_topic, rclcpp::QoS(10).reliable().transient_local(),
+      [weak_bridge, connection](action_msgs::msg::GoalStatusArray::ConstSharedPtr msg) {
+        postToPanel(weak_bridge, [msg, connection](PlanRoutePanel* panel) {
+          if (panel->connected_action_name_ == connection) panel->updateGoalStatus(*msg);
         });
       });
   feedback_sub_ = node_->create_subscription<route_planning_msgs::action::PlanRoute::Impl::FeedbackMessage>(
-      action + "/_action/feedback", rclcpp::QoS(10),
-      [weak_bridge, action](route_planning_msgs::action::PlanRoute::Impl::FeedbackMessage::ConstSharedPtr msg) {
+      feedback_topic, rclcpp::QoS(10),
+      [weak_bridge, connection](route_planning_msgs::action::PlanRoute::Impl::FeedbackMessage::ConstSharedPtr msg) {
         const auto id = goalId(msg->goal_id.uuid);
         const auto feedback = msg->feedback;
-        postToPanel(weak_bridge, [id, feedback, action](PlanRoutePanel* panel) {
-          if (panel->connected_action_name_ == action) panel->updateFeedback(id, feedback);
+        postToPanel(weak_bridge, [id, feedback, connection](PlanRoutePanel* panel) {
+          if (panel->connected_action_name_ == connection) panel->updateFeedback(id, feedback);
         });
       });
   result_client_ = node_->create_client<route_planning_msgs::action::PlanRoute::Impl::GetResultService>(
-      action + "/_action/get_result");
-  connected_action_name_ = action;
+      result_service);
+  connected_action_name_ = connection;
 }
 
 std::string PlanRoutePanel::clientName() const {
@@ -360,13 +365,11 @@ void PlanRoutePanel::connectToClient() {
     set_client_.reset();
     connected_client_name_.clear();
     client_ready_ = false;
-    if (goal_tool_) goal_tool_->setMapServerName("Not connected");
     showStatus(tr("Failed"), tr("Enter the action client node name."));
     return;
   }
   if (name == connected_client_name_ && get_client_ && set_client_) return;
   client_ready_ = false;
-  if (goal_tool_) goal_tool_->setMapServerName("Not connected");
   get_client_ = node_->create_client<rcl_interfaces::srv::GetParameters>(name + "/get_parameters");
   set_client_ = node_->create_client<rcl_interfaces::srv::SetParametersAtomically>(name + "/set_parameters_atomically");
   connected_client_name_ = name;
@@ -382,14 +385,14 @@ void PlanRoutePanel::refreshParameters() {
   const auto requested_client = clientName();
   auto request = std::make_shared<rcl_interfaces::srv::GetParameters::Request>();
   request->names = {"enable_random_destination", "enable_continuous_planning",
-                    "continuous_planning_replanning_proportion", "ll2_map_server_name"};
+                    "continuous_planning_replanning_proportion"};
   const std::weak_ptr<CallbackBridge> weak_bridge = callback_bridge_;
   get_client_->async_send_request(
       request, [weak_bridge, requested_client](rclcpp::Client<rcl_interfaces::srv::GetParameters>::SharedFuture future) {
     try {
       const auto values = future.get()->values;
       postToPanel(weak_bridge, [values, requested_client](PlanRoutePanel* panel) {
-        if (panel->clientName() != requested_client || values.size() != 4) return;
+        if (panel->clientName() != requested_client || values.size() != 3) return;
         const bool random = values[0].type == rcl_interfaces::msg::ParameterType::PARAMETER_BOOL
                                 ? values[0].bool_value
                                 : panel->random_destination_->isChecked();
@@ -401,9 +404,6 @@ void PlanRoutePanel::refreshParameters() {
         }
         if (values[2].type == rcl_interfaces::msg::ParameterType::PARAMETER_DOUBLE) {
           panel->replanning_proportion_->setValue(values[2].double_value);
-        }
-        if (panel->goal_tool_ && values[3].type == rcl_interfaces::msg::ParameterType::PARAMETER_STRING) {
-          panel->goal_tool_->setMapServerName(values[3].string_value);
         }
         if (!panel->awaiting_goal_ && panel->tracked_goal_id_.empty()) {
           panel->showStatus(QObject::tr("Idle"), QObject::tr("Loaded parameters from action client."));
@@ -546,6 +546,13 @@ void PlanRoutePanel::updatePlanButton() {
                            (destination_mode_->isChecked() ? tr("Set Destination") : tr("Plan Route")));
   if (plan_button_->property("media_icon").toInt() == static_cast<int>(icon)) return;
   plan_button_->setIcon(style()->standardIcon(icon));
+  auto colors = plan_button_->palette();
+  const auto base = style()->standardPalette().color(QPalette::Button);
+  const QColor accent = action_active_ ? QColor(190, 68, 68) : QColor(60, 150, 75);
+  colors.setColor(QPalette::Button, QColor((base.red() * 3 + accent.red()) / 4,
+                                          (base.green() * 3 + accent.green()) / 4,
+                                          (base.blue() * 3 + accent.blue()) / 4));
+  plan_button_->setPalette(colors);
   plan_button_->setProperty("media_icon", static_cast<int>(icon));
 }
 

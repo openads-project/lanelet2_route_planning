@@ -26,19 +26,20 @@ public:
   void setGoalSentCallback(std::function<void(bool)> callback);
   std::string clientName() const;
   std::string actionName() const;
-  void setMapServerName(const std::string& name);
+  std::string statusTopic() const;
+  std::string feedbackTopic() const;
+  std::string resultService() const;
   void setConfigChangedCallback(std::function<void()> callback);
 
 private Q_SLOTS:
   void updateClientName();
   void updateGoalTopic();
-  void updateActionName();
+  void notifyConfigChanged();
 
 private:
   rviz_rendering::ViewportProjectionFinder projection_finder_;
   rclcpp::Node::SharedPtr node_;
   rclcpp::Clock::SharedPtr clock_;
-  rclcpp::Publisher<geometry_msgs::msg::PoseStamped>::SharedPtr public_publisher_;
   rclcpp::Publisher<geometry_msgs::msg::PoseStamped>::SharedPtr goal_publisher_;
   rviz_common::properties::StringProperty* client_name_property_;
   rviz_common::properties::StringProperty* goal_topic_property_;
@@ -47,7 +48,6 @@ private:
   rviz_common::properties::StringProperty* feedback_topic_property_;
   rviz_common::properties::StringProperty* result_service_property_;
   rviz_common::properties::StringProperty* map_server_property_;
-  std::string previous_client_name_ = "/plan_route_action_client";
   std::function<void(bool)> goal_sent_callback_;
   std::function<void()> config_changed_callback_;
 };

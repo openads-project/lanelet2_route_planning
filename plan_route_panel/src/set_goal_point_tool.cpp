@@ -12,47 +12,39 @@
 namespace plan_route_panel {
 
 SetGoalPointTool::SetGoalPointTool() {
+  map_server_property_ = new rviz_common::properties::StringProperty(
+      "LL2 Map Server Name", "ll2_map_server", "Client startup parameter; changing this field does not reconfigure a running client.",
+      getPropertyContainer());
   client_name_property_ = new rviz_common::properties::StringProperty(
       "Action Client Node", "/plan_route_action_client", "Node whose parameters control route planning.",
       getPropertyContainer(), SLOT(updateClientName()), this);
   goal_topic_property_ = new rviz_common::properties::StringProperty(
-      "Goal Pose Topic", "/plan_route_action_client/goal_pose", "Destination topic; falls back to /goal_pose if only that has a subscriber.",
+      "Goal Pose Topic", "/plan_route_action_client/goal_pose", "Destination topic used by Set Destination.",
       getPropertyContainer(), SLOT(updateGoalTopic()), this);
   action_name_property_ = new rviz_common::properties::StringProperty(
       "Status Action", "/planning/lanelet2_route_planning/plan_route",
-      "Action whose status and feedback the panel displays; the client's action target is set at startup.",
-      getPropertyContainer(), SLOT(updateActionName()), this);
+      "Action name for status tracking; endpoint names can be configured separately.",
+      getPropertyContainer(), SLOT(notifyConfigChanged()), this);
   status_topic_property_ = new rviz_common::properties::StringProperty(
-      "Status Topic", "", "Action goal states used by the panel.", getPropertyContainer());
+      "Status Topic", "/planning/lanelet2_route_planning/plan_route/_action/status",
+      "Action goal states used by the panel.", getPropertyContainer(), SLOT(notifyConfigChanged()), this);
   feedback_topic_property_ = new rviz_common::properties::StringProperty(
-      "Feedback Topic", "", "Route distance and time updates used by the panel.", getPropertyContainer());
+      "Feedback Topic", "/planning/lanelet2_route_planning/plan_route/_action/feedback",
+      "Route distance and time updates used by the panel.", getPropertyContainer(), SLOT(notifyConfigChanged()), this);
   result_service_property_ = new rviz_common::properties::StringProperty(
-      "Result Service", "", "Final destination and travel result used by the panel.", getPropertyContainer());
-  status_topic_property_->setReadOnly(true);
-  feedback_topic_property_->setReadOnly(true);
-  result_service_property_->setReadOnly(true);
-  map_server_property_ = new rviz_common::properties::StringProperty(
-      "LL2 Map Server Name", "Not connected", "Read-only client parameter; set it when starting the client.",
-      getPropertyContainer());
-  map_server_property_->setReadOnly(true);
-  updateActionName();
+      "Result Service", "/planning/lanelet2_route_planning/plan_route/_action/get_result",
+      "Final destination and travel result used by the panel.", getPropertyContainer(), SLOT(notifyConfigChanged()), this);
 }
 
 void SetGoalPointTool::onInitialize() {
   setName("Set Destination");
   node_ = context_->getRosNodeAbstraction().lock()->get_raw_node();
   clock_ = node_->get_clock();
-  public_publisher_ = node_->create_publisher<geometry_msgs::msg::PoseStamped>("/goal_pose", rclcpp::QoS(10));
   updateGoalTopic();
 }
 
 void SetGoalPointTool::updateClientName() {
-  const auto name = clientName();
-  if (goal_topic_property_->getStdString() == previous_client_name_ + "/goal_pose") {
-    goal_topic_property_->setStdString(name + "/goal_pose");
-  }
-  previous_client_name_ = name;
-  if (config_changed_callback_) config_changed_callback_();
+  notifyConfigChanged();
 }
 
 void SetGoalPointTool::updateGoalTopic() {
@@ -64,11 +56,7 @@ void SetGoalPointTool::updateGoalTopic() {
   if (config_changed_callback_) config_changed_callback_();
 }
 
-void SetGoalPointTool::updateActionName() {
-  const auto action = actionName();
-  status_topic_property_->setStdString(action.empty() ? "" : action + "/_action/status");
-  feedback_topic_property_->setStdString(action.empty() ? "" : action + "/_action/feedback");
-  result_service_property_->setStdString(action.empty() ? "" : action + "/_action/get_result");
+void SetGoalPointTool::notifyConfigChanged() {
   if (config_changed_callback_) config_changed_callback_();
 }
 
@@ -86,8 +74,16 @@ std::string SetGoalPointTool::actionName() const {
   return name;
 }
 
-void SetGoalPointTool::setMapServerName(const std::string& name) {
-  map_server_property_->setStdString(name);
+std::string SetGoalPointTool::statusTopic() const {
+  return status_topic_property_->getString().trimmed().toStdString();
+}
+
+std::string SetGoalPointTool::feedbackTopic() const {
+  return feedback_topic_property_->getString().trimmed().toStdString();
+}
+
+std::string SetGoalPointTool::resultService() const {
+  return result_service_property_->getString().trimmed().toStdString();
 }
 
 void SetGoalPointTool::setGoalSentCallback(std::function<void(bool)> callback) {
@@ -115,14 +111,11 @@ int SetGoalPointTool::processMouseEvent(rviz_common::ViewportMouseEvent& event) 
   goal.pose.position.x = projection.second.x;
   goal.pose.position.y = projection.second.y;
   goal.pose.orientation.w = 1.0;
-  auto publisher = goal_publisher_ ? goal_publisher_ : public_publisher_;
+  auto publisher = goal_publisher_;
   if (!publisher) {
     if (goal_sent_callback_) goal_sent_callback_(false);
     setStatus("Set a goal pose topic in Tool Properties.");
     return Finished;
-  }
-  if (publisher->get_subscription_count() == 0 && public_publisher_->get_subscription_count() > 0) {
-    publisher = public_publisher_;
   }
   if (goal_sent_callback_) goal_sent_callback_(publisher->get_subscription_count() > 0);
   publisher->publish(goal);
