@@ -16,7 +16,7 @@ Select one mode from the dropdown:
 | **Random Destination** | **Plan Route** | Enables the client's random destination mode, disables continuous planning, and clears its waypoints. |
 | **Destination (Click)** | **Set Destination** | Selects RViz's built-in Goal Pose tool. Click a destination in the RViz view; the tool publishes a `PoseStamped` to the configured goal pose topic and the client handles it. |
 
-**Cancel Route** disables automatic planning, clears the client's waypoints, and requests cancellation of active goals. The client uses `async_cancel_all_goals`, which can also affect goals from other clients connected to the same action server. The panel's status is based on the configured action's status, feedback, and result endpoints. It reports route progress when feedback arrives; the progress bar appears only while a goal is pending or running. Rejected goals may not appear in action status.
+**Cancel Route** disables automatic planning, clears the client's waypoints, and requests cancellation of active goals. The client uses `async_cancel_all_goals`, which can also affect goals from other clients connected to the same action server. The panel's status is based on the configured action's status, feedback, and result endpoints. It reports route progress when feedback arrives. The progress bar appears for pending or running Waypoints and Random Destination goals; Destination (Click) uses status text only. Rejected goals may not appear in action status.
 
 **Destination (Click)** does not change the client's random destination, continuous planning, or waypoint parameters. If those modes are still active, the client can subsequently issue another goal. Clear the previous mode before using a clicked destination.
 

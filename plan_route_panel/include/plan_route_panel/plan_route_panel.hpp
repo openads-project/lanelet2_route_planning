@@ -3,9 +3,10 @@
 
 #pragma once
 
-#include <functional>
 #include <deque>
+#include <functional>
 #include <memory>
+#include <optional>
 #include <set>
 #include <string>
 #include <vector>
@@ -184,6 +185,8 @@ class PlanRoutePanel : public rviz_common::Panel {
   rclcpp::Subscription<action_msgs::msg::GoalStatusArray>::SharedPtr status_sub_;
   rclcpp::Subscription<route_planning_msgs::action::PlanRoute::Impl::FeedbackMessage>::SharedPtr feedback_sub_;
   rclcpp::Subscription<geometry_msgs::msg::PoseStamped>::SharedPtr goal_pose_sub_;
+  std::optional<action_msgs::msg::GoalStatusArray> pending_destination_status_;
+  std::string pending_destination_goal_id_;
   std::shared_ptr<CallbackBridge> callback_bridge_;
   QPointer<rviz_common::Tool> goal_tool_;
 

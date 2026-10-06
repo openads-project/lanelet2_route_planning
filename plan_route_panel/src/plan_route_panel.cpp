@@ -224,6 +224,7 @@ PlanRoutePanel::PlanRoutePanel(QWidget* parent) : rviz_common::Panel(parent), ca
     const bool show_replanning = waypoints && continuous_planning_->isChecked();
     replanning_label->setVisible(show_replanning);
     replanning_proportion_->setVisible(show_replanning);
+    if (mode_->currentIndex() == kDestinationMode) progress_->hide();
     updatePlanButton();
   };
   connect(mode_, qOverload<int>(&QComboBox::currentIndexChanged), this, [this, update_mode](int mode) {
@@ -265,10 +266,26 @@ PlanRoutePanel::PlanRoutePanel(QWidget* parent) : rviz_common::Panel(parent), ca
             panel->tracked_goal_id_.clear();
             panel->result_goal_id_.clear();
             panel->failed_destination_goal_id_.clear();
-            panel->progress_->setRange(0, 0);
-            panel->showStatus(QObject::tr("Sending"), QObject::tr("Destination sent; waiting for route goal."));
+            // Reuse a new goal observed while the pose callback was waiting for Qt.
+            if (!panel->pending_destination_goal_id_.empty()) {
+              panel->tracked_goal_id_ = std::move(panel->pending_destination_goal_id_);
+              panel->awaiting_goal_ = false;
+              panel->requestResult(panel->tracked_goal_id_);
+              panel->showStatus(QObject::tr("Running"), QObject::tr("Route goal received."));
+            }
+            if (panel->pending_destination_status_) {
+              const auto pending = std::move(*panel->pending_destination_status_);
+              panel->pending_destination_status_.reset();
+              if (!panel->tracked_goal_id_.empty()) panel->updateGoalStatus(pending);
+            }
+            if (panel->awaiting_goal_ && panel->tracked_goal_id_.empty()) {
+              panel->progress_->setRange(0, 0);
+              panel->showStatus(QObject::tr("Sending"), QObject::tr("Destination sent; waiting for route goal."));
+            }
           });
         });
+    pending_destination_status_.reset();
+    pending_destination_goal_id_.clear();
     selecting_destination_ = true;
     manager->setCurrentTool(goal_tool);
     showStatus(tr("Selecting"), tr("Set a goal pose in RViz."));
@@ -563,6 +580,8 @@ void PlanRoutePanel::cancelRoute() {
   if (was_selecting) {
     selecting_destination_ = false;
     goal_pose_sub_.reset();
+    pending_destination_status_.reset();
+    pending_destination_goal_id_.clear();
     auto* manager = getDisplayContext()->getToolManager();
     if (manager && manager->getCurrentTool() == goal_tool_) manager->setCurrentTool(manager->getDefaultTool());
   }
@@ -612,8 +631,9 @@ void PlanRoutePanel::updatePlanButton() {
 void PlanRoutePanel::showStatus(const QString& status, const QString& detail) {
   status_->setText(tr("Status: %1").arg(status));
   detail_->setText(detail);
-  progress_->setVisible(status == tr("Sending") || status == tr("Running") ||
-                        (status == tr("Canceling") && !tracked_goal_id_.empty()));
+  progress_->setVisible(mode_->currentIndex() != kDestinationMode &&
+                        (status == tr("Sending") || status == tr("Running") ||
+                         (status == tr("Canceling") && !tracked_goal_id_.empty())));
 }
 
 bool PlanRoutePanel::rememberGoal(const std::string& goal_id) {
@@ -667,10 +687,14 @@ void PlanRoutePanel::requestResult(const std::string& goal_id) {
 }
 
 void PlanRoutePanel::updateGoalStatus(const action_msgs::msg::GoalStatusArray& msg) {
+  if (selecting_destination_) pending_destination_status_ = msg;
   for (const auto& goal : msg.status_list) {
     const auto id = goalId(goal.goal_info.goal_id.uuid);
     const bool is_new = rememberGoal(id);
-    // The action status has no sender ID, so the first new goal is only a best-effort match.
+    if (selecting_destination_ && is_new && goal.status != action_msgs::msg::GoalStatus::STATUS_UNKNOWN) {
+      pending_destination_goal_id_ = id;
+    }
+    // Action status has no sender ID, so a new goal is only a best-effort match.
     if (awaiting_goal_ && tracked_goal_id_.empty() && is_new &&
         goal.status != action_msgs::msg::GoalStatus::STATUS_UNKNOWN) {
       tracked_goal_id_ = id;
@@ -725,6 +749,7 @@ void PlanRoutePanel::updateGoalStatus(const action_msgs::msg::GoalStatusArray& m
 
 void PlanRoutePanel::updateFeedback(const std::string& goal_id,
                                     const route_planning_msgs::action::PlanRoute::Feedback& feedback) {
+  if (selecting_destination_ && !seen_goal_ids_.count(goal_id)) pending_destination_goal_id_ = goal_id;
   // Feedback may arrive before the corresponding status update.
   if (tracked_goal_id_.empty() && awaiting_goal_ && !seen_goal_ids_.count(goal_id)) {
     tracked_goal_id_ = goal_id;
