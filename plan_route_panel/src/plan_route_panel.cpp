@@ -1,4 +1,5 @@
 #include "plan_route_panel/plan_route_panel.hpp"
+#include "plan_route_panel/set_goal_point_tool.hpp"
 
 #include <algorithm>
 #include <array>
@@ -165,12 +166,12 @@ PlanRoutePanel::PlanRoutePanel(QWidget* parent) : rviz_common::Panel(parent), ca
 
   auto* action_buttons = new QHBoxLayout;
   plan_button_ = new QPushButton(tr("Plan Route"), this);
-  auto* select_points = new QPushButton(tr("Select points in RViz"), this);
+  auto* set_goal_point = new QPushButton(tr("Set destination"), this);
   cancel_button_ = new QPushButton(tr("Cancel"), this);
   plan_button_->setEnabled(false);
   cancel_button_->setEnabled(false);
   action_buttons->addWidget(plan_button_);
-  action_buttons->addWidget(select_points);
+  action_buttons->addWidget(set_goal_point);
   action_buttons->addWidget(cancel_button_);
   outer->addLayout(action_buttons);
   status_ = new QLabel(tr("Status: Idle"), this);
@@ -199,7 +200,7 @@ PlanRoutePanel::PlanRoutePanel(QWidget* parent) : rviz_common::Panel(parent), ca
   });
   connect(continuous_planning_, &QCheckBox::toggled, this,
           [update_replanning_visibility](bool) { update_replanning_visibility(); });
-  connect(select_points, &QPushButton::clicked, this, [this] {
+  connect(set_goal_point, &QPushButton::clicked, this, [this] {
     auto* manager = getDisplayContext()->getToolManager();
     if (!manager) {
       showStatus(tr("Failed"), tr("RViz tool manager is unavailable."));
@@ -208,14 +209,20 @@ PlanRoutePanel::PlanRoutePanel(QWidget* parent) : rviz_common::Panel(parent), ca
     rviz_common::Tool* tool = nullptr;
     for (int index = 0; index < manager->numTools(); ++index) {
       auto* candidate = manager->getTool(index);
-      if (candidate->getClassId() == "route_planning_msgs/PlanRoute") {
+      if (candidate->getClassId() == "plan_route_panel/SetGoalPoint") {
         tool = candidate;
         break;
       }
     }
-    if (!tool) tool = manager->addTool("route_planning_msgs/PlanRoute");
+    if (!tool) tool = manager->addTool("plan_route_panel/SetGoalPoint");
+    auto* goal_tool = dynamic_cast<SetGoalPointTool*>(tool);
+    if (!goal_tool) {
+      showStatus(tr("Failed"), tr("Set destination tool could not be loaded."));
+      return;
+    }
+    goal_tool->setClientName(clientName());
     manager->setCurrentTool(tool);
-    showStatus(tr("Selecting"), tr("Right click: waypoint · Middle click: undo · Left click: plan route."));
+    showStatus(tr("Selecting"), tr("Click once in RViz to set a destination."));
   });
   connect(plan_button_, &QPushButton::clicked, this, [this] { planRoute(); });
   connect(cancel_button_, &QPushButton::clicked, this, [this] { cancelRoute(); });

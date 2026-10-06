@@ -8,11 +8,14 @@ endif()
 find_package(ament_cmake REQUIRED)
 find_package(ament_index_cpp REQUIRED)
 find_package(action_msgs REQUIRED)
+find_package(geometry_msgs REQUIRED)
 find_package(pluginlib REQUIRED)
 find_package(rclcpp REQUIRED)
 find_package(rcl_interfaces REQUIRED)
 find_package(route_planning_msgs REQUIRED)
 find_package(rviz_common REQUIRED)
+find_package(rviz_ogre_vendor REQUIRED)
+find_package(rviz_rendering REQUIRED)
 find_package(Qt5 REQUIRED COMPONENTS Widgets)
 find_package(yaml-cpp REQUIRED)
 
@@ -20,6 +23,8 @@ set(CMAKE_AUTOMOC ON)
 add_library(${PROJECT_NAME} SHARED
   src/plan_route_panel.cpp
   include/plan_route_panel/plan_route_panel.hpp
+  src/set_goal_point_tool.cpp
+  include/plan_route_panel/set_goal_point_tool.hpp
 )
 target_compile_features(${PROJECT_NAME} PUBLIC cxx_std_17)
 target_include_directories(${PROJECT_NAME} PUBLIC
@@ -28,7 +33,8 @@ target_include_directories(${PROJECT_NAME} PUBLIC
 )
 target_link_libraries(${PROJECT_NAME} Qt5::Widgets yaml-cpp)
 ament_target_dependencies(${PROJECT_NAME}
-  ament_index_cpp action_msgs pluginlib rclcpp rcl_interfaces route_planning_msgs rviz_common
+  ament_index_cpp action_msgs geometry_msgs pluginlib rclcpp rcl_interfaces route_planning_msgs
+  rviz_common rviz_ogre_vendor rviz_rendering
 )
 
 pluginlib_export_plugin_description_file(rviz_common plugin_description.xml)
@@ -40,5 +46,6 @@ install(TARGETS ${PROJECT_NAME}
 install(DIRECTORY include/ DESTINATION include)
 install(DIRECTORY config/ DESTINATION share/${PROJECT_NAME}/config)
 ament_export_targets(export_${PROJECT_NAME} HAS_LIBRARY_TARGET)
-ament_export_dependencies(ament_index_cpp action_msgs pluginlib rclcpp rcl_interfaces route_planning_msgs rviz_common)
+ament_export_dependencies(ament_index_cpp action_msgs geometry_msgs pluginlib rclcpp rcl_interfaces route_planning_msgs
+  rviz_common rviz_ogre_vendor rviz_rendering)
 ament_package()
