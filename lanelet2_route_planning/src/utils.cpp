@@ -16,6 +16,7 @@
 
 #include <lanelet2_core/geometry/Lanelet.h>
 #include <lanelet2_core/geometry/LaneletMap.h>
+#include <lanelet2_core/geometry/LineString.h>
 #include <lanelet2_core/geometry/Polygon.h>
 #include <lanelet2_core/primitives/BasicRegulatoryElements.h>
 #include <lanelet2_core/utility/Units.h>
@@ -602,9 +603,11 @@ bool keepYieldForRoute(const lanelet::routing::LaneletPath& path,
 
   constexpr size_t max_conflict_checks = 8192;
   size_t conflict_checks = 0;
-  const auto overlaps_route_or_reaches_limit = [&](const lanelet::ConstLanelet& lanelet) {
+  const auto conflicts_with_route_or_reaches_limit = [&](const lanelet::ConstLanelet& priority_lanelet) {
+    const auto priority_centerline = lanelet::traits::toHybrid(priority_lanelet.centerline2d());
     return std::any_of(route_through_intersection.begin(), route_through_intersection.end(), [&](const auto& route_lanelet) {
-      return ++conflict_checks > max_conflict_checks || lanelet::geometry::overlaps2d(lanelet, route_lanelet);
+      return ++conflict_checks > max_conflict_checks || priority_lanelet.id() == route_lanelet.id() ||
+             lanelet::geometry::intersects(priority_centerline, lanelet::traits::toHybrid(route_lanelet.centerline2d()));
     });
   };
   for (const auto& priority_lanelet : priority_lanelets) {
@@ -635,7 +638,7 @@ bool keepYieldForRoute(const lanelet::routing::LaneletPath& path,
           if (visited.size() > max_intersection_lanelets) {
             return true;
           }
-          if (overlaps_route_or_reaches_limit(current)) {
+          if (conflicts_with_route_or_reaches_limit(current)) {
             return true;
           }
 
@@ -652,7 +655,7 @@ bool keepYieldForRoute(const lanelet::routing::LaneletPath& path,
                 return true;
               }
               exited_intersection = true;
-              if (overlaps_route_or_reaches_limit(successor)) {
+              if (conflicts_with_route_or_reaches_limit(successor)) {
                 return true;
               }
             }

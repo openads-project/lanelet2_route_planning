@@ -20,11 +20,12 @@ See [planning_interfaces](https://github.com/ika-rwth-aachen/planning_interfaces
   ways with role `outer` (optional holes use `inner`). Lanelets need no additional intersection tags.
 - The Area must overlap the first route successor after the yielding approach and cover the junction's crossing and
   merging movements. Priority lanelets must overlap it themselves or have a successor that does. Model continuous
-  `following` connections through the junction to its exits, without requiring lane changes, and accurate lanelet
-  polygons and participant permissions. Avoid including neighboring junctions in the same Area.
+  `following` connections through the junction to its exits, without requiring lane changes, and plausible centerlines
+  and participant permissions. Avoid including neighboring junctions in the same Area.
 
-Yield is omitted only if every relevant priority traversal is complete and misses the selected route in 2D. Any
-positive Area overlap includes a lanelet; conflicts use its full polygon, including the approaches and first exits.
+Yield is omitted only if every relevant priority traversal is complete and misses the selected route in 2D. Positive
+lanelet-area overlap bounds traversal. Conflicts are intersections, endpoint contacts, or shared segments of complete
+2D lanelet centerlines, including approaches and first exits; a shared lanelet always counts as a conflict.
 Vehicle, bicycle, and pedestrian graphs supply legal priority directions; ego routing uses the vehicle graph.
 Missing or invalid Area data, unavailable participant graphs, incomplete traversals, or search limits retain Yield.
 The Area filter applies only to Yield; Stop and other rule types retain their usual behavior.

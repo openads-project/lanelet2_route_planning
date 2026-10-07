@@ -312,6 +312,8 @@ struct ParticipantRoutingGraph {
  * The RightOfWay relation must reference exactly one Area with subtype `intersection` via role `intersection_area`.
  * Its geometry, including inner rings, must be valid and overlap the first route successor. Missing, ambiguous, or
  * invalid areas, unfinished traversals, and search limits retain the Yield rule.
+ * Conflicts are intersections, endpoint contacts, or shared segments of complete 2D centerlines, including approaches
+ * and first exits. A shared lanelet always counts as a conflict.
  *
  * @param[in] path selected route through the intersection
  * @param[in] yield_lanelet_idx index of the yielding approach in path
@@ -342,7 +344,7 @@ std::optional<RegulatoryElementCandidate> regulatoryElementCandidate(
  * @brief Assigns rules on the shortest path to the route element before their first effect-line crossing.
  *
  * A yield rule is omitted only when its referenced intersection area can be traversed completely and no priority
- * approach in its RightOfWay relation can overlap the selected route through that intersection.
+ * movement in its RightOfWay relation shares a lanelet or intersects the selected route's 2D lanelet centerlines.
  *
  * @param[in] path shortest path lanelets
  * @param[in] reference_line route centerline points
