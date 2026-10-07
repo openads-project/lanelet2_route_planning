@@ -23,9 +23,11 @@ See [planning_interfaces](https://github.com/ika-rwth-aachen/planning_interfaces
   `following` connections through the junction to its exits, without requiring lane changes, and plausible centerlines
   and participant permissions. Avoid including neighboring junctions in the same Area.
 
-Yield is omitted only if every relevant priority traversal is complete and misses the selected route in 2D. Positive
-lanelet-area overlap bounds traversal. Conflicts are intersections, endpoint contacts, or shared segments of complete
-2D lanelet centerlines, including approaches and first exits; a shared lanelet always counts as a conflict.
+Yield is omitted only if each relevant priority approach and legal direction reaches at least one exit and all checked
+priority centerlines miss the selected route in 2D. All reachable lanelets inside the Area and their first exits are
+checked, including the approach. Loops are checked once; individual branches need not reach an exit.
+Positive lanelet-area overlap bounds traversal. Conflicts are intersections, endpoint contacts, or shared segments of
+complete 2D lanelet centerlines, including approaches and first exits; a shared lanelet always counts as a conflict.
 Vehicle, bicycle, and pedestrian graphs supply legal priority directions; ego routing uses the vehicle graph.
-Missing or invalid Area data, unavailable participant graphs, incomplete traversals, or search limits retain Yield.
+Missing or invalid Area data, unavailable participant graphs, dead ends, missing exits, or search limits retain Yield.
 The Area filter applies only to Yield; Stop and other rule types retain their usual behavior.

@@ -765,6 +765,13 @@ ExtractRegulatoryElementsResult extractRegulatoryElements(const lanelet::ConstLa
       if (!intersection || !intersection->intersects_line1 || !intersection->intersects_line2) {
         continue;
       }
+      // A shared endpoint belongs to the preceding segment if it already intersects the effect line.
+      if (intersection->intersection.isApprox(lanelet_point_sequence.current)) {
+        const auto previous = intersectionOfLines(effect_line, {lanelet_point_sequence.prev, lanelet_point_sequence.current});
+        if (previous && previous->intersects_line1 && previous->intersects_line2) {
+          continue;
+        }
+      }
 
       size_t regulatory_element_msg_idx = 0;
       if (!candidate->lanelet_specific_reference_line && regulatory_element_msg_idx_by_id.count(candidate->id) > 0) {

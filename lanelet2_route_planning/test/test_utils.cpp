@@ -94,7 +94,7 @@ TEST_F(ExtractRegulatoryElementsTest, IgnoresStopLineOutsideRouteSegment) {  // 
 }
 
 /**
- * @brief Assigns a stop line on a shared segment only to the preceding route element.
+ * @brief Assigns an adjacent stop line on a shared endpoint only to the preceding route element.
  */
 TEST_F(ExtractRegulatoryElementsTest, AssignsStopLineToPrecedingRouteElement) {  // NOLINT
   auto priority_lanelet = makeLanelet(100, 4.0);
@@ -103,9 +103,11 @@ TEST_F(ExtractRegulatoryElementsTest, AssignsStopLineToPrecedingRouteElement) { 
   auto right_of_way = lanelet::RightOfWay::make(400, lanelet::AttributeMap(), {priority_lanelet}, {yield_lanelet}, stop_line);
   yield_lanelet.addRegulatoryElement(right_of_way);
 
-  const auto preceding_result = extractRegulatoryElements(yield_lanelet, {}, {}, makePointSequence(0.0));
-  const auto following_result = extractRegulatoryElements(
-      yield_lanelet, {}, {}, PointSequence(Eigen::Vector2d(7.0, 0.0), Eigen::Vector2d(9.0, 0.0), Eigen::Vector2d(11.0, 0.0)));
+  const auto preceding_result =
+      extractRegulatoryElements(priority_lanelet, {}, {yield_lanelet}, makePointSequence(4.0, 6.0, 8.0));
+  const auto following_result =
+      extractRegulatoryElements(priority_lanelet, {}, {yield_lanelet},
+                                PointSequence(Eigen::Vector2d(6.0, 4.0), Eigen::Vector2d(8.0, 4.0), Eigen::Vector2d(10.0, 4.0)));
 
   ASSERT_EQ(preceding_result.regulatory_element_msgs.size(), 1U);
   EXPECT_TRUE(following_result.regulatory_element_msgs.empty());
