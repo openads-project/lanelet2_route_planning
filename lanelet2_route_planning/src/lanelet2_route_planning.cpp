@@ -298,22 +298,28 @@ bool Lanelet2RoutePlanning::buildRoutingGraph() {
     return false;
   }
 
-  // get map and traffic rules
-  lanelet::LaneletMapConstPtr map = ll2_interface_->getMapPtr();
-  lanelet::traffic_rules::TrafficRulesPtr traffic_rules = getTrafficRules();
+  const auto map = ll2_interface_->getMapPtr();
+  vehicle_routing_graph_.traffic_rules = getTrafficRules();
+  bicycle_routing_graph_.traffic_rules = getTrafficRules("bicycle");
+  pedestrian_routing_graph_.traffic_rules = getTrafficRules("pedestrian");
 
-  // build routing graph
-  routing_graph_ = lanelet::routing::RoutingGraph::build(*map, *traffic_rules);
-  lanelet::routing::Route::Errors errors = routing_graph_->checkValidity();
-  if (!errors.empty()) {
-    RCLCPP_ERROR(this->get_logger(), "Failed to build valid routing graph");
-    for (size_t i = 0; i < errors.size(); ++i) {
-      RCLCPP_ERROR_STREAM(this->get_logger(), errors[i]);
+  for (auto* participant_graph : {&vehicle_routing_graph_, &bicycle_routing_graph_, &pedestrian_routing_graph_}) {
+    participant_graph->graph = lanelet::routing::RoutingGraph::build(*map, *participant_graph->traffic_rules);
+    const auto errors = participant_graph->graph->checkValidity();
+    if (!errors.empty()) {
+      RCLCPP_ERROR(this->get_logger(), "Failed to build routing graph for '%s'",
+                   participant_graph->traffic_rules->participant().c_str());
+      for (const auto& error : errors) {
+        RCLCPP_ERROR_STREAM(this->get_logger(), error);
+      }
+      if (participant_graph == &vehicle_routing_graph_) {
+        return false;
+      }
+      participant_graph->graph.reset();
     }
-    return false;
   }
 
-  RCLCPP_INFO(this->get_logger(), "Successfully built routing graph");
+  RCLCPP_INFO(this->get_logger(), "Successfully built vehicle routing graph");
   return true;
 }
 
@@ -704,16 +710,16 @@ bool Lanelet2RoutePlanning::planRoute(const geometry_msgs::msg::PointStamped& de
   }
 
   // undershoot/overshoot route endpoints to enable context before start position and behind destination
-  lanelet::ConstLanelet undershot_ego_ll =
-      followLaneletsAlongRoutingGraph(routing_graph_, ego_ll, ego_ll_position, -std::abs(route_undershoot_distance_));
-  lanelet::ConstLanelet overshot_destination_ll =
-      followLaneletsAlongRoutingGraph(routing_graph_, destination_ll, destination_ll_position, route_overshoot_distance_);
+  lanelet::ConstLanelet undershot_ego_ll = followLaneletsAlongRoutingGraph(vehicle_routing_graph_.graph, ego_ll, ego_ll_position,
+                                                                           -std::abs(route_undershoot_distance_));
+  lanelet::ConstLanelet overshot_destination_ll = followLaneletsAlongRoutingGraph(
+      vehicle_routing_graph_.graph, destination_ll, destination_ll_position, route_overshoot_distance_);
 
   // compute route from start to destination along intermediate destinations
   std::vector<lanelet::ConstLanelet> route_lanelets = {undershot_ego_ll};
   route_lanelets.insert(route_lanelets.end(), intermediate_destination_lls.begin(), intermediate_destination_lls.end());
   route_lanelets.push_back(overshot_destination_ll);
-  std::optional<lanelet::routing::Route> planned_route = getRoute(routing_graph_, route_lanelets);
+  std::optional<lanelet::routing::Route> planned_route = getRoute(vehicle_routing_graph_.graph, route_lanelets);
 
   if (planned_route) {
     starting_point_ = egoPosition(latest_ego_data_);
@@ -803,7 +809,7 @@ void Lanelet2RoutePlanning::buildGlobalRouteMessage() {
   latest_full_route_msg_ = route_msg;
   latest_main_regulatory_elements_by_route_element_ =
       regulatoryElementsAlongRoute(shortest_path, shortest_path_centerline, latest_lanelet_idx_by_reference_line_point_idx_,
-                                   routing_graph_, ll2_interface_->getMapPtr());
+                                   {&vehicle_routing_graph_, &bicycle_routing_graph_, &pedestrian_routing_graph_});
 
   // retain only the route segment from start to destination for the global route
   std::vector<Eigen::Vector2d> global_reference_line;
@@ -902,8 +908,10 @@ void Lanelet2RoutePlanning::buildEnrichedRouteMessage() {
     Eigen::Vector2d next_point_for_projection = changes_lane_to_next_point ? point : next_point;
 
     // get adjacent lanelets
-    std::vector<lanelet::ConstLanelet> adjacent_left_lanelets = adjacentLeftOrRightLanelets(lanelet, routing_graph_, true);
-    std::vector<lanelet::ConstLanelet> adjacent_right_lanelets = adjacentLeftOrRightLanelets(lanelet, routing_graph_, false);
+    std::vector<lanelet::ConstLanelet> adjacent_left_lanelets =
+        adjacentLeftOrRightLanelets(lanelet, vehicle_routing_graph_.graph, true);
+    std::vector<lanelet::ConstLanelet> adjacent_right_lanelets =
+        adjacentLeftOrRightLanelets(lanelet, vehicle_routing_graph_.graph, false);
     const int suggested_lane_idx = static_cast<int>(adjacent_left_lanelets.size());
     const int n_lanes = static_cast<int>(adjacent_left_lanelets.size() + 1 + adjacent_right_lanelets.size());
     if (latest_suggested_turn_signal_distance_ahead_by_route_element_by_lane_element_[c].empty()) {
@@ -924,7 +932,7 @@ void Lanelet2RoutePlanning::buildEnrichedRouteMessage() {
         (global_c + 1 < full_route_elements.size()) ? shortest_path[latest_lanelet_idx_by_reference_line_point_idx_[global_c + 1]]
                                                     : lanelet;
     int following_lane_idx_offset = 0;
-    if (auto result = computeFollowingLaneIdxOffset(lanelet, lanelet_of_next_point, routing_graph_)) {
+    if (auto result = computeFollowingLaneIdxOffset(lanelet, lanelet_of_next_point, vehicle_routing_graph_.graph)) {
       following_lane_idx_offset = *result;
     } else {
       RCLCPP_ERROR(this->get_logger(),

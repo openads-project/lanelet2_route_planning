@@ -307,9 +307,13 @@ class Lanelet2RoutePlanning : public rclcpp::Node {
   std::unique_ptr<Lanelet2MapInterface> ll2_interface_;
 
   /**
-   * @brief Lanelet routing graph for current map
+   * @brief Vehicle graph for ego routing and priority traffic on the current map
    */
-  lanelet::routing::RoutingGraphUPtr routing_graph_;
+  ParticipantRoutingGraph vehicle_routing_graph_;
+
+  /** @brief Additional participant graphs used only for priority-traffic traversal. */
+  ParticipantRoutingGraph bicycle_routing_graph_;
+  ParticipantRoutingGraph pedestrian_routing_graph_;
 
   /**
    * @brief Starting point in map frame

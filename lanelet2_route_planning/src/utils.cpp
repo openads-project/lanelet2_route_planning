@@ -552,34 +552,30 @@ std::optional<RegulatoryElementCandidate> regulatoryElementCandidate(
 bool keepYieldForRoute(const lanelet::routing::LaneletPath& path,
                        size_t yield_lanelet_idx,
                        const lanelet::RightOfWay& right_of_way,
-                       const lanelet::routing::RoutingGraphUPtr& routing_graph,
-                       const lanelet::LaneletMapConstPtr& map) {
-  const auto overlapsIntersection = [](const lanelet::ConstLanelet& lanelet, const lanelet::BasicPolygon2d& polygon) {
+                       const std::vector<const ParticipantRoutingGraph*>& priority_routing_graphs) {
+  const auto overlapsIntersection = [](const lanelet::ConstLanelet& lanelet, const lanelet::BasicPolygonWithHoles2d& polygon) {
     using Mask = boost::geometry::de9im::static_mask<'T', '*', '*', '*', '*', '*', '*', '*', '*'>;
     return boost::geometry::relate(lanelet::CompoundHybridPolygon2d(lanelet.polygon2d()), polygon, Mask());
   };
-  if (!routing_graph || !map || yield_lanelet_idx + 1 >= path.size()) {
+  if (priority_routing_graphs.empty() || yield_lanelet_idx >= path.size() || path.size() - yield_lanelet_idx < 2 ||
+      std::any_of(priority_routing_graphs.begin(), priority_routing_graphs.end(), [](const auto* participant_graph) {
+        return !participant_graph || !participant_graph->traffic_rules || !participant_graph->graph;
+      })) {
     return true;
   }
 
-  std::optional<lanelet::BasicPolygon2d> intersection_polygon;
-  for (const auto& polygon : map->polygonLayer.search(lanelet::geometry::boundingBox2d(path[yield_lanelet_idx + 1]))) {
-    if (!polygon.hasAttribute("type") || polygon.attribute("type").value() != "intersection_area") {
-      continue;
-    }
-    auto polygon_geometry = lanelet::traits::toBasicPolygon2d(polygon);
-    boost::geometry::correct(polygon_geometry);
-    if (!boost::geometry::is_valid(polygon_geometry)) {
-      return true;
-    }
-    if (overlapsIntersection(path[yield_lanelet_idx + 1], polygon_geometry)) {
-      if (intersection_polygon) {
-        return true;
-      }
-      intersection_polygon = std::move(polygon_geometry);
-    }
+  const auto intersection_areas = right_of_way.getParameters<lanelet::ConstArea>("intersection_area");
+  if (intersection_areas.size() != 1) {
+    return true;
   }
-  if (!intersection_polygon) {
+  const auto& intersection_area = intersection_areas.front();
+  if (!intersection_area.hasAttribute("subtype") || intersection_area.attribute("subtype").value() != "intersection") {
+    return true;
+  }
+  auto intersection_polygon = intersection_area.basicPolygonWithHoles2d();
+  boost::geometry::correct(intersection_polygon);
+  if (!boost::geometry::is_valid(intersection_polygon) ||
+      !overlapsIntersection(path[yield_lanelet_idx + 1], intersection_polygon)) {
     return true;
   }
 
@@ -587,7 +583,7 @@ bool keepYieldForRoute(const lanelet::routing::LaneletPath& path,
   // Include the approach and the first exit so boundary merges count as conflicts.
   std::vector<lanelet::ConstLanelet> route_through_intersection{path[yield_lanelet_idx]};
   size_t route_idx = yield_lanelet_idx + 1;
-  while (route_idx < path.size() && overlapsIntersection(path[route_idx], *intersection_polygon)) {
+  while (route_idx < path.size() && overlapsIntersection(path[route_idx], intersection_polygon)) {
     route_through_intersection.push_back(path[route_idx]);
     if (route_through_intersection.size() > max_intersection_lanelets + 1) {
       return true;
@@ -608,50 +604,66 @@ bool keepYieldForRoute(const lanelet::routing::LaneletPath& path,
   size_t conflict_checks = 0;
   const auto overlaps_route_or_reaches_limit = [&](const lanelet::ConstLanelet& lanelet) {
     return std::any_of(route_through_intersection.begin(), route_through_intersection.end(), [&](const auto& route_lanelet) {
-      return ++conflict_checks > max_conflict_checks || lanelet::geometry::overlaps3d(lanelet, route_lanelet);
+      return ++conflict_checks > max_conflict_checks || lanelet::geometry::overlaps2d(lanelet, route_lanelet);
     });
   };
   for (const auto& priority_lanelet : priority_lanelets) {
-    std::deque<lanelet::ConstLanelet> pending{priority_lanelet};
-    std::set<std::pair<lanelet::Id, bool>> visited;
-    bool entered_intersection = false;
-    bool exited_intersection = false;
-    while (!pending.empty()) {
-      const auto current = pending.front();
-      pending.pop_front();
-      if (!visited.insert({current.id(), current.inverted()}).second) {
-        continue;
-      }
-      if (visited.size() > max_intersection_lanelets) {
-        return true;
-      }
-      if (overlaps_route_or_reaches_limit(current)) {
-        return true;
-      }
+    bool traversed_priority = false;
+    for (const auto* participant_graph : priority_routing_graphs) {
+      for (const auto& approach : {priority_lanelet, priority_lanelet.invert()}) {
+        if (!participant_graph->traffic_rules->canPass(approach)) {
+          continue;
+        }
+        const bool approach_in_intersection = overlapsIntersection(approach, intersection_polygon);
+        const auto approach_successors = participant_graph->graph->following(approach, false);
+        // A legal reverse direction may lead away from the junction rather than enter it.
+        if (!approach_in_intersection &&
+            std::none_of(approach_successors.begin(), approach_successors.end(),
+                         [&](const auto& successor) { return overlapsIntersection(successor, intersection_polygon); })) {
+          continue;
+        }
+        traversed_priority = true;
+        std::deque<lanelet::ConstLanelet> pending{approach};
+        std::set<std::pair<lanelet::Id, bool>> visited;
+        bool exited_intersection = false;
+        while (!pending.empty()) {
+          const auto current = pending.front();
+          pending.pop_front();
+          if (!visited.insert({current.id(), current.inverted()}).second) {
+            continue;
+          }
+          if (visited.size() > max_intersection_lanelets) {
+            return true;
+          }
+          if (overlaps_route_or_reaches_limit(current)) {
+            return true;
+          }
 
-      const auto successors = routing_graph->following(current, false);
-      if (successors.empty()) {
-        return true;
-      }
-      for (const auto& successor : successors) {
-        if (overlapsIntersection(successor, *intersection_polygon)) {
-          if (current == priority_lanelet) {
-            entered_intersection = true;
-          }
-          pending.push_back(successor);
-        } else {
-          // A direct exit from the approach provides no crossing area to check.
-          if (current == priority_lanelet) {
+          const auto successors = participant_graph->graph->following(current, false);
+          if (successors.empty()) {
             return true;
           }
-          exited_intersection = true;
-          if (overlaps_route_or_reaches_limit(successor)) {
-            return true;
+          for (const auto& successor : successors) {
+            if (overlapsIntersection(successor, intersection_polygon)) {
+              pending.push_back(successor);
+            } else {
+              // A branch that bypasses the area gives no complete crossing traversal to check.
+              if (current == approach && !approach_in_intersection) {
+                return true;
+              }
+              exited_intersection = true;
+              if (overlaps_route_or_reaches_limit(successor)) {
+                return true;
+              }
+            }
           }
+        }
+        if (!exited_intersection) {
+          return true;
         }
       }
     }
-    if (!entered_intersection || !exited_intersection) {
+    if (!traversed_priority) {
       return true;
     }
   }
@@ -662,8 +674,7 @@ std::vector<std::vector<RegulatoryElementCandidate>> regulatoryElementsAlongRout
     const lanelet::routing::LaneletPath& path,
     const std::vector<Eigen::Vector2d>& reference_line,
     const std::vector<size_t>& lanelet_idx_by_point,
-    const lanelet::routing::RoutingGraphUPtr& routing_graph,
-    const lanelet::LaneletMapConstPtr& map) {
+    const std::vector<const ParticipantRoutingGraph*>& priority_routing_graphs) {
   std::vector<std::vector<RegulatoryElementCandidate>> result(reference_line.size());
   if (reference_line.size() < 2 || reference_line.size() != lanelet_idx_by_point.size()) {
     return result;
@@ -685,7 +696,7 @@ std::vector<std::vector<RegulatoryElementCandidate>> regulatoryElementsAlongRout
       }
       if (candidate->message.type == route_planning_msgs::msg::RegulatoryElement::TYPE_YIELD) {
         const auto right_of_way = std::dynamic_pointer_cast<const lanelet::RightOfWay>(regulatory_element);
-        if (right_of_way && !keepYieldForRoute(path, lanelet_idx, *right_of_way, routing_graph, map)) {
+        if (right_of_way && !keepYieldForRoute(path, lanelet_idx, *right_of_way, priority_routing_graphs)) {
           continue;
         }
       }
@@ -1096,10 +1107,9 @@ std::tuple<uint8_t, int> suggestedTurnSignal(const lanelet::ConstLanelet& lanele
   return std::make_tuple(suggested_turn_signal, suggested_turn_signal_distance_ahead);
 }
 
-lanelet::traffic_rules::TrafficRulesPtr getTrafficRules() {
-  auto location = lanelet::Locations::Germany;                      // NOLINT(cppcoreguidelines-pro-bounds-array-to-pointer-decay)
-  auto vehicle_type = std::string(lanelet::Participants::Vehicle);  // NOLINT(cppcoreguidelines-pro-bounds-array-to-pointer-decay)
-  return lanelet::traffic_rules::TrafficRulesFactory::create(location, vehicle_type);
+lanelet::traffic_rules::TrafficRulesPtr getTrafficRules(const std::string& participant) {
+  auto location = lanelet::Locations::Germany;  // NOLINT(cppcoreguidelines-pro-bounds-array-to-pointer-decay)
+  return lanelet::traffic_rules::TrafficRulesFactory::create(location, participant);
 }
 
 std::optional<lanelet::ConstLanelet> laneletAtPoint(const Eigen::Vector2d& point,

@@ -8,10 +8,10 @@
 #include <cstdint>
 #include <memory>
 #include <optional>
+#include <string>
 #include <utility>
 #include <vector>
 
-#include <lanelet2_core/LaneletMap.h>
 #include <lanelet2_core/primitives/BasicRegulatoryElements.h>
 #include <lanelet2_core/primitives/Lanelet.h>
 #include <lanelet2_routing/LaneletPath.h>
@@ -300,24 +300,29 @@ struct RegulatoryElementCandidate {
   bool lanelet_specific_reference_line = false;
 };
 
+/** @brief Routing graph and traffic rules for one kind of traffic participant. */
+struct ParticipantRoutingGraph {
+  lanelet::traffic_rules::TrafficRulesPtr traffic_rules;
+  lanelet::routing::RoutingGraphUPtr graph;
+};
+
 /**
- * @brief Keeps a RightOfWay Yield unless every priority path through the intersection polygon misses the chosen route.
+ * @brief Keeps a RightOfWay Yield unless every priority path through its intersection area misses the chosen route.
  *
- * The first route successor must overlap exactly one `intersection_area` polygon. Missing or ambiguous polygons,
- * unfinished traversals, and search limits retain the Yield rule.
+ * The RightOfWay relation must reference exactly one Area with subtype `intersection` via role `intersection_area`.
+ * Its geometry, including inner rings, must be valid and overlap the first route successor. Missing, ambiguous, or
+ * invalid areas, unfinished traversals, and search limits retain the Yield rule.
  *
  * @param[in] path selected route through the intersection
  * @param[in] yield_lanelet_idx index of the yielding approach in path
- * @param[in] right_of_way relation that lists the priority approaches
- * @param[in] routing_graph graph used to follow every priority maneuver
- * @param[in] map lanelet map containing the intersection polygons
+ * @param[in] right_of_way relation that lists the priority approaches and references the intersection area
+ * @param[in] priority_routing_graphs participant graphs used to follow all legal priority maneuvers in 2D
  * @return true if Yield must remain in the route message
  */
 bool keepYieldForRoute(const lanelet::routing::LaneletPath& path,
                        size_t yield_lanelet_idx,
                        const lanelet::RightOfWay& right_of_way,
-                       const lanelet::routing::RoutingGraphUPtr& routing_graph,
-                       const lanelet::LaneletMapConstPtr& map);
+                       const std::vector<const ParticipantRoutingGraph*>& priority_routing_graphs);
 
 /**
  * @brief Selects a rule that applies to the given lanelet and determines its effect line.
@@ -336,22 +341,20 @@ std::optional<RegulatoryElementCandidate> regulatoryElementCandidate(
 /**
  * @brief Assigns rules on the shortest path to the route element before their first effect-line crossing.
  *
- * A yield rule is omitted only when the intersection polygon can be traversed completely and no priority
+ * A yield rule is omitted only when its referenced intersection area can be traversed completely and no priority
  * approach in its RightOfWay relation can overlap the selected route through that intersection.
  *
  * @param[in] path shortest path lanelets
  * @param[in] reference_line route centerline points
  * @param[in] lanelet_idx_by_point path index for each reference-line point
- * @param[in] routing_graph graph used to follow priority maneuvers
- * @param[in] map lanelet map containing the intersection polygons
+ * @param[in] priority_routing_graphs participant graphs used to follow priority maneuvers
  * @return regulatory elements for each reference-line point
  */
 std::vector<std::vector<RegulatoryElementCandidate>> regulatoryElementsAlongRoute(
     const lanelet::routing::LaneletPath& path,
     const std::vector<Eigen::Vector2d>& reference_line,
     const std::vector<size_t>& lanelet_idx_by_point,
-    const lanelet::routing::RoutingGraphUPtr& routing_graph,
-    const lanelet::LaneletMapConstPtr& map);
+    const std::vector<const ParticipantRoutingGraph*>& priority_routing_graphs);
 
 /**
  * @brief Extracts regulatory element information for a route element.
@@ -495,11 +498,12 @@ uint8_t speedLimit(const lanelet::ConstLanelet& lanelet, const Eigen::Vector2d& 
 std::tuple<uint8_t, int> suggestedTurnSignal(const lanelet::ConstLanelet& lanelet, const rclcpp::Logger& logger);
 
 /**
- * @brief Get traffic rules.
+ * @brief Get German traffic rules for the given participant.
  *
+ * @param[in] participant traffic participant, defaulting to vehicle
  * @return traffic rules
  */
-lanelet::traffic_rules::TrafficRulesPtr getTrafficRules();
+lanelet::traffic_rules::TrafficRulesPtr getTrafficRules(const std::string& participant = "vehicle");
 
 /**
  * @brief Find lanelet at arbitrary point.
