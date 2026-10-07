@@ -3,6 +3,7 @@
 
 #pragma once
 
+#include <cstdint>
 #include <memory>
 #include <optional>
 #include <string>
@@ -127,7 +128,7 @@ class PlanRouteActionClient : public rclcpp::Node {
    *
    * @param[in] goal_handle goal handle
    */
-  void goalResponseCallback(const GoalHandlePlanRoute::SharedPtr& goal_handle);
+  void goalResponseCallback(const GoalHandlePlanRoute::SharedPtr& goal_handle, std::uint64_t generation);
 
   /**
    * @brief Callback for feedback from the action server
@@ -142,7 +143,7 @@ class PlanRouteActionClient : public rclcpp::Node {
    *
    * @param[in] result action result
    */
-  void resultCallback(const GoalHandlePlanRoute::WrappedResult& result);
+  void resultCallback(const GoalHandlePlanRoute::WrappedResult& result, std::uint64_t generation);
 
   /**
    * @brief Auto-reconfigurable parameters for dynamic reconfiguration
@@ -246,6 +247,11 @@ class PlanRouteActionClient : public rclcpp::Node {
    * @brief Goal ID currently providing authoritative feedback
    */
   std::optional<rclcpp_action::GoalUUID> active_goal_id_;
+
+  /**
+   * @brief Invalidates responses from goals sent before the last cancellation
+   */
+  std::uint64_t goal_generation_ = 0;
 
   /**
    * @brief Earliest wall-clock time at which automatic planning may continue

@@ -160,7 +160,10 @@ void PlanRouteActionClient::declareAndLoadParameter(const std::string& name,
 
 rcl_interfaces::msg::SetParametersResult PlanRouteActionClient::parametersCallback(
     const std::vector<rclcpp::Parameter>& parameters) {
+  bool cancel_requested = false;
   for (const auto& param : parameters) {
+    const bool enable_random_destination = param.get_name() == "enable_random_destination" && param.as_bool();
+    const bool random_was_disabled = !enable_random_destination_;
     for (auto& auto_reconfigurable_param : auto_reconfigurable_params_) {
       if (param.get_name() == std::get<0>(auto_reconfigurable_param)) {
         std::get<1>(auto_reconfigurable_param)(param);
@@ -169,11 +172,17 @@ rcl_interfaces::msg::SetParametersResult PlanRouteActionClient::parametersCallba
       }
     }
 
+    if (enable_random_destination && random_was_disabled) {
+      has_completed_one_goal_ = false;
+    }
+
     // handle waypoints
     if (param.get_name() == "waypoints") {
       auto parsed_waypoints = parseWaypoints(waypoints_param_, waypoint_wait_times_, this->get_logger());
       if (parsed_waypoints) {
         waypoints_ = *parsed_waypoints;
+        next_waypoint_idx_ = 0;
+        auto_planning_resume_time_s_ = 0.0;
       } else {
         std::stringstream ss;
         ss << "Failed to parse parameter 'waypoints': [";
@@ -184,16 +193,31 @@ rcl_interfaces::msg::SetParametersResult PlanRouteActionClient::parametersCallba
       }
     }
 
-    // handle cancel_route
-    if (param.get_name() == "cancel_route") {
-      if (cancel_route_) {
-        if (action_client_->wait_for_action_server(std::chrono::duration<double>(0.1))) {
-          RCLCPP_INFO(this->get_logger(), "Cancelling route");
-          action_client_->async_cancel_all_goals();
-        } else {
-          RCLCPP_WARN(this->get_logger(), "Action server not available, cannot cancel route");
-        }
-      }
+    if (param.get_name() == "cancel_route" && cancel_route_) {
+      cancel_requested = true;
+    }
+  }
+
+  if (cancel_requested) {
+    ++goal_generation_;
+    next_waypoint_idx_ = 0;
+    has_completed_one_goal_ = false;
+    auto_planning_resume_time_s_ = 0.0;
+    has_active_waypoint_ = false;
+    active_waypoint_wait_time_s_ = 0.0;
+    active_route_waypoints_.clear();
+    active_route_waypoint_indices_.clear();
+    pending_route_waypoints_.clear();
+    pending_route_waypoint_indices_.clear();
+    continuous_replanning_pending_ = false;
+    replaced_goal_id_.reset();
+    active_goal_id_.reset();
+    auto_planning_timer_->reset();
+    if (action_client_->wait_for_action_server(std::chrono::duration<double>(0.1))) {
+      RCLCPP_INFO(this->get_logger(), "Cancelling route");
+      action_client_->async_cancel_all_goals();
+    } else {
+      RCLCPP_WARN(this->get_logger(), "Action server not available, cannot cancel route");
     }
   }
 
@@ -445,15 +469,24 @@ void PlanRouteActionClient::sendGoal(const geometry_msgs::msg::PoseStamped::Shar
 
   // send goal
   auto send_goal_options = rclcpp_action::Client<PlanRoute>::SendGoalOptions();
-  send_goal_options.goal_response_callback = std::bind(&PlanRouteActionClient::goalResponseCallback, this, std::placeholders::_1);
+  const auto generation = goal_generation_;
+  send_goal_options.goal_response_callback =
+      std::bind(&PlanRouteActionClient::goalResponseCallback, this, std::placeholders::_1, generation);
   send_goal_options.feedback_callback =
       std::bind(&PlanRouteActionClient::feedbackCallback, this, std::placeholders::_1, std::placeholders::_2);
-  send_goal_options.result_callback = std::bind(&PlanRouteActionClient::resultCallback, this, std::placeholders::_1);
+  send_goal_options.result_callback =
+      std::bind(&PlanRouteActionClient::resultCallback, this, std::placeholders::_1, generation);
   goal_handle_future_ = action_client_->async_send_goal(goal, send_goal_options);
   RCLCPP_INFO(this->get_logger(), "Goal sent");
 }
 
-void PlanRouteActionClient::goalResponseCallback(const GoalHandlePlanRoute::SharedPtr& goal_handle) {
+void PlanRouteActionClient::goalResponseCallback(const GoalHandlePlanRoute::SharedPtr& goal_handle, std::uint64_t generation) {
+  if (generation != goal_generation_) {
+    if (goal_handle) {
+      action_client_->async_cancel_goal(goal_handle);
+    }
+    return;
+  }
   if (!goal_handle) {
     RCLCPP_ERROR(this->get_logger(), "Goal rejected by action server");
     if (continuous_replanning_pending_) {
@@ -592,7 +625,10 @@ void PlanRouteActionClient::feedbackCallback(GoalHandlePlanRoute::SharedPtr goal
   this->sendGoal(goal_pose, intermediate_destinations);
 }
 
-void PlanRouteActionClient::resultCallback(const GoalHandlePlanRoute::WrappedResult& result) {
+void PlanRouteActionClient::resultCallback(const GoalHandlePlanRoute::WrappedResult& result, std::uint64_t generation) {
+  if (generation != goal_generation_) {
+    return;
+  }
   if (replaced_goal_id_.has_value() && result.goal_id == replaced_goal_id_.value() &&
       result.code == rclcpp_action::ResultCode::ABORTED) {
     RCLCPP_INFO(this->get_logger(), "Previous waypoint goal aborted after continuous replanning");

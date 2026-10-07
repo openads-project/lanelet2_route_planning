@@ -1,0 +1,7 @@
+<library path="plan_route_panel">
+  <class name="plan_route_panel/PlanRoutePanel"
+         type="plan_route_panel::PlanRoutePanel"
+         base_class_type="rviz_common::Panel">
+    <description>Control and monitor the Lanelet2 route planning action client.</description>
+  </class>
+</library>

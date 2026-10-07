@@ -546,7 +546,7 @@ void Lanelet2RoutePlanning::actionExecute(
   }
 
   // prepare result
-  action_result_->distance_traveled = action_feedback_->distance_traveled + action_feedback_->distance_remaining;
+  action_result_->distance_traveled = action_feedback_->distance_traveled;
   action_result_->time_traveled = this->now() - action_start_time_;
   action_result_->destination_reached = has_reached_destination;
 
