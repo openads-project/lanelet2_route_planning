@@ -6,10 +6,13 @@
 #include <array>
 #include <cstddef>
 #include <cstdint>
+#include <memory>
 #include <optional>
+#include <string>
 #include <utility>
 #include <vector>
 
+#include <lanelet2_core/primitives/BasicRegulatoryElements.h>
 #include <lanelet2_core/primitives/Lanelet.h>
 #include <lanelet2_routing/LaneletPath.h>
 #include <lanelet2_routing/RoutingGraph.h>
@@ -279,8 +282,9 @@ bool isLineStringDrivable(const lanelet::ConstLineString3d& line_string);
  */
 struct ExtractRegulatoryElementsResult {
   std::vector<route_planning_msgs::msg::RegulatoryElement>
-      regulatory_element_msgs;                   ///< regulatory element messages for route element
-  std::vector<uint8_t> regulatory_element_idcs;  ///< indices of regulatory elements belonging to main lane
+      regulatory_element_msgs;                      ///< regulatory element messages for route element
+  std::vector<lanelet::Id> regulatory_element_ids;  ///< source IDs, parallel to regulatory_element_msgs
+  std::vector<uint8_t> regulatory_element_idcs;     ///< indices of regulatory elements belonging to main lane
   std::vector<std::vector<uint8_t>>
       adjacent_left_regulatory_element_idcs;  ///< indices of regulatory elements belonging to left adjacent lanes
   std::vector<std::vector<uint8_t>>
@@ -288,23 +292,96 @@ struct ExtractRegulatoryElementsResult {
 };
 
 /**
+ * @brief A rule and its effect line, selected for one lanelet.
+ */
+struct RegulatoryElementCandidate {
+  lanelet::Id id;
+  route_planning_msgs::msg::RegulatoryElement message;
+  bool lanelet_specific_reference_line = false;
+};
+
+/** @brief Routing graph and traffic rules for one kind of traffic participant. */
+struct ParticipantRoutingGraph {
+  lanelet::traffic_rules::TrafficRulesPtr traffic_rules;
+  lanelet::routing::RoutingGraphUPtr graph;
+};
+
+/**
+ * @brief Keeps a RightOfWay Yield unless every priority path through its intersection area misses the chosen route.
+ *
+ * The RightOfWay relation must reference exactly one Area with subtype `intersection` via role `intersection_area`.
+ * Its geometry, including inner rings, must be valid and overlap the first route successor. Missing, ambiguous, or
+ * invalid areas, dead ends, missing exits, and search limits retain the Yield rule.
+ * Each relevant priority approach and legal direction must reach at least one exit. All reachable lanelets inside
+ * the Area and their first exits are checked; loops are visited once, without requiring every branch to exit.
+ * Conflicts are intersections, endpoint contacts, or shared segments of complete 2D centerlines, including approaches
+ * and first exits. A shared lanelet always counts as a conflict.
+ *
+ * @param[in] path selected route through the intersection
+ * @param[in] yield_lanelet_idx index of the yielding approach in path
+ * @param[in] right_of_way relation that lists the priority approaches and references the intersection area
+ * @param[in] priority_routing_graphs participant graphs used to follow all legal priority maneuvers in 2D
+ * @return true if Yield must remain in the route message
+ */
+bool keepYieldForRoute(const lanelet::routing::LaneletPath& path,
+                       size_t yield_lanelet_idx,
+                       const lanelet::RightOfWay& right_of_way,
+                       const std::vector<const ParticipantRoutingGraph*>& priority_routing_graphs);
+
+/**
+ * @brief Selects a rule that applies to the given lanelet and determines its effect line.
+ *
+ * Yield, stop, and traffic-light rules without an explicit line use the end of the affected lanelet.
+ * Speed limits require an explicit line to appear as regulatory-element messages; lanelet-wide limits
+ * remain available through LaneElement.speed_limit.
+ *
+ * @param[in] lanelet lanelet affected by the rule
+ * @param[in] regulatory_element rule to extract
+ * @return rule and effect line, if applicable
+ */
+std::optional<RegulatoryElementCandidate> regulatoryElementCandidate(
+    const lanelet::ConstLanelet& lanelet, const std::shared_ptr<const lanelet::RegulatoryElement>& regulatory_element);
+
+/**
+ * @brief Assigns rules on the shortest path to the route element before their first effect-line crossing.
+ *
+ * A yield rule is omitted only when keepYieldForRoute confirms that the priority movements do not conflict with
+ * the selected route and satisfy its exit and validity checks.
+ *
+ * @param[in] path shortest path lanelets
+ * @param[in] reference_line route centerline points
+ * @param[in] lanelet_idx_by_point path index for each reference-line point
+ * @param[in] priority_routing_graphs participant graphs used to follow priority maneuvers
+ * @return regulatory elements for each reference-line point
+ */
+std::vector<std::vector<RegulatoryElementCandidate>> regulatoryElementsAlongRoute(
+    const lanelet::routing::LaneletPath& path,
+    const std::vector<Eigen::Vector2d>& reference_line,
+    const std::vector<size_t>& lanelet_idx_by_point,
+    const std::vector<const ParticipantRoutingGraph*>& priority_routing_graphs);
+
+/**
  * @brief Extracts regulatory element information for a route element.
  *
  * Regulatory elements are queried from a lanelet and its adjacent lanelets. They are only considered if their reference
- * line intersects with the given point sequence, which should be the centerline of the main lanelet. This way,
- * regulatory elements are assignable to the closest route element. Note that the assignment to adjacent lanes is also
- * based on the intersection with the single given point sequence.
+ * line intersects with the forward segment of the given point sequence. Adjacent lanes use their own centerlines
+ * projected from the given point sequence for this intersection check. The main route uses
+ * regulatoryElementsAlongRoute so lines beyond their source lanelet can be found.
+ * Right-of-way rules apply only to yielding lanelets. All-way-stop rules use each lanelet's own stop line. For
+ * right-of-way, all-way-stop, and traffic-light rules without a stop line, the lanelet end is used.
  *
  * @param[in] lanelet lanelet
  * @param[in] adjacent_left_lanelets left adjacent lanelets
  * @param[in] adjacent_right_lanelets right adjacent lanelets
  * @param[in] point_sequence point sequence (should be centerline of main lanelet)
+ * @param[in] include_main_lanelet whether to process the main lanelet (false when route-wide assignments are used)
  * @return regulatory element information
  */
 ExtractRegulatoryElementsResult extractRegulatoryElements(const lanelet::ConstLanelet& lanelet,
                                                           const std::vector<lanelet::ConstLanelet>& adjacent_left_lanelets,
                                                           const std::vector<lanelet::ConstLanelet>& adjacent_right_lanelets,
-                                                          const PointSequence& point_sequence);
+                                                          const PointSequence& point_sequence,
+                                                          bool include_main_lanelet = true);
 
 /**
  * @brief Extracts the reference/effect line of a regulatory element.
@@ -425,11 +502,12 @@ uint8_t speedLimit(const lanelet::ConstLanelet& lanelet, const Eigen::Vector2d& 
 std::tuple<uint8_t, int> suggestedTurnSignal(const lanelet::ConstLanelet& lanelet, const rclcpp::Logger& logger);
 
 /**
- * @brief Get traffic rules.
+ * @brief Get German traffic rules for the given participant.
  *
+ * @param[in] participant traffic participant, defaulting to vehicle
  * @return traffic rules
  */
-lanelet::traffic_rules::TrafficRulesPtr getTrafficRules();
+lanelet::traffic_rules::TrafficRulesPtr getTrafficRules(const std::string& participant = "vehicle");
 
 /**
  * @brief Find lanelet at arbitrary point.
