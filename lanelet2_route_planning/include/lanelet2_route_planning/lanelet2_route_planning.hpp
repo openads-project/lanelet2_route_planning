@@ -311,8 +311,14 @@ class Lanelet2RoutePlanning : public rclcpp::Node {
    */
   ParticipantRoutingGraph vehicle_routing_graph_;
 
-  /** @brief Additional participant graphs used only for priority-traffic traversal. */
+  /**
+   * @brief Additional bicycle routing graph used only for priority-traffic traversal
+   */
   ParticipantRoutingGraph bicycle_routing_graph_;
+
+  /**
+   * @brief Additional pedestrian routing graph used only for priority-traffic traversal
+   */
   ParticipantRoutingGraph pedestrian_routing_graph_;
 
   /**
@@ -380,7 +386,9 @@ class Lanelet2RoutePlanning : public rclcpp::Node {
    */
   std::vector<size_t> latest_lanelet_idx_by_reference_line_point_idx_;
 
-  /** @brief Regulatory elements on the shortest path, indexed by complete route element. */
+  /**
+   * @brief Latest regulatory elements on the shortest path by complete route element
+   */
   std::vector<std::vector<RegulatoryElementCandidate>> latest_main_regulatory_elements_by_route_element_;
 
   /**

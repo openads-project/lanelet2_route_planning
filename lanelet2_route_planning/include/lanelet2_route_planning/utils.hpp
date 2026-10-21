@@ -292,18 +292,20 @@ struct ExtractRegulatoryElementsResult {
 };
 
 /**
- * @brief A rule and its effect line, selected for one lanelet.
+ * @brief Return type of regulatoryElementCandidate.
  */
 struct RegulatoryElementCandidate {
-  lanelet::Id id;
-  route_planning_msgs::msg::RegulatoryElement message;
-  bool lanelet_specific_reference_line = false;
+  lanelet::Id id;                                       ///< source ID of regulatory element
+  route_planning_msgs::msg::RegulatoryElement message;  ///< regulatory element message including effect line
+  bool lanelet_specific_reference_line = false;         ///< whether effect line belongs only to the given lanelet
 };
 
-/** @brief Routing graph and traffic rules for one kind of traffic participant. */
+/**
+ * @brief Routing graph and traffic rules for one kind of traffic participant.
+ */
 struct ParticipantRoutingGraph {
-  lanelet::traffic_rules::TrafficRulesPtr traffic_rules;
-  lanelet::routing::RoutingGraphUPtr graph;
+  lanelet::traffic_rules::TrafficRulesPtr traffic_rules;  ///< traffic rules of participant
+  lanelet::routing::RoutingGraphUPtr graph;               ///< routing graph built with traffic rules
 };
 
 /**
@@ -507,7 +509,8 @@ std::tuple<uint8_t, int> suggestedTurnSignal(const lanelet::ConstLanelet& lanele
  * @param[in] participant traffic participant, defaulting to vehicle
  * @return traffic rules
  */
-lanelet::traffic_rules::TrafficRulesPtr getTrafficRules(const std::string& participant = "vehicle");
+// NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-array-to-pointer-decay)
+lanelet::traffic_rules::TrafficRulesPtr getTrafficRules(const std::string& participant = lanelet::Participants::Vehicle);
 
 /**
  * @brief Find lanelet at arbitrary point.

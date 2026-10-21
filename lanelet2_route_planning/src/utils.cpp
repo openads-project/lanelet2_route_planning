@@ -491,6 +491,7 @@ bool isLineStringDrivable(const lanelet::ConstLineString3d& line_string) {
 
 std::optional<RegulatoryElementCandidate> regulatoryElementCandidate(
     const lanelet::ConstLanelet& lanelet, const std::shared_ptr<const lanelet::RegulatoryElement>& regulatory_element) {
+  // only consider right-of-way rules for lanelets that have to yield
   const auto right_of_way = std::dynamic_pointer_cast<const lanelet::RightOfWay>(regulatory_element);
   if (right_of_way && right_of_way->getManeuver(lanelet) != lanelet::ManeuverType::Yield) {
     return std::nullopt;
@@ -498,6 +499,7 @@ std::optional<RegulatoryElementCandidate> regulatoryElementCandidate(
   const auto all_way_stop = std::dynamic_pointer_cast<const lanelet::AllWayStop>(regulatory_element);
   const auto traffic_light = std::dynamic_pointer_cast<const lanelet::TrafficLight>(regulatory_element);
 
+  // create RegulatoryElement and skip unsupported types
   RegulatoryElementCandidate candidate;
   candidate.id = regulatory_element->id();
   candidate.message.has_validity_stamp = false;
@@ -510,6 +512,7 @@ std::optional<RegulatoryElementCandidate> regulatoryElementCandidate(
     return std::nullopt;
   }
 
+  // extract reference line, using the lanelet-specific stop line for all-way stops
   auto reference_line = regulatoryElementReferenceLine(regulatory_element);
   bool has_stop_line = false;
   if (all_way_stop) {
@@ -535,6 +538,8 @@ std::optional<RegulatoryElementCandidate> regulatoryElementCandidate(
   if (has_stop_line && !reference_line) {
     return std::nullopt;
   }
+
+  // use lanelet end as reference line for yield, stop, and traffic-light rules without stop line
   if (!has_stop_line && (right_of_way || all_way_stop || traffic_light)) {
     if (lanelet.leftBound().empty() || lanelet.rightBound().empty()) {
       return std::nullopt;
@@ -546,6 +551,8 @@ std::optional<RegulatoryElementCandidate> regulatoryElementCandidate(
   if (!reference_line) {
     return std::nullopt;
   }
+
+  // set reference line and sign positions
   candidate.message.reference_line = *reference_line;
   candidate.message.positions = regulatoryElementPositions(regulatory_element);
   return candidate;
@@ -555,10 +562,13 @@ bool keepYieldForRoute(const lanelet::routing::LaneletPath& path,
                        size_t yield_lanelet_idx,
                        const lanelet::RightOfWay& right_of_way,
                        const std::vector<const ParticipantRoutingGraph*>& priority_routing_graphs) {
+  // lanelets belong to the intersection if their interiors overlap with the intersection area
   const auto overlapsIntersection = [](const lanelet::ConstLanelet& lanelet, const lanelet::BasicPolygonWithHoles2d& polygon) {
     using Mask = boost::geometry::de9im::static_mask<'T', '*', '*', '*', '*', '*', '*', '*', '*'>;
     return boost::geometry::relate(lanelet::CompoundHybridPolygon2d(lanelet.polygon2d()), polygon, Mask());
   };
+
+  // keep yield if inputs are incomplete
   if (priority_routing_graphs.empty() || yield_lanelet_idx >= path.size() || path.size() - yield_lanelet_idx < 2 ||
       std::any_of(priority_routing_graphs.begin(), priority_routing_graphs.end(), [](const auto* participant_graph) {
         return !participant_graph || !participant_graph->traffic_rules || !participant_graph->graph;
@@ -566,6 +576,7 @@ bool keepYieldForRoute(const lanelet::routing::LaneletPath& path,
     return true;
   }
 
+  // get valid intersection area that overlaps with the route after the yielding lanelet
   const auto intersection_areas = right_of_way.getParameters<lanelet::ConstArea>("intersection_area");
   if (intersection_areas.size() != 1) {
     return true;
@@ -581,8 +592,8 @@ bool keepYieldForRoute(const lanelet::routing::LaneletPath& path,
     return true;
   }
 
+  // collect route lanelets through intersection, including approach and first exit to detect merges at its boundary
   constexpr size_t max_intersection_lanelets = 256;
-  // Include the approach and the first exit so boundary merges count as conflicts.
   std::vector<lanelet::ConstLanelet> route_through_intersection{path[yield_lanelet_idx]};
   size_t route_idx = yield_lanelet_idx + 1;
   while (route_idx < path.size() && overlapsIntersection(path[route_idx], intersection_polygon)) {
@@ -597,11 +608,13 @@ bool keepYieldForRoute(const lanelet::routing::LaneletPath& path,
   }
   route_through_intersection.push_back(path[route_idx]);
 
+  // get priority lanelets
   const auto priority_lanelets = right_of_way.rightOfWayLanelets();
   if (priority_lanelets.empty()) {
     return true;
   }
 
+  // check whether a priority lanelet shares a lanelet or 2D centerline point with the route through the intersection
   constexpr size_t max_conflict_checks = 8192;
   size_t conflict_checks = 0;
   const auto conflicts_with_route_or_reaches_limit = [&](const lanelet::ConstLanelet& priority_lanelet) {
@@ -611,6 +624,8 @@ bool keepYieldForRoute(const lanelet::routing::LaneletPath& path,
              lanelet::geometry::intersects(priority_centerline, lanelet::traits::toHybrid(route_lanelet.centerline2d()));
     });
   };
+
+  // loop over priority lanelets, participants, and legal directions
   for (const auto& priority_lanelet : priority_lanelets) {
     bool traversed_priority = false;
     for (const auto* participant_graph : priority_routing_graphs) {
@@ -618,15 +633,18 @@ bool keepYieldForRoute(const lanelet::routing::LaneletPath& path,
         if (!participant_graph->traffic_rules->canPass(approach)) {
           continue;
         }
+
+        // skip directions leading away from the intersection
         const bool approach_in_intersection = overlapsIntersection(approach, intersection_polygon);
         const auto approach_successors = participant_graph->graph->following(approach, false);
-        // A legal reverse direction may lead away from the junction rather than enter it.
         if (!approach_in_intersection &&
             std::none_of(approach_successors.begin(), approach_successors.end(),
                          [&](const auto& successor) { return overlapsIntersection(successor, intersection_polygon); })) {
           continue;
         }
         traversed_priority = true;
+
+        // traverse all lanelets reachable inside the intersection and check them for conflicts
         std::deque<lanelet::ConstLanelet> pending{approach};
         std::set<std::pair<lanelet::Id, bool>> visited;
         bool exited_intersection = false;
@@ -643,6 +661,7 @@ bool keepYieldForRoute(const lanelet::routing::LaneletPath& path,
             return true;
           }
 
+          // keep yield for dead ends inside the intersection
           const auto successors = participant_graph->graph->following(current, false);
           if (successors.empty()) {
             if (boost::geometry::covered_by(current.centerline2d().back().basicPoint(), intersection_polygon)) {
@@ -651,11 +670,13 @@ bool keepYieldForRoute(const lanelet::routing::LaneletPath& path,
             exited_intersection = true;
             continue;
           }
+
+          // continue with successors inside the intersection and check first exits
           for (const auto& successor : successors) {
             if (overlapsIntersection(successor, intersection_polygon)) {
               pending.push_back(successor);
             } else {
-              // A branch that bypasses the area gives no complete crossing traversal to check.
+              // keep yield if an approach branch bypasses the intersection
               if (current == approach && !approach_in_intersection) {
                 return true;
               }
@@ -666,11 +687,15 @@ bool keepYieldForRoute(const lanelet::routing::LaneletPath& path,
             }
           }
         }
+
+        // keep yield if the intersection is never exited
         if (!exited_intersection) {
           return true;
         }
       }
     }
+
+    // keep yield if no participant enters the intersection from the priority lanelet
     if (!traversed_priority) {
       return true;
     }
@@ -683,31 +708,39 @@ std::vector<std::vector<RegulatoryElementCandidate>> regulatoryElementsAlongRout
     const std::vector<Eigen::Vector2d>& reference_line,
     const std::vector<size_t>& lanelet_idx_by_point,
     const std::vector<const ParticipantRoutingGraph*>& priority_routing_graphs) {
+  // init result
   std::vector<std::vector<RegulatoryElementCandidate>> result(reference_line.size());
   if (reference_line.size() < 2 || reference_line.size() != lanelet_idx_by_point.size()) {
     return result;
   }
 
+  // loop over lanelets of path
   for (size_t lanelet_idx = 0; lanelet_idx < path.size(); ++lanelet_idx) {
+    // find first route segment of lanelet, including the segment entering it
     const auto first_point = std::lower_bound(lanelet_idx_by_point.begin(), lanelet_idx_by_point.end(), lanelet_idx);
     if (first_point == lanelet_idx_by_point.end()) {
       break;
     }
     const size_t first_point_idx = std::distance(lanelet_idx_by_point.begin(), first_point);
-    // Include the segment entering this lanelet, then continue into successors if the effect line lies beyond its end.
     const size_t first_segment = first_point_idx > 0 ? first_point_idx - 1 : 0;
+
+    // loop over regulatory elements of lanelet
     const auto& lanelet = path[lanelet_idx];
     for (const auto& regulatory_element : lanelet.regulatoryElements()) {
       auto candidate = regulatoryElementCandidate(lanelet, regulatory_element);
       if (!candidate) {
         continue;
       }
+
+      // omit yield if no priority traffic conflicts with route
       if (candidate->message.type == route_planning_msgs::msg::RegulatoryElement::TYPE_YIELD) {
         const auto right_of_way = std::dynamic_pointer_cast<const lanelet::RightOfWay>(regulatory_element);
         if (right_of_way && !keepYieldForRoute(path, lanelet_idx, *right_of_way, priority_routing_graphs)) {
           continue;
         }
       }
+
+      // assign regulatory element to route element before first intersected route segment, also beyond lanelet end
       const auto& line = candidate->message.reference_line;
       const std::vector<Eigen::Vector2d> effect_line = {toEigen2d(line[0]), toEigen2d(line[1])};
       for (size_t c = first_segment; c + 1 < reference_line.size(); ++c) {
@@ -716,6 +749,7 @@ std::vector<std::vector<RegulatoryElementCandidate>> regulatoryElementsAlongRout
         if (!intersection || !intersection->intersects_line1 || !intersection->intersects_line2) {
           continue;
         }
+        // check if regulatory element has already been assigned (by another lanelet)
         auto& assigned = result[c];
         const bool already_assigned = !candidate->lanelet_specific_reference_line &&
                                       std::any_of(assigned.begin(), assigned.end(), [&](const auto& existing) {
@@ -736,20 +770,25 @@ ExtractRegulatoryElementsResult extractRegulatoryElements(const lanelet::ConstLa
                                                           const std::vector<lanelet::ConstLanelet>& adjacent_right_lanelets,
                                                           const PointSequence& point_sequence,
                                                           bool include_main_lanelet) {
+  // init result
   ExtractRegulatoryElementsResult result;
   result.adjacent_left_regulatory_element_idcs.resize(adjacent_left_lanelets.size());
   result.adjacent_right_regulatory_element_idcs.resize(adjacent_right_lanelets.size());
 
+  // gather lanelets in single vector (left adjacent, current, right adjacent)
   std::vector<lanelet::ConstLanelet> lanelets = adjacent_left_lanelets;
   lanelets.push_back(lanelet);
   lanelets.insert(lanelets.end(), adjacent_right_lanelets.begin(), adjacent_right_lanelets.end());
 
+  // loop over lanelets
   std::unordered_map<lanelet::Id, size_t> regulatory_element_msg_idx_by_id;
   for (size_t l = 0; l < lanelets.size(); ++l) {
     if (!include_main_lanelet && l == adjacent_left_lanelets.size()) {
       continue;
     }
     const auto& current_lanelet = lanelets[l];
+
+    // project point sequence onto centerline of adjacent lanelets
     PointSequence lanelet_point_sequence = point_sequence;
     if (current_lanelet.id() != lanelet.id()) {
       const auto centerline = toEigen(current_lanelet.centerline2d().basicLineString());
@@ -758,11 +797,14 @@ ExtractRegulatoryElementsResult extractRegulatoryElements(const lanelet::ConstLa
                                 projectPointToLineString(point_sequence.next, centerline)};
     }
 
+    // loop over regulatory elements of lanelet
     for (const auto& regulatory_element : current_lanelet.regulatoryElements()) {
       auto candidate = regulatoryElementCandidate(current_lanelet, regulatory_element);
       if (!candidate) {
         continue;
       }
+
+      // only consider regulatory element if reference line intersects with forward segment of point sequence
       const auto& line = candidate->message.reference_line;
       const std::vector<Eigen::Vector2d> effect_line = {toEigen2d(line[0]), toEigen2d(line[1])};
       const std::vector<Eigen::Vector2d> route_segment = {lanelet_point_sequence.current, lanelet_point_sequence.next};
@@ -770,7 +812,7 @@ ExtractRegulatoryElementsResult extractRegulatoryElements(const lanelet::ConstLa
       if (!intersection || !intersection->intersects_line1 || !intersection->intersects_line2) {
         continue;
       }
-      // A shared endpoint belongs to the preceding segment if it already intersects the effect line.
+      // assign intersection at shared endpoint to preceding segment if it also intersects there
       if (intersection->intersection.isApprox(lanelet_point_sequence.current)) {
         const auto previous = intersectionOfLines(effect_line, {lanelet_point_sequence.prev, lanelet_point_sequence.current});
         if (previous && previous->intersects_line1 && previous->intersects_line2) {
@@ -778,16 +820,19 @@ ExtractRegulatoryElementsResult extractRegulatoryElements(const lanelet::ConstLa
         }
       }
 
+      // check if regulatory element has already been extracted (by another lanelet)
       size_t regulatory_element_msg_idx = 0;
       if (!candidate->lanelet_specific_reference_line && regulatory_element_msg_idx_by_id.count(candidate->id) > 0) {
         regulatory_element_msg_idx = regulatory_element_msg_idx_by_id[candidate->id];
       } else {
+        // add regulatory element to result
         regulatory_element_msg_idx = result.regulatory_element_msgs.size();
         regulatory_element_msg_idx_by_id[candidate->id] = regulatory_element_msg_idx;
         result.regulatory_element_msgs.push_back(candidate->message);
         result.regulatory_element_ids.push_back(candidate->id);
       }
 
+      // assign regulatory element to respective lanelet in result
       if (l < adjacent_left_lanelets.size()) {
         result.adjacent_left_regulatory_element_idcs[l].push_back(regulatory_element_msg_idx);
       } else if (l == adjacent_left_lanelets.size()) {

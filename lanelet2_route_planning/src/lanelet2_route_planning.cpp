@@ -298,11 +298,13 @@ bool Lanelet2RoutePlanning::buildRoutingGraph() {
     return false;
   }
 
+  // build vehicle and other traffic participants' routing graphs using traffic rules
   const auto map = ll2_interface_->getMapPtr();
   vehicle_routing_graph_.traffic_rules = getTrafficRules();
-  bicycle_routing_graph_.traffic_rules = getTrafficRules("bicycle");
-  pedestrian_routing_graph_.traffic_rules = getTrafficRules("pedestrian");
-
+  // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-array-to-pointer-decay)
+  bicycle_routing_graph_.traffic_rules = getTrafficRules(lanelet::Participants::Bicycle);
+  // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-array-to-pointer-decay)
+  pedestrian_routing_graph_.traffic_rules = getTrafficRules(lanelet::Participants::Pedestrian);
   for (auto* participant_graph : {&vehicle_routing_graph_, &bicycle_routing_graph_, &pedestrian_routing_graph_}) {
     participant_graph->graph = lanelet::routing::RoutingGraph::build(*map, *participant_graph->traffic_rules);
     const auto errors = participant_graph->graph->checkValidity();
@@ -807,6 +809,8 @@ void Lanelet2RoutePlanning::buildGlobalRouteMessage() {
   }
 
   latest_full_route_msg_ = route_msg;
+
+  // assign regulatory elements along complete route for later enrichment
   latest_main_regulatory_elements_by_route_element_ =
       regulatoryElementsAlongRoute(shortest_path, shortest_path_centerline, latest_lanelet_idx_by_reference_line_point_idx_,
                                    {&vehicle_routing_graph_, &bicycle_routing_graph_, &pedestrian_routing_graph_});
@@ -947,9 +951,11 @@ void Lanelet2RoutePlanning::buildEnrichedRouteMessage() {
         extractDrivableSpace(ll2_interface_->getMapPtr()->lineStringLayer,
                              {prev_point_for_projection, point, next_point_for_projection}, max_drivable_space_radius_);
 
-    // extract regulatory elements
+    // extract regulatory elements of adjacent lanes
     auto regulatory_element_extraction = extractRegulatoryElements(lanelet, adjacent_left_lanelets, adjacent_right_lanelets,
                                                                    {prev_point, point, next_point}, false);
+
+    // add regulatory elements assigned along main route, reusing entries of identical rules from adjacent lanes
     for (const auto& candidate : latest_main_regulatory_elements_by_route_element_[global_c]) {
       size_t regulatory_element_idx = regulatory_element_extraction.regulatory_element_msgs.size();
       if (!candidate.lanelet_specific_reference_line) {
