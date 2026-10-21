@@ -23,6 +23,7 @@
 #include <lanelet2_routing/Route.h>
 #include <lanelet2_traffic_rules/TrafficRulesFactory.h>
 #include <boost/geometry/algorithms/correct.hpp>
+#include <boost/geometry/algorithms/covered_by.hpp>
 #include <boost/geometry/algorithms/is_valid.hpp>
 #include <boost/geometry/algorithms/relate.hpp>
 #include <route_planning_msgs_utils/route_access.hpp>
@@ -644,7 +645,11 @@ bool keepYieldForRoute(const lanelet::routing::LaneletPath& path,
 
           const auto successors = participant_graph->graph->following(current, false);
           if (successors.empty()) {
-            return true;
+            if (boost::geometry::covered_by(current.centerline2d().back().basicPoint(), intersection_polygon)) {
+              return true;
+            }
+            exited_intersection = true;
+            continue;
           }
           for (const auto& successor : successors) {
             if (overlapsIntersection(successor, intersection_polygon)) {

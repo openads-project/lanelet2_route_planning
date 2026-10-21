@@ -29,5 +29,6 @@ checked, including the approach. Loops are checked once; individual branches nee
 Positive lanelet-area overlap bounds traversal. Conflicts are intersections, endpoint contacts, or shared segments of
 complete 2D lanelet centerlines, including approaches and first exits; a shared lanelet always counts as a conflict.
 Vehicle, bicycle, and pedestrian graphs supply legal priority directions; ego routing uses the vehicle graph.
-Missing or invalid Area data, unavailable participant graphs, dead ends, missing exits, or search limits retain Yield.
+Missing or invalid Area data, unavailable participant graphs, dead ends inside the Area, missing exits, or search
+limits retain Yield.
 The Area filter applies only to Yield; Stop and other rule types retain their usual behavior.

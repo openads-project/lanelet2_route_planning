@@ -311,7 +311,7 @@ struct ParticipantRoutingGraph {
  *
  * The RightOfWay relation must reference exactly one Area with subtype `intersection` via role `intersection_area`.
  * Its geometry, including inner rings, must be valid and overlap the first route successor. Missing, ambiguous, or
- * invalid areas, dead ends, missing exits, and search limits retain the Yield rule.
+ * invalid areas, dead ends inside the area, missing exits, and search limits retain the Yield rule.
  * Each relevant priority approach and legal direction must reach at least one exit. All reachable lanelets inside
  * the Area and their first exits are checked; loops are visited once, without requiring every branch to exit.
  * Conflicts are intersections, endpoint contacts, or shared segments of complete 2D centerlines, including approaches
