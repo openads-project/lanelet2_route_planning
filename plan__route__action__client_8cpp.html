@@ -28,7 +28,7 @@
  <tbody>
  <tr id="projectrow">
   <td id="projectalign">
-   <div id="projectname">lanelet2_route_planning<span id="projectnumber">&#160;v2.0.0</span>
+   <div id="projectname">lanelet2_route_planning<span id="projectnumber">&#160;v2.1.0</span>
    </div>
   </td>
  </tr>
@@ -103,9 +103,11 @@ $(function(){initNavTree('plan__route__action__client_8cpp.html',''); initResiza
   <div class="headertitle"><div class="title">plan_route_action_client.cpp File Reference</div></div>
 </div><!--header-->
 <div class="contents">
-<div class="textblock"><code>#include &lt;chrono&gt;</code><br />
+<div class="textblock"><code>#include &lt;algorithm&gt;</code><br />
+<code>#include &lt;chrono&gt;</code><br />
 <code>#include &lt;functional&gt;</code><br />
 <code>#include &lt;iterator&gt;</code><br />
+<code>#include &lt;limits&gt;</code><br />
 <code>#include &lt;optional&gt;</code><br />
 <code>#include &lt;sstream&gt;</code><br />
 <code>#include &lt;stdexcept&gt;</code><br />
@@ -160,14 +162,14 @@ Functions</h2></td></tr>
 </dl>
 <dl class="section return"><dt>Returns</dt><dd>process exit code </dd></dl>
 
-<p class="definition">Definition at line <a class="el" href="plan__route__action__client_8cpp_source.html#l00482">482</a> of file <a class="el" href="plan__route__action__client_8cpp_source.html">plan_route_action_client.cpp</a>.</p>
-<div class="fragment"><div class="line"><span class="lineno">  482</span>                                 {</div>
-<div class="line"><span class="lineno">  483</span>  rclcpp::init(argc, argv);</div>
-<div class="line"><span class="lineno">  484</span>  rclcpp::spin(std::make_shared&lt;plan_route_action_client::PlanRouteActionClient&gt;());</div>
-<div class="line"><span class="lineno">  485</span>  rclcpp::shutdown();</div>
-<div class="line"><span class="lineno">  486</span> </div>
-<div class="line"><span class="lineno">  487</span>  <span class="keywordflow">return</span> 0;</div>
-<div class="line"><span class="lineno">  488</span>}</div>
+<p class="definition">Definition at line <a class="el" href="plan__route__action__client_8cpp_source.html#l00648">648</a> of file <a class="el" href="plan__route__action__client_8cpp_source.html">plan_route_action_client.cpp</a>.</p>
+<div class="fragment"><div class="line"><span class="lineno">  648</span>                                 {</div>
+<div class="line"><span class="lineno">  649</span>  rclcpp::init(argc, argv);</div>
+<div class="line"><span class="lineno">  650</span>  rclcpp::spin(std::make_shared&lt;plan_route_action_client::PlanRouteActionClient&gt;());</div>
+<div class="line"><span class="lineno">  651</span>  rclcpp::shutdown();</div>
+<div class="line"><span class="lineno">  652</span> </div>
+<div class="line"><span class="lineno">  653</span>  <span class="keywordflow">return</span> 0;</div>
+<div class="line"><span class="lineno">  654</span>}</div>
 </div><!-- fragment -->
 </div>
 </div>

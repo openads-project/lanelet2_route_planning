@@ -28,7 +28,7 @@
  <tbody>
  <tr id="projectrow">
   <td id="projectalign">
-   <div id="projectname">lanelet2_route_planning<span id="projectnumber">&#160;v2.0.0</span>
+   <div id="projectname">lanelet2_route_planning<span id="projectnumber">&#160;v2.1.0</span>
    </div>
   </td>
  </tr>
@@ -107,9 +107,12 @@ $(function(){initNavTree('utils_8hpp.html',''); initResizable(true); });
 <div class="textblock"><code>#include &lt;array&gt;</code><br />
 <code>#include &lt;cstddef&gt;</code><br />
 <code>#include &lt;cstdint&gt;</code><br />
+<code>#include &lt;memory&gt;</code><br />
 <code>#include &lt;optional&gt;</code><br />
+<code>#include &lt;string&gt;</code><br />
 <code>#include &lt;utility&gt;</code><br />
 <code>#include &lt;vector&gt;</code><br />
+<code>#include &lt;lanelet2_core/primitives/BasicRegulatoryElements.h&gt;</code><br />
 <code>#include &lt;lanelet2_core/primitives/Lanelet.h&gt;</code><br />
 <code>#include &lt;lanelet2_routing/LaneletPath.h&gt;</code><br />
 <code>#include &lt;lanelet2_routing/RoutingGraph.h&gt;</code><br />
@@ -136,6 +139,12 @@ Classes</h2></td></tr>
 <tr class="separator:"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:"><td class="memItemLeft" align="right" valign="top">struct &#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structlanelet2__route__planning_1_1ExtractRegulatoryElementsResult.html">lanelet2_route_planning::ExtractRegulatoryElementsResult</a></td></tr>
 <tr class="memdesc:"><td class="mdescLeft">&#160;</td><td class="mdescRight">Return type of extractRegulatoryElements.  <a href="structlanelet2__route__planning_1_1ExtractRegulatoryElementsResult.html#details">More...</a><br /></td></tr>
+<tr class="separator:"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:"><td class="memItemLeft" align="right" valign="top">struct &#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structlanelet2__route__planning_1_1RegulatoryElementCandidate.html">lanelet2_route_planning::RegulatoryElementCandidate</a></td></tr>
+<tr class="memdesc:"><td class="mdescLeft">&#160;</td><td class="mdescRight">Return type of regulatoryElementCandidate.  <a href="structlanelet2__route__planning_1_1RegulatoryElementCandidate.html#details">More...</a><br /></td></tr>
+<tr class="separator:"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:"><td class="memItemLeft" align="right" valign="top">struct &#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structlanelet2__route__planning_1_1ParticipantRoutingGraph.html">lanelet2_route_planning::ParticipantRoutingGraph</a></td></tr>
+<tr class="memdesc:"><td class="mdescLeft">&#160;</td><td class="mdescRight">Routing graph and traffic rules for one kind of traffic participant.  <a href="structlanelet2__route__planning_1_1ParticipantRoutingGraph.html#details">More...</a><br /></td></tr>
 <tr class="separator:"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:"><td class="memItemLeft" align="right" valign="top">struct &#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structlanelet2__route__planning_1_1ResampleCenterlinesAlongPathResult.html">lanelet2_route_planning::ResampleCenterlinesAlongPathResult</a></td></tr>
 <tr class="memdesc:"><td class="mdescLeft">&#160;</td><td class="mdescRight">Return type of resampleCenterlinesAlongPath.  <a href="structlanelet2__route__planning_1_1ResampleCenterlinesAlongPathResult.html#details">More...</a><br /></td></tr>
@@ -184,9 +193,18 @@ Functions</h2></td></tr>
 <tr class="memitem:a3c87a8469d0cd987f667edf87d254180" id="r_a3c87a8469d0cd987f667edf87d254180"><td class="memItemLeft" align="right" valign="top">bool&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="namespacelanelet2__route__planning.html#a3c87a8469d0cd987f667edf87d254180">lanelet2_route_planning::isLineStringDrivable</a> (const lanelet::ConstLineString3d &amp;line_string)</td></tr>
 <tr class="memdesc:a3c87a8469d0cd987f667edf87d254180"><td class="mdescLeft">&#160;</td><td class="mdescRight">Checks if lanelet line string has a type that is considered drivable.  <br /></td></tr>
 <tr class="separator:a3c87a8469d0cd987f667edf87d254180"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a5d148b84f9326901047b60e0b8bd9dfa" id="r_a5d148b84f9326901047b60e0b8bd9dfa"><td class="memItemLeft" align="right" valign="top"><a class="el" href="structlanelet2__route__planning_1_1ExtractRegulatoryElementsResult.html">ExtractRegulatoryElementsResult</a>&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="namespacelanelet2__route__planning.html#a5d148b84f9326901047b60e0b8bd9dfa">lanelet2_route_planning::extractRegulatoryElements</a> (const lanelet::ConstLanelet &amp;lanelet, const std::vector&lt; lanelet::ConstLanelet &gt; &amp;adjacent_left_lanelets, const std::vector&lt; lanelet::ConstLanelet &gt; &amp;adjacent_right_lanelets, const <a class="el" href="structlanelet2__route__planning_1_1PointSequence.html">PointSequence</a> &amp;point_sequence)</td></tr>
-<tr class="memdesc:a5d148b84f9326901047b60e0b8bd9dfa"><td class="mdescLeft">&#160;</td><td class="mdescRight">Extracts regulatory element information for a route element.  <br /></td></tr>
-<tr class="separator:a5d148b84f9326901047b60e0b8bd9dfa"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a3c16e0c37cdc89f0989694f6bcb1dfa2" id="r_a3c16e0c37cdc89f0989694f6bcb1dfa2"><td class="memItemLeft" align="right" valign="top">bool&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="namespacelanelet2__route__planning.html#a3c16e0c37cdc89f0989694f6bcb1dfa2">lanelet2_route_planning::keepYieldForRoute</a> (const lanelet::routing::LaneletPath &amp;path, size_t yield_lanelet_idx, const lanelet::RightOfWay &amp;right_of_way, const std::vector&lt; const <a class="el" href="structlanelet2__route__planning_1_1ParticipantRoutingGraph.html">ParticipantRoutingGraph</a> * &gt; &amp;priority_routing_graphs)</td></tr>
+<tr class="memdesc:a3c16e0c37cdc89f0989694f6bcb1dfa2"><td class="mdescLeft">&#160;</td><td class="mdescRight">Keeps a RightOfWay Yield unless every priority path through its intersection area misses the chosen route.  <br /></td></tr>
+<tr class="separator:a3c16e0c37cdc89f0989694f6bcb1dfa2"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:af3e9aeae135cc33928c1f52ece4cf191" id="r_af3e9aeae135cc33928c1f52ece4cf191"><td class="memItemLeft" align="right" valign="top">std::optional&lt; <a class="el" href="structlanelet2__route__planning_1_1RegulatoryElementCandidate.html">RegulatoryElementCandidate</a> &gt;&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="namespacelanelet2__route__planning.html#af3e9aeae135cc33928c1f52ece4cf191">lanelet2_route_planning::regulatoryElementCandidate</a> (const lanelet::ConstLanelet &amp;lanelet, const std::shared_ptr&lt; const lanelet::RegulatoryElement &gt; &amp;regulatory_element)</td></tr>
+<tr class="memdesc:af3e9aeae135cc33928c1f52ece4cf191"><td class="mdescLeft">&#160;</td><td class="mdescRight">Selects a rule that applies to the given lanelet and determines its effect line.  <br /></td></tr>
+<tr class="separator:af3e9aeae135cc33928c1f52ece4cf191"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a801ca62e5ed441fed746557651e404d0" id="r_a801ca62e5ed441fed746557651e404d0"><td class="memItemLeft" align="right" valign="top">std::vector&lt; std::vector&lt; <a class="el" href="structlanelet2__route__planning_1_1RegulatoryElementCandidate.html">RegulatoryElementCandidate</a> &gt; &gt;&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="namespacelanelet2__route__planning.html#a801ca62e5ed441fed746557651e404d0">lanelet2_route_planning::regulatoryElementsAlongRoute</a> (const lanelet::routing::LaneletPath &amp;path, const std::vector&lt; Eigen::Vector2d &gt; &amp;reference_line, const std::vector&lt; size_t &gt; &amp;lanelet_idx_by_point, const std::vector&lt; const <a class="el" href="structlanelet2__route__planning_1_1ParticipantRoutingGraph.html">ParticipantRoutingGraph</a> * &gt; &amp;priority_routing_graphs)</td></tr>
+<tr class="memdesc:a801ca62e5ed441fed746557651e404d0"><td class="mdescLeft">&#160;</td><td class="mdescRight">Assigns rules on the shortest path to the route element before their first effect-line crossing.  <br /></td></tr>
+<tr class="separator:a801ca62e5ed441fed746557651e404d0"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:ac42688df4418bd9b3f6d3ec132c2d9b6" id="r_ac42688df4418bd9b3f6d3ec132c2d9b6"><td class="memItemLeft" align="right" valign="top"><a class="el" href="structlanelet2__route__planning_1_1ExtractRegulatoryElementsResult.html">ExtractRegulatoryElementsResult</a>&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="namespacelanelet2__route__planning.html#ac42688df4418bd9b3f6d3ec132c2d9b6">lanelet2_route_planning::extractRegulatoryElements</a> (const lanelet::ConstLanelet &amp;lanelet, const std::vector&lt; lanelet::ConstLanelet &gt; &amp;adjacent_left_lanelets, const std::vector&lt; lanelet::ConstLanelet &gt; &amp;adjacent_right_lanelets, const <a class="el" href="structlanelet2__route__planning_1_1PointSequence.html">PointSequence</a> &amp;point_sequence, bool include_main_lanelet=true)</td></tr>
+<tr class="memdesc:ac42688df4418bd9b3f6d3ec132c2d9b6"><td class="mdescLeft">&#160;</td><td class="mdescRight">Extracts regulatory element information for a route element.  <br /></td></tr>
+<tr class="separator:ac42688df4418bd9b3f6d3ec132c2d9b6"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a351ef7520d1dbe4907fcd28753df5a5e" id="r_a351ef7520d1dbe4907fcd28753df5a5e"><td class="memItemLeft" align="right" valign="top">std::optional&lt; std::array&lt; geometry_msgs::msg::Point, 2 &gt; &gt;&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="namespacelanelet2__route__planning.html#a351ef7520d1dbe4907fcd28753df5a5e">lanelet2_route_planning::regulatoryElementReferenceLine</a> (const std::shared_ptr&lt; const lanelet::RegulatoryElement &gt; &amp;regulatory_element)</td></tr>
 <tr class="memdesc:a351ef7520d1dbe4907fcd28753df5a5e"><td class="mdescLeft">&#160;</td><td class="mdescRight">Extracts the reference/effect line of a regulatory element.  <br /></td></tr>
 <tr class="separator:a351ef7520d1dbe4907fcd28753df5a5e"><td class="memSeparator" colspan="2">&#160;</td></tr>
@@ -214,9 +232,9 @@ Functions</h2></td></tr>
 <tr class="memitem:af91975cff7b2973ea8c154094191f576" id="r_af91975cff7b2973ea8c154094191f576"><td class="memItemLeft" align="right" valign="top">std::tuple&lt; uint8_t, int &gt;&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="namespacelanelet2__route__planning.html#af91975cff7b2973ea8c154094191f576">lanelet2_route_planning::suggestedTurnSignal</a> (const lanelet::ConstLanelet &amp;lanelet, const rclcpp::Logger &amp;logger)</td></tr>
 <tr class="memdesc:af91975cff7b2973ea8c154094191f576"><td class="mdescLeft">&#160;</td><td class="mdescRight">Extracts the suggested turn signal of a lanelet.  <br /></td></tr>
 <tr class="separator:af91975cff7b2973ea8c154094191f576"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a26803119a4a8c6126656528ac078a9c8" id="r_a26803119a4a8c6126656528ac078a9c8"><td class="memItemLeft" align="right" valign="top">lanelet::traffic_rules::TrafficRulesPtr&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="namespacelanelet2__route__planning.html#a26803119a4a8c6126656528ac078a9c8">lanelet2_route_planning::getTrafficRules</a> ()</td></tr>
-<tr class="memdesc:a26803119a4a8c6126656528ac078a9c8"><td class="mdescLeft">&#160;</td><td class="mdescRight">Get traffic rules.  <br /></td></tr>
-<tr class="separator:a26803119a4a8c6126656528ac078a9c8"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:ac779be0d1a0d482007f7ad23a5ce967c" id="r_ac779be0d1a0d482007f7ad23a5ce967c"><td class="memItemLeft" align="right" valign="top">lanelet::traffic_rules::TrafficRulesPtr&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="namespacelanelet2__route__planning.html#ac779be0d1a0d482007f7ad23a5ce967c">lanelet2_route_planning::getTrafficRules</a> (const std::string &amp;participant=lanelet::Participants::Vehicle)</td></tr>
+<tr class="memdesc:ac779be0d1a0d482007f7ad23a5ce967c"><td class="mdescLeft">&#160;</td><td class="mdescRight">Get German traffic rules for the given participant.  <br /></td></tr>
+<tr class="separator:ac779be0d1a0d482007f7ad23a5ce967c"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:aeafbc15b3bf4a77b827ac0f1fbe472d8" id="r_aeafbc15b3bf4a77b827ac0f1fbe472d8"><td class="memItemLeft" align="right" valign="top">std::optional&lt; lanelet::ConstLanelet &gt;&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="namespacelanelet2__route__planning.html#aeafbc15b3bf4a77b827ac0f1fbe472d8">lanelet2_route_planning::laneletAtPoint</a> (const Eigen::Vector2d &amp;point, const lanelet::LaneletMapConstPtr &amp;map, const std::optional&lt; lanelet::traffic_rules::TrafficRulesPtr &gt; traffic_rules=std::nullopt)</td></tr>
 <tr class="memdesc:aeafbc15b3bf4a77b827ac0f1fbe472d8"><td class="mdescLeft">&#160;</td><td class="mdescRight">Find lanelet at arbitrary point.  <br /></td></tr>
 <tr class="separator:aeafbc15b3bf4a77b827ac0f1fbe472d8"><td class="memSeparator" colspan="2">&#160;</td></tr>

@@ -7,8 +7,10 @@ var searchData=
   ['checkmap_4',['checkMap',['../classlanelet2__route__planning_1_1Lanelet2RoutePlanning.html#a6e98efbd4f900598014778950082a138',1,'lanelet2_route_planning::Lanelet2RoutePlanning']]],
   ['computefollowinglaneidxoffset_5',['computeFollowingLaneIdxOffset',['../namespacelanelet2__route__planning.html#a94780401264548ec19b86e770387112b',1,'lanelet2_route_planning']]],
   ['considerorderforpointmatchedtolinestring_6',['considerOrderForPointMatchedToLineString',['../namespacelanelet2__route__planning.html#ab981542d0ae82debf4c6eab9a7b472d7',1,'lanelet2_route_planning']]],
-  ['conversions_2ecpp_7',['conversions.cpp',['../conversions_8cpp.html',1,'']]],
-  ['conversions_2ehpp_8',['conversions.hpp',['../conversions_8hpp.html',1,'']]],
-  ['createminimalrouteelement_9',['createMinimalRouteElement',['../namespacelanelet2__route__planning.html#a6c9f8e437a34a79eee2e6487aec9e4e6',1,'lanelet2_route_planning']]],
-  ['current_10',['current',['../structlanelet2__route__planning_1_1PointSequence.html#ad7013286e723b70d9c9e4047378e535d',1,'lanelet2_route_planning::PointSequence']]]
+  ['continuous_5fplanning_5freplanning_5fproportion_5f_7',['continuous_planning_replanning_proportion_',['../classplan__route__action__client_1_1PlanRouteActionClient.html#a795a27eee505c932daf1b15577215cc0',1,'plan_route_action_client::PlanRouteActionClient']]],
+  ['continuous_5freplanning_5fpending_5f_8',['continuous_replanning_pending_',['../classplan__route__action__client_1_1PlanRouteActionClient.html#a7ff02cefc1f6853fa117d66c0966a05f',1,'plan_route_action_client::PlanRouteActionClient']]],
+  ['conversions_2ecpp_9',['conversions.cpp',['../conversions_8cpp.html',1,'']]],
+  ['conversions_2ehpp_10',['conversions.hpp',['../conversions_8hpp.html',1,'']]],
+  ['createminimalrouteelement_11',['createMinimalRouteElement',['../namespacelanelet2__route__planning.html#a6c9f8e437a34a79eee2e6487aec9e4e6',1,'lanelet2_route_planning']]],
+  ['current_12',['current',['../structlanelet2__route__planning_1_1PointSequence.html#ad7013286e723b70d9c9e4047378e535d',1,'lanelet2_route_planning::PointSequence']]]
 ];

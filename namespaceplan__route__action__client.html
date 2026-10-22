@@ -28,7 +28,7 @@
  <tbody>
  <tr id="projectrow">
   <td id="projectalign">
-   <div id="projectname">lanelet2_route_planning<span id="projectnumber">&#160;v2.0.0</span>
+   <div id="projectname">lanelet2_route_planning<span id="projectnumber">&#160;v2.1.0</span>
    </div>
   </td>
  </tr>
@@ -163,44 +163,44 @@ Variables</h2></td></tr>
 </dl>
 <dl class="section return"><dt>Returns</dt><dd>parsed latitude/longitude pairs, or <code>std::nullopt</code> if parsing fails </dd></dl>
 
-<p class="definition">Definition at line <a class="el" href="plan__route__action__client_8cpp_source.html#l00027">27</a> of file <a class="el" href="plan__route__action__client_8cpp_source.html">plan_route_action_client.cpp</a>.</p>
-<div class="fragment"><div class="line"><span class="lineno">   29</span>                                                                                                 {</div>
-<div class="line"><span class="lineno">   30</span>  std::vector&lt;std::pair&lt;double, double&gt;&gt; waypoints;</div>
-<div class="line"><span class="lineno">   31</span>  std::vector&lt;double&gt; parsed_wait_times;</div>
-<div class="line"><span class="lineno">   32</span>  <span class="keywordflow">for</span> (<span class="keyword">const</span> <span class="keyword">auto</span>&amp; waypoint : waypoints_param) {</div>
-<div class="line"><span class="lineno">   33</span>    <span class="keywordtype">size_t</span> comma_pos = waypoint.find(<span class="charliteral">&#39;,&#39;</span>);</div>
-<div class="line"><span class="lineno">   34</span>    <span class="keywordflow">if</span> (comma_pos != std::string::npos) {</div>
-<div class="line"><span class="lineno">   35</span>      <span class="keywordflow">try</span> {</div>
-<div class="line"><span class="lineno">   36</span>        <span class="keywordtype">size_t</span> wait_time_comma_pos = waypoint.find(<span class="charliteral">&#39;,&#39;</span>, comma_pos + 1);</div>
-<div class="line"><span class="lineno">   37</span>        <span class="keywordflow">if</span> (wait_time_comma_pos != std::string::npos &amp;&amp; waypoint.find(<span class="charliteral">&#39;,&#39;</span>, wait_time_comma_pos + 1) != std::string::npos) {</div>
-<div class="line"><span class="lineno">   38</span>          <span class="keywordflow">return</span> std::nullopt;</div>
-<div class="line"><span class="lineno">   39</span>        }</div>
-<div class="line"><span class="lineno">   40</span>        <span class="keywordtype">double</span> lat = std::stod(waypoint.substr(0, comma_pos));</div>
-<div class="line"><span class="lineno">   41</span>        <span class="keywordtype">double</span> lon = std::stod(waypoint.substr(comma_pos + 1, wait_time_comma_pos - comma_pos - 1));</div>
-<div class="line"><span class="lineno">   42</span>        <span class="keywordtype">double</span> wait_time_s = 0.0;</div>
-<div class="line"><span class="lineno">   43</span>        <span class="keywordflow">if</span> (wait_time_comma_pos != std::string::npos) {</div>
-<div class="line"><span class="lineno">   44</span>          wait_time_s = std::stod(waypoint.substr(wait_time_comma_pos + 1));</div>
-<div class="line"><span class="lineno">   45</span>        }</div>
-<div class="line"><span class="lineno">   46</span>        waypoints.emplace_back(lat, lon);</div>
-<div class="line"><span class="lineno">   47</span>        parsed_wait_times.push_back(wait_time_s);</div>
-<div class="line"><span class="lineno">   48</span>      } <span class="keywordflow">catch</span> (<span class="keyword">const</span> std::invalid_argument&amp; e) {</div>
-<div class="line"><span class="lineno">   49</span>        <span class="keywordflow">return</span> std::nullopt;</div>
-<div class="line"><span class="lineno">   50</span>      } <span class="keywordflow">catch</span> (<span class="keyword">const</span> std::out_of_range&amp; e) {</div>
+<p class="definition">Definition at line <a class="el" href="plan__route__action__client_8cpp_source.html#l00029">29</a> of file <a class="el" href="plan__route__action__client_8cpp_source.html">plan_route_action_client.cpp</a>.</p>
+<div class="fragment"><div class="line"><span class="lineno">   31</span>                                                                                                 {</div>
+<div class="line"><span class="lineno">   32</span>  std::vector&lt;std::pair&lt;double, double&gt;&gt; waypoints;</div>
+<div class="line"><span class="lineno">   33</span>  std::vector&lt;double&gt; parsed_wait_times;</div>
+<div class="line"><span class="lineno">   34</span>  <span class="keywordflow">for</span> (<span class="keyword">const</span> <span class="keyword">auto</span>&amp; waypoint : waypoints_param) {</div>
+<div class="line"><span class="lineno">   35</span>    <span class="keywordtype">size_t</span> comma_pos = waypoint.find(<span class="charliteral">&#39;,&#39;</span>);</div>
+<div class="line"><span class="lineno">   36</span>    <span class="keywordflow">if</span> (comma_pos != std::string::npos) {</div>
+<div class="line"><span class="lineno">   37</span>      <span class="keywordflow">try</span> {</div>
+<div class="line"><span class="lineno">   38</span>        <span class="keywordtype">size_t</span> wait_time_comma_pos = waypoint.find(<span class="charliteral">&#39;,&#39;</span>, comma_pos + 1);</div>
+<div class="line"><span class="lineno">   39</span>        <span class="keywordflow">if</span> (wait_time_comma_pos != std::string::npos &amp;&amp; waypoint.find(<span class="charliteral">&#39;,&#39;</span>, wait_time_comma_pos + 1) != std::string::npos) {</div>
+<div class="line"><span class="lineno">   40</span>          <span class="keywordflow">return</span> std::nullopt;</div>
+<div class="line"><span class="lineno">   41</span>        }</div>
+<div class="line"><span class="lineno">   42</span>        <span class="keywordtype">double</span> lat = std::stod(waypoint.substr(0, comma_pos));</div>
+<div class="line"><span class="lineno">   43</span>        <span class="keywordtype">double</span> lon = std::stod(waypoint.substr(comma_pos + 1, wait_time_comma_pos - comma_pos - 1));</div>
+<div class="line"><span class="lineno">   44</span>        <span class="keywordtype">double</span> wait_time_s = 0.0;</div>
+<div class="line"><span class="lineno">   45</span>        <span class="keywordflow">if</span> (wait_time_comma_pos != std::string::npos) {</div>
+<div class="line"><span class="lineno">   46</span>          wait_time_s = std::stod(waypoint.substr(wait_time_comma_pos + 1));</div>
+<div class="line"><span class="lineno">   47</span>        }</div>
+<div class="line"><span class="lineno">   48</span>        waypoints.emplace_back(lat, lon);</div>
+<div class="line"><span class="lineno">   49</span>        parsed_wait_times.push_back(wait_time_s);</div>
+<div class="line"><span class="lineno">   50</span>      } <span class="keywordflow">catch</span> (<span class="keyword">const</span> std::invalid_argument&amp; e) {</div>
 <div class="line"><span class="lineno">   51</span>        <span class="keywordflow">return</span> std::nullopt;</div>
-<div class="line"><span class="lineno">   52</span>      }</div>
-<div class="line"><span class="lineno">   53</span>    } <span class="keywordflow">else</span> {</div>
-<div class="line"><span class="lineno">   54</span>      <span class="keywordflow">return</span> std::nullopt;</div>
-<div class="line"><span class="lineno">   55</span>    }</div>
-<div class="line"><span class="lineno">   56</span>  }</div>
-<div class="line"><span class="lineno">   57</span> </div>
-<div class="line"><span class="lineno">   58</span>  <span class="keywordflow">if</span> (!parsed_wait_times.empty() &amp;&amp; parsed_wait_times.back() &lt; 0.0) {</div>
-<div class="line"><span class="lineno">   59</span>    RCLCPP_WARN(logger, <span class="stringliteral">&quot;Last waypoint cannot be intermediate, treating it as stop with wait_time_s 0.0&quot;</span>);</div>
-<div class="line"><span class="lineno">   60</span>    parsed_wait_times.back() = 0.0;</div>
-<div class="line"><span class="lineno">   61</span>  }</div>
-<div class="line"><span class="lineno">   62</span> </div>
-<div class="line"><span class="lineno">   63</span>  waypoint_wait_times = parsed_wait_times;</div>
-<div class="line"><span class="lineno">   64</span>  <span class="keywordflow">return</span> waypoints;</div>
-<div class="line"><span class="lineno">   65</span>}</div>
+<div class="line"><span class="lineno">   52</span>      } <span class="keywordflow">catch</span> (<span class="keyword">const</span> std::out_of_range&amp; e) {</div>
+<div class="line"><span class="lineno">   53</span>        <span class="keywordflow">return</span> std::nullopt;</div>
+<div class="line"><span class="lineno">   54</span>      }</div>
+<div class="line"><span class="lineno">   55</span>    } <span class="keywordflow">else</span> {</div>
+<div class="line"><span class="lineno">   56</span>      <span class="keywordflow">return</span> std::nullopt;</div>
+<div class="line"><span class="lineno">   57</span>    }</div>
+<div class="line"><span class="lineno">   58</span>  }</div>
+<div class="line"><span class="lineno">   59</span> </div>
+<div class="line"><span class="lineno">   60</span>  <span class="keywordflow">if</span> (!parsed_wait_times.empty() &amp;&amp; parsed_wait_times.back() &lt; 0.0) {</div>
+<div class="line"><span class="lineno">   61</span>    RCLCPP_WARN(logger, <span class="stringliteral">&quot;Last waypoint cannot be intermediate, treating it as stop with wait_time_s 0.0&quot;</span>);</div>
+<div class="line"><span class="lineno">   62</span>    parsed_wait_times.back() = 0.0;</div>
+<div class="line"><span class="lineno">   63</span>  }</div>
+<div class="line"><span class="lineno">   64</span> </div>
+<div class="line"><span class="lineno">   65</span>  waypoint_wait_times = parsed_wait_times;</div>
+<div class="line"><span class="lineno">   66</span>  <span class="keywordflow">return</span> waypoints;</div>
+<div class="line"><span class="lineno">   67</span>}</div>
 </div><!-- fragment -->
 </div>
 </div>
@@ -227,7 +227,7 @@ template&lt;typename C &gt; </div>
 </table>
 </div><div class="memdoc">
 
-<p class="definition">Definition at line <a class="el" href="plan__route__action__client_8hpp_source.html#l00028">28</a> of file <a class="el" href="plan__route__action__client_8hpp_source.html">plan_route_action_client.hpp</a>.</p>
+<p class="definition">Definition at line <a class="el" href="plan__route__action__client_8hpp_source.html#l00029">29</a> of file <a class="el" href="plan__route__action__client_8hpp_source.html">plan_route_action_client.hpp</a>.</p>
 
 </div>
 </div>

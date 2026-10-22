@@ -1,9 +1,13 @@
 var searchData=
 [
-  ['sendgoal_0',['sendGoal',['../classplan__route__action__client_1_1PlanRouteActionClient.html#a9cfc5f12f6f83180f18091b5a317ac6f',1,'plan_route_action_client::PlanRouteActionClient']]],
-  ['setup_1',['setup',['../classlanelet2__route__planning_1_1Lanelet2RoutePlanning.html#a38280137b1d9a296bea8d69a72366e3f',1,'lanelet2_route_planning::Lanelet2RoutePlanning::setup()'],['../classplan__route__action__client_1_1PlanRouteActionClient.html#af2379914c28ff79abc6ffe7f48ab744c',1,'plan_route_action_client::PlanRouteActionClient::setup()']]],
-  ['sortlaneletsbymatchingcost_2',['sortLaneletsByMatchingCost',['../namespacelanelet2__route__planning.html#aa2df16df3e8d469b88287f754ed6dd42',1,'lanelet2_route_planning']]],
-  ['speedlimit_3',['speedLimit',['../namespacelanelet2__route__planning.html#a84f6c4db8ae7b85db380c7fcd8e8aec1',1,'lanelet2_route_planning::speedLimit(const lanelet::ConstLanelet &amp;lanelet, const bool consider_regulatory_elements=true)'],['../namespacelanelet2__route__planning.html#a88506413aff3fa4a4db51fe21688f816',1,'lanelet2_route_planning::speedLimit(const lanelet::ConstLanelet &amp;lanelet, const Eigen::Vector2d &amp;point)']]],
-  ['suggestedreferencelinetoeigen_4',['suggestedReferenceLineToEigen',['../namespacelanelet2__route__planning.html#aba8fbc5fa3465170af1c7c0584b2702b',1,'lanelet2_route_planning']]],
-  ['suggestedturnsignal_5',['suggestedTurnSignal',['../namespacelanelet2__route__planning.html#af91975cff7b2973ea8c154094191f576',1,'lanelet2_route_planning']]]
+  ['regulatoryelementcancelline_0',['regulatoryElementCancelLine',['../namespacelanelet2__route__planning.html#a86a6d0838c13d360e0ce32d4707f628e',1,'lanelet2_route_planning']]],
+  ['regulatoryelementcandidate_1',['regulatoryElementCandidate',['../namespacelanelet2__route__planning.html#af3e9aeae135cc33928c1f52ece4cf191',1,'lanelet2_route_planning']]],
+  ['regulatoryelementpositions_2',['regulatoryElementPositions',['../namespacelanelet2__route__planning.html#a35fcacb98cac5fb4847d3de0978fde31',1,'lanelet2_route_planning']]],
+  ['regulatoryelementreferenceline_3',['regulatoryElementReferenceLine',['../namespacelanelet2__route__planning.html#a351ef7520d1dbe4907fcd28753df5a5e',1,'lanelet2_route_planning']]],
+  ['regulatoryelementsalongroute_4',['regulatoryElementsAlongRoute',['../namespacelanelet2__route__planning.html#a801ca62e5ed441fed746557651e404d0',1,'lanelet2_route_planning']]],
+  ['regulatoryelementspeedlimit_5',['regulatoryElementSpeedLimit',['../namespacelanelet2__route__planning.html#af2ed08e48263a0918ca79441534d0c04',1,'lanelet2_route_planning']]],
+  ['regulatoryelementtype_6',['regulatoryElementType',['../namespacelanelet2__route__planning.html#ae11ad3bf40927340f5fe9b28624b9771',1,'lanelet2_route_planning']]],
+  ['resamplecenterlinesalongpath_7',['resampleCenterlinesAlongPath',['../namespacelanelet2__route__planning.html#ab6cd61b010b53fce0773feb906d7c783',1,'lanelet2_route_planning']]],
+  ['resamplelinestring_8',['resampleLineString',['../namespacelanelet2__route__planning.html#a8eac3c578baf293904b5ece481f37927',1,'lanelet2_route_planning']]],
+  ['resultcallback_9',['resultCallback',['../classplan__route__action__client_1_1PlanRouteActionClient.html#a44997574d616fb70be6f4d073bf77b65',1,'plan_route_action_client::PlanRouteActionClient']]]
 ];

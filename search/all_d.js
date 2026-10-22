@@ -1,4 +1,4 @@
 var searchData=
 [
-  ['quick_20start_0',['🚀 Quick Start',['../index.html#autotoc_md1',1,'']]]
+  ['optional_0',['Route-Dependent Yield Filtering (Optional)',['../md_docs_2IMPLEMENTATION.html#autotoc_md13',1,'']]]
 ];

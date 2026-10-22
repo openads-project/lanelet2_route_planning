@@ -35,7 +35,11 @@ var NAVTREE =
     [ "⚖️ Licensing", "index.html#autotoc_md7", null ],
     [ "🙏 Acknowledgements", "index.html#autotoc_md8", null ],
     [ "Implementation Details", "md_docs_2IMPLEMENTATION.html", [
-      [ "Route Message Format", "md_docs_2IMPLEMENTATION.html#autotoc_md10", null ]
+      [ "Route Message Format", "md_docs_2IMPLEMENTATION.html#autotoc_md10", null ],
+      [ "Map Requirements", "md_docs_2IMPLEMENTATION.html#autotoc_md11", [
+        [ "Regulatory Elements", "md_docs_2IMPLEMENTATION.html#autotoc_md12", null ],
+        [ "Route-Dependent Yield Filtering (Optional)", "md_docs_2IMPLEMENTATION.html#autotoc_md13", null ]
+      ] ]
     ] ],
     [ "Namespaces", "namespaces.html", [
       [ "Namespace List", "namespaces.html", "namespaces_dup" ],
@@ -69,8 +73,8 @@ var NAVTREE =
 var NAVTREEINDEX =
 [
 "annotated.html",
-"conversions_8hpp.html#a7f8db3c1e17999437a3fedd8c507979a",
-"utils_8cpp.html#af91975cff7b2973ea8c154094191f576"
+"classplan__route__action__client_1_1PlanRouteActionClient.html#aff7352d4659ad20e4a82c44e1059db48",
+"structlanelet2__route__planning_1_1ProjectedLaneletPoints.html#ad4e38629474316ccd71018a940c90fd6"
 ];
 
 var SYNCONMSG = 'click to disable panel synchronisation';

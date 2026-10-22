@@ -28,7 +28,7 @@
  <tbody>
  <tr id="projectrow">
   <td id="projectalign">
-   <div id="projectname">lanelet2_route_planning<span id="projectnumber">&#160;v2.0.0</span>
+   <div id="projectname">lanelet2_route_planning<span id="projectnumber">&#160;v2.1.0</span>
    </div>
   </td>
  </tr>
@@ -114,6 +114,9 @@ Public Attributes</h2></td></tr>
 <tr class="memitem:ae773049bf88dcb62fb76095bdc24ab77" id="r_ae773049bf88dcb62fb76095bdc24ab77"><td class="memItemLeft" align="right" valign="top">std::vector&lt; route_planning_msgs::msg::RegulatoryElement &gt;&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="#ae773049bf88dcb62fb76095bdc24ab77">regulatory_element_msgs</a></td></tr>
 <tr class="memdesc:ae773049bf88dcb62fb76095bdc24ab77"><td class="mdescLeft">&#160;</td><td class="mdescRight">regulatory element messages for route element  <br /></td></tr>
 <tr class="separator:ae773049bf88dcb62fb76095bdc24ab77"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a74e8054d9b4ef4c5cc5c046b0e7c1257" id="r_a74e8054d9b4ef4c5cc5c046b0e7c1257"><td class="memItemLeft" align="right" valign="top">std::vector&lt; lanelet::Id &gt;&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="#a74e8054d9b4ef4c5cc5c046b0e7c1257">regulatory_element_ids</a></td></tr>
+<tr class="memdesc:a74e8054d9b4ef4c5cc5c046b0e7c1257"><td class="mdescLeft">&#160;</td><td class="mdescRight">source IDs, parallel to regulatory_element_msgs  <br /></td></tr>
+<tr class="separator:a74e8054d9b4ef4c5cc5c046b0e7c1257"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:aaf3312e312d8e2d7316791bf47054271" id="r_aaf3312e312d8e2d7316791bf47054271"><td class="memItemLeft" align="right" valign="top">std::vector&lt; uint8_t &gt;&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="#aaf3312e312d8e2d7316791bf47054271">regulatory_element_idcs</a></td></tr>
 <tr class="memdesc:aaf3312e312d8e2d7316791bf47054271"><td class="mdescLeft">&#160;</td><td class="mdescRight">indices of regulatory elements belonging to main lane  <br /></td></tr>
 <tr class="separator:aaf3312e312d8e2d7316791bf47054271"><td class="memSeparator" colspan="2">&#160;</td></tr>
@@ -127,7 +130,7 @@ Public Attributes</h2></td></tr>
 <a name="details" id="details"></a><h2 class="groupheader">Detailed Description</h2>
 <div class="textblock"><p>Return type of extractRegulatoryElements. </p>
 
-<p class="definition">Definition at line <a class="el" href="utils_8hpp_source.html#l00280">280</a> of file <a class="el" href="utils_8hpp_source.html">utils.hpp</a>.</p>
+<p class="definition">Definition at line <a class="el" href="utils_8hpp_source.html#l00283">283</a> of file <a class="el" href="utils_8hpp_source.html">utils.hpp</a>.</p>
 </div><h2 class="groupheader">Member Data Documentation</h2>
 <a id="abfdf0f419f24754f4d69001badf3c53e" name="abfdf0f419f24754f4d69001badf3c53e"></a>
 <h2 class="memtitle"><span class="permalink"><a href="#abfdf0f419f24754f4d69001badf3c53e">&#9670;&#160;</a></span>adjacent_left_regulatory_element_idcs</h2>
@@ -143,7 +146,7 @@ Public Attributes</h2></td></tr>
 
 <p>indices of regulatory elements belonging to left adjacent lanes </p>
 
-<p class="definition">Definition at line <a class="el" href="utils_8hpp_source.html#l00285">285</a> of file <a class="el" href="utils_8hpp_source.html">utils.hpp</a>.</p>
+<p class="definition">Definition at line <a class="el" href="utils_8hpp_source.html#l00289">289</a> of file <a class="el" href="utils_8hpp_source.html">utils.hpp</a>.</p>
 
 </div>
 </div>
@@ -161,7 +164,7 @@ Public Attributes</h2></td></tr>
 
 <p>indices of regulatory elements belonging to right adjacent lanes </p>
 
-<p class="definition">Definition at line <a class="el" href="utils_8hpp_source.html#l00287">287</a> of file <a class="el" href="utils_8hpp_source.html">utils.hpp</a>.</p>
+<p class="definition">Definition at line <a class="el" href="utils_8hpp_source.html#l00291">291</a> of file <a class="el" href="utils_8hpp_source.html">utils.hpp</a>.</p>
 
 </div>
 </div>
@@ -179,7 +182,25 @@ Public Attributes</h2></td></tr>
 
 <p>indices of regulatory elements belonging to main lane </p>
 
-<p class="definition">Definition at line <a class="el" href="utils_8hpp_source.html#l00283">283</a> of file <a class="el" href="utils_8hpp_source.html">utils.hpp</a>.</p>
+<p class="definition">Definition at line <a class="el" href="utils_8hpp_source.html#l00287">287</a> of file <a class="el" href="utils_8hpp_source.html">utils.hpp</a>.</p>
+
+</div>
+</div>
+<a id="a74e8054d9b4ef4c5cc5c046b0e7c1257" name="a74e8054d9b4ef4c5cc5c046b0e7c1257"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a74e8054d9b4ef4c5cc5c046b0e7c1257">&#9670;&#160;</a></span>regulatory_element_ids</h2>
+
+<div class="memitem">
+<div class="memproto">
+      <table class="memname">
+        <tr>
+          <td class="memname">std::vector&lt;lanelet::Id&gt; lanelet2_route_planning::ExtractRegulatoryElementsResult::regulatory_element_ids</td>
+        </tr>
+      </table>
+</div><div class="memdoc">
+
+<p>source IDs, parallel to regulatory_element_msgs </p>
+
+<p class="definition">Definition at line <a class="el" href="utils_8hpp_source.html#l00286">286</a> of file <a class="el" href="utils_8hpp_source.html">utils.hpp</a>.</p>
 
 </div>
 </div>
@@ -197,7 +218,7 @@ Public Attributes</h2></td></tr>
 
 <p>regulatory element messages for route element </p>
 
-<p class="definition">Definition at line <a class="el" href="utils_8hpp_source.html#l00282">282</a> of file <a class="el" href="utils_8hpp_source.html">utils.hpp</a>.</p>
+<p class="definition">Definition at line <a class="el" href="utils_8hpp_source.html#l00285">285</a> of file <a class="el" href="utils_8hpp_source.html">utils.hpp</a>.</p>
 
 </div>
 </div>

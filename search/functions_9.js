@@ -1,5 +1,6 @@
 var searchData=
 [
-  ['main_0',['main',['../lanelet2__route__planning_8cpp.html#a0ddf1224851353fc92bfbff6f499fa97',1,'main(int argc, char *argv[]):&#160;lanelet2_route_planning.cpp'],['../plan__route__action__client_8cpp.html#a0ddf1224851353fc92bfbff6f499fa97',1,'main(int argc, char *argv[]):&#160;plan_route_action_client.cpp']]],
-  ['matchpointtolinestring_1',['matchPointToLineString',['../namespacelanelet2__route__planning.html#a431d8a4c04630bc388157853372451a2',1,'lanelet2_route_planning']]]
+  ['laneboundarytype_0',['laneBoundaryType',['../namespacelanelet2__route__planning.html#a0a90bf8d5dd2d1f229276350782f5f57',1,'lanelet2_route_planning']]],
+  ['lanelet2routeplanning_1',['Lanelet2RoutePlanning',['../classlanelet2__route__planning_1_1Lanelet2RoutePlanning.html#a013846c93d4100e6bf991c7e007613ab',1,'lanelet2_route_planning::Lanelet2RoutePlanning']]],
+  ['laneletatpoint_2',['laneletAtPoint',['../namespacelanelet2__route__planning.html#aeafbc15b3bf4a77b827ac0f1fbe472d8',1,'lanelet2_route_planning']]]
 ];

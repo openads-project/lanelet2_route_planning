@@ -28,7 +28,7 @@
  <tbody>
  <tr id="projectrow">
   <td id="projectalign">
-   <div id="projectname">lanelet2_route_planning<span id="projectnumber">&#160;v2.0.0</span>
+   <div id="projectname">lanelet2_route_planning<span id="projectnumber">&#160;v2.1.0</span>
    </div>
   </td>
  </tr>
@@ -104,7 +104,34 @@ $(function(){initNavTree('md_docs_2IMPLEMENTATION.html',''); initResizable(true)
 <h1><a class="anchor" id="autotoc_md10"></a>
 Route Message Format</h1>
 <p>See <a href="https://github.com/ika-rwth-aachen/planning_interfaces?tab=readme-ov-file#overview-of-the-route_planning_msgs">planning_interfaces</a>.</p>
-<p><img src="https://raw.githubusercontent.com/ika-rwth-aachen/planning_interfaces/refs/heads/main/assets/route_planning_msgs.png" alt="" class="inline"/> </p>
+<p><img src="https://raw.githubusercontent.com/ika-rwth-aachen/planning_interfaces/refs/heads/main/assets/route_planning_msgs.png" alt="" class="inline"/></p>
+<h1><a class="anchor" id="autotoc_md11"></a>
+Map Requirements</h1>
+<h2><a class="anchor" id="autotoc_md12"></a>
+Regulatory Elements</h2>
+<ul>
+<li>Regulatory elements are attached to the lanelets they affect.</li>
+<li><code>RightOfWay</code> lists all yielding lanelets as <code>yield</code> and all priority lanelets as <code>right_of_way</code>, including bicycle and pedestrian lanelets. Crosswalk markings or Areas alone do not establish priority.</li>
+<li>Explicit stop lines intersect the centerline of the affected lane; only their first and last points are used.</li>
+<li>Stop lines may lie beyond the end of the lanelet carrying the rule.</li>
+<li><code>AllWayStop</code> uses the stop line assigned to each lanelet.</li>
+<li>Without a stop line, <code>RightOfWay</code>, <code>AllWayStop</code>, and <code>TrafficLight</code> use the lanelet end.</li>
+</ul>
+<h2><a class="anchor" id="autotoc_md13"></a>
+Route-Dependent Yield Filtering (Optional)</h2>
+<ul>
+<li>The <code>RightOfWay</code> references exactly one Area via role <code>intersection_area</code>. In OSM, this is a multipolygon relation with <code>subtype=intersection</code>, <code>outer</code> ways, and optional <code>inner</code> ways.</li>
+<li>The Area covers all crossing and merging movements of the junction, but no neighboring junction.</li>
+<li>The Area overlaps the first route lanelet after the yielding lanelet and each priority lanelet or its successor.</li>
+<li><code>following</code> connections lead through the junction to its exits without lane changes.</li>
+</ul>
+<p>Yield is omitted only if no priority movement conflicts with the selected route:</p>
+<ul>
+<li>Priority movements are all lanelets reachable inside the Area and their first exits, for each legal direction of the vehicle, bicycle, and pedestrian routing graphs.</li>
+<li>A conflict is a shared lanelet or any contact of the 2D centerlines.</li>
+<li>Yield is retained for missing or invalid Area data or routing graphs, dead ends inside the Area, priority directions without exit, or search limits.</li>
+<li>Other rule types are not filtered. </li>
+</ul>
 </div></div><!-- contents -->
 </div><!-- PageDoc -->
 </div><!-- doc-content -->

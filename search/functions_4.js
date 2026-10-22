@@ -5,5 +5,5 @@ var searchData=
   ['estimateremainingtime_2',['estimateRemainingTime',['../namespacelanelet2__route__planning.html#a63c9b92787d976e6ea0ef02032583c4d',1,'lanelet2_route_planning']]],
   ['extractdrivablespace_3',['extractDrivableSpace',['../namespacelanelet2__route__planning.html#ae0d6c98c54442b5b8350fb8cce4a2f88',1,'lanelet2_route_planning']]],
   ['extractlocalroutewindow_4',['extractLocalRouteWindow',['../namespacelanelet2__route__planning.html#a4e2950a524f622b7e1d5a5a987af8ad0',1,'lanelet2_route_planning']]],
-  ['extractregulatoryelements_5',['extractRegulatoryElements',['../namespacelanelet2__route__planning.html#a5d148b84f9326901047b60e0b8bd9dfa',1,'lanelet2_route_planning']]]
+  ['extractregulatoryelements_5',['extractRegulatoryElements',['../namespacelanelet2__route__planning.html#ac42688df4418bd9b3f6d3ec132c2d9b6',1,'lanelet2_route_planning']]]
 ];

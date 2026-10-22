@@ -25,6 +25,7 @@ var classlanelet2__route__planning_1_1Lanelet2RoutePlanning =
     [ "action_server_", "classlanelet2__route__planning_1_1Lanelet2RoutePlanning.html#aeb94deca623e01d09f57c17008a5959f", null ],
     [ "action_start_time_", "classlanelet2__route__planning_1_1Lanelet2RoutePlanning.html#adea7a5f159b78a54e52b66ac5945e61c", null ],
     [ "auto_reconfigurable_params_", "classlanelet2__route__planning_1_1Lanelet2RoutePlanning.html#a1377fc6cc727c42b1a9aa7f598a53c0b", null ],
+    [ "bicycle_routing_graph_", "classlanelet2__route__planning_1_1Lanelet2RoutePlanning.html#abb389b83ede6cdfb01ada12097994d43", null ],
     [ "destination_", "classlanelet2__route__planning_1_1Lanelet2RoutePlanning.html#a0bb01c60c907e9013db99fc8ca220e2a", null ],
     [ "destination_distance_threshold_", "classlanelet2__route__planning_1_1Lanelet2RoutePlanning.html#a59836f91765907f75eb9dbd67a076bfd", null ],
     [ "diagnostic_updater_", "classlanelet2__route__planning_1_1Lanelet2RoutePlanning.html#a513d0aba82817dc8d01dfc379aa0232b", null ],
@@ -45,6 +46,7 @@ var classlanelet2__route__planning_1_1Lanelet2RoutePlanning =
     [ "latest_full_route_msg_", "classlanelet2__route__planning_1_1Lanelet2RoutePlanning.html#af5c46810b5a0a29cb415e2f9e3c566d5", null ],
     [ "latest_global_route_msg_", "classlanelet2__route__planning_1_1Lanelet2RoutePlanning.html#a8a122a123b5be8b759448065fe1ac403", null ],
     [ "latest_lanelet_idx_by_reference_line_point_idx_", "classlanelet2__route__planning_1_1Lanelet2RoutePlanning.html#aeb1a847670c15d3de9f8cb487e676e2e", null ],
+    [ "latest_main_regulatory_elements_by_route_element_", "classlanelet2__route__planning_1_1Lanelet2RoutePlanning.html#a6e8dbda2afd75c96edabca157c6fcd02", null ],
     [ "latest_reference_line_", "classlanelet2__route__planning_1_1Lanelet2RoutePlanning.html#ac5d0c071325e81aa806098477c9dc04d", null ],
     [ "latest_route_", "classlanelet2__route__planning_1_1Lanelet2RoutePlanning.html#a6dad172dc12ca5b9ca20051a05863cc7", null ],
     [ "latest_route_msg_", "classlanelet2__route__planning_1_1Lanelet2RoutePlanning.html#a7e340665991c3655166b2afcb65dfa3d", null ],
@@ -54,6 +56,7 @@ var classlanelet2__route__planning_1_1Lanelet2RoutePlanning =
     [ "max_drivable_space_radius_", "classlanelet2__route__planning_1_1Lanelet2RoutePlanning.html#a17fcda2e0b4a9aca297262571a90532d", null ],
     [ "max_num_threads_", "classlanelet2__route__planning_1_1Lanelet2RoutePlanning.html#a8dbc0d3b00d8d9ae7ce097be21609566", null ],
     [ "parameters_callback_", "classlanelet2__route__planning_1_1Lanelet2RoutePlanning.html#ad57f65c35b0c6ae419dc400017acf711", null ],
+    [ "pedestrian_routing_graph_", "classlanelet2__route__planning_1_1Lanelet2RoutePlanning.html#af4c29486610e15c9a3e932bc5cd1a934", null ],
     [ "project_destination_to_reference_line_", "classlanelet2__route__planning_1_1Lanelet2RoutePlanning.html#acfc583c0102a3fc1184ea4ee5eb0516c", null ],
     [ "publish_frequency_", "classlanelet2__route__planning_1_1Lanelet2RoutePlanning.html#a6334434b178204bba9ff63dec3943b64", null ],
     [ "publish_frequency_global_", "classlanelet2__route__planning_1_1Lanelet2RoutePlanning.html#a3e7529a96d8d4d397deff5ab9bed83d4", null ],
@@ -65,12 +68,12 @@ var classlanelet2__route__planning_1_1Lanelet2RoutePlanning =
     [ "route_timer_diagnostic_", "classlanelet2__route__planning_1_1Lanelet2RoutePlanning.html#a5c0a359bef0d862f6728ae9a1557b25c", null ],
     [ "route_timer_diagnostic_config_", "classlanelet2__route__planning_1_1Lanelet2RoutePlanning.html#ab8f967d84c88231b10b38b2c14394f67", null ],
     [ "route_undershoot_distance_", "classlanelet2__route__planning_1_1Lanelet2RoutePlanning.html#ab1ff42b7100d5814ac49ff87addbc25a", null ],
-    [ "routing_graph_", "classlanelet2__route__planning_1_1Lanelet2RoutePlanning.html#aa2add726e83c36cdacb75cc491c42d6f", null ],
     [ "sampling_distance_", "classlanelet2__route__planning_1_1Lanelet2RoutePlanning.html#a01c6662f7c9246eebfadfe2775e41042", null ],
     [ "sampling_max_lateral_error_global_", "classlanelet2__route__planning_1_1Lanelet2RoutePlanning.html#a21893fed4542183508f1425e3413a2b3", null ],
     [ "starting_point_", "classlanelet2__route__planning_1_1Lanelet2RoutePlanning.html#a6f189c053958b16d88dd9ebcf42530d9", null ],
     [ "subscriber_ego_data_", "classlanelet2__route__planning_1_1Lanelet2RoutePlanning.html#a704ab8ca8e4a321267074576f9d210bd", null ],
     [ "tf_buffer_", "classlanelet2__route__planning_1_1Lanelet2RoutePlanning.html#a6d9d4206be5aa9bd4cf5f4d67da5f026", null ],
     [ "tf_listener_", "classlanelet2__route__planning_1_1Lanelet2RoutePlanning.html#a5df162394343bc8df3f6a9b085de69b9", null ],
-    [ "transform_timeout_", "classlanelet2__route__planning_1_1Lanelet2RoutePlanning.html#af7a1dcdc12d83757d16c07860fbdd03a", null ]
+    [ "transform_timeout_", "classlanelet2__route__planning_1_1Lanelet2RoutePlanning.html#af7a1dcdc12d83757d16c07860fbdd03a", null ],
+    [ "vehicle_routing_graph_", "classlanelet2__route__planning_1_1Lanelet2RoutePlanning.html#ade2d8ebba7fead6cf9e3d0bddb7caf11", null ]
 ];
