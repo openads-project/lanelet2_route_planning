@@ -77,6 +77,11 @@ install(DIRECTORY config
 )
 
 if(BUILD_TESTING)
+  # increase clang-tidy timeout from default 300s
+  list(APPEND AMENT_LINT_AUTO_EXCLUDE ament_cmake_clang_tidy)
+  find_package(ament_cmake_clang_tidy REQUIRED)
+  ament_clang_tidy(${CMAKE_CURRENT_BINARY_DIR} TIMEOUT 600)
+
   find_package(ament_lint_auto REQUIRED)
   set(ament_cmake_clang_format_CONFIG_FILE ${CMAKE_CURRENT_SOURCE_DIR}/../.vscode/format/.clang-format)
   set(ament_cmake_clang_tidy_CONFIG_FILE ${CMAKE_CURRENT_SOURCE_DIR}/../.vscode/lint/.clang-tidy)
