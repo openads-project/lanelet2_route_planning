@@ -77,11 +77,42 @@ install(DIRECTORY config
 )
 
 if(BUILD_TESTING)
+  # increase clang-tidy timeout from default 300s
+  list(APPEND AMENT_LINT_AUTO_EXCLUDE ament_cmake_clang_tidy)
+  find_package(ament_cmake_clang_tidy REQUIRED)
+  ament_clang_tidy(${CMAKE_CURRENT_BINARY_DIR} TIMEOUT 600)
+
   find_package(ament_lint_auto REQUIRED)
   set(ament_cmake_clang_format_CONFIG_FILE ${CMAKE_CURRENT_SOURCE_DIR}/../.vscode/format/.clang-format)
   set(ament_cmake_clang_tidy_CONFIG_FILE ${CMAKE_CURRENT_SOURCE_DIR}/../.vscode/lint/.clang-tidy)
   set(ament_cmake_flake8_CONFIG_FILE ${CMAKE_CURRENT_SOURCE_DIR}/../.vscode/lint/ament_flake8.ini)
   ament_lint_auto_find_test_dependencies()
+
+  find_package(ament_cmake_gtest REQUIRED)
+  ament_add_gtest(test_utils
+    test/test_utils.cpp
+    src/conversions.cpp
+    src/geometry.cpp
+    src/utils.cpp
+  )
+  # The production sources are already exported by the node target; avoid duplicate clang-tidy work.
+  set_property(TARGET test_utils PROPERTY EXPORT_COMPILE_COMMANDS OFF)
+  target_include_directories(test_utils PUBLIC
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+    $<INSTALL_INTERFACE:include>
+  )
+  target_compile_features(test_utils PUBLIC c_std_99 cxx_std_17)
+  ament_target_dependencies(test_utils
+    lanelet2_core
+    lanelet2_routing
+    lanelet2_traffic_rules
+    perception_msgs
+    perception_msgs_utils
+    rclcpp
+    route_planning_msgs
+    route_planning_msgs_utils
+  )
+  target_dependencies_as_system(test_utils)
 endif()
 
 ament_package()
