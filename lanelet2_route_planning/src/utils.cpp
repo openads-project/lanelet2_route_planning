@@ -36,7 +36,7 @@ namespace lanelet2_route_planning {
 
 std::optional<lanelet::routing::Route> getRoute(const lanelet::routing::RoutingGraphUPtr& routing_graph,
                                                 const std::vector<lanelet::ConstLanelet>& route_lanelets) {
-  if (route_lanelets.empty()) {
+  if (route_lanelets.size() < 2) {
     return std::nullopt;
   }
 
@@ -73,6 +73,41 @@ std::optional<lanelet::routing::Route> getRoute(const lanelet::routing::RoutingG
   }
   auto shortest_route = std::optional<lanelet::routing::Route>(std::move(*shortest_route_ptr));
   return shortest_route;
+}
+
+std::optional<lanelet::routing::Route> getRouteWithContext(const lanelet::routing::RoutingGraphUPtr& routing_graph,
+                                                           const std::vector<lanelet::ConstLanelet>& route_lanelets,
+                                                           const Eigen::Vector2d& start_position,
+                                                           const Eigen::Vector2d& destination_position,
+                                                           const double undershoot_distance,
+                                                           const double overshoot_distance) {
+  auto route = getRoute(routing_graph, route_lanelets);
+  if (!route) {
+    return std::nullopt;
+  }
+
+  // Map orientation can differ from travel direction on bidirectional lanelets.
+  const auto path = route->shortestPath();
+  const auto start = followLaneletsAlongRoutingGraph(routing_graph, path.front(), start_position, -std::abs(undershoot_distance));
+  const auto destination =
+      followLaneletsAlongRoutingGraph(routing_graph, path.back(), destination_position, std::abs(overshoot_distance));
+  if (start == path.front() && destination == path.back()) {
+    return route;
+  }
+
+  // Anchor the extension to the requested endpoints so it cannot bypass the destination or change direction.
+  lanelet::ConstLanelets via(route_lanelets.begin() + 1, route_lanelets.end() - 1);
+  if (start != path.front()) {
+    via.insert(via.begin(), path.front());
+  }
+  if (destination != path.back()) {
+    via.push_back(path.back());
+  }
+  auto extended_route = routing_graph->getRouteVia(start, via, destination);
+  if (extended_route) {
+    return std::move(*extended_route);
+  }
+  return route;
 }
 
 size_t indexOfLineStringPointClosestToPoint(const std::vector<Eigen::Vector2d>& line_string,

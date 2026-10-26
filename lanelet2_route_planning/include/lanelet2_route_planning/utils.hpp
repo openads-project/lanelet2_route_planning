@@ -45,6 +45,26 @@ std::optional<lanelet::routing::Route> getRoute(const lanelet::routing::RoutingG
                                                 const std::vector<lanelet::ConstLanelet>& route_lanelets);
 
 /**
+ * @brief Plans a route, then extends its endpoints in the selected travel directions.
+ *
+ * Keeps the requested lanelets on the route and returns the unextended route if context cannot be added.
+ *
+ * @param[in] routing_graph routing graph
+ * @param[in] route_lanelets requested start, intermediate and destination lanelets
+ * @param[in] start_position position on the start lanelet
+ * @param[in] destination_position position on the destination lanelet
+ * @param[in] undershoot_distance distance to extend before the start [m]
+ * @param[in] overshoot_distance distance to extend after the destination [m]
+ * @return route if found, otherwise std::nullopt
+ */
+std::optional<lanelet::routing::Route> getRouteWithContext(const lanelet::routing::RoutingGraphUPtr& routing_graph,
+                                                           const std::vector<lanelet::ConstLanelet>& route_lanelets,
+                                                           const Eigen::Vector2d& start_position,
+                                                           const Eigen::Vector2d& destination_position,
+                                                           double undershoot_distance,
+                                                           double overshoot_distance);
+
+/**
  * @brief Extracts a local route window while preserving absolute route data.
  *
  * @param[in] full_route complete route

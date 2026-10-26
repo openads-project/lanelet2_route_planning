@@ -5,11 +5,165 @@
 #include <vector>
 
 #include <gtest/gtest.h>
+#include <lanelet2_core/LaneletMap.h>
 #include <lanelet2_core/primitives/BasicRegulatoryElements.h>
+#include <lanelet2_routing/Route.h>
 
 #include "lanelet2_route_planning/utils.hpp"
 
 namespace lanelet2_route_planning {
+
+class RouteContextTest : public ::testing::Test {
+ protected:
+  void SetUp() override {
+    lanelet::Points3d left_points;
+    lanelet::Points3d right_points;
+    for (int i = 0; i <= 4; ++i) {
+      left_points.emplace_back(100 + i, 10.0 * i, 1.0, 0.0);
+      right_points.emplace_back(200 + i, 10.0 * i, -1.0, 0.0);
+    }
+    for (size_t i = 0; i < 4; ++i) {
+      lanelet::LineString3d left(300 + 2 * i, {left_points[i], left_points[i + 1]});
+      lanelet::LineString3d right(301 + 2 * i, {right_points[i], right_points[i + 1]});
+      lanelet::Lanelet lanelet(400 + i, left, right);
+      lanelet.attributes()["subtype"] = "road";
+      lanelet.attributes()["location"] = "urban";
+      lanelet.attributes()["one_way"] = (i == 1 || i == 2) ? "no" : "yes";
+      // Store the middle lanelets opposite to the route's eastbound travel direction.
+      if (i == 1 || i == 2) {
+        lanelet = lanelet.invert();
+      }
+      map_->add(lanelet);
+      lanelets_.push_back(lanelet);
+    }
+    graph_ = lanelet::routing::RoutingGraph::build(*map_, *getTrafficRules());
+  }
+
+  lanelet::LaneletMapPtr map_ = std::make_shared<lanelet::LaneletMap>();
+  lanelet::ConstLanelets lanelets_;
+  lanelet::routing::RoutingGraphUPtr graph_;
+};
+
+/**
+ * @brief Extends a bidirectional destination after choosing its reachable direction.
+ */
+TEST_F(RouteContextTest, OvershootsInSelectedDestinationDirection) {  // NOLINT
+  const auto wrong_destination = followLaneletsAlongRoutingGraph(graph_, lanelets_[2], {25.0, 0.0}, 10.0);
+  EXPECT_EQ(wrong_destination, lanelets_[1]);
+  const auto route = getRouteWithContext(graph_, {lanelets_[0], lanelets_[2]}, {5.0, 0.0}, {25.0, 0.0}, 0.0, 10.0);
+
+  ASSERT_TRUE(route);
+  const auto path = route->shortestPath();
+  ASSERT_EQ(path.size(), 4U);
+  EXPECT_EQ(path[2], lanelets_[2].invert());
+  EXPECT_EQ(path.back(), lanelets_[3]);
+}
+
+/**
+ * @brief Reproduces rejection when map-oriented overshoot follows an unreachable outgoing branch.
+ */
+TEST_F(RouteContextTest, AvoidsUnreachableBranchBeyondMapOrientedDestination) {  // NOLINT
+  const auto destination = lanelets_[1];
+  lanelet::LineString3d left(500,
+                             {map_->pointLayer.get(destination.leftBound().back().id()), lanelet::Point3d(501, 0.0, 4.0, 0.0)});
+  lanelet::LineString3d right(502,
+                              {map_->pointLayer.get(destination.rightBound().back().id()), lanelet::Point3d(503, 0.0, 6.0, 0.0)});
+  lanelet::Lanelet branch(504, left, right);
+  branch.attributes()["subtype"] = "road";
+  branch.attributes()["location"] = "urban";
+  branch.attributes()["one_way"] = "yes";
+  map_->add(branch);
+  graph_ = lanelet::routing::RoutingGraph::build(*map_, *getTrafficRules());
+
+  const auto wrong_destination = followLaneletsAlongRoutingGraph(graph_, destination, {15.0, 0.0}, 10.0);
+  ASSERT_EQ(wrong_destination, branch);
+  EXPECT_FALSE(getRoute(graph_, {lanelets_[0], wrong_destination}));
+
+  const auto route = getRouteWithContext(graph_, {lanelets_[0], destination}, {5.0, 0.0}, {15.0, 0.0}, 0.0, 10.0);
+  ASSERT_TRUE(route);
+  const auto path = route->shortestPath();
+  ASSERT_EQ(path.size(), 3U);
+  EXPECT_EQ(path[1], destination.invert());
+  EXPECT_EQ(path.back(), lanelets_[2].invert());
+}
+
+/**
+ * @brief Extends a bidirectional start behind the selected travel direction.
+ */
+TEST_F(RouteContextTest, UndershootsInSelectedStartDirection) {  // NOLINT
+  const auto route = getRouteWithContext(graph_, {lanelets_[1], lanelets_[3]}, {15.0, 0.0}, {35.0, 0.0}, 10.0, 0.0);
+
+  ASSERT_TRUE(route);
+  const auto path = route->shortestPath();
+  ASSERT_EQ(path.size(), 4U);
+  EXPECT_EQ(path.front(), lanelets_[0]);
+  EXPECT_EQ(path[1], lanelets_[1].invert());
+}
+
+/**
+ * @brief Keeps both requested endpoints when extending both ends of a route.
+ */
+TEST_F(RouteContextTest, ExtendsBothEndpoints) {  // NOLINT
+  const auto route = getRouteWithContext(graph_, {lanelets_[1], lanelets_[2]}, {15.0, 0.0}, {25.0, 0.0}, 10.0, 10.0);
+
+  ASSERT_TRUE(route);
+  const auto path = route->shortestPath();
+  ASSERT_EQ(path.size(), 4U);
+  EXPECT_EQ(path.front(), lanelets_[0]);
+  EXPECT_EQ(path[1], lanelets_[1].invert());
+  EXPECT_EQ(path[2], lanelets_[2].invert());
+  EXPECT_EQ(path.back(), lanelets_[3]);
+}
+
+/**
+ * @brief Zero extension still selects the reachable bidirectional endpoint.
+ */
+TEST_F(RouteContextTest, SupportsZeroContext) {  // NOLINT
+  const auto route = getRouteWithContext(graph_, {lanelets_[0], lanelets_[2]}, {5.0, 0.0}, {25.0, 0.0}, 0.0, 0.0);
+
+  ASSERT_TRUE(route);
+  EXPECT_EQ(route->shortestPath().size(), 3U);
+  EXPECT_EQ(route->shortestPath().back(), lanelets_[2].invert());
+}
+
+/**
+ * @brief Context stops at graph boundaries without rejecting a valid route.
+ */
+TEST_F(RouteContextTest, StopsContextAtMapBoundary) {  // NOLINT
+  const auto route = getRouteWithContext(graph_, {lanelets_[0], lanelets_[3]}, {5.0, 0.0}, {35.0, 0.0}, 100.0, 100.0);
+
+  ASSERT_TRUE(route);
+  EXPECT_EQ(route->shortestPath().size(), 4U);
+}
+
+/**
+ * @brief Requested intermediate lanelets remain on the extended route.
+ */
+TEST_F(RouteContextTest, PreservesIntermediateDestination) {  // NOLINT
+  const auto route =
+      getRouteWithContext(graph_, {lanelets_[0], lanelets_[1].invert(), lanelets_[2]}, {5.0, 0.0}, {25.0, 0.0}, 0.0, 10.0);
+
+  ASSERT_TRUE(route);
+  const auto path = route->shortestPath();
+  ASSERT_EQ(path.size(), 4U);
+  EXPECT_EQ(path[1], lanelets_[1].invert());
+  EXPECT_EQ(path.back(), lanelets_[3]);
+}
+
+/**
+ * @brief Rejects a route that would require reversing a one-way lanelet.
+ */
+TEST_F(RouteContextTest, DoesNotReverseOneWayLanelets) {  // NOLINT
+  EXPECT_FALSE(getRouteWithContext(graph_, {lanelets_[3], lanelets_[0]}, {35.0, 0.0}, {5.0, 0.0}, 10.0, 10.0));
+}
+
+/**
+ * @brief Incomplete endpoint input has no route.
+ */
+TEST_F(RouteContextTest, RejectsMissingEndpoints) {  // NOLINT
+  EXPECT_FALSE(getRoute(graph_, {}));
+  EXPECT_FALSE(getRoute(graph_, {lanelets_[0]}));
+}
 
 class ExtractRegulatoryElementsTest : public ::testing::Test {
  protected:

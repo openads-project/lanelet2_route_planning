@@ -711,17 +711,13 @@ bool Lanelet2RoutePlanning::planRoute(const geometry_msgs::msg::PointStamped& de
     }
   }
 
-  // undershoot/overshoot route endpoints to enable context before start position and behind destination
-  lanelet::ConstLanelet undershot_ego_ll = followLaneletsAlongRoutingGraph(vehicle_routing_graph_.graph, ego_ll, ego_ll_position,
-                                                                           -std::abs(route_undershoot_distance_));
-  lanelet::ConstLanelet overshot_destination_ll = followLaneletsAlongRoutingGraph(
-      vehicle_routing_graph_.graph, destination_ll, destination_ll_position, route_overshoot_distance_);
-
   // compute route from start to destination along intermediate destinations
-  std::vector<lanelet::ConstLanelet> route_lanelets = {undershot_ego_ll};
+  std::vector<lanelet::ConstLanelet> route_lanelets = {ego_ll};
   route_lanelets.insert(route_lanelets.end(), intermediate_destination_lls.begin(), intermediate_destination_lls.end());
-  route_lanelets.push_back(overshot_destination_ll);
-  std::optional<lanelet::routing::Route> planned_route = getRoute(vehicle_routing_graph_.graph, route_lanelets);
+  route_lanelets.push_back(destination_ll);
+  std::optional<lanelet::routing::Route> planned_route =
+      getRouteWithContext(vehicle_routing_graph_.graph, route_lanelets, ego_ll_position, destination_ll_position,
+                          route_undershoot_distance_, route_overshoot_distance_);
 
   if (planned_route) {
     starting_point_ = egoPosition(latest_ego_data_);
