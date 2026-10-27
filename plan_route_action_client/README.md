@@ -35,7 +35,19 @@ flowchart LR
 | --- | --- | --- |
 | `/planning/lanelet2_route_planning/plan_route` | `route_planning_msgs/action/PlanRoute` | plans route to destination |
 
+#### Services
+
+| Service | Type | Description |
+| --- | --- | --- |
+| `~/request_route` | `route_planning_msgs/srv/RequestRoute` | Requests a waypoint route once (`MODE_ROUTE`). |
+| `~/extended_request_route` | `route_planning_msgs/srv/ExtendedRequestRoute` | Supports `MODE_ROUTE` (0), `MODE_LOOP` (1), `MODE_RANDOM` (2), and `MODE_RANDOM_CONTINUOUS` (3). |
+| `~/cancel_route` | `route_planning_msgs/srv/CancelRoute` | Disables automatic planning, clears route state, and requests cancellation of this client's goals. |
+
+Waypoint modes require a `RouteRequest` with WGS84 waypoints and matching `wait_times`; random modes require no waypoints. `replanning_proportion` (0–1) applies only to `MODE_LOOP`. Valid requests replace the previous route request. Responses report `accepted` and an explanatory `message`; action execution and cancellation are asynchronous.
+
 #### Parameters
+
+Existing YAML parameters are still loaded and applied at startup. Use the services for runtime route requests and cancellation; they update internal state without rewriting ROS parameter values.
 
 | Parameter | Type | Default | Description |
 | --- | --- | --- | --- |
