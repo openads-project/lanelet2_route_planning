@@ -160,6 +160,9 @@ class PlanRouteActionClient : public rclcpp::Node {
   /**
    * @brief Callback for feedback from the action server
    *
+   * Continuous replanning removes passed intermediate waypoints while preserving
+   * the current destination and its wait time.
+   *
    * @param[in] goal_handle goal handle
    * @param[in] feedback action feedback
    * @param[in] generation route request generation captured when the goal was sent
@@ -169,6 +172,9 @@ class PlanRouteActionClient : public rclcpp::Node {
 
   /**
    * @brief Callback for result from the action server
+   *
+   * Advances waypoint routes and starts destination wait times only after
+   * successful, confirmed arrival. Otherwise automatic waypoint planning stops.
    *
    * @param[in] result action result
    * @param[in] generation route request generation captured when the goal was sent

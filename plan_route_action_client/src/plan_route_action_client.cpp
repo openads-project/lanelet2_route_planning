@@ -663,7 +663,7 @@ void PlanRouteActionClient::feedbackCallback(GoalHandlePlanRoute::SharedPtr goal
     return;
   }
 
-  if (!enable_continuous_planning_ || !has_active_waypoint_ || active_waypoint_wait_time_s_ > 0.0 ||
+  if (!enable_continuous_planning_ || !has_active_waypoint_ || active_route_waypoints_.size() < 2 ||
       continuous_replanning_pending_ || distance_total <= 0.0 ||
       distance_traveled / distance_total < continuous_planning_replanning_proportion_ || waypoints_.empty() ||
       waypoint_wait_times_.size() != waypoints_.size() ||
@@ -706,7 +706,9 @@ void PlanRouteActionClient::feedbackCallback(GoalHandlePlanRoute::SharedPtr goal
   const auto first_unpassed = std::find_if(waypoint_route_indices.begin(), waypoint_route_indices.end(),
                                            [this](size_t idx) { return idx >= latest_global_route_.current_route_element_idx; });
   const size_t first_unpassed_idx = static_cast<size_t>(std::distance(waypoint_route_indices.begin(), first_unpassed));
-  if (first_unpassed == waypoint_route_indices.end()) {
+  // Replan only after passing an intermediate waypoint. Keep the destination
+  // unchanged and avoid repeatedly replacing a goal on its final approach.
+  if (first_unpassed == waypoint_route_indices.end() || first_unpassed_idx == 0) {
     return;
   }
 
@@ -748,9 +750,15 @@ void PlanRouteActionClient::feedbackCallback(GoalHandlePlanRoute::SharedPtr goal
     rotated_waypoints.push_back(waypoint_point);
     rotated_waypoint_indices.push_back(waypoint_idx);
 
-    if (waypoint_wait_times_[waypoint_idx] > 0.0) {
+    if (waypoint_wait_times_[waypoint_idx] >= 0.0) {
       break;
     }
+  }
+
+  // Never rotate across a required stop or turn an intermediate waypoint into a goal.
+  if (rotated_waypoint_indices.back() != active_route_waypoint_indices_.back() ||
+      waypoint_wait_times_[rotated_waypoint_indices.back()] < 0.0) {
+    return;
   }
 
   auto goal_pose = std::make_shared<geometry_msgs::msg::PoseStamped>();
@@ -759,13 +767,13 @@ void PlanRouteActionClient::feedbackCallback(GoalHandlePlanRoute::SharedPtr goal
   std::vector<geometry_msgs::msg::PointStamped> intermediate_destinations(rotated_waypoints.begin(), rotated_waypoints.end() - 1);
 
   RCLCPP_INFO(this->get_logger(),
-              "Route progress reached %.0f%%, rotating waypoint route after "
-              "%ld passed waypoint(s)",
+              "Route progress reached %.0f%%, replanning to the same destination after "
+              "%ld passed intermediate waypoint(s)",
               100.0 * continuous_planning_replanning_proportion_, first_unpassed_idx);
   pending_route_waypoints_ = rotated_waypoints;
   pending_route_waypoint_indices_ = rotated_waypoint_indices;
   pending_next_waypoint_idx_ = rotated_waypoint_indices.back() + 1;
-  pending_waypoint_wait_time_s_ = std::max(0.0, waypoint_wait_times_[rotated_waypoint_indices.back()]);
+  pending_waypoint_wait_time_s_ = waypoint_wait_times_[rotated_waypoint_indices.back()];
   continuous_replanning_pending_ = true;
   replaced_goal_id_ = goal_handle->get_goal_id();
   this->sendGoal(goal_pose, intermediate_destinations);
@@ -783,10 +791,16 @@ void PlanRouteActionClient::resultCallback(const GoalHandlePlanRoute::WrappedRes
     replaced_goal_id_.reset();
     return;
   }
-  if (active_goal_id_.has_value() && result.goal_id != active_goal_id_.value()) {
+  const bool destination_reached = result.code == rclcpp_action::ResultCode::SUCCEEDED &&
+                                   result.result->destination_reached;
+  // The previous goal may confirm arrival while its replacement is being accepted.
+  const bool replaced_destination_reached = has_active_waypoint_ && destination_reached &&
+      replaced_goal_id_.has_value() && result.goal_id == replaced_goal_id_.value();
+  if (active_goal_id_.has_value() && result.goal_id != active_goal_id_.value() && !replaced_destination_reached) {
     return;
   }
 
+  const bool waypoint_goal = has_active_waypoint_;
   const double distance_traveled = result.result->distance_traveled;
   const builtin_interfaces::msg::Duration& time_traveled = result.result->time_traveled;
   const double wait_time_s = has_active_waypoint_ ? active_waypoint_wait_time_s_ : 0.0;
@@ -807,17 +821,43 @@ void PlanRouteActionClient::resultCallback(const GoalHandlePlanRoute::WrappedRes
     RCLCPP_ERROR(this->get_logger(), "Goal finished with unknown result code: %d", static_cast<int>(result.code));
   }
 
+  if (has_active_waypoint_) {
+    if (!destination_reached && !active_route_waypoint_indices_.empty()) {
+      next_waypoint_idx_ = active_route_waypoint_indices_.front();
+      RCLCPP_WARN(this->get_logger(), "Destination not reached; stopping automatic waypoint planning");
+    }
+    // Replanning goals share this destination. Invalidate any pending response
+    // and cancel remaining goals before advancing or starting the wait time.
+    ++goal_generation_;
+    for (const auto& handle : goal_handles_) {
+      action_client_->async_cancel_goal(handle);
+    }
+    goal_handles_.clear();
+    pending_route_waypoints_.clear();
+    pending_route_waypoint_indices_.clear();
+    pending_next_waypoint_idx_ = 0;
+    pending_waypoint_wait_time_s_ = 0.0;
+    continuous_replanning_pending_ = false;
+    replaced_goal_id_.reset();
+    latest_global_route_ = route_planning_msgs::msg::Route();
+  }
   has_active_waypoint_ = false;
+  active_waypoint_wait_time_s_ = 0.0;
   active_route_waypoints_.clear();
   active_route_waypoint_indices_.clear();
   active_goal_id_.reset();
   has_completed_one_goal_ = true;
-  if (result.code == rclcpp_action::ResultCode::SUCCEEDED && wait_time_s > 0.0) {
+  auto_planning_resume_time_s_ = 0.0;
+  if (destination_reached && wait_time_s > 0.0) {
     RCLCPP_INFO(this->get_logger(), "Waiting %.2fs before planning next waypoint", wait_time_s);
     const double now_s = std::chrono::duration<double>(std::chrono::steady_clock::now().time_since_epoch()).count();
     auto_planning_resume_time_s_ = now_s + wait_time_s;
   }
-  auto_planning_timer_->reset();  // restart auto-planning timer
+  if (waypoint_goal && !destination_reached) {
+    auto_planning_timer_->cancel();
+  } else {
+    auto_planning_timer_->reset();  // restart auto-planning timer
+  }
 }
 
 }  // namespace plan_route_action_client
