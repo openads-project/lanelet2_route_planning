@@ -8,6 +8,7 @@ endif()
 find_package(ament_cmake REQUIRED)
 find_package(ament_index_cpp REQUIRED)
 find_package(action_msgs REQUIRED)
+find_package(geographic_msgs REQUIRED)
 find_package(geometry_msgs REQUIRED)
 find_package(pluginlib REQUIRED)
 find_package(rclcpp REQUIRED)
@@ -29,7 +30,7 @@ target_include_directories(${PROJECT_NAME} PUBLIC
 )
 target_link_libraries(${PROJECT_NAME} Qt5::Widgets yaml-cpp)
 ament_target_dependencies(${PROJECT_NAME}
-  ament_index_cpp action_msgs geometry_msgs pluginlib rclcpp rcl_interfaces route_planning_msgs
+  ament_index_cpp action_msgs geographic_msgs geometry_msgs pluginlib rclcpp rcl_interfaces route_planning_msgs
   rviz_common
 )
 
@@ -42,6 +43,6 @@ install(TARGETS ${PROJECT_NAME}
 install(DIRECTORY include/ DESTINATION include)
 install(DIRECTORY config/ DESTINATION share/${PROJECT_NAME}/config)
 ament_export_targets(export_${PROJECT_NAME} HAS_LIBRARY_TARGET)
-ament_export_dependencies(ament_index_cpp action_msgs geometry_msgs pluginlib rclcpp rcl_interfaces route_planning_msgs
+ament_export_dependencies(ament_index_cpp action_msgs geographic_msgs geometry_msgs pluginlib rclcpp rcl_interfaces route_planning_msgs
   rviz_common)
 ament_package()

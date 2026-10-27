@@ -11,7 +11,7 @@ Action client to plan a route_planning_msgs/action/Route based on clicked RViz p
 
 The `plan_route_action_client` node is an action client interacting with the `lanelet2_route_planning` action server. It primarily offers three different modes of route planning:
 1. goal pose subscriber: plans a route to a `/goal_pose` published by RViz's goal pose plugin; the suggested way of interactively planning routes in RViz is to use the [PlanRouteTool](https://github.com/ika-rwth-aachen/planning_interfaces/tree/main/route_planning_msgs_rviz_plugins) RViz tool plugin though
-2. waypoints: plans routes to pre-defined waypoints, one after the other; with continuous planning enabled, already passed waypoints are moved to the end of the route once the configured route proportion is reached, allowing the vehicle to drive the waypoints as a closed loop without stopping (waypoints with a positive `WAIT_TIME_S` remain designated stops: each is reached as a route destination and its configured wait time is completed before planning continues)
+2. waypoints: plans routes to pre-defined waypoints, one after the other; `WAIT_TIME_S = -1` marks intermediate waypoints without a stop, `0` marks a destination with a stop and no additional wait, and positive values add a wait after confirmed arrival. Continuous planning may remove passed intermediate waypoints while retaining the current destination; the route loops only after each destination has been reached and its wait time has elapsed.
 3. random: plans a route to a random destination on the map
 
 ```mermaid
@@ -35,7 +35,19 @@ flowchart LR
 | --- | --- | --- |
 | `/planning/lanelet2_route_planning/plan_route` | `route_planning_msgs/action/PlanRoute` | plans route to destination |
 
+#### Services
+
+| Service | Type | Description |
+| --- | --- | --- |
+| `~/request_route` | `route_planning_msgs/srv/RequestRoute` | Requests a waypoint route once (`MODE_ROUTE`). |
+| `~/extended_request_route` | `route_planning_msgs/srv/ExtendedRequestRoute` | Supports `MODE_ROUTE` (0), `MODE_LOOP` (1), `MODE_RANDOM` (2), and `MODE_RANDOM_CONTINUOUS` (3). |
+| `~/cancel_route` | `route_planning_msgs/srv/CancelRoute` | Disables automatic planning, clears route state, and requests cancellation of this client's goals. |
+
+Waypoint modes require a `RouteRequest` with WGS84 waypoints and matching `wait_times`; random modes require no waypoints. `replanning_proportion` (0–1) applies only to `MODE_LOOP`. Valid requests replace the previous route request. Responses report `accepted` and an explanatory `message`; action execution and cancellation are asynchronous.
+
 #### Parameters
+
+Existing YAML parameters are still loaded and applied at startup. Use the services for runtime route requests and cancellation; they update internal state without rewriting ROS parameter values.
 
 | Parameter | Type | Default | Description |
 | --- | --- | --- | --- |
