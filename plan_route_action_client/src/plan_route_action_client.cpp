@@ -3,7 +3,9 @@
 
 #include <algorithm>
 #include <chrono>
+#include <cmath>
 #include <functional>
+#include <iomanip>
 #include <iterator>
 #include <limits>
 #include <optional>
@@ -18,72 +20,12 @@
 
 namespace plan_route_action_client {
 
-/**
- * @brief Parses WGS84 waypoints from "<LATITUDE>,<LONGITUDE>[,<WAIT_TIME_S>]" strings.
- *
- * @param[in] waypoints_param waypoint parameter values
- * @param[in,out] waypoint_wait_times wait time for each waypoint
- * @param[in] logger ROS logger
- * @return parsed latitude/longitude pairs, or `std::nullopt` if parsing fails
- */
-std::optional<std::vector<std::pair<double, double>>> parseWaypoints(const std::vector<std::string>& waypoints_param,
-                                                                     std::vector<double>& waypoint_wait_times,
-                                                                     const rclcpp::Logger& logger) {
-  std::vector<std::pair<double, double>> waypoints;
-  std::vector<double> parsed_wait_times;
-  for (const auto& waypoint : waypoints_param) {
-    size_t comma_pos = waypoint.find(',');
-    if (comma_pos != std::string::npos) {
-      try {
-        size_t wait_time_comma_pos = waypoint.find(',', comma_pos + 1);
-        if (wait_time_comma_pos != std::string::npos && waypoint.find(',', wait_time_comma_pos + 1) != std::string::npos) {
-          return std::nullopt;
-        }
-        double lat = std::stod(waypoint.substr(0, comma_pos));
-        double lon = std::stod(waypoint.substr(comma_pos + 1, wait_time_comma_pos - comma_pos - 1));
-        double wait_time_s = 0.0;
-        if (wait_time_comma_pos != std::string::npos) {
-          wait_time_s = std::stod(waypoint.substr(wait_time_comma_pos + 1));
-        }
-        waypoints.emplace_back(lat, lon);
-        parsed_wait_times.push_back(wait_time_s);
-      } catch (const std::invalid_argument& e) {
-        return std::nullopt;
-      } catch (const std::out_of_range& e) {
-        return std::nullopt;
-      }
-    } else {
-      return std::nullopt;
-    }
-  }
-
-  if (!parsed_wait_times.empty() && parsed_wait_times.back() < 0.0) {
-    RCLCPP_WARN(logger, "Last waypoint cannot be intermediate, treating it as stop with wait_time_s 0.0");
-    parsed_wait_times.back() = 0.0;
-  }
-
-  waypoint_wait_times = parsed_wait_times;
-  return waypoints;
-}
-
 PlanRouteActionClient::PlanRouteActionClient() : Node("plan_route_action_client") {
   this->declareAndLoadParameter("ll2_map_server_name", ll2_map_server_name_, "Name of lanelet2_map_server node", false);
-  this->declareAndLoadParameter(
-      "waypoints", waypoints_param_,
-      "List of WGS84 waypoints to follow (list of strings with comma-separated '<LATITUDE>,<LONGITUDE>[,<WAIT_TIME_S>]', missing "
-      "wait time defaults to 0s, negative wait time means intermediate destination)",
-      true);
-  this->declareAndLoadParameter("enable_random_destination", enable_random_destination_,
-                                "Whether to plan a route to a random destination", true);
-  this->declareAndLoadParameter("enable_continuous_planning", enable_continuous_planning_,
-                                "Whether to continuously plan a new route (either looping waypoints or to a random destination)",
-                                true);
   this->declareAndLoadParameter("continuous_planning_replanning_proportion", continuous_planning_replanning_proportion_,
                                 "Traveled route proportion at which continuous "
                                 "waypoint replanning starts",
                                 true, false, false, 0.0, 1.0, 0.01);
-  this->declareAndLoadParameter("cancel_route", cancel_route_, "Cancel active route planning action (to be set at runtime)",
-                                true);
   this->setup();
 }
 
@@ -160,10 +102,18 @@ void PlanRouteActionClient::declareAndLoadParameter(const std::string& name,
 
 rcl_interfaces::msg::SetParametersResult PlanRouteActionClient::parametersCallback(
     const std::vector<rclcpp::Parameter>& parameters) {
-  bool cancel_requested = false;
+  rcl_interfaces::msg::SetParametersResult result;
+  result.successful = true;
   for (const auto& param : parameters) {
-    const bool enable_random_destination = param.get_name() == "enable_random_destination" && param.as_bool();
-    const bool random_was_disabled = !enable_random_destination_;
+    if (param.get_name() != "continuous_planning_replanning_proportion") continue;
+    if (param.get_type() != rclcpp::ParameterType::PARAMETER_DOUBLE || !std::isfinite(param.as_double()) ||
+        param.as_double() < 0.0 || param.as_double() > 1.0) {
+      result.successful = false;
+      result.reason = "Replanning proportion must be finite and between 0 and 1.";
+      return result;
+    }
+  }
+  for (const auto& param : parameters) {
     for (auto& auto_reconfigurable_param : auto_reconfigurable_params_) {
       if (param.get_name() == std::get<0>(auto_reconfigurable_param)) {
         std::get<1>(auto_reconfigurable_param)(param);
@@ -171,60 +121,118 @@ rcl_interfaces::msg::SetParametersResult PlanRouteActionClient::parametersCallba
         break;
       }
     }
+  }
+  return result;
+}
 
-    if (enable_random_destination && random_was_disabled) {
-      has_completed_one_goal_ = false;
+void PlanRouteActionClient::cancelRoute() {
+  route_request_active_ = false;
+  route_status_ = "CANCELED";
+  latest_route_feedback_.reset();
+  latest_route_result_.reset();
+  ++goal_generation_;
+  auto_planning_timer_->cancel();
+  enable_random_destination_ = false;
+  enable_continuous_planning_ = false;
+  waypoints_.clear();
+  waypoint_wait_times_.clear();
+  waypoint_altitudes_.clear();
+  next_waypoint_idx_ = 0;
+  auto_planning_resume_time_s_ = 0.0;
+  has_active_waypoint_ = false;
+  active_waypoint_wait_time_s_ = 0.0;
+  active_route_waypoints_.clear();
+  active_route_waypoint_indices_.clear();
+  pending_route_waypoints_.clear();
+  pending_route_waypoint_indices_.clear();
+  continuous_replanning_pending_ = false;
+  replaced_goal_id_.reset();
+  active_goal_id_.reset();
+  latest_global_route_ = route_planning_msgs::msg::Route();
+  for (const auto& handle : goal_handles_) {
+    action_client_->async_cancel_goal(handle);
+  }
+  goal_handles_.clear();
+  // Goals still awaiting acceptance are canceled by goalResponseCallback.
+}
+
+bool PlanRouteActionClient::requestRoute(const srv::RequestRoute::Request& route_request, std::string& message) {
+  if (route_request_active_) {
+    message = "A route request is already active (" + route_status_ +
+              "). Cancel it explicitly via cancel_route or wait for it to finish before submitting a new request.";
+    return false;
+  }
+  using Request = srv::RequestRoute::Request;
+  const auto mode = route_request.mode;
+  if (mode > Request::MODE_RANDOM_CONTINUOUS) {
+    message = "Unknown route planning mode.";
+    return false;
+  }
+  const bool random = mode == Request::MODE_RANDOM || mode == Request::MODE_RANDOM_CONTINUOUS;
+  if (!random) {
+    if (route_request.waypoints.empty() || route_request.waypoints.size() != route_request.wait_times.size()) {
+      message = "Waypoints and wait times must be nonempty arrays of equal length.";
+      return false;
     }
-
-    // handle waypoints
-    if (param.get_name() == "waypoints") {
-      auto parsed_waypoints = parseWaypoints(waypoints_param_, waypoint_wait_times_, this->get_logger());
-      if (parsed_waypoints) {
-        waypoints_ = *parsed_waypoints;
-        next_waypoint_idx_ = 0;
-        auto_planning_resume_time_s_ = 0.0;
-      } else {
-        std::stringstream ss;
-        ss << "Failed to parse parameter 'waypoints': [";
-        for (const auto& waypoint : waypoints_param_) {
-          ss << waypoint << (&waypoint != &waypoints_param_.back() ? ", " : "]");
+    for (size_t idx = 0; idx < route_request.waypoints.size(); ++idx) {
+      const auto& point = route_request.waypoints[idx];
+      const auto wait = route_request.wait_times[idx];
+      if (!std::isfinite(point.latitude) || !std::isfinite(point.longitude) || !std::isfinite(point.altitude) ||
+          std::abs(point.latitude) > 90.0 || std::abs(point.longitude) > 180.0) {
+        message = "Waypoint " + std::to_string(idx) + " has invalid WGS84 coordinates.";
+        return false;
+      }
+      if (const auto projector = ll2_interface_->getProjectorPtr()) {
+        try {
+          const auto projected = projector->forward({point.latitude, point.longitude, point.altitude});
+          if (!std::isfinite(projected.x()) || !std::isfinite(projected.y())) {
+            throw std::invalid_argument("Nonfinite map coordinates");
+          }
+        } catch (const std::exception& e) {
+          message = "Cannot project waypoint " + std::to_string(idx) + ": " + e.what();
+          return false;
         }
-        RCLCPP_ERROR(this->get_logger(), "%s", ss.str().c_str());
+      }
+      if (!std::isfinite(wait) || (wait < 0.0f && wait != -1.0f)) {
+        message = "Wait times must be -1 (intermediate waypoint) or finite and nonnegative.";
+        return false;
       }
     }
-
-    if (param.get_name() == "cancel_route" && cancel_route_) {
-      cancel_requested = true;
+    if (route_request.wait_times.back() < 0.0f) {
+      message = "The final waypoint must be a destination.";
+      return false;
     }
   }
 
-  if (cancel_requested) {
-    ++goal_generation_;
-    next_waypoint_idx_ = 0;
-    has_completed_one_goal_ = false;
-    auto_planning_resume_time_s_ = 0.0;
-    has_active_waypoint_ = false;
-    active_waypoint_wait_time_s_ = 0.0;
-    active_route_waypoints_.clear();
-    active_route_waypoint_indices_.clear();
-    pending_route_waypoints_.clear();
-    pending_route_waypoint_indices_.clear();
-    continuous_replanning_pending_ = false;
-    replaced_goal_id_.reset();
-    active_goal_id_.reset();
-    auto_planning_timer_->reset();
-    if (action_client_->wait_for_action_server(std::chrono::duration<double>(0.1))) {
-      RCLCPP_INFO(this->get_logger(), "Cancelling route");
-      action_client_->async_cancel_all_goals();
-    } else {
-      RCLCPP_WARN(this->get_logger(), "Action server not available, cannot cancel route");
-    }
+  // Reject an unavailable planning backend before accepting the request.
+  if (!ll2_interface_->map_loaded_ || !ll2_interface_->getProjectorPtr()) {
+    message = "Lanelet2 map is not loaded yet. Please retry once the map is available.";
+    return false;
+  }
+  if (random && ll2_interface_->getMapPtr()->laneletLayer.empty()) {
+    message = "The map contains no lanelets for a random destination.";
+    return false;
+  }
+  if (!action_client_->action_server_is_ready()) {
+    message = "PlanRoute action server is unavailable.";
+    return false;
   }
 
-  rcl_interfaces::msg::SetParametersResult result;
-  result.successful = true;
-
-  return result;
+  cancelRoute();
+  enable_random_destination_ = random;
+  enable_continuous_planning_ = mode == Request::MODE_LOOP || mode == Request::MODE_RANDOM_CONTINUOUS;
+  if (!random) {
+    for (const auto& point : route_request.waypoints) {
+      waypoints_.emplace_back(point.latitude, point.longitude);
+      waypoint_altitudes_.push_back(point.altitude);
+    }
+    waypoint_wait_times_.assign(route_request.wait_times.begin(), route_request.wait_times.end());
+  }
+  route_request_active_ = true;
+  route_status_ = "PLANNING";
+  auto_planning_timer_->reset();
+  message = "Route request accepted.";
+  return true;
 }
 
 void PlanRouteActionClient::setup() {
@@ -232,10 +240,6 @@ void PlanRouteActionClient::setup() {
   parameters_callback_ =
       this->add_on_set_parameters_callback(std::bind(&PlanRouteActionClient::parametersCallback, this, std::placeholders::_1));
 
-  // subscriber for goal pose
-  goal_pose_subscriber_ = this->create_subscription<geometry_msgs::msg::PoseStamped>(
-      "~/goal_pose", 10, std::bind(&PlanRouteActionClient::goalPoseCallback, this, std::placeholders::_1));
-  RCLCPP_INFO(this->get_logger(), "Subscribed to '%s'", goal_pose_subscriber_->get_topic_name());
   global_route_subscriber_ = this->create_subscription<route_planning_msgs::msg::Route>(
       "/planning/lanelet2_route_planning/global_route", 1,
       std::bind(&PlanRouteActionClient::globalRouteCallback, this, std::placeholders::_1));
@@ -244,36 +248,74 @@ void PlanRouteActionClient::setup() {
   // action client
   action_client_ = rclcpp_action::create_client<PlanRoute>(this, "/planning/lanelet2_route_planning/plan_route");
 
+  request_route_service_ = this->create_service<srv::RequestRoute>(
+      "~/request_route", [this](const srv::RequestRoute::Request::SharedPtr request,
+                                 srv::RequestRoute::Response::SharedPtr response) {
+        response->accepted = requestRoute(*request, response->message);
+      });
+  cancel_route_service_ = this->create_service<std_srvs::srv::Trigger>(
+      "~/cancel_route", [this](const std_srvs::srv::Trigger::Request::SharedPtr,
+                                std_srvs::srv::Trigger::Response::SharedPtr response) {
+        cancelRoute();
+        response->success = true;
+        response->message = "Route cancellation requested; automatic planning disabled.";
+      });
+
+  get_route_status_service_ = this->create_service<std_srvs::srv::Trigger>(
+      "~/get_route_status", [this](const std_srvs::srv::Trigger::Request::SharedPtr,
+                                    std_srvs::srv::Trigger::Response::SharedPtr response) {
+        response->success = true;
+        std::ostringstream status;
+        status << std::fixed << std::setprecision(2) << "status=" << route_status_
+               << "; active=" << (route_request_active_ ? "true" : "false");
+        if (enable_random_destination_ || !waypoints_.empty()) {
+          status << "; mode=" << (enable_random_destination_
+              ? (enable_continuous_planning_ ? "RANDOM_CONTINUOUS" : "RANDOM")
+              : (enable_continuous_planning_ ? "LOOP" : "ROUTE"));
+        }
+        if (!waypoints_.empty()) {
+          status << "; waypoint_count=" << waypoints_.size();
+          if (has_active_waypoint_ && !active_route_waypoint_indices_.empty()) {
+            status << "; destination_waypoint=" << active_route_waypoint_indices_.back() + 1;
+          } else if (route_status_ == "WAITING" && next_waypoint_idx_ > 0) {
+            status << "; destination_waypoint=" << next_waypoint_idx_;
+          } else if (route_request_active_ && next_waypoint_idx_ < waypoints_.size()) {
+            status << "; next_waypoint=" << next_waypoint_idx_ + 1;
+          }
+        }
+        if (route_status_ == "WAITING") {
+          const double now_s = std::chrono::duration<double>(
+              std::chrono::steady_clock::now().time_since_epoch()).count();
+          status << "; wait_remaining_s=" << std::max(0.0, auto_planning_resume_time_s_ - now_s);
+        }
+        status << "; replanning_pending=" << (continuous_replanning_pending_ ? "true" : "false");
+        if (latest_route_feedback_) {
+          const auto& feedback = *latest_route_feedback_;
+          const double distance_total = feedback.distance_traveled + feedback.distance_remaining;
+          status << "; distance_traveled_m=" << feedback.distance_traveled
+                 << "; distance_remaining_m=" << feedback.distance_remaining
+                 << "; time_traveled_s=" << rclcpp::Duration(feedback.time_traveled).seconds()
+                 << "; time_remaining_s=" << rclcpp::Duration(feedback.time_remaining).seconds();
+          if (distance_total > 0.0) {
+            status << "; progress_percent=" << std::clamp(100.0 * feedback.distance_traveled / distance_total, 0.0, 100.0);
+          }
+        } else if (latest_route_result_) {
+          status << "; last_goal_destination_reached=" << (latest_route_result_->destination_reached ? "true" : "false")
+                 << "; last_goal_distance_traveled_m=" << latest_route_result_->distance_traveled
+                 << "; last_goal_time_traveled_s=" << rclcpp::Duration(latest_route_result_->time_traveled).seconds();
+        } else {
+          status << "; feedback=unavailable";
+        }
+        response->message = status.str();
+      });
+
   // ll2 map interface
   ll2_interface_ = std::make_unique<Lanelet2MapInterface>(*this, ll2_map_server_name_);
-
-  // parse waypoints
-  auto parsed_waypoints = parseWaypoints(waypoints_param_, waypoint_wait_times_, this->get_logger());
-  if (parsed_waypoints) {
-    waypoints_ = *parsed_waypoints;
-  } else {
-    std::stringstream ss;
-    ss << "Failed to parse parameter 'waypoints': [";
-    for (const auto& waypoint : waypoints_param_) {
-      ss << waypoint << (&waypoint != &waypoints_param_.back() ? ", " : "]");
-    }
-    RCLCPP_ERROR(this->get_logger(), "%s", ss.str().c_str());
-  }
 
   // set up auto-planning timer
   auto_planning_timer_ = this->create_wall_timer(std::chrono::milliseconds(1000),
                                                  std::bind(&PlanRouteActionClient::autoPlanningTimerCallback, this));
-}
-
-void PlanRouteActionClient::goalPoseCallback(const geometry_msgs::msg::PoseStamped::SharedPtr msg) {
-  RCLCPP_INFO(this->get_logger(), "Received goal pose (%.3f, %.3f, %.3f) in frame '%s'", msg->pose.position.x,
-              msg->pose.position.y, msg->pose.position.z, msg->header.frame_id.c_str());
-  has_active_waypoint_ = false;
-  active_waypoint_wait_time_s_ = 0.0;
-  active_route_waypoints_.clear();
-  active_route_waypoint_indices_.clear();
-  auto_planning_resume_time_s_ = 0.0;
-  sendGoal(msg);
+  auto_planning_timer_->cancel();  // planning starts only after a service request
 }
 
 void PlanRouteActionClient::globalRouteCallback(const route_planning_msgs::msg::Route::SharedPtr msg) {
@@ -281,12 +323,22 @@ void PlanRouteActionClient::globalRouteCallback(const route_planning_msgs::msg::
 }
 
 void PlanRouteActionClient::autoPlanningTimerCallback() {
+  if (!route_request_active_) return;
   const double now_s = std::chrono::duration<double>(std::chrono::steady_clock::now().time_since_epoch()).count();
   if (now_s < auto_planning_resume_time_s_) {
     return;
   }
 
-  if (enable_random_destination_ && (enable_continuous_planning_ || !has_completed_one_goal_)) {
+  // Keep the request active through the final waypoint's wait time.
+  if (!enable_continuous_planning_ && !enable_random_destination_ && next_waypoint_idx_ >= waypoints_.size()) {
+    route_request_active_ = false;
+    route_status_ = "SUCCEEDED";
+    auto_planning_timer_->cancel();
+    return;
+  }
+  route_status_ = "PLANNING";
+
+  if (enable_random_destination_) {
     this->planToRandomDestination();
   } else if (!waypoints_.empty()) {
     if (next_waypoint_idx_ >= waypoints_.size() && enable_continuous_planning_) {
@@ -336,7 +388,19 @@ void PlanRouteActionClient::planToNextWaypoint() {
     lanelet::GPSPoint gps_waypoint;
     gps_waypoint.lat = waypoint.first;
     gps_waypoint.lon = waypoint.second;
-    lanelet::BasicPoint3d map_waypoint = ll2_projector->forward(gps_waypoint);
+    gps_waypoint.ele = waypoint_altitudes_[next_waypoint_idx_];
+    lanelet::BasicPoint3d map_waypoint;
+    try {
+      map_waypoint = ll2_projector->forward(gps_waypoint);
+      if (!std::isfinite(map_waypoint.x()) || !std::isfinite(map_waypoint.y())) {
+        throw std::invalid_argument("Nonfinite map coordinates");
+      }
+    } catch (const std::exception& e) {
+      RCLCPP_ERROR(this->get_logger(), "Cannot project waypoint: %s", e.what());
+      cancelRoute();
+      route_status_ = "FAILED";
+      return;
+    }
 
     geometry_msgs::msg::PointStamped waypoint_point;
     waypoint_point.header.frame_id = ll2_interface_->map_frame_id_;
@@ -452,7 +516,11 @@ void PlanRouteActionClient::sendGoal(const geometry_msgs::msg::PoseStamped::Shar
       replaced_goal_id_.reset();
       return;
     }
+    if (has_active_waypoint_ && !active_route_waypoint_indices_.empty()) {
+      next_waypoint_idx_ = active_route_waypoint_indices_.front();
+    }
     has_active_waypoint_ = false;
+    active_waypoint_wait_time_s_ = 0.0;
     active_route_waypoints_.clear();
     active_route_waypoint_indices_.clear();
     active_goal_id_.reset();
@@ -473,10 +541,11 @@ void PlanRouteActionClient::sendGoal(const geometry_msgs::msg::PoseStamped::Shar
   send_goal_options.goal_response_callback =
       std::bind(&PlanRouteActionClient::goalResponseCallback, this, std::placeholders::_1, generation);
   send_goal_options.feedback_callback =
-      std::bind(&PlanRouteActionClient::feedbackCallback, this, std::placeholders::_1, std::placeholders::_2);
+      std::bind(&PlanRouteActionClient::feedbackCallback, this, std::placeholders::_1, std::placeholders::_2, generation);
   send_goal_options.result_callback =
       std::bind(&PlanRouteActionClient::resultCallback, this, std::placeholders::_1, generation);
-  goal_handle_future_ = action_client_->async_send_goal(goal, send_goal_options);
+  if (!active_goal_id_.has_value()) route_status_ = "SENDING";
+  action_client_->async_send_goal(goal, send_goal_options);
   RCLCPP_INFO(this->get_logger(), "Goal sent");
 }
 
@@ -489,6 +558,7 @@ void PlanRouteActionClient::goalResponseCallback(const GoalHandlePlanRoute::Shar
   }
   if (!goal_handle) {
     RCLCPP_ERROR(this->get_logger(), "Goal rejected by action server");
+    route_status_ = active_goal_id_.has_value() && continuous_replanning_pending_ ? "RUNNING" : "PLANNING";
     if (continuous_replanning_pending_) {
       pending_route_waypoints_.clear();
       pending_route_waypoint_indices_.clear();
@@ -496,26 +566,36 @@ void PlanRouteActionClient::goalResponseCallback(const GoalHandlePlanRoute::Shar
       replaced_goal_id_.reset();
       return;
     }
+    if (has_active_waypoint_ && !active_route_waypoint_indices_.empty()) {
+      next_waypoint_idx_ = active_route_waypoint_indices_.front();
+    }
     has_active_waypoint_ = false;
+    active_waypoint_wait_time_s_ = 0.0;
     active_route_waypoints_.clear();
     active_route_waypoint_indices_.clear();
     active_goal_id_.reset();
     auto_planning_timer_->reset();  // restart auto-planning timer
   } else {
     RCLCPP_INFO(this->get_logger(), "Goal accepted by action server");
+    route_status_ = "RUNNING";
+    latest_route_feedback_.reset();
+    latest_route_result_.reset();
+    goal_handles_.push_back(goal_handle);
     active_goal_id_ = goal_handle->get_goal_id();
     if (continuous_replanning_pending_) {
       active_route_waypoints_ = std::move(pending_route_waypoints_);
       active_route_waypoint_indices_ = std::move(pending_route_waypoint_indices_);
-      next_waypoint_idx_ = pending_next_waypoint_idx_;
-      active_waypoint_wait_time_s_ = pending_waypoint_wait_time_s_;
+      next_waypoint_idx_ = active_route_waypoint_indices_.back() + 1;
+      active_waypoint_wait_time_s_ = waypoint_wait_times_[active_route_waypoint_indices_.back()];
       continuous_replanning_pending_ = false;
     }
   }
 }
 
 void PlanRouteActionClient::feedbackCallback(GoalHandlePlanRoute::SharedPtr goal_handle,
-                                             const std::shared_ptr<const PlanRoute::Feedback> feedback) {
+                                             const std::shared_ptr<const PlanRoute::Feedback> feedback,
+                                             std::uint64_t generation) {
+  if (generation != goal_generation_) return;
   const double distance_traveled = feedback->distance_traveled;
   const double distance_total = feedback->distance_remaining + feedback->distance_traveled;
   rclcpp::Duration time_traveled(feedback->time_traveled.sec, feedback->time_traveled.nanosec);
@@ -528,7 +608,9 @@ void PlanRouteActionClient::feedbackCallback(GoalHandlePlanRoute::SharedPtr goal
     return;
   }
 
-  if (!enable_continuous_planning_ || !has_active_waypoint_ || active_waypoint_wait_time_s_ > 0.0 ||
+  latest_route_feedback_ = feedback;
+
+  if (!enable_continuous_planning_ || !has_active_waypoint_ || active_route_waypoints_.size() < 2 ||
       continuous_replanning_pending_ || distance_total <= 0.0 ||
       distance_traveled / distance_total < continuous_planning_replanning_proportion_ || waypoints_.empty() ||
       waypoint_wait_times_.size() != waypoints_.size() ||
@@ -571,7 +653,9 @@ void PlanRouteActionClient::feedbackCallback(GoalHandlePlanRoute::SharedPtr goal
   const auto first_unpassed = std::find_if(waypoint_route_indices.begin(), waypoint_route_indices.end(),
                                            [this](size_t idx) { return idx >= latest_global_route_.current_route_element_idx; });
   const size_t first_unpassed_idx = static_cast<size_t>(std::distance(waypoint_route_indices.begin(), first_unpassed));
-  if (first_unpassed == waypoint_route_indices.end()) {
+  // Replan only after passing an intermediate waypoint. Keep the destination
+  // unchanged and avoid repeatedly replacing a goal on its final approach.
+  if (first_unpassed == waypoint_route_indices.end() || first_unpassed_idx == 0) {
     return;
   }
 
@@ -591,7 +675,19 @@ void PlanRouteActionClient::feedbackCallback(GoalHandlePlanRoute::SharedPtr goal
     lanelet::GPSPoint gps_waypoint;
     gps_waypoint.lat = waypoints_[waypoint_idx].first;
     gps_waypoint.lon = waypoints_[waypoint_idx].second;
-    const lanelet::BasicPoint3d map_waypoint = ll2_projector->forward(gps_waypoint);
+    gps_waypoint.ele = waypoint_altitudes_[waypoint_idx];
+    lanelet::BasicPoint3d map_waypoint;
+    try {
+      map_waypoint = ll2_projector->forward(gps_waypoint);
+      if (!std::isfinite(map_waypoint.x()) || !std::isfinite(map_waypoint.y())) {
+        throw std::invalid_argument("Nonfinite map coordinates");
+      }
+    } catch (const std::exception& e) {
+      RCLCPP_ERROR(this->get_logger(), "Cannot project waypoint during replanning: %s", e.what());
+      cancelRoute();
+      route_status_ = "FAILED";
+      return;
+    }
 
     geometry_msgs::msg::PointStamped waypoint_point;
     waypoint_point.header.frame_id = ll2_interface_->map_frame_id_;
@@ -602,9 +698,15 @@ void PlanRouteActionClient::feedbackCallback(GoalHandlePlanRoute::SharedPtr goal
     rotated_waypoints.push_back(waypoint_point);
     rotated_waypoint_indices.push_back(waypoint_idx);
 
-    if (waypoint_wait_times_[waypoint_idx] > 0.0) {
+    if (waypoint_wait_times_[waypoint_idx] >= 0.0) {
       break;
     }
+  }
+
+  // Never rotate across a required stop or turn an intermediate waypoint into a goal.
+  if (rotated_waypoint_indices.back() != active_route_waypoint_indices_.back() ||
+      waypoint_wait_times_[rotated_waypoint_indices.back()] < 0.0) {
+    return;
   }
 
   auto goal_pose = std::make_shared<geometry_msgs::msg::PoseStamped>();
@@ -613,13 +715,11 @@ void PlanRouteActionClient::feedbackCallback(GoalHandlePlanRoute::SharedPtr goal
   std::vector<geometry_msgs::msg::PointStamped> intermediate_destinations(rotated_waypoints.begin(), rotated_waypoints.end() - 1);
 
   RCLCPP_INFO(this->get_logger(),
-              "Route progress reached %.0f%%, rotating waypoint route after "
-              "%ld passed waypoint(s)",
+              "Route progress reached %.0f%%, replanning to the same destination after "
+              "%ld passed intermediate waypoint(s)",
               100.0 * continuous_planning_replanning_proportion_, first_unpassed_idx);
   pending_route_waypoints_ = rotated_waypoints;
   pending_route_waypoint_indices_ = rotated_waypoint_indices;
-  pending_next_waypoint_idx_ = rotated_waypoint_indices.back() + 1;
-  pending_waypoint_wait_time_s_ = std::max(0.0, waypoint_wait_times_[rotated_waypoint_indices.back()]);
   continuous_replanning_pending_ = true;
   replaced_goal_id_ = goal_handle->get_goal_id();
   this->sendGoal(goal_pose, intermediate_destinations);
@@ -629,16 +729,27 @@ void PlanRouteActionClient::resultCallback(const GoalHandlePlanRoute::WrappedRes
   if (generation != goal_generation_) {
     return;
   }
+  goal_handles_.erase(std::remove_if(goal_handles_.begin(), goal_handles_.end(),
+      [&result](const auto& handle) { return handle->get_goal_id() == result.goal_id; }), goal_handles_.end());
   if (replaced_goal_id_.has_value() && result.goal_id == replaced_goal_id_.value() &&
       result.code == rclcpp_action::ResultCode::ABORTED) {
     RCLCPP_INFO(this->get_logger(), "Previous waypoint goal aborted after continuous replanning");
     replaced_goal_id_.reset();
     return;
   }
-  if (active_goal_id_.has_value() && result.goal_id != active_goal_id_.value()) {
+  const bool destination_reached = result.code == rclcpp_action::ResultCode::SUCCEEDED &&
+                                   result.result->destination_reached;
+  // The previous goal may confirm arrival while its replacement is being accepted.
+  const bool replaced_destination_reached = has_active_waypoint_ && destination_reached &&
+      replaced_goal_id_.has_value() && result.goal_id == replaced_goal_id_.value();
+  if (active_goal_id_.has_value() && result.goal_id != active_goal_id_.value() && !replaced_destination_reached) {
     return;
   }
 
+  latest_route_feedback_.reset();
+  latest_route_result_ = result.result;
+
+  const bool waypoint_goal = has_active_waypoint_;
   const double distance_traveled = result.result->distance_traveled;
   const builtin_interfaces::msg::Duration& time_traveled = result.result->time_traveled;
   const double wait_time_s = has_active_waypoint_ ? active_waypoint_wait_time_s_ : 0.0;
@@ -659,17 +770,50 @@ void PlanRouteActionClient::resultCallback(const GoalHandlePlanRoute::WrappedRes
     RCLCPP_ERROR(this->get_logger(), "Goal finished with unknown result code: %d", static_cast<int>(result.code));
   }
 
+  if (has_active_waypoint_) {
+    if (!destination_reached && !active_route_waypoint_indices_.empty()) {
+      next_waypoint_idx_ = active_route_waypoint_indices_.front();
+      RCLCPP_WARN(this->get_logger(), "Destination not reached; stopping automatic waypoint planning");
+    }
+    // Replanning goals share this destination. Invalidate any pending response
+    // and cancel remaining goals before advancing or starting the wait time.
+    ++goal_generation_;
+    for (const auto& handle : goal_handles_) {
+      action_client_->async_cancel_goal(handle);
+    }
+    goal_handles_.clear();
+    pending_route_waypoints_.clear();
+    pending_route_waypoint_indices_.clear();
+    continuous_replanning_pending_ = false;
+    replaced_goal_id_.reset();
+    latest_global_route_ = route_planning_msgs::msg::Route();
+  }
   has_active_waypoint_ = false;
+  active_waypoint_wait_time_s_ = 0.0;
   active_route_waypoints_.clear();
   active_route_waypoint_indices_.clear();
   active_goal_id_.reset();
-  has_completed_one_goal_ = true;
-  if (result.code == rclcpp_action::ResultCode::SUCCEEDED && wait_time_s > 0.0) {
+  auto_planning_resume_time_s_ = 0.0;
+  if (destination_reached && wait_time_s > 0.0) {
     RCLCPP_INFO(this->get_logger(), "Waiting %.2fs before planning next waypoint", wait_time_s);
     const double now_s = std::chrono::duration<double>(std::chrono::steady_clock::now().time_since_epoch()).count();
     auto_planning_resume_time_s_ = now_s + wait_time_s;
   }
-  auto_planning_timer_->reset();  // restart auto-planning timer
+  const bool request_finished = !enable_continuous_planning_ &&
+      (enable_random_destination_ || next_waypoint_idx_ >= waypoints_.size());
+  if (waypoint_goal && !destination_reached) {
+    route_request_active_ = false;
+    route_status_ = result.code == rclcpp_action::ResultCode::CANCELED ? "CANCELED" : "FAILED";
+    auto_planning_timer_->cancel();
+  } else if (request_finished && auto_planning_resume_time_s_ == 0.0) {
+    route_request_active_ = false;
+    route_status_ = destination_reached ? "SUCCEEDED" :
+        (result.code == rclcpp_action::ResultCode::CANCELED ? "CANCELED" : "FAILED");
+    auto_planning_timer_->cancel();
+  } else {
+    route_status_ = auto_planning_resume_time_s_ > 0.0 ? "WAITING" : "PLANNING";
+    auto_planning_timer_->reset();  // restart auto-planning timer
+  }
 }
 
 }  // namespace plan_route_action_client

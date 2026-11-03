@@ -1,0 +1,23 @@
+# Route planning modes
+uint8 MODE_ROUTE=0
+uint8 MODE_LOOP=1
+uint8 MODE_RANDOM=2
+uint8 MODE_RANDOM_CONTINUOUS=3
+
+# Selected route planning mode
+uint8 mode
+
+# Ordered list of WGS84 waypoints, including the final destination
+geographic_msgs/GeoPoint[] waypoints
+
+# Wait time per waypoint in seconds (must have the same length as waypoints):
+# -1: Intermediate destination (no stop)
+# >=0: Destination with waiting time
+float32[] wait_times
+
+---
+# Whether the request was accepted
+bool accepted
+
+# Additional information or error message
+string message

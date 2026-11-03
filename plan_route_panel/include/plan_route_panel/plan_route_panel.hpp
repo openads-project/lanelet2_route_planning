@@ -3,29 +3,26 @@
 
 #pragma once
 
+#include <cstdint>
 #include <deque>
 #include <functional>
 #include <memory>
-#include <optional>
 #include <set>
 #include <string>
 #include <vector>
 
 #include <QWidget>
-#include <QPointer>
 #include <QString>
 #include <rviz_common/panel.hpp>
-#include <rviz_common/tool.hpp>
 #include <rclcpp/rclcpp.hpp>
 #include <rcl_interfaces/srv/get_parameters.hpp>
-#include <rcl_interfaces/srv/set_parameters_atomically.hpp>
+#include <plan_route_action_client/srv/request_route.hpp>
+#include <std_srvs/srv/trigger.hpp>
 #include <action_msgs/msg/goal_status_array.hpp>
-#include <geometry_msgs/msg/pose_stamped.hpp>
 #include <route_planning_msgs/action/plan_route.hpp>
 
 class QCheckBox;
 class QComboBox;
-class QDoubleSpinBox;
 class QLabel;
 class QLineEdit;
 class QProgressBar;
@@ -38,8 +35,7 @@ struct CallbackBridge;
 /**
  * @brief RViz panel that configures the running route action client and observes its goals.
  *
- * Saved routes are sent as client parameters. Clicked destinations use RViz's
- * built-in Goal Pose tool and the client's goal pose subscription.
+ * Saved routes and random planning modes use RequestRoute; cancellation uses Trigger.
  */
 class PlanRoutePanel : public rviz_common::Panel {
   Q_OBJECT
@@ -78,7 +74,7 @@ class PlanRoutePanel : public rviz_common::Panel {
 
  private:
   /**
-   * @brief Creates parameter service clients for the configured node
+   * @brief Creates route and parameter query service clients for the configured node
    */
   void connectToClient();
 
@@ -88,30 +84,26 @@ class PlanRoutePanel : public rviz_common::Panel {
   void connectToAction();
 
   /**
-   * @brief Finds or adds RViz's Goal Pose tool
-   *
-   * @return Goal Pose tool, or nullptr if the tool manager is unavailable
-   */
-  rviz_common::Tool* ensureGoalTool();
-
-  /**
-   * @brief Applies the configured goal pose topic to the RViz tool
-   */
-  void updateGoalTopic();
-
-  /**
-   * @brief Reads the current planning mode from the client
+   * @brief Reads the map server name from the client
    */
   void refreshParameters();
 
   /**
-   * @brief Sends an atomic parameter update and reports completion on the Qt thread
+   * @brief Sends a route service request and reports completion on the Qt thread
    *
-   * @param[in] parameters parameters to send to the client
-   * @param[in] done callback receiving success and an optional error message
+   * Handles unavailable services, rejected requests, exceptions, and timeouts.
+   * Timed-out requests stay pending to preserve service ordering.
+   * Replies from an earlier request generation do not update the panel.
+   *
+   * @tparam Service route request or cancellation service type
+   * @param[in] client service client for the configured action client node
+   * @param[in] request service request to send asynchronously
+   * @param[in] done callback receiving acceptance and a response or error message
    */
-  void sendParameters(const std::vector<rclcpp::Parameter>& parameters,
-                      std::function<void(bool, const QString&)> done);
+  template <typename Service>
+  void sendRequest(const typename rclcpp::Client<Service>::SharedPtr& client,
+                   const std::shared_ptr<typename Service::Request>& request,
+                   std::function<void(bool, const QString&)> done);
 
   /**
    * @brief Starts a saved or random route through the existing client
@@ -120,6 +112,8 @@ class PlanRoutePanel : public rviz_common::Panel {
 
   /**
    * @brief Disables automatic planning and requests cancellation
+   *
+   * Defers the service call until any outstanding route service request completes.
    */
   void cancelRoute();
 
@@ -180,19 +174,24 @@ class PlanRoutePanel : public rviz_common::Panel {
 
   rclcpp::Node::SharedPtr node_;
   rclcpp::Client<rcl_interfaces::srv::GetParameters>::SharedPtr get_client_;
-  rclcpp::Client<rcl_interfaces::srv::SetParametersAtomically>::SharedPtr set_client_;
+
+  /**
+   * @brief Client for requesting saved routes and random planning modes
+   */
+  rclcpp::Client<plan_route_action_client::srv::RequestRoute>::SharedPtr request_client_;
+
+  /**
+   * @brief Client for stopping automatic planning and requesting route cancellation
+   */
+  rclcpp::Client<std_srvs::srv::Trigger>::SharedPtr cancel_client_;
+
   rclcpp::Client<route_planning_msgs::action::PlanRoute::Impl::GetResultService>::SharedPtr result_client_;
   rclcpp::Subscription<action_msgs::msg::GoalStatusArray>::SharedPtr status_sub_;
   rclcpp::Subscription<route_planning_msgs::action::PlanRoute::Impl::FeedbackMessage>::SharedPtr feedback_sub_;
-  rclcpp::Subscription<geometry_msgs::msg::PoseStamped>::SharedPtr goal_pose_sub_;
-  std::optional<action_msgs::msg::GoalStatusArray> pending_destination_status_;
-  std::string pending_destination_goal_id_;
   std::shared_ptr<CallbackBridge> callback_bridge_;
-  QPointer<rviz_common::Tool> goal_tool_;
 
   QComboBox* mode_;
   QCheckBox* continuous_planning_;
-  QDoubleSpinBox* replanning_proportion_;
   QComboBox* presets_;
   QLabel* status_;
   QLabel* detail_;
@@ -201,9 +200,7 @@ class PlanRoutePanel : public rviz_common::Panel {
   QPushButton* cancel_button_;
   QLineEdit* map_server_name_;
   QLineEdit* client_name_;
-  QLineEdit* goal_topic_;
   QLineEdit* action_name_;
-  bool selecting_destination_ = false;
 
   std::set<std::string> seen_goal_ids_;
   std::deque<std::string> seen_goal_order_;
@@ -212,7 +209,27 @@ class PlanRoutePanel : public rviz_common::Panel {
   std::string failed_destination_goal_id_;
   bool awaiting_goal_ = false;
   bool cancel_requested_ = false;
-  bool parameter_update_pending_ = false;
+
+  /**
+   * @brief Whether a route or cancellation service request is awaiting completion
+   */
+  bool service_request_pending_ = false;
+
+  /**
+   * @brief Whether cancellation must follow the outstanding service request
+   */
+  bool cancel_after_request_ = false;
+
+  /**
+   * @brief Whether the current action goal has reported a terminal status or result
+   */
+  bool terminal_status_received_ = false;
+
+  /**
+   * @brief Invalidates queued service replies and timers after request or client changes
+   */
+  std::uint64_t request_generation_ = 0;
+
   bool continuous_run_ = false;
   int remaining_goals_ = 0;
   std::string connected_client_name_;

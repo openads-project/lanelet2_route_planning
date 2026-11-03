@@ -6,16 +6,13 @@
 #include <algorithm>
 #include <array>
 #include <cmath>
-#include <iomanip>
-#include <locale>
 #include <mutex>
-#include <sstream>
 #include <stdexcept>
+#include <type_traits>
 #include <utility>
 
 #include <QCheckBox>
 #include <QComboBox>
-#include <QDoubleSpinBox>
 #include <QFormLayout>
 #include <QFrame>
 #include <QHBoxLayout>
@@ -32,9 +29,7 @@
 #include <pluginlib/class_list_macros.hpp>
 #include <rcl_interfaces/msg/parameter_type.hpp>
 #include <rviz_common/display_context.hpp>
-#include <rviz_common/properties/property.hpp>
 #include <rviz_common/ros_integration/ros_node_abstraction_iface.hpp>
-#include <rviz_common/tool_manager.hpp>
 #include <yaml-cpp/yaml.h>
 
 namespace plan_route_panel {
@@ -49,7 +44,6 @@ namespace {
 constexpr char kActionName[] = "/planning/lanelet2_route_planning/plan_route";
 constexpr int kWaypointsMode = 0;
 constexpr int kRandomMode = 1;
-constexpr int kDestinationMode = 2;
 
 struct Waypoint {
   double latitude;
@@ -87,13 +81,6 @@ bool parseWaypoint(const std::string& value, Waypoint& waypoint) {
   return lat_ok && lon_ok && wait_ok;
 }
 
-std::string serializeWaypoint(const Waypoint& waypoint) {
-  std::ostringstream out;
-  out.imbue(std::locale::classic());
-  out << std::setprecision(12) << waypoint.latitude << ',' << waypoint.longitude << ',' << waypoint.wait_time_s;
-  return out.str();
-}
-
 std::string routesFilePath() {
   return ament_index_cpp::get_package_share_directory("plan_route_panel") + "/config/routes.yml";
 }
@@ -119,7 +106,9 @@ std::vector<Waypoint> readRoute(const std::string& name) {
       throw std::runtime_error("Route waypoints must be strings or coordinate maps");
     }
     if (!std::isfinite(waypoint.latitude) || !std::isfinite(waypoint.longitude) || !std::isfinite(waypoint.wait_time_s) ||
-        std::abs(waypoint.latitude) > 90.0 || std::abs(waypoint.longitude) > 180.0) {
+        std::abs(waypoint.latitude) > 90.0 || std::abs(waypoint.longitude) > 180.0 ||
+        (waypoint.wait_time_s < 0.0 && waypoint.wait_time_s != -1.0) ||
+        !std::isfinite(static_cast<float>(waypoint.wait_time_s))) {
       throw std::runtime_error("Route contains an invalid waypoint");
     }
     waypoints.push_back(waypoint);
@@ -147,7 +136,7 @@ PlanRoutePanel::PlanRoutePanel(QWidget* parent) : rviz_common::Panel(parent), ca
   mode_row->setContentsMargins(0, 0, 0, 0);
   mode_row->setSpacing(4);
   mode_ = new QComboBox(parameters);
-  mode_->addItems({tr("Waypoints"), tr("Random Destination"), tr("Destination (Click)")});
+  mode_->addItems({tr("Waypoints"), tr("Random Destination")});
   mode_row->addWidget(mode_);
   auto* waypoint_options = new QWidget(parameters);
   auto* form = new QFormLayout(waypoint_options);
@@ -155,18 +144,9 @@ PlanRoutePanel::PlanRoutePanel(QWidget* parent) : rviz_common::Panel(parent), ca
   form->setVerticalSpacing(4);
   continuous_planning_ = new QCheckBox(tr("Continuous planning"), waypoint_options);
   form->addRow(continuous_planning_);
-  replanning_proportion_ = new QDoubleSpinBox(waypoint_options);
-  replanning_proportion_->setRange(0.0, 1.0);
-  replanning_proportion_->setSingleStep(0.01);
-  replanning_proportion_->setDecimals(2);
-  replanning_proportion_->setValue(0.6);
-  form->addRow(tr("Replan after fraction"), replanning_proportion_);
-  auto* replanning_label = form->labelForField(replanning_proportion_);
   presets_ = new QComboBox(waypoint_options);
   auto* saved_routes_label = new QLabel(tr("Saved Routes"), waypoint_options);
   form->addRow(saved_routes_label, presets_);
-  const int label_width = std::max(replanning_label->sizeHint().width(), saved_routes_label->sizeHint().width());
-  saved_routes_label->setMinimumWidth(label_width);
   mode_row->addWidget(waypoint_options);
   layout->addWidget(parameters);
 
@@ -202,12 +182,11 @@ PlanRoutePanel::PlanRoutePanel(QWidget* parent) : rviz_common::Panel(parent), ca
   settings_form->setContentsMargins(0, 0, 0, 0);
   map_server_name_ = new QLineEdit("ll2_map_server", settings);
   client_name_ = new QLineEdit("/plan_route_action_client", settings);
-  goal_topic_ = new QLineEdit("/plan_route_action_client/goal_pose", settings);
   action_name_ = new QLineEdit(kActionName, settings);
-  map_server_name_->setToolTip(tr("Client startup parameter; changing this field does not reconfigure a running client."));
+  map_server_name_->setReadOnly(true);
+  map_server_name_->setToolTip(tr("Configured by the action client's ll2_map_server_name startup parameter."));
   settings_form->addRow(tr("LL2 Map Server Name"), map_server_name_);
   settings_form->addRow(tr("Action Client Node"), client_name_);
-  settings_form->addRow(tr("Goal Pose Topic"), goal_topic_);
   settings_form->addRow(tr("Status Action"), action_name_);
   settings->hide();
   layout->addWidget(settings);
@@ -217,94 +196,24 @@ PlanRoutePanel::PlanRoutePanel(QWidget* parent) : rviz_common::Panel(parent), ca
   });
   layout->addStretch();
 
-  auto update_mode = [this, waypoint_options, replanning_label] {
+  auto update_mode = [this, saved_routes_label] {
     const bool waypoints = mode_->currentIndex() == kWaypointsMode;
-    plan_button_->setText(mode_->currentIndex() == kDestinationMode ? tr("Set Destination") : tr("Plan Route"));
-    waypoint_options->setVisible(waypoints);
-    const bool show_replanning = waypoints && continuous_planning_->isChecked();
-    replanning_label->setVisible(show_replanning);
-    replanning_proportion_->setVisible(show_replanning);
-    if (mode_->currentIndex() == kDestinationMode) progress_->hide();
+    saved_routes_label->setVisible(waypoints);
+    presets_->setVisible(waypoints);
     updatePlanButton();
   };
-  connect(mode_, qOverload<int>(&QComboBox::currentIndexChanged), this, [this, update_mode](int mode) {
-    if (mode == kRandomMode) continuous_planning_->setChecked(false);
-    update_mode();
-  });
-  connect(continuous_planning_, &QCheckBox::toggled, this, [update_mode](bool) { update_mode(); });
-  connect(plan_button_, &QPushButton::clicked, this, [this] {
-    if (mode_->currentIndex() != kDestinationMode) {
-      planRoute();
-      return;
-    }
-    auto* manager = getDisplayContext()->getToolManager();
-    if (!manager) {
-      showStatus(tr("Failed"), tr("RViz tool manager is unavailable."));
-      return;
-    }
-    auto* goal_tool = ensureGoalTool();
-    if (!goal_tool) {
-      showStatus(tr("Failed"), tr("RViz Goal Pose tool could not be loaded."));
-      return;
-    }
-    const auto topic = goal_topic_->text().trimmed().toStdString();
-    if (topic.empty()) {
-      showStatus(tr("Failed"), tr("Enter a goal pose topic in Settings."));
-      return;
-    }
-    goal_pose_sub_ = node_->create_subscription<geometry_msgs::msg::PoseStamped>(
-        topic, rclcpp::QoS(10), [weak_bridge = std::weak_ptr<CallbackBridge>(callback_bridge_)](
-                                  geometry_msgs::msg::PoseStamped::ConstSharedPtr) {
-          postToPanel(weak_bridge, [](PlanRoutePanel* panel) {
-            if (!panel->selecting_destination_) return;
-            panel->selecting_destination_ = false;
-            panel->goal_pose_sub_.reset();
-            panel->awaiting_goal_ = true;
-            panel->cancel_requested_ = false;
-            panel->continuous_run_ = false;
-            panel->remaining_goals_ = 1;
-            panel->tracked_goal_id_.clear();
-            panel->result_goal_id_.clear();
-            panel->failed_destination_goal_id_.clear();
-            // Reuse a new goal observed while the pose callback was waiting for Qt.
-            if (!panel->pending_destination_goal_id_.empty()) {
-              panel->tracked_goal_id_ = std::move(panel->pending_destination_goal_id_);
-              panel->awaiting_goal_ = false;
-              panel->requestResult(panel->tracked_goal_id_);
-              panel->showStatus(QObject::tr("Running"), QObject::tr("Route goal received."));
-            }
-            if (panel->pending_destination_status_) {
-              const auto pending = std::move(*panel->pending_destination_status_);
-              panel->pending_destination_status_.reset();
-              if (!panel->tracked_goal_id_.empty()) panel->updateGoalStatus(pending);
-            }
-            if (panel->awaiting_goal_ && panel->tracked_goal_id_.empty()) {
-              panel->progress_->setRange(0, 0);
-              panel->showStatus(QObject::tr("Sending"), QObject::tr("Destination sent; waiting for route goal."));
-            }
-          });
-        });
-    pending_destination_status_.reset();
-    pending_destination_goal_id_.clear();
-    selecting_destination_ = true;
-    manager->setCurrentTool(goal_tool);
-    showStatus(tr("Selecting"), tr("Set a goal pose in RViz."));
-  });
+  connect(mode_, qOverload<int>(&QComboBox::currentIndexChanged), this, [update_mode](int) { update_mode(); });
+  connect(plan_button_, &QPushButton::clicked, this, [this] { planRoute(); });
   connect(cancel_button_, &QPushButton::clicked, this, [this] { cancelRoute(); });
   connect(client_name_, &QLineEdit::editingFinished, this, [this] {
     connectToClient();
     refreshParameters();
     Q_EMIT configChanged();
   });
-  connect(goal_topic_, &QLineEdit::editingFinished, this, [this] {
-    updateGoalTopic();
-    Q_EMIT configChanged();
-  });
   connect(action_name_, &QLineEdit::editingFinished, this, [this] {
     connectToAction();
     Q_EMIT configChanged();
   });
-  connect(map_server_name_, &QLineEdit::editingFinished, this, [this] { Q_EMIT configChanged(); });
   loadPresets();
   update_mode();
 }
@@ -318,13 +227,12 @@ void PlanRoutePanel::load(const rviz_common::Config& config) {
   rviz_common::Panel::load(config);
   const std::pair<const char*, QLineEdit*> fields[] = {
       {"LL2 Map Server Name", map_server_name_}, {"Action Client Node", client_name_},
-      {"Goal Pose Topic", goal_topic_}, {"Status Action", action_name_}};
+      {"Status Action", action_name_}};
   for (const auto& [key, field] : fields) {
     QString value;
     if (config.mapGetString(key, &value)) field->setText(value);
   }
   if (node_) {
-    updateGoalTopic();
     connectToAction();
     connectToClient();
     refreshParameters();
@@ -335,7 +243,7 @@ void PlanRoutePanel::save(rviz_common::Config config) const {
   rviz_common::Panel::save(config);
   const std::pair<const char*, QLineEdit*> fields[] = {
       {"LL2 Map Server Name", map_server_name_}, {"Action Client Node", client_name_},
-      {"Goal Pose Topic", goal_topic_}, {"Status Action", action_name_}};
+      {"Status Action", action_name_}};
   for (const auto& [key, field] : fields) config.mapSetValue(key, field->text());
 }
 
@@ -346,7 +254,6 @@ void PlanRoutePanel::onInitialize() {
     return;
   }
   node_ = abstraction->get_raw_node();
-  ensureGoalTool();
   connectToAction();
   connectToClient();
   refreshParameters();
@@ -364,33 +271,6 @@ void PlanRoutePanel::onInitialize() {
   cancel_button_->setEnabled(true);
 }
 
-rviz_common::Tool* PlanRoutePanel::ensureGoalTool() {
-  if (goal_tool_) {
-    updateGoalTopic();
-    return goal_tool_.data();
-  }
-  auto* manager = getDisplayContext()->getToolManager();
-  if (!manager) return nullptr;
-  for (int index = 0; index < manager->numTools(); ++index) {
-    auto* candidate = manager->getTool(index);
-    if (candidate->getClassId() == "rviz_default_plugins/SetGoal") {
-      goal_tool_ = candidate;
-      break;
-    }
-  }
-  if (!goal_tool_) {
-    goal_tool_ = manager->addTool("rviz_default_plugins/SetGoal");
-  }
-  updateGoalTopic();
-  return goal_tool_.data();
-}
-
-void PlanRoutePanel::updateGoalTopic() {
-  if (!goal_tool_) return;
-  auto* topic = goal_tool_->getPropertyContainer()->subProp("Topic");
-  if (topic && !goal_topic_->text().trimmed().isEmpty()) topic->setValue(goal_topic_->text().trimmed());
-}
-
 void PlanRoutePanel::connectToAction() {
   if (!node_) return;
   const auto action = action_name_->text().trimmed().toStdString();
@@ -402,6 +282,7 @@ void PlanRoutePanel::connectToAction() {
   tracked_goal_id_.clear();
   result_goal_id_.clear();
   awaiting_goal_ = false;
+  terminal_status_received_ = false;
   if (action.empty()) return;
   const std::weak_ptr<CallbackBridge> weak_bridge = callback_bridge_;
   status_sub_ = node_->create_subscription<action_msgs::msg::GoalStatusArray>(
@@ -438,16 +319,26 @@ void PlanRoutePanel::connectToClient() {
   const auto name = clientName();
   if (name.empty()) {
     get_client_.reset();
-    set_client_.reset();
+    request_client_.reset();
+    cancel_client_.reset();
+    ++request_generation_;
+    service_request_pending_ = false;
+    cancel_after_request_ = false;
+    updatePlanButton();
     connected_client_name_.clear();
     client_ready_ = false;
     showStatus(tr("Failed"), tr("Enter the action client node name."));
     return;
   }
-  if (name == connected_client_name_ && get_client_ && set_client_) return;
+  if (name == connected_client_name_ && get_client_ && request_client_ && cancel_client_) return;
+  ++request_generation_;
+  service_request_pending_ = false;
+  cancel_after_request_ = false;
+  updatePlanButton();
   client_ready_ = false;
   get_client_ = node_->create_client<rcl_interfaces::srv::GetParameters>(name + "/get_parameters");
-  set_client_ = node_->create_client<rcl_interfaces::srv::SetParametersAtomically>(name + "/set_parameters_atomically");
+  request_client_ = node_->create_client<plan_route_action_client::srv::RequestRoute>(name + "/request_route");
+  cancel_client_ = node_->create_client<std_srvs::srv::Trigger>(name + "/cancel_route");
   connected_client_name_ = name;
 }
 
@@ -459,28 +350,19 @@ void PlanRoutePanel::refreshParameters() {
   }
   client_ready_ = true;
   const auto requested_client = clientName();
+  const auto generation = request_generation_;
   auto request = std::make_shared<rcl_interfaces::srv::GetParameters::Request>();
-  request->names = {"enable_random_destination", "enable_continuous_planning",
-                    "continuous_planning_replanning_proportion"};
+  request->names = {"ll2_map_server_name"};
   const std::weak_ptr<CallbackBridge> weak_bridge = callback_bridge_;
   get_client_->async_send_request(
-      request, [weak_bridge, requested_client](rclcpp::Client<rcl_interfaces::srv::GetParameters>::SharedFuture future) {
+      request, [weak_bridge, requested_client, generation](rclcpp::Client<rcl_interfaces::srv::GetParameters>::SharedFuture future) {
     try {
       const auto values = future.get()->values;
-      postToPanel(weak_bridge, [values, requested_client](PlanRoutePanel* panel) {
+      postToPanel(weak_bridge, [values, requested_client, generation](PlanRoutePanel* panel) {
         // Ignore replies from a client that was selected before the request completed.
-        if (panel->clientName() != requested_client || values.size() != 3) return;
-        const bool random = values[0].type == rcl_interfaces::msg::ParameterType::PARAMETER_BOOL
-                                ? values[0].bool_value
-                                : panel->mode_->currentIndex() == kRandomMode;
-        if (values[1].type == rcl_interfaces::msg::ParameterType::PARAMETER_BOOL) {
-          panel->continuous_planning_->setChecked(values[1].bool_value && !random);
-        }
-        if (panel->mode_->currentIndex() != kDestinationMode) {
-          panel->mode_->setCurrentIndex(random ? kRandomMode : kWaypointsMode);
-        }
-        if (values[2].type == rcl_interfaces::msg::ParameterType::PARAMETER_DOUBLE) {
-          panel->replanning_proportion_->setValue(values[2].double_value);
+        if (panel->clientName() != requested_client || panel->request_generation_ != generation || values.size() != 1) return;
+        if (values[0].type == rcl_interfaces::msg::ParameterType::PARAMETER_STRING) {
+          panel->map_server_name_->setText(QString::fromStdString(values[0].string_value));
         }
         if (!panel->awaiting_goal_ && panel->tracked_goal_id_.empty()) {
           panel->showStatus(QObject::tr("Idle"), QObject::tr("Loaded parameters from action client."));
@@ -488,7 +370,8 @@ void PlanRoutePanel::refreshParameters() {
       });
     } catch (const std::exception& e) {
       const QString error = QString::fromUtf8(e.what());
-      postToPanel(weak_bridge, [error](PlanRoutePanel* panel) {
+      postToPanel(weak_bridge, [error, requested_client, generation](PlanRoutePanel* panel) {
+        if (panel->clientName() != requested_client || panel->request_generation_ != generation) return;
         panel->client_ready_ = false;
         panel->showStatus(QObject::tr("Failed"), error);
       });
@@ -496,34 +379,64 @@ void PlanRoutePanel::refreshParameters() {
   });
 }
 
-void PlanRoutePanel::sendParameters(const std::vector<rclcpp::Parameter>& parameters,
-                                    std::function<void(bool, const QString&)> done) {
-  if (!set_client_ || !set_client_->service_is_ready()) {
-    done(false, tr("Action client parameter service is unavailable."));
+template <typename Service>
+void PlanRoutePanel::sendRequest(const typename rclcpp::Client<Service>::SharedPtr& client,
+                                  const std::shared_ptr<typename Service::Request>& request,
+                                  std::function<void(bool, const QString&)> done) {
+  if (!client || !client->service_is_ready()) {
+    done(false, tr("Route service is unavailable."));
     return;
   }
-  auto request = std::make_shared<rcl_interfaces::srv::SetParametersAtomically::Request>();
-  for (const auto& parameter : parameters) request->parameters.push_back(parameter.to_parameter_msg());
+  const auto generation = request_generation_;
   const std::weak_ptr<CallbackBridge> weak_bridge = callback_bridge_;
-  set_client_->async_send_request(
-      request, [weak_bridge, done = std::move(done)](
-                   rclcpp::Client<rcl_interfaces::srv::SetParametersAtomically>::SharedFuture future) {
-    try {
-      const auto response = future.get();
-      const bool success = response->result.successful;
-      const QString reason = QString::fromStdString(response->result.reason);
-      postToPanel(weak_bridge, [done, success, reason](PlanRoutePanel*) { done(success, reason); });
-    } catch (const std::exception& e) {
-      const QString error = QString::fromUtf8(e.what());
-      postToPanel(weak_bridge, [done, error](PlanRoutePanel*) { done(false, error); });
-    }
-  });
+  // This flag is accessed only on the Qt thread, including queued ROS replies.
+  const auto completed = std::make_shared<bool>(false);
+  try {
+    client->async_send_request(
+        request, [weak_bridge, generation, completed, done](typename rclcpp::Client<Service>::SharedFuture future) {
+      bool accepted = false;
+      QString message;
+      try {
+        const auto response = future.get();
+        if constexpr (std::is_same_v<Service, std_srvs::srv::Trigger>) {
+          accepted = response->success;
+        } else {
+          accepted = response->accepted;
+        }
+        message = QString::fromStdString(response->message);
+      } catch (const std::exception& e) {
+        message = QString::fromUtf8(e.what());
+      }
+      postToPanel(weak_bridge, [generation, completed, done, accepted, message](PlanRoutePanel* panel) {
+        if (*completed) return;
+        *completed = true;
+        if (panel->request_generation_ == generation) done(accepted, message);
+      });
+    });
+    QTimer::singleShot(10000, this, [this, generation, completed] {
+      if (*completed || request_generation_ != generation || terminal_status_received_) return;
+      // Keep the response callback: a timeout does not withdraw the remote request.
+      const auto message = cancel_after_request_
+          ? tr("Route service response timed out. Cancellation will be sent after the pending request completes.")
+          : tr("Route service response timed out; the request is still pending. "
+               "New requests wait for its response to preserve their order.");
+      if (!tracked_goal_id_.empty()) {
+        detail_->setText(message);
+      } else {
+        showStatus(tr("Waiting"), message);
+      }
+    });
+  } catch (const std::exception& e) {
+    *completed = true;
+    done(false, QString::fromUtf8(e.what()));
+  }
 }
 
 void PlanRoutePanel::planRoute() {
   connectToClient();
+  if (service_request_pending_) return;
   const bool random = mode_->currentIndex() == kRandomMode;
-  const bool continuous = !random && continuous_planning_->isChecked();
+  const bool continuous = continuous_planning_->isChecked();
   if (!random && presets_->currentIndex() < 0) {
     showStatus(tr("Failed"), tr("Select a saved route."));
     return;
@@ -537,77 +450,113 @@ void PlanRoutePanel::planRoute() {
       return;
     }
   }
-  std::vector<std::string> waypoints;
-  remaining_goals_ = random ? 1 : 0;
+  using Service = plan_route_action_client::srv::RequestRoute;
+  auto request = std::make_shared<Service::Request>();
+  request->mode = random ? (continuous ? Service::Request::MODE_RANDOM_CONTINUOUS : Service::Request::MODE_RANDOM)
+                         : (continuous ? Service::Request::MODE_LOOP : Service::Request::MODE_ROUTE);
+  int remaining_goals = random ? 1 : 0;
   for (const auto& waypoint : route) {
-    waypoints.push_back(serializeWaypoint(waypoint));
-    if (waypoint.wait_time_s >= 0.0) ++remaining_goals_;
+    geographic_msgs::msg::GeoPoint point;
+    point.latitude = waypoint.latitude;
+    point.longitude = waypoint.longitude;
+    request->waypoints.push_back(point);
+    request->wait_times.push_back(static_cast<float>(waypoint.wait_time_s));
+    if (waypoint.wait_time_s >= 0.0) ++remaining_goals;
   }
-  std::vector<rclcpp::Parameter> parameters;
-  parameters.emplace_back("cancel_route", false);
-  parameters.emplace_back("enable_random_destination", random);
-  parameters.emplace_back("enable_continuous_planning", continuous);
-  parameters.emplace_back("continuous_planning_replanning_proportion", replanning_proportion_->value());
-  parameters.emplace_back("waypoints", waypoints);
-  awaiting_goal_ = true;
-  cancel_requested_ = false;
-  continuous_run_ = continuous;
-  tracked_goal_id_.clear();
-  result_goal_id_.clear();
-  failed_destination_goal_id_.clear();
-  showStatus(tr("Sending"), tr("Updating the existing action client; waiting for its goal."));
-  progress_->setRange(0, 0);
-  parameter_update_pending_ = true;
+  ++request_generation_;
+  const bool observing_route = awaiting_goal_ || !tracked_goal_id_.empty();
+  auto begin_request = [this, continuous, remaining_goals] {
+    remaining_goals_ = remaining_goals;
+    awaiting_goal_ = true;
+    terminal_status_received_ = false;
+    cancel_requested_ = false;
+    continuous_run_ = continuous;
+    tracked_goal_id_.clear();
+    result_goal_id_.clear();
+    failed_destination_goal_id_.clear();
+    showStatus(tr("Sending"), tr("Requesting a route from the action client; waiting for its goal."));
+    progress_->setRange(0, 0);
+  };
+  // Keep observing the current request until the service accepts a new one.
+  if (!observing_route) begin_request();
+  service_request_pending_ = true;
   updatePlanButton();
-  sendParameters(parameters, [this](bool success, const QString& reason) {
-    parameter_update_pending_ = false;
+  auto done = [this, observing_route, begin_request](bool success, const QString& reason) {
+    service_request_pending_ = false;
+    if (cancel_after_request_) {
+      cancel_after_request_ = false;
+      cancelRoute();
+      return;
+    }
     updatePlanButton();
     if (!success) {
+      if (observing_route) {
+        detail_->setText(reason.isEmpty() ? tr("Route request rejected; continuing to monitor the current route.") : reason);
+        return;
+      }
       awaiting_goal_ = false;
       continuous_run_ = false;
       remaining_goals_ = 0;
       tracked_goal_id_.clear();
+      result_goal_id_.clear();
       progress_->setRange(0, 1);
       progress_->setValue(0);
-      showStatus(tr("Failed"), reason.isEmpty() ? tr("Parameter update rejected.") : reason);
+      showStatus(tr("Failed"), reason.isEmpty() ? tr("Route request rejected.") : reason);
       return;
     }
-  });
+    if (observing_route) begin_request();
+    const auto generation = request_generation_;
+    QTimer::singleShot(10000, this, [this, generation] {
+      if (request_generation_ != generation || !awaiting_goal_ || !result_goal_id_.empty()) return;
+      // Keep observing: a slow planner may still accept the goal after this message.
+      showStatus(tr("Waiting"),
+                 tr("Route request accepted, but no new action goal has been observed. "
+                    "Check the planner logs for rejected goals and verify Status Action in Settings. "
+                    "You can retry or cancel the route."));
+    });
+  };
+  sendRequest<Service>(request_client_, request, std::move(done));
 }
 
 void PlanRoutePanel::cancelRoute() {
-  const bool was_selecting = selecting_destination_;
-  if (was_selecting) {
-    selecting_destination_ = false;
-    goal_pose_sub_.reset();
-    pending_destination_status_.reset();
-    pending_destination_goal_id_.clear();
-    auto* manager = getDisplayContext()->getToolManager();
-    if (manager && manager->getCurrentTool() == goal_tool_) manager->setCurrentTool(manager->getDefaultTool());
-  }
   connectToClient();
   cancel_requested_ = true;
   awaiting_goal_ = false;
   continuous_run_ = false;
   remaining_goals_ = 0;
-  // Disable automatic replanning before asking the client to cancel its active goal.
-  sendParameters({rclcpp::Parameter("enable_random_destination", false),
-                  rclcpp::Parameter("enable_continuous_planning", false),
-                  rclcpp::Parameter("waypoints", std::vector<std::string>{}),
-                  rclcpp::Parameter("cancel_route", true)},
-                 [this, was_selecting](bool success, const QString& reason) {
-                   if (!success) {
-                     cancel_requested_ = false;
-                     showStatus(tr("Failed"), reason.isEmpty() ? tr("Cancel request rejected.") : reason);
-                     return;
-                   }
-                   if (mode_->currentIndex() == kRandomMode) mode_->setCurrentIndex(kWaypointsMode);
-                   continuous_planning_->setChecked(false);
-                   showStatus(was_selecting && tracked_goal_id_.empty() ? tr("Canceled") : tr("Canceling"),
-                              was_selecting && tracked_goal_id_.empty() ? tr("Destination selection canceled.")
-                                                                : tr("Cancel requested from the action client."));
-                   sendParameters({rclcpp::Parameter("cancel_route", false)}, [](bool, const QString&) {});
-                 });
+  if (service_request_pending_) {
+    // Keep the route response valid and send cancellation only after it arrives.
+    cancel_after_request_ = true;
+    if (!terminal_status_received_) {
+      showStatus(tr("Canceling"), tr("Waiting for the pending service request before sending cancellation."));
+    }
+    return;
+  }
+  ++request_generation_;
+  service_request_pending_ = true;
+  updatePlanButton();
+  auto request = std::make_shared<std_srvs::srv::Trigger::Request>();
+  sendRequest<std_srvs::srv::Trigger>(cancel_client_, request,
+      [this](bool success, const QString& reason) {
+        service_request_pending_ = false;
+        if (cancel_after_request_) {
+          cancel_after_request_ = false;
+          cancelRoute();
+          return;
+        }
+        updatePlanButton();
+        if (!success) {
+          cancel_requested_ = false;
+          showStatus(tr("Failed"), reason.isEmpty() ? tr("Cancel request rejected.") : reason);
+          return;
+        }
+        if (mode_->currentIndex() == kRandomMode) mode_->setCurrentIndex(kWaypointsMode);
+        continuous_planning_->setChecked(false);
+        // A terminal status/result may have arrived before this service response.
+        if (terminal_status_received_) return;
+        showStatus(tracked_goal_id_.empty() ? tr("Cancel requested") : tr("Canceling"),
+                   tr("Cancel requested from the action client."));
+      });
 }
 
 void PlanRoutePanel::loadPresets() {
@@ -624,16 +573,15 @@ void PlanRoutePanel::loadPresets() {
 }
 
 void PlanRoutePanel::updatePlanButton() {
-  plan_button_->setEnabled(node_ && !parameter_update_pending_ &&
+  plan_button_->setEnabled(node_ && !service_request_pending_ &&
                            (mode_->currentIndex() != kWaypointsMode || presets_->count() > 0));
 }
 
 void PlanRoutePanel::showStatus(const QString& status, const QString& detail) {
   status_->setText(tr("Status: %1").arg(status));
   detail_->setText(detail);
-  progress_->setVisible(mode_->currentIndex() != kDestinationMode &&
-                        (status == tr("Sending") || status == tr("Running") ||
-                         (status == tr("Canceling") && !tracked_goal_id_.empty())));
+  progress_->setVisible(status == tr("Sending") || status == tr("Running") ||
+                        (status == tr("Canceling") && !tracked_goal_id_.empty()));
 }
 
 bool PlanRoutePanel::rememberGoal(const std::string& goal_id) {
@@ -661,6 +609,11 @@ void PlanRoutePanel::requestResult(const std::string& goal_id) {
       const auto response = future.get();
       postToPanel(weak_bridge, [goal_id, response, action](PlanRoutePanel* panel) {
         if (panel->connected_action_name_ != action || panel->result_goal_id_ != goal_id) return;
+        if (response->status == action_msgs::msg::GoalStatus::STATUS_SUCCEEDED ||
+            response->status == action_msgs::msg::GoalStatus::STATUS_ABORTED ||
+            response->status == action_msgs::msg::GoalStatus::STATUS_CANCELED) {
+          panel->terminal_status_received_ = true;
+        }
         const auto& result = response->result;
         const auto detail = QObject::tr("Traveled %1 m in %2 s.")
                                 .arg(result.distance_traveled, 0, 'f', 1)
@@ -687,17 +640,14 @@ void PlanRoutePanel::requestResult(const std::string& goal_id) {
 }
 
 void PlanRoutePanel::updateGoalStatus(const action_msgs::msg::GoalStatusArray& msg) {
-  if (selecting_destination_) pending_destination_status_ = msg;
   for (const auto& goal : msg.status_list) {
     const auto id = goalId(goal.goal_info.goal_id.uuid);
     const bool is_new = rememberGoal(id);
-    if (selecting_destination_ && is_new && goal.status != action_msgs::msg::GoalStatus::STATUS_UNKNOWN) {
-      pending_destination_goal_id_ = id;
-    }
     // Action status has no sender ID, so a new goal is only a best-effort match.
     if (awaiting_goal_ && tracked_goal_id_.empty() && is_new &&
         goal.status != action_msgs::msg::GoalStatus::STATUS_UNKNOWN) {
       tracked_goal_id_ = id;
+      terminal_status_received_ = false;
       awaiting_goal_ = false;
       requestResult(id);
     }
@@ -705,12 +655,13 @@ void PlanRoutePanel::updateGoalStatus(const action_msgs::msg::GoalStatusArray& m
     switch (goal.status) {
       case action_msgs::msg::GoalStatus::STATUS_ACCEPTED:
       case action_msgs::msg::GoalStatus::STATUS_EXECUTING:
-        if (!cancel_requested_) showStatus(tr("Running"), detail_->text());
+        if (!cancel_requested_ && !terminal_status_received_) showStatus(tr("Running"), detail_->text());
         break;
       case action_msgs::msg::GoalStatus::STATUS_CANCELING:
-        showStatus(tr("Canceling"), detail_->text());
+        if (!terminal_status_received_) showStatus(tr("Canceling"), detail_->text());
         break;
       case action_msgs::msg::GoalStatus::STATUS_SUCCEEDED:
+        terminal_status_received_ = true;
         if (remaining_goals_ > 0) --remaining_goals_;
         if (continuous_run_ || remaining_goals_ > 0) {
           awaiting_goal_ = true;
@@ -724,6 +675,7 @@ void PlanRoutePanel::updateGoalStatus(const action_msgs::msg::GoalStatusArray& m
         tracked_goal_id_.clear();
         break;
       case action_msgs::msg::GoalStatus::STATUS_ABORTED:
+        terminal_status_received_ = true;
         if (remaining_goals_ > 0) --remaining_goals_;
         awaiting_goal_ = continuous_run_ || remaining_goals_ > 0;
         progress_->setRange(0, 1);
@@ -732,6 +684,7 @@ void PlanRoutePanel::updateGoalStatus(const action_msgs::msg::GoalStatusArray& m
         tracked_goal_id_.clear();
         break;
       case action_msgs::msg::GoalStatus::STATUS_CANCELED:
+        terminal_status_received_ = true;
         awaiting_goal_ = false;
         continuous_run_ = false;
         remaining_goals_ = 0;
@@ -749,15 +702,15 @@ void PlanRoutePanel::updateGoalStatus(const action_msgs::msg::GoalStatusArray& m
 
 void PlanRoutePanel::updateFeedback(const std::string& goal_id,
                                     const route_planning_msgs::action::PlanRoute::Feedback& feedback) {
-  if (selecting_destination_ && !seen_goal_ids_.count(goal_id)) pending_destination_goal_id_ = goal_id;
   // Feedback may arrive before the corresponding status update.
   if (tracked_goal_id_.empty() && awaiting_goal_ && !seen_goal_ids_.count(goal_id)) {
     tracked_goal_id_ = goal_id;
+    terminal_status_received_ = false;
     awaiting_goal_ = false;
     rememberGoal(goal_id);
     requestResult(goal_id);
   }
-  if (tracked_goal_id_ != goal_id) return;
+  if (tracked_goal_id_ != goal_id || terminal_status_received_) return;
   const double remaining_s = feedback.time_remaining.sec + feedback.time_remaining.nanosec * 1e-9;
   showStatus(cancel_requested_ ? tr("Canceling") : tr("Running"),
              tr("Distance: %1 m traveled, %2 m remaining · Time remaining: %3 s")
