@@ -216,6 +216,16 @@ class PlanRouteActionClient : public rclcpp::Node {
   std::string route_status_ = "IDLE";
 
   /**
+   * @brief Latest feedback for the current goal; cleared when a new goal is accepted
+   */
+  std::shared_ptr<const PlanRoute::Feedback> latest_route_feedback_;
+
+  /**
+   * @brief Last goal result, retained until a new goal is accepted or the request is canceled
+   */
+  std::shared_ptr<const PlanRoute::Result> latest_route_result_;
+
+  /**
    * @brief Accepted goals owned by this client, retained until completion or cancellation
    */
   std::vector<GoalHandlePlanRoute::SharedPtr> goal_handles_;
