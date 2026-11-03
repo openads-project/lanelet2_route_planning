@@ -23,7 +23,6 @@
 
 class QCheckBox;
 class QComboBox;
-class QDoubleSpinBox;
 class QLabel;
 class QLineEdit;
 class QProgressBar;
@@ -85,7 +84,7 @@ class PlanRoutePanel : public rviz_common::Panel {
   void connectToAction();
 
   /**
-   * @brief Reads the map server name and replanning proportion from the client
+   * @brief Reads the map server name from the client
    */
   void refreshParameters();
 
@@ -193,7 +192,6 @@ class PlanRoutePanel : public rviz_common::Panel {
 
   QComboBox* mode_;
   QCheckBox* continuous_planning_;
-  QDoubleSpinBox* replanning_proportion_;
   QComboBox* presets_;
   QLabel* status_;
   QLabel* detail_;

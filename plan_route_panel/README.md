@@ -12,7 +12,7 @@ Select one mode from the dropdown:
 
 | Mode | Primary button | Behavior |
 | --- | --- | --- |
-| **Waypoints** | **Plan Route** | Uses `plan_route_action_client/srv/RequestRoute` with `MODE_ROUTE`, or `MODE_LOOP` when **Continuous planning** is enabled. **Replan after fraction** displays the client's ROS parameter (read-only). |
+| **Waypoints** | **Plan Route** | Uses `plan_route_action_client/srv/RequestRoute` with `MODE_ROUTE`, or `MODE_LOOP` when **Continuous planning** is enabled. |
 | **Random Destination** | **Plan Route** | Uses the same `RequestRoute` service with `MODE_RANDOM`, or `MODE_RANDOM_CONTINUOUS` when **Continuous planning** is enabled. |
 
 **Cancel Route** calls `~/cancel_route` (`std_srvs/srv/Trigger`) to disable automatic planning, clear route state, and asynchronously cancel only this client's goals. Pending service requests finish before cancellation is sent. The panel's status is based on the configured action's status, feedback, and result endpoints. It reports route progress when feedback arrives. The progress bar appears for pending or running Waypoints and Random Destination goals. Rejected goals may not appear in action status.
@@ -40,4 +40,4 @@ The format is `latitude, longitude[, wait_time_s]`. Use `-1` for an intermediate
 | **Action Client Node** | Node whose `get_parameters`, `request_route`, and `cancel_route` services the panel uses. |
 | **Status Action** | Base name of the `PlanRoute` action. The panel derives `/_action/status`, `/_action/feedback`, and `/_action/get_result` from it. |
 
-The panel reads the map server name and replanning proportion when RViz initializes, when the client parameter service becomes available, or when the client node name changes. It does not continually poll parameter values. Planning and cancellation use asynchronous route services instead of parameter updates. Errors and timeouts are displayed; timed-out service requests remain pending to preserve request ordering. The action server's goal IDs do not identify the client that sent each goal, so goals from another client on the same action can appear as the panel's current goal.
+The panel reads the map server name when RViz initializes, when the client parameter service becomes available, or when the client node name changes. It does not continually poll parameter values. Planning and cancellation use asynchronous route services instead of parameter updates. Errors and timeouts are displayed; timed-out service requests remain pending to preserve request ordering. The action server's goal IDs do not identify the client that sent each goal, so goals from another client on the same action can appear as the panel's current goal.

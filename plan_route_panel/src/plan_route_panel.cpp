@@ -13,7 +13,6 @@
 
 #include <QCheckBox>
 #include <QComboBox>
-#include <QDoubleSpinBox>
 #include <QFormLayout>
 #include <QFrame>
 #include <QHBoxLayout>
@@ -145,20 +144,9 @@ PlanRoutePanel::PlanRoutePanel(QWidget* parent) : rviz_common::Panel(parent), ca
   form->setVerticalSpacing(4);
   continuous_planning_ = new QCheckBox(tr("Continuous planning"), waypoint_options);
   form->addRow(continuous_planning_);
-  replanning_proportion_ = new QDoubleSpinBox(waypoint_options);
-  replanning_proportion_->setRange(0.0, 1.0);
-  replanning_proportion_->setSingleStep(0.01);
-  replanning_proportion_->setDecimals(2);
-  replanning_proportion_->setValue(0.6);
-  replanning_proportion_->setEnabled(false);
-  replanning_proportion_->setToolTip(tr("Configured by the action client's continuous_planning_replanning_proportion parameter."));
-  form->addRow(tr("Replan after fraction"), replanning_proportion_);
-  auto* replanning_label = form->labelForField(replanning_proportion_);
   presets_ = new QComboBox(waypoint_options);
   auto* saved_routes_label = new QLabel(tr("Saved Routes"), waypoint_options);
   form->addRow(saved_routes_label, presets_);
-  const int label_width = std::max(replanning_label->sizeHint().width(), saved_routes_label->sizeHint().width());
-  saved_routes_label->setMinimumWidth(label_width);
   mode_row->addWidget(waypoint_options);
   layout->addWidget(parameters);
 
@@ -208,17 +196,13 @@ PlanRoutePanel::PlanRoutePanel(QWidget* parent) : rviz_common::Panel(parent), ca
   });
   layout->addStretch();
 
-  auto update_mode = [this, replanning_label, saved_routes_label] {
+  auto update_mode = [this, saved_routes_label] {
     const bool waypoints = mode_->currentIndex() == kWaypointsMode;
     saved_routes_label->setVisible(waypoints);
     presets_->setVisible(waypoints);
-    const bool show_replanning = waypoints && continuous_planning_->isChecked();
-    replanning_label->setVisible(show_replanning);
-    replanning_proportion_->setVisible(show_replanning);
     updatePlanButton();
   };
   connect(mode_, qOverload<int>(&QComboBox::currentIndexChanged), this, [update_mode](int) { update_mode(); });
-  connect(continuous_planning_, &QCheckBox::toggled, this, [update_mode](bool) { update_mode(); });
   connect(plan_button_, &QPushButton::clicked, this, [this] { planRoute(); });
   connect(cancel_button_, &QPushButton::clicked, this, [this] { cancelRoute(); });
   connect(client_name_, &QLineEdit::editingFinished, this, [this] {
@@ -368,7 +352,7 @@ void PlanRoutePanel::refreshParameters() {
   const auto requested_client = clientName();
   const auto generation = request_generation_;
   auto request = std::make_shared<rcl_interfaces::srv::GetParameters::Request>();
-  request->names = {"ll2_map_server_name", "continuous_planning_replanning_proportion"};
+  request->names = {"ll2_map_server_name"};
   const std::weak_ptr<CallbackBridge> weak_bridge = callback_bridge_;
   get_client_->async_send_request(
       request, [weak_bridge, requested_client, generation](rclcpp::Client<rcl_interfaces::srv::GetParameters>::SharedFuture future) {
@@ -376,12 +360,9 @@ void PlanRoutePanel::refreshParameters() {
       const auto values = future.get()->values;
       postToPanel(weak_bridge, [values, requested_client, generation](PlanRoutePanel* panel) {
         // Ignore replies from a client that was selected before the request completed.
-        if (panel->clientName() != requested_client || panel->request_generation_ != generation || values.size() != 2) return;
+        if (panel->clientName() != requested_client || panel->request_generation_ != generation || values.size() != 1) return;
         if (values[0].type == rcl_interfaces::msg::ParameterType::PARAMETER_STRING) {
           panel->map_server_name_->setText(QString::fromStdString(values[0].string_value));
-        }
-        if (values[1].type == rcl_interfaces::msg::ParameterType::PARAMETER_DOUBLE) {
-          panel->replanning_proportion_->setValue(values[1].double_value);
         }
         if (!panel->awaiting_goal_ && panel->tracked_goal_id_.empty()) {
           panel->showStatus(QObject::tr("Idle"), QObject::tr("Loaded parameters from action client."));
