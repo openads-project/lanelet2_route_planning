@@ -15,7 +15,7 @@ Select one mode from the dropdown:
 | **Waypoints** | **Plan Route** | Uses `plan_route_action_client/srv/RequestRoute` with `MODE_ROUTE`, or `MODE_LOOP` when **Continuous planning** is enabled. |
 | **Random Destination** | **Plan Route** | Uses the same `RequestRoute` service with `MODE_RANDOM`, or `MODE_RANDOM_CONTINUOUS` when **Continuous planning** is enabled. |
 
-**Cancel Route** calls `~/cancel_route` (`std_srvs/srv/Trigger`) to disable automatic planning, clear route state, and asynchronously cancel only this client's goals. Pending service requests finish before cancellation is sent. The panel's status is based on the configured action's status, feedback, and result endpoints. It reports route progress when feedback arrives. The progress bar appears for pending or running Waypoints and Random Destination goals. Rejected goals may not appear in action status.
+**Cancel Route** calls `~/cancel_route` (`std_srvs/srv/Trigger`) to disable automatic planning, clear route state, and asynchronously cancel only this client's goals. Pending service requests finish before cancellation is sent. The panel's status is based on the configured action's status, feedback, and result endpoints. It reports route progress when feedback arrives. The progress bar appears for pending or running Waypoints and Random Destination goals. Rejected route requests preserve monitoring of the current route; the rejection appears as a detail message. Rejected goals may not appear in action status.
 
 ## Saved routes
 

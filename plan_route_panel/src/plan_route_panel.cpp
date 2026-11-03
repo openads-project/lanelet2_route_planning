@@ -416,10 +416,15 @@ void PlanRoutePanel::sendRequest(const typename rclcpp::Client<Service>::SharedP
     QTimer::singleShot(10000, this, [this, generation, completed] {
       if (*completed || request_generation_ != generation || terminal_status_received_) return;
       // Keep the response callback: a timeout does not withdraw the remote request.
-      showStatus(tr("Waiting"), cancel_after_request_
+      const auto message = cancel_after_request_
           ? tr("Route service response timed out. Cancellation will be sent after the pending request completes.")
           : tr("Route service response timed out; the request is still pending. "
-               "New requests wait for its response to preserve their order."));
+               "New requests wait for its response to preserve their order.");
+      if (!tracked_goal_id_.empty()) {
+        detail_->setText(message);
+      } else {
+        showStatus(tr("Waiting"), message);
+      }
     });
   } catch (const std::exception& e) {
     *completed = true;
@@ -449,28 +454,34 @@ void PlanRoutePanel::planRoute() {
   auto request = std::make_shared<Service::Request>();
   request->mode = random ? (continuous ? Service::Request::MODE_RANDOM_CONTINUOUS : Service::Request::MODE_RANDOM)
                          : (continuous ? Service::Request::MODE_LOOP : Service::Request::MODE_ROUTE);
-  remaining_goals_ = random ? 1 : 0;
+  int remaining_goals = random ? 1 : 0;
   for (const auto& waypoint : route) {
     geographic_msgs::msg::GeoPoint point;
     point.latitude = waypoint.latitude;
     point.longitude = waypoint.longitude;
     request->waypoints.push_back(point);
     request->wait_times.push_back(static_cast<float>(waypoint.wait_time_s));
-    if (waypoint.wait_time_s >= 0.0) ++remaining_goals_;
+    if (waypoint.wait_time_s >= 0.0) ++remaining_goals;
   }
   ++request_generation_;
-  awaiting_goal_ = true;
-  terminal_status_received_ = false;
-  cancel_requested_ = false;
-  continuous_run_ = continuous;
-  tracked_goal_id_.clear();
-  result_goal_id_.clear();
-  failed_destination_goal_id_.clear();
-  showStatus(tr("Sending"), tr("Requesting a route from the action client; waiting for its goal."));
-  progress_->setRange(0, 0);
+  const bool observing_route = awaiting_goal_ || !tracked_goal_id_.empty();
+  auto begin_request = [this, continuous, remaining_goals] {
+    remaining_goals_ = remaining_goals;
+    awaiting_goal_ = true;
+    terminal_status_received_ = false;
+    cancel_requested_ = false;
+    continuous_run_ = continuous;
+    tracked_goal_id_.clear();
+    result_goal_id_.clear();
+    failed_destination_goal_id_.clear();
+    showStatus(tr("Sending"), tr("Requesting a route from the action client; waiting for its goal."));
+    progress_->setRange(0, 0);
+  };
+  // Keep observing the current request until the service accepts a new one.
+  if (!observing_route) begin_request();
   service_request_pending_ = true;
   updatePlanButton();
-  auto done = [this](bool success, const QString& reason) {
+  auto done = [this, observing_route, begin_request](bool success, const QString& reason) {
     service_request_pending_ = false;
     if (cancel_after_request_) {
       cancel_after_request_ = false;
@@ -479,6 +490,10 @@ void PlanRoutePanel::planRoute() {
     }
     updatePlanButton();
     if (!success) {
+      if (observing_route) {
+        detail_->setText(reason.isEmpty() ? tr("Route request rejected; continuing to monitor the current route.") : reason);
+        return;
+      }
       awaiting_goal_ = false;
       continuous_run_ = false;
       remaining_goals_ = 0;
@@ -489,6 +504,7 @@ void PlanRoutePanel::planRoute() {
       showStatus(tr("Failed"), reason.isEmpty() ? tr("Route request rejected.") : reason);
       return;
     }
+    if (observing_route) begin_request();
     const auto generation = request_generation_;
     QTimer::singleShot(10000, this, [this, generation] {
       if (request_generation_ != generation || !awaiting_goal_ || !result_goal_id_.empty()) return;
