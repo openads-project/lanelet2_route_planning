@@ -1,11 +1,4 @@
 /**/*:
   ros__parameters:
     ll2_map_server_name: ll2_map_server
-    # waypoints:
-    #   - "<LATITUDE>, <LONGITUDE>"
-    #   - "<LATITUDE>, <LONGITUDE>, <WAIT_TIME_S>"
-    #   - "<LATITUDE>, <LONGITUDE>, -1"  # intermediate destination
-    enable_random_destination: false
-    enable_continuous_planning: false
     continuous_planning_replanning_proportion: 0.6
-    cancel_route: false

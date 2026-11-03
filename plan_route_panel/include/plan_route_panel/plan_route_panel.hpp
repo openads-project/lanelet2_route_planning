@@ -7,23 +7,18 @@
 #include <deque>
 #include <functional>
 #include <memory>
-#include <optional>
 #include <set>
 #include <string>
 #include <vector>
 
 #include <QWidget>
-#include <QPointer>
 #include <QString>
 #include <rviz_common/panel.hpp>
-#include <rviz_common/tool.hpp>
 #include <rclcpp/rclcpp.hpp>
 #include <rcl_interfaces/srv/get_parameters.hpp>
-#include <route_planning_msgs/srv/cancel_route.hpp>
-#include <route_planning_msgs/srv/extended_request_route.hpp>
-#include <route_planning_msgs/srv/request_route.hpp>
+#include <plan_route_action_client/srv/request_route.hpp>
+#include <std_srvs/srv/trigger.hpp>
 #include <action_msgs/msg/goal_status_array.hpp>
-#include <geometry_msgs/msg/pose_stamped.hpp>
 #include <route_planning_msgs/action/plan_route.hpp>
 
 class QCheckBox;
@@ -41,8 +36,7 @@ struct CallbackBridge;
 /**
  * @brief RViz panel that configures the running route action client and observes its goals.
  *
- * Saved routes are sent through route request services. Clicked destinations use RViz's
- * built-in Goal Pose tool and the client's goal pose subscription.
+ * Saved routes and random planning modes use RequestRoute; cancellation uses Trigger.
  */
 class PlanRoutePanel : public rviz_common::Panel {
   Q_OBJECT
@@ -91,19 +85,7 @@ class PlanRoutePanel : public rviz_common::Panel {
   void connectToAction();
 
   /**
-   * @brief Finds or adds RViz's Goal Pose tool
-   *
-   * @return Goal Pose tool, or nullptr if the tool manager is unavailable
-   */
-  rviz_common::Tool* ensureGoalTool();
-
-  /**
-   * @brief Applies the configured goal pose topic to the RViz tool
-   */
-  void updateGoalTopic();
-
-  /**
-   * @brief Reads the client's configured startup parameters to initialize the controls
+   * @brief Reads the map server name and replanning proportion from the client
    */
   void refreshParameters();
 
@@ -195,28 +177,19 @@ class PlanRoutePanel : public rviz_common::Panel {
   rclcpp::Client<rcl_interfaces::srv::GetParameters>::SharedPtr get_client_;
 
   /**
-   * @brief Client for requesting a single saved waypoint route
+   * @brief Client for requesting saved routes and random planning modes
    */
-  rclcpp::Client<route_planning_msgs::srv::RequestRoute>::SharedPtr request_client_;
-
-  /**
-   * @brief Client for requesting loop, random, or continuous random planning
-   */
-  rclcpp::Client<route_planning_msgs::srv::ExtendedRequestRoute>::SharedPtr extended_request_client_;
+  rclcpp::Client<plan_route_action_client::srv::RequestRoute>::SharedPtr request_client_;
 
   /**
    * @brief Client for stopping automatic planning and requesting route cancellation
    */
-  rclcpp::Client<route_planning_msgs::srv::CancelRoute>::SharedPtr cancel_client_;
+  rclcpp::Client<std_srvs::srv::Trigger>::SharedPtr cancel_client_;
 
   rclcpp::Client<route_planning_msgs::action::PlanRoute::Impl::GetResultService>::SharedPtr result_client_;
   rclcpp::Subscription<action_msgs::msg::GoalStatusArray>::SharedPtr status_sub_;
   rclcpp::Subscription<route_planning_msgs::action::PlanRoute::Impl::FeedbackMessage>::SharedPtr feedback_sub_;
-  rclcpp::Subscription<geometry_msgs::msg::PoseStamped>::SharedPtr goal_pose_sub_;
-  std::optional<action_msgs::msg::GoalStatusArray> pending_destination_status_;
-  std::string pending_destination_goal_id_;
   std::shared_ptr<CallbackBridge> callback_bridge_;
-  QPointer<rviz_common::Tool> goal_tool_;
 
   QComboBox* mode_;
   QCheckBox* continuous_planning_;
@@ -229,9 +202,7 @@ class PlanRoutePanel : public rviz_common::Panel {
   QPushButton* cancel_button_;
   QLineEdit* map_server_name_;
   QLineEdit* client_name_;
-  QLineEdit* goal_topic_;
   QLineEdit* action_name_;
-  bool selecting_destination_ = false;
 
   std::set<std::string> seen_goal_ids_;
   std::deque<std::string> seen_goal_order_;

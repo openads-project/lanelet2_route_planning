@@ -6,13 +6,22 @@ if(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
 endif()
 
 find_package(ament_cmake REQUIRED)
+find_package(geographic_msgs REQUIRED)
 find_package(geometry_msgs REQUIRED)
 find_package(lanelet2_map_interface REQUIRED)
 find_package(rclcpp REQUIRED)
 find_package(rclcpp_action REQUIRED)
+find_package(rosidl_default_generators REQUIRED)
 find_package(route_planning_msgs REQUIRED)
+find_package(std_srvs REQUIRED)
 find_package(tf2 REQUIRED)
 find_package(tf2_geometry_msgs REQUIRED)
+
+rosidl_generate_interfaces(${PROJECT_NAME}_interfaces
+  "srv/RequestRoute.srv"
+  LIBRARY_NAME ${PROJECT_NAME}
+  DEPENDENCIES geographic_msgs
+)
 
 set(TARGET_NAME plan_route_action_client)
 
@@ -30,9 +39,16 @@ ament_target_dependencies(${TARGET_NAME}
   rclcpp
   rclcpp_action
   route_planning_msgs
+  std_srvs
   tf2
   tf2_geometry_msgs
 )
+
+rosidl_get_typesupport_target(cpp_typesupport_target
+  ${PROJECT_NAME}_interfaces rosidl_typesupport_cpp
+)
+
+target_link_libraries(${TARGET_NAME} "${cpp_typesupport_target}")
 
 # https://github.com/openads-project/lanelet2_map_server/tree/main/lanelet2_map_interface#linting-downstream-packages
 target_dependencies_as_system(${TARGET_NAME})
@@ -58,5 +74,7 @@ if(BUILD_TESTING)
   set(ament_cmake_flake8_CONFIG_FILE ${CMAKE_CURRENT_SOURCE_DIR}/../.vscode/lint/ament_flake8.ini)
   ament_lint_auto_find_test_dependencies()
 endif()
+
+ament_export_dependencies(geographic_msgs rosidl_default_runtime)
 
 ament_package()

@@ -1,5 +1,4 @@
-# Saved WGS84 routes use the same waypoint strings as the action client's
-# "waypoints" parameter: "latitude, longitude[, wait_time_s]".
+# Saved WGS84 routes use waypoint strings: "latitude, longitude[, wait_time_s]".
 # A negative wait time marks an intermediate destination. The final waypoint
 # must be a stop (nonnegative wait time, or no wait time).
 routes:

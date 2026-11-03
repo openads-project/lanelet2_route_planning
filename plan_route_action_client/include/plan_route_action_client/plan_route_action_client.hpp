@@ -17,9 +17,8 @@
 #include <rclcpp_action/rclcpp_action.hpp>
 #include <route_planning_msgs/action/plan_route.hpp>
 #include <route_planning_msgs/msg/route.hpp>
-#include <route_planning_msgs/srv/cancel_route.hpp>
-#include <route_planning_msgs/srv/extended_request_route.hpp>
-#include <route_planning_msgs/srv/request_route.hpp>
+#include <plan_route_action_client/srv/request_route.hpp>
+#include <std_srvs/srv/trigger.hpp>
 
 namespace plan_route_action_client {
 
@@ -86,19 +85,16 @@ class PlanRouteActionClient : public rclcpp::Node {
   void setup();
 
   /**
-   * @brief Validates a service request and replaces the current route request
+   * @brief Validates and starts a service request if no route request is active
    *
-   * Rejected requests preserve the current route state. Accepted requests cancel
-   * previous goals and configure the existing automatic planning logic.
+   * Rejected requests preserve the current route state. Active requests must
+   * finish or be explicitly canceled before another request can be accepted.
    *
-   * @param[in] route_request WGS84 waypoints and corresponding wait times
-   * @param[in] mode planning mode from ExtendedRequestRoute
-   * @param[in] replanning_proportion traveled route fraction for MODE_LOOP
+   * @param[in] route_request planning mode, WGS84 waypoints, and corresponding wait times
    * @param[out] message acceptance information or reason for rejection
    * @return true if the route request was accepted
    */
-  bool requestRoute(const route_planning_msgs::msg::RouteRequest& route_request,
-                    std::uint8_t mode, float replanning_proportion, std::string& message);
+  bool requestRoute(const srv::RequestRoute::Request& route_request, std::string& message);
 
   /**
    * @brief Stops automatic planning, clears route state, and cancels owned goals
@@ -107,13 +103,6 @@ class PlanRouteActionClient : public rclcpp::Node {
    * requests are canceled if accepted later. Action cancellation is asynchronous.
    */
   void cancelRoute();
-
-  /**
-   * @brief Callback for goal pose (most likely received from RViz)
-   *
-   * @param[in] msg goal pose
-   */
-  void goalPoseCallback(const geometry_msgs::msg::PoseStamped::SharedPtr msg);
 
   /**
    * @brief Callback for the global route
@@ -192,11 +181,6 @@ class PlanRouteActionClient : public rclcpp::Node {
   OnSetParametersCallbackHandle::SharedPtr parameters_callback_;
 
   /**
-   * @brief Subscriber for goal pose
-   */
-  rclcpp::Subscription<geometry_msgs::msg::PoseStamped>::SharedPtr goal_pose_subscriber_;
-
-  /**
    * @brief Subscriber for the complete global route
    */
   rclcpp::Subscription<route_planning_msgs::msg::Route>::SharedPtr global_route_subscriber_;
@@ -207,29 +191,34 @@ class PlanRouteActionClient : public rclcpp::Node {
   rclcpp_action::Client<PlanRoute>::SharedPtr action_client_;
 
   /**
-   * @brief Service for requesting a single waypoint route
-   */
-  rclcpp::Service<route_planning_msgs::srv::RequestRoute>::SharedPtr request_route_service_;
-
-  /**
    * @brief Service for selecting waypoint, loop, or random planning modes
    */
-  rclcpp::Service<route_planning_msgs::srv::ExtendedRequestRoute>::SharedPtr extended_request_route_service_;
+  rclcpp::Service<srv::RequestRoute>::SharedPtr request_route_service_;
 
   /**
-   * @brief Service for stopping automatic planning and canceling the current request
+   * @brief Trigger service for stopping automatic planning and canceling the current request
    */
-  rclcpp::Service<route_planning_msgs::srv::CancelRoute>::SharedPtr cancel_route_service_;
+  rclcpp::Service<std_srvs::srv::Trigger>::SharedPtr cancel_route_service_;
+
+  /**
+   * @brief Trigger service reporting the current route request status as text
+   */
+  rclcpp::Service<std_srvs::srv::Trigger>::SharedPtr get_route_status_service_;
+
+  /**
+   * @brief Whether a route request is active, including planning and waypoint waits
+   */
+  bool route_request_active_ = false;
+
+  /**
+   * @brief Current route request status, retained after completion or cancellation
+   */
+  std::string route_status_ = "IDLE";
 
   /**
    * @brief Accepted goals owned by this client, retained until completion or cancellation
    */
   std::vector<GoalHandlePlanRoute::SharedPtr> goal_handles_;
-
-  /**
-   * @brief Goal handle
-   */
-  std::shared_future<GoalHandlePlanRoute::SharedPtr> goal_handle_future_;
 
   /**
    * @brief Latest complete global route
@@ -257,9 +246,7 @@ class PlanRouteActionClient : public rclcpp::Node {
   std::vector<double> waypoint_wait_times_;
 
   /**
-   * @brief WGS84 altitude per service waypoint [m]; empty for parameter waypoints
-   *
-   * Parameter waypoints use an altitude of zero during map projection.
+   * @brief WGS84 altitude per waypoint [m]
    */
   std::vector<double> waypoint_altitudes_;
 
@@ -293,8 +280,6 @@ class PlanRouteActionClient : public rclcpp::Node {
    */
   std::vector<geometry_msgs::msg::PointStamped> pending_route_waypoints_;
   std::vector<size_t> pending_route_waypoint_indices_;
-  size_t pending_next_waypoint_idx_ = 0;
-  double pending_waypoint_wait_time_s_ = 0.0;
 
   /**
    * @brief Whether a continuous replanning goal is awaiting a response
@@ -322,29 +307,17 @@ class PlanRouteActionClient : public rclcpp::Node {
   double auto_planning_resume_time_s_ = 0.0;
 
   /**
-   * @brief Whether one goal has been completed (succeeded or failed)
-   */
-  bool has_completed_one_goal_ = false;
-
-  /**
    * @brief Name of lanelet2_map_server node (parameter)
    */
   std::string ll2_map_server_name_ = "ll2_map_server";
 
   /**
-   * @brief WGS84 waypoints to endlessly follow (parameter)
-   *
-   * list of strings with comma-separated '<LATITUDE>,<LONGITUDE>[,<WAIT_TIME_S>]'
-   */
-  std::vector<std::string> waypoints_param_;
-
-  /**
-   * @brief Whether to plan a route to a random destination (parameter)
+   * @brief Whether the current service request uses random destinations
    */
   bool enable_random_destination_ = false;
 
   /**
-   * @brief Whether to continuously plan a new route (parameter)
+   * @brief Whether the current service request uses continuous planning
    *
    * Either to the next waypoint or to a random destination, if enabled
    */
@@ -355,11 +328,6 @@ class PlanRouteActionClient : public rclcpp::Node {
    * (parameter)
    */
   double continuous_planning_replanning_proportion_ = 0.6;
-
-  /**
-   * @brief Flag to cancel the route planning action (parameter)
-   */
-  bool cancel_route_ = false;
 };
 
 }  // namespace plan_route_action_client
