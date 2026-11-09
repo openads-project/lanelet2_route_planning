@@ -219,6 +219,9 @@ TEST(BoundaryPositionTest, IsIndependentOfRingOrientation) {  // NOLINT
  */
 class ReciprocalRightOfWayTest : public ::testing::Test {
  protected:
+  /**
+   * @brief Creates the lanelets and the intersection area; rules are added per test.
+   */
   void SetUp() override {
     // eastbound approach and movements
     east_approach_ = makeLanelet({{-30.0, 0.0}, {-10.0, 0.0}}, {{-30.0, -3.5}, {-10.0, -3.5}});
