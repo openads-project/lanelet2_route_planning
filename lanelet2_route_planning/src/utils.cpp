@@ -558,6 +558,96 @@ std::optional<RegulatoryElementCandidate> regulatoryElementCandidate(
   return candidate;
 }
 
+double boundaryPosition(const lanelet::BasicPolygon2d& ring, const lanelet::BasicPoint2d& point) {
+  if (ring.size() < 2) {
+    return 0.0;
+  }
+
+  // find closest ring segment and accumulate arc length in stored order
+  double perimeter = 0.0;
+  double signed_double_area = 0.0;
+  double position = 0.0;
+  double closest_squared_distance = std::numeric_limits<double>::max();
+  for (size_t i = 0; i < ring.size(); ++i) {
+    const lanelet::BasicPoint2d& start = ring[i];
+    const lanelet::BasicPoint2d& end = ring[(i + 1) % ring.size()];
+    const lanelet::BasicPoint2d segment = end - start;
+    const double length = segment.norm();
+    signed_double_area += start.x() * end.y() - end.x() * start.y();
+    const double t = length > 0.0 ? std::clamp((point - start).dot(segment) / (length * length), 0.0, 1.0) : 0.0;
+    const double squared_distance = (start + t * segment - point).squaredNorm();
+    if (squared_distance < closest_squared_distance) {
+      closest_squared_distance = squared_distance;
+      position = perimeter + t * length;
+    }
+    perimeter += length;
+  }
+  if (perimeter <= 0.0) {
+    return 0.0;
+  }
+
+  // measure counterclockwise regardless of the stored ring orientation
+  if (signed_double_area < 0.0) {
+    position = perimeter - position;
+  }
+  return std::fmod(position, perimeter);
+}
+
+CrossesOncoming crossesOncoming(const lanelet::ConstLanelet& approach,
+                                const lanelet::ConstLanelet& exit,
+                                const lanelet::ConstLanelet& oncoming,
+                                const lanelet::BasicPolygon2d& ring) {
+  // tolerance for exit and oncoming entry touching at a shared bound point
+  constexpr double kContactTolerance = 0.01;
+  if (approach.leftBound2d().empty() || approach.rightBound2d().empty() || exit.leftBound2d().empty() ||
+      exit.rightBound2d().empty() || oncoming.leftBound2d().empty() || oncoming.rightBound2d().empty()) {
+    return CrossesOncoming::Ambiguous;
+  }
+  double perimeter = 0.0;
+  for (size_t i = 0; i < ring.size(); ++i) {
+    perimeter += (ring[(i + 1) % ring.size()] - ring[i]).norm();
+  }
+  if (perimeter <= 0.0) {
+    return CrossesOncoming::Ambiguous;
+  }
+
+  // counterclockwise distance along the boundary, starting at the approach entry
+  const lanelet::BasicPoint2d approach_entry =
+      0.5 * (approach.leftBound2d().back().basicPoint() + approach.rightBound2d().back().basicPoint());
+  const double approach_position = boundaryPosition(ring, approach_entry);
+  const auto distanceFromApproach = [&](const lanelet::ConstPoint2d& point) {
+    return std::fmod(boundaryPosition(ring, point.basicPoint()) - approach_position + perimeter, perimeter);
+  };
+  // initializer lists return values instead of references to temporaries
+  const auto [exit_first, exit_last] =
+      std::minmax({distanceFromApproach(exit.leftBound2d().front()), distanceFromApproach(exit.rightBound2d().front())});
+  const auto [oncoming_first, oncoming_last] =
+      std::minmax({distanceFromApproach(oncoming.leftBound2d().back()), distanceFromApproach(oncoming.rightBound2d().back())});
+
+  // compare order of exit and oncoming entry
+  if (exit_first >= oncoming_last - kContactTolerance) {
+    return CrossesOncoming::Left;
+  }
+  if (exit_last <= oncoming_first + kContactTolerance) {
+    return CrossesOncoming::NotLeft;
+  }
+  return CrossesOncoming::Ambiguous;
+}
+
+bool yieldsToApproach(const lanelet::ConstLanelet& priority,
+                      const lanelet::ConstLanelet& yielding,
+                      lanelet::Id intersection_area_id) {
+  const auto contains = [](const lanelet::ConstLanelets& lanelets, lanelet::Id id) {
+    return std::any_of(lanelets.begin(), lanelets.end(), [id](const auto& lanelet) { return lanelet.id() == id; });
+  };
+  const auto right_of_ways = priority.regulatoryElementsAs<lanelet::RightOfWay>();
+  return std::any_of(right_of_ways.begin(), right_of_ways.end(), [&](const auto& right_of_way) {
+    const auto areas = right_of_way->template getParameters<lanelet::ConstArea>("intersection_area");
+    return areas.size() == 1 && areas.front().id() == intersection_area_id &&
+           contains(right_of_way->yieldLanelets(), priority.id()) && contains(right_of_way->rightOfWayLanelets(), yielding.id());
+  });
+}
+
 bool keepYieldForRoute(const lanelet::routing::LaneletPath& path,
                        size_t yield_lanelet_idx,
                        const lanelet::RightOfWay& right_of_way,
@@ -607,6 +697,8 @@ bool keepYieldForRoute(const lanelet::routing::LaneletPath& path,
     return true;
   }
   route_through_intersection.push_back(path[route_idx]);
+  const auto& yield_approach = path[yield_lanelet_idx];
+  const auto& route_exit = path[route_idx];
 
   // get priority lanelets
   const auto priority_lanelets = right_of_way.rightOfWayLanelets();
@@ -624,10 +716,47 @@ bool keepYieldForRoute(const lanelet::routing::LaneletPath& path,
              lanelet::geometry::intersects(priority_centerline, lanelet::traits::toHybrid(route_lanelet.centerline2d()));
     });
   };
+  const auto reached_conflict_check_limit = [&]() { return conflict_checks > max_conflict_checks; };
+
+  // reciprocal right of way: a priority movement that turns left across the yielding approach yields to the route
+  const auto turns_left_across_yield_approach = [&](const lanelet::ConstLanelet& approach, const lanelet::ConstLanelet& exit) {
+    return crossesOncoming(approach, exit, yield_approach, intersection_polygon.outer) == CrossesOncoming::Left;
+  };
+
+  // check whether all exits reachable from a lanelet inside the intersection turn left across the yielding approach
+  const auto only_turns_left_across_yield_approach = [&](const lanelet::ConstLanelet& approach,
+                                                         const lanelet::ConstLanelet& start,
+                                                         const lanelet::routing::RoutingGraph& graph) {
+    std::deque<lanelet::ConstLanelet> pending{start};
+    std::set<std::pair<lanelet::Id, bool>> visited;
+    bool found_exit = false;
+    while (!pending.empty()) {
+      const auto current = pending.front();
+      pending.pop_front();
+      if (!visited.insert({current.id(), current.inverted()}).second) {
+        continue;
+      }
+      const auto successors = graph.following(current, false);
+      if (successors.empty() || visited.size() > max_intersection_lanelets) {
+        return false;
+      }
+      for (const auto& successor : successors) {
+        if (overlapsIntersection(successor, intersection_polygon)) {
+          pending.push_back(successor);
+        } else if (turns_left_across_yield_approach(approach, successor)) {
+          found_exit = true;
+        } else {
+          return false;
+        }
+      }
+    }
+    return found_exit;
+  };
 
   // loop over priority lanelets, participants, and legal directions
   for (const auto& priority_lanelet : priority_lanelets) {
     bool traversed_priority = false;
+    const bool priority_yields_to_route = yieldsToApproach(priority_lanelet, yield_approach, intersection_area.id());
     for (const auto* participant_graph : priority_routing_graphs) {
       for (const auto& approach : {priority_lanelet, priority_lanelet.invert()}) {
         if (!participant_graph->traffic_rules->canPass(approach)) {
@@ -644,6 +773,11 @@ bool keepYieldForRoute(const lanelet::routing::LaneletPath& path,
         }
         traversed_priority = true;
 
+        // ignore left turns of this approach only if it yields to the route and the route does not turn left across it
+        const bool ignore_left_turns =
+            priority_yields_to_route &&
+            crossesOncoming(yield_approach, route_exit, approach, intersection_polygon.outer) == CrossesOncoming::NotLeft;
+
         // traverse all lanelets reachable inside the intersection and check them for conflicts
         std::deque<lanelet::ConstLanelet> pending{approach};
         std::set<std::pair<lanelet::Id, bool>> visited;
@@ -657,7 +791,9 @@ bool keepYieldForRoute(const lanelet::routing::LaneletPath& path,
           if (visited.size() > max_intersection_lanelets) {
             return true;
           }
-          if (conflicts_with_route_or_reaches_limit(current)) {
+          if (conflicts_with_route_or_reaches_limit(current) &&
+              (reached_conflict_check_limit() || !ignore_left_turns ||
+               !only_turns_left_across_yield_approach(approach, current, *participant_graph->graph))) {
             return true;
           }
 
@@ -681,7 +817,8 @@ bool keepYieldForRoute(const lanelet::routing::LaneletPath& path,
                 return true;
               }
               exited_intersection = true;
-              if (conflicts_with_route_or_reaches_limit(successor)) {
+              if (conflicts_with_route_or_reaches_limit(successor) && (reached_conflict_check_limit() || !ignore_left_turns ||
+                                                                       !turns_left_across_yield_approach(approach, successor))) {
                 return true;
               }
             }
