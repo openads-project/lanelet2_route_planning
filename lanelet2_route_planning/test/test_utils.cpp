@@ -1,11 +1,19 @@
 // Copyright Institute for Automotive Engineering (ika), RWTH Aachen University
 // SPDX-License-Identifier: Apache-2.0
 
+#include <cmath>
 #include <cstdint>
+#include <map>
+#include <memory>
+#include <utility>
 #include <vector>
 
 #include <gtest/gtest.h>
+#include <lanelet2_core/LaneletMap.h>
+#include <lanelet2_core/primitives/Area.h>
 #include <lanelet2_core/primitives/BasicRegulatoryElements.h>
+#include <lanelet2_routing/RoutingGraph.h>
+#include <lanelet2_traffic_rules/TrafficRulesFactory.h>
 
 #include "lanelet2_route_planning/utils.hpp"
 
@@ -187,6 +195,216 @@ TEST_F(ExtractRegulatoryElementsTest, UsesLaneletEndForTrafficLightWithoutStopLi
   EXPECT_EQ(result.regulatory_element_msgs.front().type, route_planning_msgs::msg::RegulatoryElement::TYPE_TRAFFIC_LIGHT);
   EXPECT_DOUBLE_EQ(result.regulatory_element_msgs.front().reference_line[0].x, 10.0);
   EXPECT_DOUBLE_EQ(result.regulatory_element_msgs.front().reference_line[1].x, 10.0);
+}
+
+/**
+ * @brief Measures boundary positions counterclockwise for both ring orientations.
+ */
+TEST(BoundaryPositionTest, IsIndependentOfRingOrientation) {  // NOLINT
+  const lanelet::BasicPolygon2d counterclockwise{{-10.0, -10.0}, {10.0, -10.0}, {10.0, 10.0}, {-10.0, 10.0}};
+  const lanelet::BasicPolygon2d clockwise{{-10.0, -10.0}, {-10.0, 10.0}, {10.0, 10.0}, {10.0, -10.0}};
+
+  for (const auto& ring : {counterclockwise, clockwise}) {
+    EXPECT_DOUBLE_EQ(boundaryPosition(ring, lanelet::BasicPoint2d(0.0, -10.0)), 10.0);
+    EXPECT_DOUBLE_EQ(boundaryPosition(ring, lanelet::BasicPoint2d(10.0, 0.0)), 30.0);
+    EXPECT_DOUBLE_EQ(boundaryPosition(ring, lanelet::BasicPoint2d(0.0, 12.0)), 50.0);  // projected onto the ring
+  }
+}
+
+/**
+ * @brief Four-arm intersection in right-hand traffic with reciprocal left-turn rules on the east-west road.
+ *
+ * The square Area spans [-10, 10] in x and y. Eastbound lanes use y in [-3.5, 0], westbound lanes y in [0, 3.5],
+ * the northern exit x in [0, 3.5], and the southern exit x in [-3.5, 0].
+ */
+class ReciprocalRightOfWayTest : public ::testing::Test {
+ protected:
+  /**
+   * @brief Creates the lanelets and the intersection area; rules are added per test.
+   */
+  void SetUp() override {
+    // eastbound approach and movements
+    east_approach_ = makeLanelet({{-30.0, 0.0}, {-10.0, 0.0}}, {{-30.0, -3.5}, {-10.0, -3.5}});
+    east_straight_ = makeLanelet({{-10.0, 0.0}, {10.0, 0.0}}, {{-10.0, -3.5}, {10.0, -3.5}});
+    east_left_ = makeLanelet({{-10.0, 0.0}, {0.0, 10.0}}, {{-10.0, -3.5}, {3.5, 10.0}});
+    east_right_ = makeLanelet({{-10.0, 0.0}, {0.0, -10.0}}, {{-10.0, -3.5}, {-3.5, -10.0}});
+    east_exit_ = makeLanelet({{10.0, 0.0}, {30.0, 0.0}}, {{10.0, -3.5}, {30.0, -3.5}});
+
+    // westbound approach and movements
+    west_approach_ = makeLanelet({{30.0, 0.0}, {10.0, 0.0}}, {{30.0, 3.5}, {10.0, 3.5}});
+    west_straight_ = makeLanelet({{10.0, 0.0}, {-10.0, 0.0}}, {{10.0, 3.5}, {-10.0, 3.5}});
+    west_left_ = makeLanelet({{10.0, 0.0}, {0.0, -10.0}}, {{10.0, 3.5}, {-3.5, -10.0}});
+    west_right_ = makeLanelet({{10.0, 0.0}, {0.0, 10.0}}, {{10.0, 3.5}, {3.5, 10.0}});
+    west_exit_ = makeLanelet({{-10.0, 0.0}, {-30.0, 0.0}}, {{-10.0, 3.5}, {-30.0, 3.5}});
+
+    // exits of the side arms
+    north_exit_ = makeLanelet({{0.0, 10.0}, {0.0, 30.0}}, {{3.5, 10.0}, {3.5, 30.0}});
+    south_exit_ = makeLanelet({{0.0, -10.0}, {0.0, -30.0}}, {{-3.5, -10.0}, {-3.5, -30.0}});
+
+    // intersection area
+    const auto outer = makeBound({{-10.0, -10.0}, {10.0, -10.0}, {10.0, 10.0}, {-10.0, 10.0}});
+    area_ = lanelet::Area(next_id_++, {outer});
+    area_.setAttribute(lanelet::AttributeName::Subtype, "intersection");
+    ring_ = {{-10.0, -10.0}, {10.0, -10.0}, {10.0, 10.0}, {-10.0, 10.0}};
+  }
+
+  /**
+   * @brief Adds a RightOfWay in which yield_lanelet yields to priority_lanelet within the intersection area.
+   */
+  lanelet::RightOfWay::Ptr addRightOfWay(lanelet::Lanelet& priority_lanelet, lanelet::Lanelet& yield_lanelet) {
+    // use the factory like the map loader, since RightOfWay::make does not accept an intersection area
+    lanelet::RuleParameterMap parameters;
+    parameters["right_of_way"] = {lanelet::WeakLanelet(priority_lanelet)};
+    parameters["yield"] = {lanelet::WeakLanelet(yield_lanelet)};
+    parameters["intersection_area"] = {lanelet::WeakArea(area_)};
+    auto right_of_way = std::dynamic_pointer_cast<lanelet::RightOfWay>(
+        lanelet::RegulatoryElementFactory::create(lanelet::RightOfWay::RuleName, next_id_++, parameters));
+    priority_lanelet.addRegulatoryElement(right_of_way);
+    yield_lanelet.addRegulatoryElement(right_of_way);
+    return right_of_way;
+  }
+
+  /**
+   * @brief Builds map and vehicle routing graph after all rules have been added.
+   */
+  void buildRoutingGraph() {
+    map_ = lanelet::utils::createMap({east_approach_, east_straight_, east_left_, east_right_, east_exit_, west_approach_,
+                                      west_straight_, west_left_, west_right_, west_exit_, north_exit_, south_exit_},
+                                     {area_});
+    vehicle_.traffic_rules =
+        lanelet::traffic_rules::TrafficRulesFactory::create(lanelet::Locations::Germany, lanelet::Participants::Vehicle);
+    vehicle_.graph = lanelet::routing::RoutingGraph::build(*map_, *vehicle_.traffic_rules);
+  }
+
+  /**
+   * @brief Evaluates keepYieldForRoute for a route starting at its yielding approach.
+   */
+  bool keepYield(const lanelet::ConstLanelets& route, const lanelet::RightOfWay& right_of_way) const {
+    return keepYieldForRoute(lanelet::routing::LaneletPath(route), 0, right_of_way, {&vehicle_});
+  }
+
+  lanelet::Lanelet east_approach_, east_straight_, east_left_, east_right_, east_exit_;
+  lanelet::Lanelet west_approach_, west_straight_, west_left_, west_right_, west_exit_;
+  lanelet::Lanelet north_exit_, south_exit_;
+  lanelet::Area area_;
+  lanelet::BasicPolygon2d ring_;
+
+ private:
+  /**
+   * @brief Returns the point at the given position, sharing points so that consecutive lanelets are connected.
+   */
+  lanelet::Point3d point(double x, double y) {
+    const auto key = std::make_pair(x, y);
+    const auto it = points_.find(key);
+    if (it != points_.end()) {
+      return it->second;
+    }
+    return points_.emplace(key, lanelet::Point3d(next_id_++, x, y, 0.0)).first->second;
+  }
+
+  /**
+   * @brief Creates a bound from (x, y) coordinates.
+   */
+  lanelet::LineString3d makeBound(const std::vector<std::pair<double, double>>& coordinates) {
+    lanelet::Points3d points;
+    for (const auto& [x, y] : coordinates) {
+      points.push_back(point(x, y));
+    }
+    return lanelet::LineString3d(next_id_++, points);
+  }
+
+  /**
+   * @brief Creates an urban one-way road lanelet from (x, y) bound coordinates.
+   */
+  lanelet::Lanelet makeLanelet(const std::vector<std::pair<double, double>>& left,
+                               const std::vector<std::pair<double, double>>& right) {
+    const auto left_bound = makeBound(left);
+    const auto right_bound = makeBound(right);
+    lanelet::Lanelet lanelet(next_id_++, left_bound, right_bound);
+    lanelet.setAttribute(lanelet::AttributeName::Subtype, lanelet::AttributeValueString::Road);
+    lanelet.setAttribute(lanelet::AttributeName::Location, lanelet::AttributeValueString::Urban);
+    lanelet.setAttribute(lanelet::AttributeName::OneWay, true);
+    return lanelet;
+  }
+
+  lanelet::Id next_id_ = 1000;
+  std::map<std::pair<double, double>, lanelet::Point3d> points_;
+  lanelet::LaneletMapUPtr map_;
+  ParticipantRoutingGraph vehicle_;
+};
+
+/**
+ * @brief Classifies movements by their exit order relative to the oncoming entry, independent of turn angles.
+ */
+TEST_F(ReciprocalRightOfWayTest, ClassifiesMovementsAcrossOncomingTraffic) {  // NOLINT
+  EXPECT_EQ(crossesOncoming(east_approach_, east_exit_, west_approach_, ring_), CrossesOncoming::NotLeft);
+  EXPECT_EQ(crossesOncoming(east_approach_, south_exit_, west_approach_, ring_), CrossesOncoming::NotLeft);
+  EXPECT_EQ(crossesOncoming(east_approach_, north_exit_, west_approach_, ring_), CrossesOncoming::Left);
+  EXPECT_EQ(crossesOncoming(west_approach_, south_exit_, east_approach_, ring_), CrossesOncoming::Left);
+  EXPECT_EQ(crossesOncoming(west_approach_, north_exit_, east_approach_, ring_), CrossesOncoming::NotLeft);
+
+  // a U-turn crosses oncoming traffic
+  EXPECT_EQ(crossesOncoming(east_approach_, west_exit_, west_approach_, ring_), CrossesOncoming::Left);
+
+  // a skewed exit turning only 35 degrees to the left still crosses oncoming traffic
+  const double heading = 35.0 * M_PI / 180.0;
+  const lanelet::Point3d left_start(1, 6.5, 10.0, 0.0);
+  const lanelet::Point3d right_start(2, 10.0, 5.0, 0.0);
+  const lanelet::Point3d left_end(3, left_start.x() + 20.0 * std::cos(heading), left_start.y() + 20.0 * std::sin(heading), 0.0);
+  const lanelet::Point3d right_end(4, right_start.x() + 20.0 * std::cos(heading), right_start.y() + 20.0 * std::sin(heading),
+                                   0.0);
+  const lanelet::Lanelet skewed_exit(5, lanelet::LineString3d(6, {left_start, left_end}),
+                                     lanelet::LineString3d(7, {right_start, right_end}));
+  EXPECT_EQ(crossesOncoming(east_approach_, skewed_exit, west_approach_, ring_), CrossesOncoming::Left);
+
+  // exit and oncoming entry on a shared bidirectional lanelet cannot be ordered
+  EXPECT_EQ(crossesOncoming(east_approach_, east_exit_, lanelet::ConstLanelet(east_exit_).invert(), ring_),
+            CrossesOncoming::Ambiguous);
+}
+
+/**
+ * @brief Detects a reciprocal RightOfWay only within the same intersection area.
+ */
+TEST_F(ReciprocalRightOfWayTest, DetectsReciprocalRightOfWay) {  // NOLINT
+  addRightOfWay(west_approach_, east_approach_);
+  EXPECT_FALSE(yieldsToApproach(west_approach_, east_approach_, area_.id()));
+
+  addRightOfWay(east_approach_, west_approach_);
+  EXPECT_TRUE(yieldsToApproach(west_approach_, east_approach_, area_.id()));
+  EXPECT_FALSE(yieldsToApproach(west_approach_, east_approach_, area_.id() + 1));
+}
+
+/**
+ * @brief Omits Yield for straight and right-turn routes if the conflicting oncoming left turn yields to the route.
+ */
+TEST_F(ReciprocalRightOfWayTest, OmitsYieldIfOnlyReciprocalLeftTurnsConflict) {  // NOLINT
+  const auto east_yields = addRightOfWay(west_approach_, east_approach_);
+  addRightOfWay(east_approach_, west_approach_);
+  buildRoutingGraph();
+
+  EXPECT_FALSE(keepYield({east_approach_, east_straight_, east_exit_}, *east_yields));
+  EXPECT_FALSE(keepYield({east_approach_, east_right_, south_exit_}, *east_yields));
+}
+
+/**
+ * @brief Keeps Yield for a left-turn route, which crosses oncoming traffic.
+ */
+TEST_F(ReciprocalRightOfWayTest, KeepsYieldForLeftTurnRoute) {  // NOLINT
+  const auto east_yields = addRightOfWay(west_approach_, east_approach_);
+  addRightOfWay(east_approach_, west_approach_);
+  buildRoutingGraph();
+
+  EXPECT_TRUE(keepYield({east_approach_, east_left_, north_exit_}, *east_yields));
+}
+
+/**
+ * @brief Keeps Yield for a straight route if the oncoming left turn does not yield to the route.
+ */
+TEST_F(ReciprocalRightOfWayTest, KeepsYieldWithoutReciprocalRightOfWay) {  // NOLINT
+  const auto east_yields = addRightOfWay(west_approach_, east_approach_);
+  buildRoutingGraph();
+
+  EXPECT_TRUE(keepYield({east_approach_, east_straight_, east_exit_}, *east_yields));
 }
 
 }  // namespace lanelet2_route_planning
