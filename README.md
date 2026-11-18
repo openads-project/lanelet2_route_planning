@@ -89,7 +89,8 @@ Package and node interfaces are documented in the respective package READMEs lis
 | Package | Description |
 | --- | --- |
 | [lanelet2_route_planning](lanelet2_route_planning/README.md) | Plans a route on a Lanelet2 map |
-| [plan_route_action_client](plan_route_action_client/README.md) | Action client for waypoint and random route requests |
+| [plan_route_action_client](plan_route_action_client/README.md) | Action client to plan routes through route request services |
+| [plan_route_panel](plan_route_panel/README.md) | RViz panel for controlling the Lanelet2 route planning action client |
 
 ## ⚖️ Licensing
 

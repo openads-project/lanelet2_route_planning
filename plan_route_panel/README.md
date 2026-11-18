@@ -1,12 +1,14 @@
 # `plan_route_panel`
 
+RViz panel for controlling the Lanelet2 route planning action client
+
 RViz panel for configuring and monitoring the existing `plan_route_action_client`. It does not start that node or send `PlanRoute` action goals itself. The client and the Lanelet2 route planning server must already be running.
 
-## Add the panel
+**Add the panel**
 
 In RViz, select **Panels → Add New Panel → plan_route_panel/PlanRoutePanel**. The default client node is `/plan_route_action_client`. Configure endpoint names in the collapsed **Settings** section at the bottom of the panel if your setup uses different names. RViz saves these fields in its configuration.
 
-## Planning modes
+**Planning modes**
 
 Select one mode from the dropdown:
 
@@ -17,7 +19,7 @@ Select one mode from the dropdown:
 
 **Cancel Route** calls `~/cancel_route` (`std_srvs/srv/Trigger`) to disable automatic planning, clear route state, and asynchronously cancel only this client's goals. Pending service requests finish before cancellation is sent. The panel's status is based on the configured action's status, feedback, and result endpoints. It reports route progress when feedback arrives. The progress bar appears for pending or running Waypoints and Random Destination goals. Rejected route requests preserve monitoring of the current route; the rejection appears as a detail message. Rejected goals may not appear in action status.
 
-## Saved routes
+**Saved routes**
 
 Edit the installed `share/plan_route_panel/config/routes.yml` file to add named routes. Each route is an ordered list of WGS84 waypoint strings:
 
@@ -32,7 +34,7 @@ routes:
 
 The format is `latitude, longitude[, wait_time_s]`. Use `-1` for an intermediate waypoint; the final waypoint must have a nonnegative wait time or omit it. The panel also accepts the older `{latitude, longitude, wait_time_s}` mapping format. Restart RViz after changing the route names, since the dropdown is populated when the panel is created. Route contents are read again when **Plan Route** is pressed and sent in the request's `waypoints` and `wait_times` arrays.
 
-## Settings and ROS connections
+**Settings and ROS connections**
 
 | Setting | Purpose |
 | --- | --- |
