@@ -102,17 +102,6 @@ void PlanRouteActionClient::declareAndLoadParameter(const std::string& name,
 
 rcl_interfaces::msg::SetParametersResult PlanRouteActionClient::parametersCallback(
     const std::vector<rclcpp::Parameter>& parameters) {
-  rcl_interfaces::msg::SetParametersResult result;
-  result.successful = true;
-  for (const auto& param : parameters) {
-    if (param.get_name() != "continuous_planning_replanning_proportion") continue;
-    if (param.get_type() != rclcpp::ParameterType::PARAMETER_DOUBLE || !std::isfinite(param.as_double()) ||
-        param.as_double() < 0.0 || param.as_double() > 1.0) {
-      result.successful = false;
-      result.reason = "Replanning proportion must be finite and between 0 and 1.";
-      return result;
-    }
-  }
   for (const auto& param : parameters) {
     for (auto& auto_reconfigurable_param : auto_reconfigurable_params_) {
       if (param.get_name() == std::get<0>(auto_reconfigurable_param)) {
@@ -122,6 +111,10 @@ rcl_interfaces::msg::SetParametersResult PlanRouteActionClient::parametersCallba
       }
     }
   }
+
+  rcl_interfaces::msg::SetParametersResult result;
+  result.successful = true;
+
   return result;
 }
 
@@ -249,29 +242,29 @@ void PlanRouteActionClient::setup() {
   action_client_ = rclcpp_action::create_client<PlanRoute>(this, "/planning/lanelet2_route_planning/plan_route");
 
   request_route_service_ = this->create_service<srv::RequestRoute>(
-      "~/request_route", [this](const srv::RequestRoute::Request::SharedPtr request,
-                                 srv::RequestRoute::Response::SharedPtr response) {
+      "~/request_route",
+      [this](const srv::RequestRoute::Request::SharedPtr request, srv::RequestRoute::Response::SharedPtr response) {
         response->accepted = requestRoute(*request, response->message);
       });
   cancel_route_service_ = this->create_service<std_srvs::srv::Trigger>(
-      "~/cancel_route", [this](const std_srvs::srv::Trigger::Request::SharedPtr,
-                                std_srvs::srv::Trigger::Response::SharedPtr response) {
+      "~/cancel_route",
+      [this](const std_srvs::srv::Trigger::Request::SharedPtr, std_srvs::srv::Trigger::Response::SharedPtr response) {
         cancelRoute();
         response->success = true;
         response->message = "Route cancellation requested; automatic planning disabled.";
       });
 
   get_route_status_service_ = this->create_service<std_srvs::srv::Trigger>(
-      "~/get_route_status", [this](const std_srvs::srv::Trigger::Request::SharedPtr,
-                                    std_srvs::srv::Trigger::Response::SharedPtr response) {
+      "~/get_route_status",
+      [this](const std_srvs::srv::Trigger::Request::SharedPtr, std_srvs::srv::Trigger::Response::SharedPtr response) {
         response->success = true;
         std::ostringstream status;
         status << std::fixed << std::setprecision(2) << "status=" << route_status_
                << "; active=" << (route_request_active_ ? "true" : "false");
         if (enable_random_destination_ || !waypoints_.empty()) {
-          status << "; mode=" << (enable_random_destination_
-              ? (enable_continuous_planning_ ? "RANDOM_CONTINUOUS" : "RANDOM")
-              : (enable_continuous_planning_ ? "LOOP" : "ROUTE"));
+          status << "; mode="
+                 << (enable_random_destination_ ? (enable_continuous_planning_ ? "RANDOM_CONTINUOUS" : "RANDOM")
+                                                : (enable_continuous_planning_ ? "LOOP" : "ROUTE"));
         }
         if (!waypoints_.empty()) {
           status << "; waypoint_count=" << waypoints_.size();
@@ -284,8 +277,7 @@ void PlanRouteActionClient::setup() {
           }
         }
         if (route_status_ == "WAITING") {
-          const double now_s = std::chrono::duration<double>(
-              std::chrono::steady_clock::now().time_since_epoch()).count();
+          const double now_s = std::chrono::duration<double>(std::chrono::steady_clock::now().time_since_epoch()).count();
           status << "; wait_remaining_s=" << std::max(0.0, auto_planning_resume_time_s_ - now_s);
         }
         status << "; replanning_pending=" << (continuous_replanning_pending_ ? "true" : "false");
@@ -542,8 +534,7 @@ void PlanRouteActionClient::sendGoal(const geometry_msgs::msg::PoseStamped::Shar
       std::bind(&PlanRouteActionClient::goalResponseCallback, this, std::placeholders::_1, generation);
   send_goal_options.feedback_callback =
       std::bind(&PlanRouteActionClient::feedbackCallback, this, std::placeholders::_1, std::placeholders::_2, generation);
-  send_goal_options.result_callback =
-      std::bind(&PlanRouteActionClient::resultCallback, this, std::placeholders::_1, generation);
+  send_goal_options.result_callback = std::bind(&PlanRouteActionClient::resultCallback, this, std::placeholders::_1, generation);
   if (!active_goal_id_.has_value()) route_status_ = "SENDING";
   action_client_->async_send_goal(goal, send_goal_options);
   RCLCPP_INFO(this->get_logger(), "Goal sent");
@@ -730,18 +721,18 @@ void PlanRouteActionClient::resultCallback(const GoalHandlePlanRoute::WrappedRes
     return;
   }
   goal_handles_.erase(std::remove_if(goal_handles_.begin(), goal_handles_.end(),
-      [&result](const auto& handle) { return handle->get_goal_id() == result.goal_id; }), goal_handles_.end());
+                                     [&result](const auto& handle) { return handle->get_goal_id() == result.goal_id; }),
+                      goal_handles_.end());
   if (replaced_goal_id_.has_value() && result.goal_id == replaced_goal_id_.value() &&
       result.code == rclcpp_action::ResultCode::ABORTED) {
     RCLCPP_INFO(this->get_logger(), "Previous waypoint goal aborted after continuous replanning");
     replaced_goal_id_.reset();
     return;
   }
-  const bool destination_reached = result.code == rclcpp_action::ResultCode::SUCCEEDED &&
-                                   result.result->destination_reached;
+  const bool destination_reached = result.code == rclcpp_action::ResultCode::SUCCEEDED && result.result->destination_reached;
   // The previous goal may confirm arrival while its replacement is being accepted.
-  const bool replaced_destination_reached = has_active_waypoint_ && destination_reached &&
-      replaced_goal_id_.has_value() && result.goal_id == replaced_goal_id_.value();
+  const bool replaced_destination_reached =
+      has_active_waypoint_ && destination_reached && replaced_goal_id_.has_value() && result.goal_id == replaced_goal_id_.value();
   if (active_goal_id_.has_value() && result.goal_id != active_goal_id_.value() && !replaced_destination_reached) {
     return;
   }
@@ -799,16 +790,16 @@ void PlanRouteActionClient::resultCallback(const GoalHandlePlanRoute::WrappedRes
     const double now_s = std::chrono::duration<double>(std::chrono::steady_clock::now().time_since_epoch()).count();
     auto_planning_resume_time_s_ = now_s + wait_time_s;
   }
-  const bool request_finished = !enable_continuous_planning_ &&
-      (enable_random_destination_ || next_waypoint_idx_ >= waypoints_.size());
+  const bool request_finished =
+      !enable_continuous_planning_ && (enable_random_destination_ || next_waypoint_idx_ >= waypoints_.size());
   if (waypoint_goal && !destination_reached) {
     route_request_active_ = false;
     route_status_ = result.code == rclcpp_action::ResultCode::CANCELED ? "CANCELED" : "FAILED";
     auto_planning_timer_->cancel();
   } else if (request_finished && auto_planning_resume_time_s_ == 0.0) {
     route_request_active_ = false;
-    route_status_ = destination_reached ? "SUCCEEDED" :
-        (result.code == rclcpp_action::ResultCode::CANCELED ? "CANCELED" : "FAILED");
+    route_status_ =
+        destination_reached ? "SUCCEEDED" : (result.code == rclcpp_action::ResultCode::CANCELED ? "CANCELED" : "FAILED");
     auto_planning_timer_->cancel();
   } else {
     route_status_ = auto_planning_resume_time_s_ > 0.0 ? "WAITING" : "PLANNING";
