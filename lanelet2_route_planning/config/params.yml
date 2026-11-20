@@ -34,11 +34,4 @@
       #   max_frequency: 1.11 # 0.9s
 
     # --- plan_route_action_client ---
-    # waypoints:
-    #   - "<LATITUDE>, <LONGITUDE>"
-    #   - "<LATITUDE>, <LONGITUDE>, <WAIT_TIME_S>"
-    #   - "<LATITUDE>, <LONGITUDE>, -1"  # intermediate destination
-    enable_random_destination: false
-    enable_continuous_planning: false
     continuous_planning_replanning_proportion: 0.6
-    cancel_route: false
