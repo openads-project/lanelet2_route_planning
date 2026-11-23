@@ -152,16 +152,33 @@ bool PlanRouteActionClient::requestRoute(const srv::RequestRoute::Request& route
         "before submitting a new request.";
     return false;
   }
-  using Request = srv::RequestRoute::Request;
   const std::uint8_t mode = route_request.mode;
-  if (mode > Request::MODE_RANDOM_CONTINUOUS) {
-    message = "Unknown route planning mode.";
-    return false;
+  bool random = false;
+  bool continuous = false;
+  switch (mode) {
+    case srv::RequestRoute::Request::MODE_ROUTE:
+      break;
+    case srv::RequestRoute::Request::MODE_LOOP:
+      continuous = true;
+      break;
+    case srv::RequestRoute::Request::MODE_RANDOM:
+      random = true;
+      break;
+    case srv::RequestRoute::Request::MODE_RANDOM_CONTINUOUS:
+      random = true;
+      continuous = true;
+      break;
+    default:
+      message = "Unknown route planning mode.";
+      return false;
   }
-  const bool random = mode == Request::MODE_RANDOM || mode == Request::MODE_RANDOM_CONTINUOUS;
   if (!random) {
-    if (route_request.waypoints.empty() || route_request.waypoints.size() != route_request.wait_times.size()) {
-      message = "Waypoints and wait times must be nonempty arrays of equal length.";
+    if (route_request.waypoints.empty()) {
+      message = "Waypoints must be nonempty.";
+      return false;
+    }
+    if (route_request.waypoints.size() != route_request.wait_times.size()) {
+      message = "Waypoints and wait times must be arrays of equal length.";
       return false;
     }
     for (size_t idx = 0; idx < route_request.waypoints.size(); ++idx) {
@@ -210,7 +227,7 @@ bool PlanRouteActionClient::requestRoute(const srv::RequestRoute::Request& route
 
   cancelRoute();
   enable_random_destination_ = random;
-  enable_continuous_planning_ = mode == Request::MODE_LOOP || mode == Request::MODE_RANDOM_CONTINUOUS;
+  enable_continuous_planning_ = continuous;
   if (!random) {
     for (const auto& point : route_request.waypoints) {
       waypoints_.emplace_back(point.latitude, point.longitude);
