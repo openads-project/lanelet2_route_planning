@@ -17,6 +17,7 @@ geographic_msgs/GeoPoint[] waypoints
 # Wait time per waypoint in seconds (must have the same length as waypoints):
 # -1: Intermediate destination (no stop)
 # >=0: Destination with waiting time
+# For waypoint routes, the final waypoint must have a nonnegative wait time.
 float32[] wait_times
 
 ---
