@@ -142,7 +142,7 @@ class PlanRouteActionClient : public rclcpp::Node {
    * @brief Callback for goal response from the action server
    *
    * @param[in] goal_handle goal handle
-   * @param[in] generation route request generation captured when the goal was sent
+   * @param[in] generation Internal generation counter captured when sending the goal to identify and ignore callbacks from previous route requests.
    */
   void goalResponseCallback(const GoalHandlePlanRoute::SharedPtr& goal_handle, std::uint64_t generation);
 
