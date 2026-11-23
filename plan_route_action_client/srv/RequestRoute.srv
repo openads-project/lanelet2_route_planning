@@ -1,7 +1,11 @@
 # Route planning modes
+# Follow the waypoint list once
 uint8 MODE_ROUTE=0
+# Repeat the waypoint list until canceled
 uint8 MODE_LOOP=1
+# Follow a route to a randomly selected destination
 uint8 MODE_RANDOM=2
+# Continuously replan routes to random destinations until canceled
 uint8 MODE_RANDOM_CONTINUOUS=3
 
 # Selected route planning mode
