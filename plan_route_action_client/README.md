@@ -25,6 +25,62 @@ Waypoint requests require matching WGS84 `waypoints` and `wait_times`; random mo
 
 The client starts idle. Both parameters are loaded at startup; the replanning proportion can also be changed through ROS parameters.
 
+**CLI examples**
+
+<details>
+<summary>Plan a route to one waypoint</summary>
+
+Plan once to the specified destination with no extra wait at arrival.
+
+```bash
+ros2 service call /plan_route_action_client/request_route plan_route_action_client/srv/RequestRoute \
+  '{mode: 0, waypoints: [{latitude: 50.787801, longitude: 6.046555, altitude: 0.0}], wait_times: [0.0]}'
+```
+
+</details>
+
+<details>
+<summary>Plan a route to a random destination</summary>
+
+```bash
+ros2 service call /plan_route_action_client/request_route plan_route_action_client/srv/RequestRoute \
+  '{mode: 2}'
+```
+
+</details>
+
+<details>
+<summary>Cancel the current route</summary>
+
+Stops automatic planning and requests cancellation of the client's active goals. An accepted cancellation may still be in progress when the service replies.
+
+```bash
+ros2 service call /plan_route_action_client/cancel_route std_srvs/srv/Trigger '{}'
+```
+
+</details>
+
+<details>
+<summary>Repeat a waypoint route</summary>
+
+```bash
+ros2 service call /plan_route_action_client/request_route plan_route_action_client/srv/RequestRoute \
+  '{
+    mode: 1,
+    waypoints: [
+      {latitude: 50.787524, longitude: 6.050095, altitude: 0.0},
+      {latitude: 50.779794, longitude: 6.050634, altitude: 0.0},
+      {latitude: 50.784935, longitude: 6.043669, altitude: 0.0},
+      {latitude: 50.787801, longitude: 6.046555, altitude: 0.0}
+    ],
+    wait_times: [-1.0, -1.0, 0.0, 5.0]
+  }'
+```
+
+The route passes through waypoints 1 and 2, stops at waypoint 3 without an extra wait, and waits five seconds at waypoint 4 before repeating. Where applicable, the default replanning threshold is 60% route progress. Replanning preserves stops and wait times.
+
+</details>
+
 ```mermaid
 flowchart LR
     NODE("plan_route_action_client")
