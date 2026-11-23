@@ -119,7 +119,7 @@ rcl_interfaces::msg::SetParametersResult PlanRouteActionClient::parametersCallba
 }
 
 void PlanRouteActionClient::cancelRoute() {
-  route_request_active_ = false;
+  route_execution_active_ = false;
   route_status_ = "CANCELED";
   latest_route_feedback_.reset();
   latest_route_result_.reset();
@@ -150,7 +150,7 @@ void PlanRouteActionClient::cancelRoute() {
 }
 
 bool PlanRouteActionClient::requestRoute(const srv::RequestRoute::Request& route_request, std::string& message) {
-  if (route_request_active_) {
+  if (route_execution_active_) {
     message = "A route request is already active (" + route_status_ +
               "). Cancel it explicitly via cancel_route or wait for it to finish before submitting a new request.";
     return false;
@@ -221,7 +221,7 @@ bool PlanRouteActionClient::requestRoute(const srv::RequestRoute::Request& route
     }
     waypoint_wait_times_.assign(route_request.wait_times.begin(), route_request.wait_times.end());
   }
-  route_request_active_ = true;
+  route_execution_active_ = true;
   route_status_ = "PLANNING";
   auto_planning_timer_->reset();
   message = "Route request accepted.";
@@ -260,7 +260,7 @@ void PlanRouteActionClient::setup() {
         response->success = true;
         std::ostringstream status;
         status << std::fixed << std::setprecision(2) << "status=" << route_status_
-               << "; active=" << (route_request_active_ ? "true" : "false");
+               << "; active=" << (route_execution_active_ ? "true" : "false");
         if (enable_random_destination_ || !waypoints_.empty()) {
           status << "; mode="
                  << (enable_random_destination_ ? (enable_continuous_planning_ ? "RANDOM_CONTINUOUS" : "RANDOM")
@@ -272,7 +272,7 @@ void PlanRouteActionClient::setup() {
             status << "; destination_waypoint=" << active_route_waypoint_indices_.back() + 1;
           } else if (route_status_ == "WAITING" && next_waypoint_idx_ > 0) {
             status << "; destination_waypoint=" << next_waypoint_idx_;
-          } else if (route_request_active_ && next_waypoint_idx_ < waypoints_.size()) {
+          } else if (route_execution_active_ && next_waypoint_idx_ < waypoints_.size()) {
             status << "; next_waypoint=" << next_waypoint_idx_ + 1;
           }
         }
@@ -315,7 +315,7 @@ void PlanRouteActionClient::globalRouteCallback(const route_planning_msgs::msg::
 }
 
 void PlanRouteActionClient::autoPlanningTimerCallback() {
-  if (!route_request_active_) return;
+  if (!route_execution_active_) return;
   const double now_s = std::chrono::duration<double>(std::chrono::steady_clock::now().time_since_epoch()).count();
   if (now_s < auto_planning_resume_time_s_) {
     return;
@@ -323,7 +323,7 @@ void PlanRouteActionClient::autoPlanningTimerCallback() {
 
   // Keep the request active through the final waypoint's wait time.
   if (!enable_continuous_planning_ && !enable_random_destination_ && next_waypoint_idx_ >= waypoints_.size()) {
-    route_request_active_ = false;
+    route_execution_active_ = false;
     route_status_ = "SUCCEEDED";
     auto_planning_timer_->cancel();
     return;
@@ -793,11 +793,11 @@ void PlanRouteActionClient::resultCallback(const GoalHandlePlanRoute::WrappedRes
   const bool request_finished =
       !enable_continuous_planning_ && (enable_random_destination_ || next_waypoint_idx_ >= waypoints_.size());
   if (waypoint_goal && !destination_reached) {
-    route_request_active_ = false;
+    route_execution_active_ = false;
     route_status_ = result.code == rclcpp_action::ResultCode::CANCELED ? "CANCELED" : "FAILED";
     auto_planning_timer_->cancel();
   } else if (request_finished && auto_planning_resume_time_s_ == 0.0) {
-    route_request_active_ = false;
+    route_execution_active_ = false;
     route_status_ =
         destination_reached ? "SUCCEEDED" : (result.code == rclcpp_action::ResultCode::CANCELED ? "CANCELED" : "FAILED");
     auto_planning_timer_->cancel();

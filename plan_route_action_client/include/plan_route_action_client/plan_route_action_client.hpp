@@ -13,11 +13,11 @@
 #include <geometry_msgs/msg/point_stamped.hpp>
 #include <geometry_msgs/msg/pose_stamped.hpp>
 #include <lanelet2_map_interface/lanelet2_map_interface.hpp>
+#include <plan_route_action_client/srv/request_route.hpp>
 #include <rclcpp/rclcpp.hpp>
 #include <rclcpp_action/rclcpp_action.hpp>
 #include <route_planning_msgs/action/plan_route.hpp>
 #include <route_planning_msgs/msg/route.hpp>
-#include <plan_route_action_client/srv/request_route.hpp>
 #include <std_srvs/srv/trigger.hpp>
 
 namespace plan_route_action_client {
@@ -156,7 +156,8 @@ class PlanRouteActionClient : public rclcpp::Node {
    * @param[in] feedback action feedback
    * @param[in] generation Internal generation counter captured when sending the goal to identify and ignore callbacks from previous route requests.
    */
-  void feedbackCallback(GoalHandlePlanRoute::SharedPtr goal_handle, const std::shared_ptr<const PlanRoute::Feedback> feedback,
+  void feedbackCallback(GoalHandlePlanRoute::SharedPtr goal_handle,
+                        const std::shared_ptr<const PlanRoute::Feedback> feedback,
                         std::uint64_t generation);
 
   /**
@@ -206,9 +207,9 @@ class PlanRouteActionClient : public rclcpp::Node {
   rclcpp::Service<std_srvs::srv::Trigger>::SharedPtr get_route_status_service_;
 
   /**
-   * @brief Whether a route request is active, including planning and waypoint waits
+   * @brief Whether route execution is active, including planning and waypoint waits
    */
-  bool route_request_active_ = false;
+  bool route_execution_active_ = false;
 
   /**
    * @brief Current route request status, retained after completion or cancellation
