@@ -331,7 +331,7 @@ void PlanRouteActionClient::planToNextWaypoint() {
     lanelet::BasicPoint3d map_waypoint;
     try {
       map_waypoint = ll2_projector->forward(gps_waypoint);
-      if (!std::isfinite(map_waypoint.x()) || !std::isfinite(map_waypoint.y())) {
+      if (!std::isfinite(map_waypoint.x()) || !std::isfinite(map_waypoint.y()) || !std::isfinite(map_waypoint.z())) {
         throw std::invalid_argument("Nonfinite map coordinates");
       }
     } catch (const std::exception& e) {
