@@ -202,29 +202,9 @@ class PlanRouteActionClient : public rclcpp::Node {
   rclcpp::Service<std_srvs::srv::Trigger>::SharedPtr cancel_route_service_;
 
   /**
-   * @brief Trigger service reporting the current route request status as text
-   */
-  rclcpp::Service<std_srvs::srv::Trigger>::SharedPtr get_route_status_service_;
-
-  /**
    * @brief Whether route execution is active, including planning and waypoint waits
    */
   bool route_execution_active_ = false;
-
-  /**
-   * @brief Current route request status, retained after completion or cancellation
-   */
-  std::string route_status_ = "IDLE";
-
-  /**
-   * @brief Latest feedback for the current goal; cleared when a new goal is accepted
-   */
-  std::shared_ptr<const PlanRoute::Feedback> latest_route_feedback_;
-
-  /**
-   * @brief Last goal result, retained until a new goal is accepted or the request is canceled
-   */
-  std::shared_ptr<const PlanRoute::Result> latest_route_result_;
 
   /**
    * @brief Accepted goals owned by this client, retained until completion or cancellation

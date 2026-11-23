@@ -23,10 +23,6 @@ The `plan_route_action_client` node is an action client interacting with the `la
 
 Waypoint requests require matching WGS84 `waypoints` and `wait_times`; random modes need neither. Active requests, including waits and loops, reject new requests until completion or explicit cancellation. Responses include `accepted` (request) or `success` (Trigger), plus `message`.
 
-Status messages use `key=value` fields for state, activity, mode, 1-based waypoints, remaining wait, and available feedback/result data. Progress refers to the current action goal. Missing feedback is marked unavailable; cancellation clears cached data.
-
-States: `IDLE`, `PLANNING`, `SENDING`, `RUNNING`, `WAITING`, `SUCCEEDED`, `FAILED`, `CANCELED`. Terminal states remain until the next accepted request or cancellation.
-
 The client starts idle. Both parameters are loaded at startup; the replanning proportion can also be changed through ROS parameters.
 
 ```mermaid
@@ -35,7 +31,6 @@ flowchart LR
     S0:::hidden -->|/planning/lanelet2_route_planning/global_route| NODE
     SS0:::hidden o--o|~/request_route| NODE
     SS1:::hidden o--o|~/cancel_route| NODE
-    SS2:::hidden o--o|~/get_route_status| NODE
     classDef hidden display: none;
 ```
 
@@ -51,7 +46,6 @@ flowchart LR
 | --- | --- | --- |
 | `~/request_route` | `srv/RequestRoute` | Supports `MODE_ROUTE` (0), `MODE_LOOP` (1), `MODE_RANDOM` (2), and `MODE_RANDOM_CONTINUOUS` (3). |
 | `~/cancel_route` | `std_srvs/srv/Trigger` | Stops automatic planning and asynchronously cancels this client's goals. |
-| `~/get_route_status` | `std_srvs/srv/Trigger` | Returns status and available route details in `message`. |
 
 #### Action Clients
 
