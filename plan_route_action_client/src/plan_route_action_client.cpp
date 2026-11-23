@@ -153,7 +153,7 @@ bool PlanRouteActionClient::requestRoute(const srv::RequestRoute::Request& route
     return false;
   }
   using Request = srv::RequestRoute::Request;
-  const auto mode = route_request.mode;
+  const std::uint8_t mode = route_request.mode;
   if (mode > Request::MODE_RANDOM_CONTINUOUS) {
     message = "Unknown route planning mode.";
     return false;
