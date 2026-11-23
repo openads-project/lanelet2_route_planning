@@ -121,6 +121,14 @@ void PlanRouteActionClient::cancelRoute() {
   route_execution_active_ = false;
   ++goal_generation_;
   auto_planning_timer_->cancel();
+  for (const auto& handle : goal_handles_) {
+    cancelOwnedGoal(handle);
+  }
+  // Goals still awaiting acceptance are canceled by goalResponseCallback.
+  replyToCancelRequest();
+}
+
+void PlanRouteActionClient::clearRoute() {
   enable_random_destination_ = false;
   enable_continuous_planning_ = false;
   waypoints_.clear();
@@ -138,14 +146,76 @@ void PlanRouteActionClient::cancelRoute() {
   replaced_goal_id_.reset();
   active_goal_id_.reset();
   latest_global_route_ = route_planning_msgs::msg::Route();
-  for (const auto& handle : goal_handles_) {
-    action_client_->async_cancel_goal(handle);
+}
+
+void PlanRouteActionClient::cancelOwnedGoal(const GoalHandlePlanRoute::SharedPtr& handle) {
+  using CancelResponse = rclcpp_action::Client<PlanRoute>::CancelResponse;
+  const auto request_header = cancel_request_header_;
+  if (!request_header && handle->get_status() == action_msgs::msg::GoalStatus::STATUS_CANCELING) return;
+
+  if (request_header) ++pending_cancel_responses_;
+  try {
+    if (!action_client_->action_server_is_ready()) {
+      throw std::runtime_error("PlanRoute action server is unavailable");
+    }
+    action_client_->async_cancel_goal(
+        handle, [this, goal_id = handle->get_goal_id(), request_header](CancelResponse::SharedPtr response) {
+          const bool report_to_service = request_header && request_header == cancel_request_header_;
+          const bool accepted = response->return_code == CancelResponse::ERROR_NONE &&
+                                std::any_of(response->goals_canceling.begin(), response->goals_canceling.end(),
+                                            [&goal_id](const auto& goal) { return goal.goal_id.uuid == goal_id; });
+          const auto goal = std::find_if(goal_handles_.begin(), goal_handles_.end(),
+                                         [&goal_id](const auto& handle) { return handle->get_goal_id() == goal_id; });
+          const bool server_has_no_active_goal = response->return_code == CancelResponse::ERROR_GOAL_TERMINATED ||
+                                                 response->return_code == CancelResponse::ERROR_UNKNOWN_GOAL_ID;
+          if (server_has_no_active_goal && goal != goal_handles_.end()) {
+            goal_handles_.erase(goal);
+          } else if (!accepted && goal != goal_handles_.end()) {
+            RCLCPP_WARN(this->get_logger(), "PlanRoute goal cancellation failed (code %d)", response->return_code);
+            if (report_to_service) cancel_failed_ = true;
+          }
+          if (report_to_service) {
+            --pending_cancel_responses_;
+          }
+          replyToCancelRequest();
+        });
+  } catch (const std::exception& e) {
+    RCLCPP_WARN(this->get_logger(), "Could not request PlanRoute goal cancellation: %s", e.what());
+    if (request_header) {
+      cancel_failed_ = true;
+      --pending_cancel_responses_;
+    }
   }
-  goal_handles_.clear();
-  // Goals still awaiting acceptance are canceled by goalResponseCallback.
+}
+
+void PlanRouteActionClient::replyToCancelRequest(bool timed_out) {
+  const bool no_goals_left = pending_goal_responses_ == 0 && goal_handles_.empty();
+  if (!route_execution_active_ && no_goals_left) clearRoute();
+  if (!cancel_request_header_) return;
+  const bool awaiting_response = pending_goal_responses_ != 0 || pending_cancel_responses_ != 0;
+  if (!timed_out && !no_goals_left && awaiting_response) return;
+
+  std_srvs::srv::Trigger::Response response;
+  response.success = no_goals_left || (!awaiting_response && !cancel_failed_);
+  if (no_goals_left) {
+    response.message = "Automatic planning stopped. No owned goal remains.";
+  } else if (awaiting_response) {
+    response.message = "Automatic planning stopped, but confirmation of cancellation timed out.";
+  } else if (cancel_failed_) {
+    response.message = "Automatic planning stopped, but cancellation of an owned goal failed.";
+  } else {
+    response.message = "Automatic planning stopped. Cancellation accepted by the action server.";
+  }
+  cancel_response_timer_.reset();
+  auto header = std::move(cancel_request_header_);
+  cancel_route_service_->send_response(*header, response);
 }
 
 bool PlanRouteActionClient::requestRoute(const srv::RequestRoute::Request& route_request, std::string& message) {
+  if (cancel_request_header_ || (!route_execution_active_ && (pending_goal_responses_ != 0 || !goal_handles_.empty()))) {
+    message = "The previous route still has an outstanding goal or cancellation. Wait for it to finish.";
+    return false;
+  }
   if (route_execution_active_) {
     message =
         "A route is already active. Cancel it via cancel_route or wait for it to finish "
@@ -192,7 +262,7 @@ bool PlanRouteActionClient::requestRoute(const srv::RequestRoute::Request& route
       if (const auto projector = ll2_interface_->getProjectorPtr()) {
         try {
           const auto projected = projector->forward({point.latitude, point.longitude, point.altitude});
-          if (!std::isfinite(projected.x()) || !std::isfinite(projected.y())) {
+          if (!std::isfinite(projected.x()) || !std::isfinite(projected.y()) || !std::isfinite(projected.z())) {
             throw std::invalid_argument("Nonfinite map coordinates");
           }
         } catch (const std::exception& e) {
@@ -260,11 +330,24 @@ void PlanRouteActionClient::setup() {
         response->accepted = requestRoute(*request, response->message);
       });
   cancel_route_service_ = this->create_service<std_srvs::srv::Trigger>(
-      "~/cancel_route",
-      [this](const std_srvs::srv::Trigger::Request::SharedPtr, std_srvs::srv::Trigger::Response::SharedPtr response) {
+      "~/cancel_route", [this](std::shared_ptr<rmw_request_id_t> header, std_srvs::srv::Trigger::Request::SharedPtr) {
+        if (cancel_request_header_) {
+          std_srvs::srv::Trigger::Response response;
+          response.success = false;
+          response.message = "A route cancellation request is already pending.";
+          cancel_route_service_->send_response(*header, response);
+          return;
+        }
+        cancel_request_header_ = std::move(header);
+        pending_cancel_responses_ = 0;
+        cancel_failed_ = false;
         cancelRoute();
-        response->success = true;
-        response->message = "Route cancellation requested; automatic planning disabled.";
+        if (cancel_request_header_) {
+          // Reply before the panel's ten-second service timeout.
+          cancel_response_timer_ = this->create_wall_timer(std::chrono::seconds(5), [this, header = cancel_request_header_] {
+            if (header == cancel_request_header_) replyToCancelRequest(true);
+          });
+        }
       });
 
   // ll2 map interface
@@ -499,14 +582,18 @@ void PlanRouteActionClient::sendGoal(const geometry_msgs::msg::PoseStamped::Shar
       std::bind(&PlanRouteActionClient::feedbackCallback, this, std::placeholders::_1, std::placeholders::_2, generation);
   send_goal_options.result_callback = std::bind(&PlanRouteActionClient::resultCallback, this, std::placeholders::_1, generation);
   action_client_->async_send_goal(goal, send_goal_options);
+  ++pending_goal_responses_;
   RCLCPP_INFO(this->get_logger(), "Goal sent");
 }
 
 void PlanRouteActionClient::goalResponseCallback(const GoalHandlePlanRoute::SharedPtr& goal_handle, std::uint64_t generation) {
+  --pending_goal_responses_;
+  if (goal_handle) goal_handles_.push_back(goal_handle);
   if (generation != goal_generation_) {
     if (goal_handle) {
-      action_client_->async_cancel_goal(goal_handle);
+      cancelOwnedGoal(goal_handle);
     }
+    replyToCancelRequest();
     return;
   }
   if (!goal_handle) {
@@ -529,7 +616,6 @@ void PlanRouteActionClient::goalResponseCallback(const GoalHandlePlanRoute::Shar
     auto_planning_timer_->reset();  // restart auto-planning timer
   } else {
     RCLCPP_INFO(this->get_logger(), "Goal accepted by action server");
-    goal_handles_.push_back(goal_handle);
     active_goal_id_ = goal_handle->get_goal_id();
     if (continuous_replanning_pending_) {
       active_route_waypoints_ = std::move(pending_route_waypoints_);
@@ -626,7 +712,7 @@ void PlanRouteActionClient::feedbackCallback(GoalHandlePlanRoute::SharedPtr goal
     lanelet::BasicPoint3d map_waypoint;
     try {
       map_waypoint = ll2_projector->forward(gps_waypoint);
-      if (!std::isfinite(map_waypoint.x()) || !std::isfinite(map_waypoint.y())) {
+      if (!std::isfinite(map_waypoint.x()) || !std::isfinite(map_waypoint.y()) || !std::isfinite(map_waypoint.z())) {
         throw std::invalid_argument("Nonfinite map coordinates");
       }
     } catch (const std::exception& e) {
@@ -672,12 +758,13 @@ void PlanRouteActionClient::feedbackCallback(GoalHandlePlanRoute::SharedPtr goal
 }
 
 void PlanRouteActionClient::resultCallback(const GoalHandlePlanRoute::WrappedResult& result, std::uint64_t generation) {
-  if (generation != goal_generation_) {
-    return;
-  }
   goal_handles_.erase(std::remove_if(goal_handles_.begin(), goal_handles_.end(),
                                      [&result](const auto& handle) { return handle->get_goal_id() == result.goal_id; }),
                       goal_handles_.end());
+  if (generation != goal_generation_) {
+    replyToCancelRequest();
+    return;
+  }
   if (replaced_goal_id_.has_value() && result.goal_id == replaced_goal_id_.value() &&
       result.code == rclcpp_action::ResultCode::ABORTED) {
     RCLCPP_INFO(this->get_logger(), "Previous waypoint goal aborted after continuous replanning");
@@ -722,9 +809,8 @@ void PlanRouteActionClient::resultCallback(const GoalHandlePlanRoute::WrappedRes
     // and cancel remaining goals before advancing or starting the wait time.
     ++goal_generation_;
     for (const auto& handle : goal_handles_) {
-      action_client_->async_cancel_goal(handle);
+      cancelOwnedGoal(handle);
     }
-    goal_handles_.clear();
     pending_route_waypoints_.clear();
     pending_route_waypoint_indices_.clear();
     continuous_replanning_pending_ = false;

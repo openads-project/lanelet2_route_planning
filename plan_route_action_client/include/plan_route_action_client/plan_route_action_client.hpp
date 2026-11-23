@@ -87,8 +87,8 @@ class PlanRouteActionClient : public rclcpp::Node {
   /**
    * @brief Validates and starts a service request if no route request is active
    *
-   * Rejected requests preserve the current route state. Active requests must
-   * finish or be explicitly canceled before another request can be accepted.
+   * Rejected requests preserve the current route state. Active execution and
+   * outstanding goals from a stopped route block new requests.
    *
    * @param[in] route_request planning mode, WGS84 waypoints, and corresponding wait times
    * @param[out] message acceptance information or reason for rejection
@@ -97,12 +97,29 @@ class PlanRouteActionClient : public rclcpp::Node {
   bool requestRoute(const srv::RequestRoute::Request& route_request, std::string& message);
 
   /**
-   * @brief Stops automatic planning, clears route state, and cancels owned goals
+   * @brief Stops automatic planning and requests cancellation of owned goals
    *
    * Invalidates callbacks from previous requests. Outstanding goals from those
    * requests are canceled if accepted later. Action cancellation is asynchronous.
    */
   void cancelRoute();
+
+  /**
+   * @brief Clears route data after all owned goals and pending goal requests are settled
+   */
+  void clearRoute();
+
+  /**
+   * @brief Requests cancellation of an owned goal and handles the server reply
+   * @param[in] handle Owned goal to cancel
+   */
+  void cancelOwnedGoal(const GoalHandlePlanRoute::SharedPtr& handle);
+
+  /**
+   * @brief Clears a stopped route once all goals finish and replies to any pending cancel request
+   * @param[in] timed_out Whether the deadline for the service response expired
+   */
+  void replyToCancelRequest(bool timed_out = false);
 
   /**
    * @brief Callback for the global route
@@ -207,9 +224,24 @@ class PlanRouteActionClient : public rclcpp::Node {
   bool route_execution_active_ = false;
 
   /**
-   * @brief Accepted goals owned by this client, retained until completion or cancellation
+   * @brief Owned goals retained until a result or confirmation that the goal is no longer active
    */
   std::vector<GoalHandlePlanRoute::SharedPtr> goal_handles_;
+
+  /** @brief Number of sent goals still awaiting acceptance or rejection */
+  size_t pending_goal_responses_ = 0;
+
+  /** @brief Service request awaiting confirmation of cancellation */
+  std::shared_ptr<rmw_request_id_t> cancel_request_header_;
+
+  /** @brief Deadline for replying to the cancel service */
+  rclcpp::TimerBase::SharedPtr cancel_response_timer_;
+
+  /** @brief Number of action cancel replies outstanding for the service request */
+  size_t pending_cancel_responses_ = 0;
+
+  /** @brief Whether any owned goal could not be canceled for the service request */
+  bool cancel_failed_ = false;
 
   /**
    * @brief Latest complete global route
