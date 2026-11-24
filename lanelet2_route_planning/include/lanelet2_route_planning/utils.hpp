@@ -14,6 +14,7 @@
 
 #include <lanelet2_core/primitives/BasicRegulatoryElements.h>
 #include <lanelet2_core/primitives/Lanelet.h>
+#include <lanelet2_core/primitives/Polygon.h>
 #include <lanelet2_routing/LaneletPath.h>
 #include <lanelet2_routing/RoutingGraph.h>
 #include <lanelet2_traffic_rules/TrafficRules.h>
@@ -309,6 +310,62 @@ struct ParticipantRoutingGraph {
 };
 
 /**
+ * @brief Returns the counterclockwise arc length from the first ring point to the projection of a point onto the ring.
+ *
+ * The result is independent of the orientation in which the ring is stored, so positions of different points can be
+ * compared by their counterclockwise order around the ring. Open and closed rings are supported.
+ *
+ * @param[in] ring outer ring of an area
+ * @param[in] point point to project onto the ring
+ * @return counterclockwise position in [0, perimeter), or 0 for degenerate rings
+ */
+double boundaryPosition(const lanelet::BasicPolygon2d& ring, const lanelet::BasicPoint2d& point);
+
+/**
+ * @brief Result of crossesOncoming.
+ */
+enum class CrossesOncoming {
+  Left,      ///< exit lies completely beyond the oncoming entry, i.e. the movement turns left across oncoming traffic
+  NotLeft,   ///< exit lies completely before the oncoming entry, i.e. the movement goes straight, turns right, or merges
+  Ambiguous  ///< exit and oncoming entry overlap on the boundary, e.g. on a shared bidirectional lanelet
+};
+
+/**
+ * @brief Determines whether a movement through an intersection Area turns left across the given oncoming traffic.
+ *
+ * Uses right-hand traffic: walking counterclockwise along the Area boundary from the approach, the exits to the right
+ * come first, then the straight exit, the oncoming entry, and finally the exits to the left. Only this order is used,
+ * so the result does not depend on turn angles. The exit is the interval between the start points of its bounds and
+ * the oncoming entry is the interval between the end points of its bounds.
+ *
+ * @param[in] approach lanelet entering the Area
+ * @param[in] exit first lanelet after the Area reached from approach
+ * @param[in] oncoming lanelet entering the Area against the direction of approach
+ * @param[in] ring outer ring of the Area
+ * @return whether the movement crosses the oncoming entry
+ */
+CrossesOncoming crossesOncoming(const lanelet::ConstLanelet& approach,
+                                const lanelet::ConstLanelet& exit,
+                                const lanelet::ConstLanelet& oncoming,
+                                const lanelet::BasicPolygon2d& ring);
+
+/**
+ * @brief Checks whether a priority lanelet itself has to yield to a lanelet in another RightOfWay of the same Area.
+ *
+ * Lanelet2 references a RightOfWay at the last lanelet before the intersection. A rule that only applies to left
+ * turns (left turns yield to oncoming traffic) therefore appears as two reciprocal RightOfWay relations between
+ * opposite approaches of the same Area.
+ *
+ * @param[in] priority lanelet with right of way over yielding
+ * @param[in] yielding lanelet that yields to priority
+ * @param[in] intersection_area_id ID of the Area referenced by both RightOfWay relations
+ * @return true if a RightOfWay of the Area lists priority as yield and yielding as right_of_way
+ */
+bool yieldsToApproach(const lanelet::ConstLanelet& priority,
+                      const lanelet::ConstLanelet& yielding,
+                      lanelet::Id intersection_area_id);
+
+/**
  * @brief Keeps a RightOfWay Yield unless every priority path through its intersection area misses the chosen route.
  *
  * The RightOfWay relation must reference exactly one Area with subtype `intersection` via role `intersection_area`.
@@ -318,6 +375,11 @@ struct ParticipantRoutingGraph {
  * the Area and their first exits are checked; loops are visited once, without requiring every branch to exit.
  * Conflicts are intersections, endpoint contacts, or shared segments of complete 2D centerlines, including approaches
  * and first exits. A shared lanelet always counts as a conflict.
+ *
+ * Reciprocal right of way (left turns yield to oncoming traffic): if a priority approach has to yield to the yielding
+ * approach in another RightOfWay of the same Area (see yieldsToApproach) and the route does not turn left across this
+ * priority approach (see crossesOncoming), conflicts with priority movements that turn left across the yielding
+ * approach are ignored. Ambiguous movements are treated conservatively and retain the Yield rule.
  *
  * @param[in] path selected route through the intersection
  * @param[in] yield_lanelet_idx index of the yielding approach in path
