@@ -32,7 +32,7 @@ routes:
     - "50.787801, 6.046555"
 ```
 
-Use `latitude, longitude[, wait_time_s]` or `{latitude, longitude, wait_time_s}`. Use `-1` for a pass-through waypoint. The final wait time must be nonnegative and defaults to `0` if omitted. **Plan Route** reloads route contents. Restart RViz after changing route names.
+Use `latitude, longitude[, wait_time_s]` or `{latitude, longitude, wait_time_s}`. Each waypoint defaults to a wait time of `0` if omitted. Use `-1` for a pass-through waypoint. The final wait time must be nonnegative. **Plan Route** reloads route contents. Restart RViz after changing route names.
 
 **Settings and ROS connections**
 
