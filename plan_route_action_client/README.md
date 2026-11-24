@@ -2,6 +2,13 @@
 
 Action client to plan routes through route request services
 
+## Services
+
+| Type | Description |
+| --- | --- |
+| [`plan_route_action_client/srv/RequestRoute`](srv/RequestRoute.srv) | Request definition for waypoint, loop, random, or continuous random planning to a specified destination with optional intermediates. |
+
+
 ## Nodes
 
 ### `plan_route_action_client`
