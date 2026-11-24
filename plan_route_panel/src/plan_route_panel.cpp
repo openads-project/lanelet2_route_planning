@@ -11,6 +11,7 @@
 #include <type_traits>
 #include <utility>
 
+#include <yaml-cpp/yaml.h>
 #include <QCheckBox>
 #include <QComboBox>
 #include <QFormLayout>
@@ -30,7 +31,6 @@
 #include <rcl_interfaces/msg/parameter_type.hpp>
 #include <rviz_common/display_context.hpp>
 #include <rviz_common/ros_integration/ros_node_abstraction_iface.hpp>
-#include <yaml-cpp/yaml.h>
 
 namespace plan_route_panel {
 
@@ -58,12 +58,15 @@ void postToPanel(const std::weak_ptr<CallbackBridge>& weak_bridge, F&& callback)
   if (!bridge) return;
   std::lock_guard<std::mutex> lock(bridge->mutex);
   if (!bridge->panel) return;
-  QMetaObject::invokeMethod(bridge->panel, [weak_bridge, callback = std::forward<F>(callback)]() mutable {
-    auto current = weak_bridge.lock();
-    if (!current) return;
-    std::lock_guard<std::mutex> guard(current->mutex);
-    if (current->panel) callback(current->panel);
-  }, Qt::QueuedConnection);
+  QMetaObject::invokeMethod(
+      bridge->panel,
+      [weak_bridge, callback = std::forward<F>(callback)]() mutable {
+        auto current = weak_bridge.lock();
+        if (!current) return;
+        std::lock_guard<std::mutex> guard(current->mutex);
+        if (current->panel) callback(current->panel);
+      },
+      Qt::QueuedConnection);
 }
 
 std::string goalId(const std::array<uint8_t, 16>& uuid) {
@@ -81,9 +84,7 @@ bool parseWaypoint(const std::string& value, Waypoint& waypoint) {
   return lat_ok && lon_ok && wait_ok;
 }
 
-std::string routesFilePath() {
-  return ament_index_cpp::get_package_share_directory("plan_route_panel") + "/config/routes.yml";
-}
+std::string routesFilePath() { return ament_index_cpp::get_package_share_directory("plan_route_panel") + "/config/routes.yml"; }
 
 std::vector<Waypoint> readRoute(const std::string& name) {
   const auto root = YAML::LoadFile(routesFilePath());
@@ -120,7 +121,8 @@ std::vector<Waypoint> readRoute(const std::string& name) {
 
 }  // namespace
 
-PlanRoutePanel::PlanRoutePanel(QWidget* parent) : rviz_common::Panel(parent), callback_bridge_(std::make_shared<CallbackBridge>()) {
+PlanRoutePanel::PlanRoutePanel(QWidget* parent)
+    : rviz_common::Panel(parent), callback_bridge_(std::make_shared<CallbackBridge>()) {
   callback_bridge_->panel = this;
   auto* outer = new QVBoxLayout(this);
   auto* scroll = new QScrollArea(this);
@@ -226,8 +228,7 @@ PlanRoutePanel::~PlanRoutePanel() {
 void PlanRoutePanel::load(const rviz_common::Config& config) {
   rviz_common::Panel::load(config);
   const std::pair<const char*, QLineEdit*> fields[] = {
-      {"LL2 Map Server Name", map_server_name_}, {"Action Client Node", client_name_},
-      {"Status Action", action_name_}};
+      {"LL2 Map Server Name", map_server_name_}, {"Action Client Node", client_name_}, {"Status Action", action_name_}};
   for (const auto& [key, field] : fields) {
     QString value;
     if (config.mapGetString(key, &value)) field->setText(value);
@@ -242,8 +243,7 @@ void PlanRoutePanel::load(const rviz_common::Config& config) {
 void PlanRoutePanel::save(rviz_common::Config config) const {
   rviz_common::Panel::save(config);
   const std::pair<const char*, QLineEdit*> fields[] = {
-      {"LL2 Map Server Name", map_server_name_}, {"Action Client Node", client_name_},
-      {"Status Action", action_name_}};
+      {"LL2 Map Server Name", map_server_name_}, {"Action Client Node", client_name_}, {"Status Action", action_name_}};
   for (const auto& [key, field] : fields) config.mapSetValue(key, field->text());
 }
 
@@ -301,8 +301,8 @@ void PlanRoutePanel::connectToAction() {
           if (panel->connected_action_name_ == action) panel->updateFeedback(id, feedback);
         });
       });
-  result_client_ = node_->create_client<route_planning_msgs::action::PlanRoute::Impl::GetResultService>(
-      action + "/_action/get_result");
+  result_client_ =
+      node_->create_client<route_planning_msgs::action::PlanRoute::Impl::GetResultService>(action + "/_action/get_result");
   connected_action_name_ = action;
 }
 
@@ -354,8 +354,8 @@ void PlanRoutePanel::refreshParameters() {
   auto request = std::make_shared<rcl_interfaces::srv::GetParameters::Request>();
   request->names = {"ll2_map_server_name"};
   const std::weak_ptr<CallbackBridge> weak_bridge = callback_bridge_;
-  get_client_->async_send_request(
-      request, [weak_bridge, requested_client, generation](rclcpp::Client<rcl_interfaces::srv::GetParameters>::SharedFuture future) {
+  get_client_->async_send_request(request, [weak_bridge, requested_client,
+                                            generation](rclcpp::Client<rcl_interfaces::srv::GetParameters>::SharedFuture future) {
     try {
       const auto values = future.get()->values;
       postToPanel(weak_bridge, [values, requested_client, generation](PlanRoutePanel* panel) {
@@ -381,8 +381,8 @@ void PlanRoutePanel::refreshParameters() {
 
 template <typename Service>
 void PlanRoutePanel::sendRequest(const typename rclcpp::Client<Service>::SharedPtr& client,
-                                  const std::shared_ptr<typename Service::Request>& request,
-                                  std::function<void(bool, const QString&)> done) {
+                                 const std::shared_ptr<typename Service::Request>& request,
+                                 std::function<void(bool, const QString&)> done) {
   if (!client || !client->service_is_ready()) {
     done(false, tr("Route service is unavailable."));
     return;
@@ -394,32 +394,33 @@ void PlanRoutePanel::sendRequest(const typename rclcpp::Client<Service>::SharedP
   try {
     client->async_send_request(
         request, [weak_bridge, generation, completed, done](typename rclcpp::Client<Service>::SharedFuture future) {
-      bool accepted = false;
-      QString message;
-      try {
-        const auto response = future.get();
-        if constexpr (std::is_same_v<Service, std_srvs::srv::Trigger>) {
-          accepted = response->success;
-        } else {
-          accepted = response->accepted;
-        }
-        message = QString::fromStdString(response->message);
-      } catch (const std::exception& e) {
-        message = QString::fromUtf8(e.what());
-      }
-      postToPanel(weak_bridge, [generation, completed, done, accepted, message](PlanRoutePanel* panel) {
-        if (*completed) return;
-        *completed = true;
-        if (panel->request_generation_ == generation) done(accepted, message);
-      });
-    });
+          bool accepted = false;
+          QString message;
+          try {
+            const auto response = future.get();
+            if constexpr (std::is_same_v<Service, std_srvs::srv::Trigger>) {
+              accepted = response->success;
+            } else {
+              accepted = response->accepted;
+            }
+            message = QString::fromStdString(response->message);
+          } catch (const std::exception& e) {
+            message = QString::fromUtf8(e.what());
+          }
+          postToPanel(weak_bridge, [generation, completed, done, accepted, message](PlanRoutePanel* panel) {
+            if (*completed) return;
+            *completed = true;
+            if (panel->request_generation_ == generation) done(accepted, message);
+          });
+        });
     QTimer::singleShot(10000, this, [this, generation, completed] {
       if (*completed || request_generation_ != generation || terminal_status_received_) return;
       // Keep the response callback: a timeout does not withdraw the remote request.
-      const auto message = cancel_after_request_
-          ? tr("Route service response timed out. Cancellation will be sent after the pending request completes.")
-          : tr("Route service response timed out; the request is still pending. "
-               "New requests wait for its response to preserve their order.");
+      const auto message =
+          cancel_after_request_
+              ? tr("Route service response timed out. Cancellation will be sent after the pending request completes.")
+              : tr("Route service response timed out; the request is still pending. "
+                   "New requests wait for its response to preserve their order.");
       if (!tracked_goal_id_.empty()) {
         detail_->setText(message);
       } else {
@@ -509,10 +510,9 @@ void PlanRoutePanel::planRoute() {
     QTimer::singleShot(10000, this, [this, generation] {
       if (request_generation_ != generation || !awaiting_goal_ || !result_goal_id_.empty()) return;
       // Keep observing: a slow planner may still accept the goal after this message.
-      showStatus(tr("Waiting"),
-                 tr("Route request accepted, but no new action goal has been observed. "
-                    "Check the planner logs for rejected goals and verify Status Action in Settings. "
-                    "You can retry or cancel the route."));
+      showStatus(tr("Waiting"), tr("Route request accepted, but no new action goal has been observed. "
+                                   "Check the planner logs for rejected goals and verify Status Action in Settings. "
+                                   "You can retry or cancel the route."));
     });
   };
   sendRequest<Service>(request_client_, request, std::move(done));
@@ -520,15 +520,11 @@ void PlanRoutePanel::planRoute() {
 
 void PlanRoutePanel::cancelRoute() {
   connectToClient();
-  cancel_requested_ = true;
-  awaiting_goal_ = false;
-  continuous_run_ = false;
-  remaining_goals_ = 0;
   if (service_request_pending_) {
     // Keep the route response valid and send cancellation only after it arrives.
     cancel_after_request_ = true;
     if (!terminal_status_received_) {
-      showStatus(tr("Canceling"), tr("Waiting for the pending service request before sending cancellation."));
+      detail_->setText(tr("Waiting for the pending service request before sending cancellation."));
     }
     return;
   }
@@ -536,27 +532,29 @@ void PlanRoutePanel::cancelRoute() {
   service_request_pending_ = true;
   updatePlanButton();
   auto request = std::make_shared<std_srvs::srv::Trigger::Request>();
-  sendRequest<std_srvs::srv::Trigger>(cancel_client_, request,
-      [this](bool success, const QString& reason) {
-        service_request_pending_ = false;
-        if (cancel_after_request_) {
-          cancel_after_request_ = false;
-          cancelRoute();
-          return;
-        }
-        updatePlanButton();
-        if (!success) {
-          cancel_requested_ = false;
-          showStatus(tr("Failed"), reason.isEmpty() ? tr("Cancel request rejected.") : reason);
-          return;
-        }
-        if (mode_->currentIndex() == kRandomMode) mode_->setCurrentIndex(kWaypointsMode);
-        continuous_planning_->setChecked(false);
-        // A terminal status/result may have arrived before this service response.
-        if (terminal_status_received_) return;
-        showStatus(tracked_goal_id_.empty() ? tr("Cancel requested") : tr("Canceling"),
-                   tr("Cancel requested from the action client."));
-      });
+  sendRequest<std_srvs::srv::Trigger>(cancel_client_, request, [this](bool success, const QString& reason) {
+    service_request_pending_ = false;
+    if (cancel_after_request_) {
+      cancel_after_request_ = false;
+      cancelRoute();
+      return;
+    }
+    updatePlanButton();
+    if (!success) {
+      detail_->setText(reason.isEmpty() ? tr("Cancel request rejected.") : reason);
+      return;
+    }
+    cancel_requested_ = !terminal_status_received_;
+    awaiting_goal_ = false;
+    continuous_run_ = false;
+    remaining_goals_ = 0;
+    if (mode_->currentIndex() == kRandomMode) mode_->setCurrentIndex(kWaypointsMode);
+    continuous_planning_->setChecked(false);
+    // A terminal status/result may have arrived before this service response.
+    if (terminal_status_received_) return;
+    showStatus(tracked_goal_id_.empty() ? tr("Cancel requested") : tr("Canceling"),
+               tr("Cancel requested from the action client."));
+  });
 }
 
 void PlanRoutePanel::loadPresets() {
@@ -603,40 +601,41 @@ void PlanRoutePanel::requestResult(const std::string& goal_id) {
   const std::weak_ptr<CallbackBridge> weak_bridge = callback_bridge_;
   const auto action = connected_action_name_;
   result_client_->async_send_request(
-      request, [weak_bridge, goal_id, action](
-                   rclcpp::Client<route_planning_msgs::action::PlanRoute::Impl::GetResultService>::SharedFuture future) {
-    try {
-      const auto response = future.get();
-      postToPanel(weak_bridge, [goal_id, response, action](PlanRoutePanel* panel) {
-        if (panel->connected_action_name_ != action || panel->result_goal_id_ != goal_id) return;
-        if (response->status == action_msgs::msg::GoalStatus::STATUS_SUCCEEDED ||
-            response->status == action_msgs::msg::GoalStatus::STATUS_ABORTED ||
-            response->status == action_msgs::msg::GoalStatus::STATUS_CANCELED) {
-          panel->terminal_status_received_ = true;
-        }
-        const auto& result = response->result;
-        const auto detail = QObject::tr("Traveled %1 m in %2 s.")
-                                .arg(result.distance_traveled, 0, 'f', 1)
-                                .arg(result.time_traveled.sec + result.time_traveled.nanosec * 1e-9, 0, 'f', 1);
-        if (response->status == action_msgs::msg::GoalStatus::STATUS_SUCCEEDED) {
-          if (!result.destination_reached) {
-            panel->failed_destination_goal_id_ = goal_id;
-            panel->progress_->setRange(0, 1);
-            panel->progress_->setValue(0);
-          }
-          panel->showStatus(result.destination_reached ? QObject::tr("Success") : QObject::tr("Failed"),
-                            (result.destination_reached ? QObject::tr("Destination reached. ")
-                                                        : QObject::tr("Destination not reached. ")) + detail);
-        } else if (response->status == action_msgs::msg::GoalStatus::STATUS_ABORTED) {
-          panel->showStatus(QObject::tr("Aborted"), detail);
-        } else if (response->status == action_msgs::msg::GoalStatus::STATUS_CANCELED) {
-          panel->showStatus(QObject::tr("Canceled"), detail);
+      request, [weak_bridge, goal_id,
+                action](rclcpp::Client<route_planning_msgs::action::PlanRoute::Impl::GetResultService>::SharedFuture future) {
+        try {
+          const auto response = future.get();
+          postToPanel(weak_bridge, [goal_id, response, action](PlanRoutePanel* panel) {
+            if (panel->connected_action_name_ != action || panel->result_goal_id_ != goal_id) return;
+            if (response->status == action_msgs::msg::GoalStatus::STATUS_SUCCEEDED ||
+                response->status == action_msgs::msg::GoalStatus::STATUS_ABORTED ||
+                response->status == action_msgs::msg::GoalStatus::STATUS_CANCELED) {
+              panel->terminal_status_received_ = true;
+            }
+            const auto& result = response->result;
+            const auto detail = QObject::tr("Traveled %1 m in %2 s.")
+                                    .arg(result.distance_traveled, 0, 'f', 1)
+                                    .arg(result.time_traveled.sec + result.time_traveled.nanosec * 1e-9, 0, 'f', 1);
+            if (response->status == action_msgs::msg::GoalStatus::STATUS_SUCCEEDED) {
+              if (!result.destination_reached) {
+                panel->failed_destination_goal_id_ = goal_id;
+                panel->progress_->setRange(0, 1);
+                panel->progress_->setValue(0);
+              }
+              panel->showStatus(
+                  result.destination_reached ? QObject::tr("Success") : QObject::tr("Failed"),
+                  (result.destination_reached ? QObject::tr("Destination reached. ") : QObject::tr("Destination not reached. ")) +
+                      detail);
+            } else if (response->status == action_msgs::msg::GoalStatus::STATUS_ABORTED) {
+              panel->showStatus(QObject::tr("Aborted"), detail);
+            } else if (response->status == action_msgs::msg::GoalStatus::STATUS_CANCELED) {
+              panel->showStatus(QObject::tr("Canceled"), detail);
+            }
+          });
+        } catch (const std::exception&) {
+          // The status subscription still reports terminal action states.
         }
       });
-    } catch (const std::exception&) {
-      // The status subscription still reports terminal action states.
-    }
-  });
 }
 
 void PlanRoutePanel::updateGoalStatus(const action_msgs::msg::GoalStatusArray& msg) {
@@ -644,8 +643,7 @@ void PlanRoutePanel::updateGoalStatus(const action_msgs::msg::GoalStatusArray& m
     const auto id = goalId(goal.goal_info.goal_id.uuid);
     const bool is_new = rememberGoal(id);
     // Action status has no sender ID, so a new goal is only a best-effort match.
-    if (awaiting_goal_ && tracked_goal_id_.empty() && is_new &&
-        goal.status != action_msgs::msg::GoalStatus::STATUS_UNKNOWN) {
+    if (awaiting_goal_ && tracked_goal_id_.empty() && is_new && goal.status != action_msgs::msg::GoalStatus::STATUS_UNKNOWN) {
       tracked_goal_id_ = id;
       terminal_status_received_ = false;
       awaiting_goal_ = false;

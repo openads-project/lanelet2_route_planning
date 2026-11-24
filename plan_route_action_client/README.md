@@ -52,7 +52,7 @@ ros2 service call /plan_route_action_client/request_route plan_route_action_clie
 <details>
 <summary>Cancel the current route</summary>
 
-Stops automatic planning and requests cancellation of the client's active goals. An accepted cancellation may still be in progress when the service replies.
+Requests cancellation of all goals on the configured action server. The client stops automatic planning when cancellation is accepted. If the server rejects the request, the current route continues.
 
 ```bash
 ros2 service call /plan_route_action_client/cancel_route std_srvs/srv/Trigger '{}'
@@ -101,7 +101,7 @@ flowchart LR
 | Service | Type | Description |
 | --- | --- | --- |
 | `~/request_route` | `srv/RequestRoute` | Supports `MODE_ROUTE` (0), `MODE_LOOP` (1), `MODE_RANDOM` (2), and `MODE_RANDOM_CONTINUOUS` (3). |
-| `~/cancel_route` | `std_srvs/srv/Trigger` | Stops automatic planning and asynchronously cancels this client's goals. |
+| `~/cancel_route` | `std_srvs/srv/Trigger` | Requests cancellation of all goals on the action server and stops local planning on acceptance. |
 
 #### Action Clients
 

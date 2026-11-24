@@ -88,7 +88,7 @@ class PlanRouteActionClient : public rclcpp::Node {
    * @brief Validates and starts a service request if no route request is active
    *
    * Rejected requests preserve the current route state. Active execution and
-   * outstanding goals from a stopped route block new requests.
+   * pending goal or cancellation requests block new requests.
    *
    * @param[in] route_request planning mode, WGS84 waypoints, and corresponding wait times
    * @param[out] message acceptance information or reason for rejection
@@ -97,29 +97,29 @@ class PlanRouteActionClient : public rclcpp::Node {
   bool requestRoute(const srv::RequestRoute::Request& route_request, std::string& message);
 
   /**
-   * @brief Stops automatic planning and requests cancellation of owned goals
-   *
-   * Invalidates callbacks from previous requests. Outstanding goals from those
-   * requests are canceled if accepted later. Action cancellation is asynchronous.
+   * @brief Requests cancellation of all goals on the action server
+   * @param[in] header Service request header used for the deferred response
    */
-  void cancelRoute();
+  void cancelRoute(std::shared_ptr<rmw_request_id_t> header);
 
-  /**
-   * @brief Clears route data after all owned goals and pending goal requests are settled
-   */
+  /** @brief Stops local planning and cancels owned goals after a planning error */
+  void stopRoute();
+
+  /** @brief Stops planning and clears the local route state */
   void clearRoute();
 
   /**
-   * @brief Requests cancellation of an owned goal and handles the server reply
+   * @brief Requests cancellation of an owned goal during internal cleanup
    * @param[in] handle Owned goal to cancel
    */
   void cancelOwnedGoal(const GoalHandlePlanRoute::SharedPtr& handle);
 
   /**
-   * @brief Clears a stopped route once all goals finish and replies to any pending cancel request
-   * @param[in] timed_out Whether the deadline for the service response expired
+   * @brief Sends the deferred response to the cancel service caller
+   * @param[in] success Whether cancellation was accepted
+   * @param[in] message Cancellation outcome
    */
-  void replyToCancelRequest(bool timed_out = false);
+  void replyToCancelRequest(bool success, const std::string& message);
 
   /**
    * @brief Callback for the global route
@@ -159,9 +159,8 @@ class PlanRouteActionClient : public rclcpp::Node {
    * @brief Callback for goal response from the action server
    *
    * @param[in] goal_handle goal handle
-   * @param[in] generation Internal generation counter captured when sending the goal to identify and ignore callbacks from previous route requests.
    */
-  void goalResponseCallback(const GoalHandlePlanRoute::SharedPtr& goal_handle, std::uint64_t generation);
+  void goalResponseCallback(const GoalHandlePlanRoute::SharedPtr& goal_handle);
 
   /**
    * @brief Callback for feedback from the action server
@@ -171,11 +170,8 @@ class PlanRouteActionClient : public rclcpp::Node {
    *
    * @param[in] goal_handle goal handle
    * @param[in] feedback action feedback
-   * @param[in] generation Internal generation counter captured when sending the goal to identify and ignore callbacks from previous route requests.
    */
-  void feedbackCallback(GoalHandlePlanRoute::SharedPtr goal_handle,
-                        const std::shared_ptr<const PlanRoute::Feedback> feedback,
-                        std::uint64_t generation);
+  void feedbackCallback(GoalHandlePlanRoute::SharedPtr goal_handle, const std::shared_ptr<const PlanRoute::Feedback> feedback);
 
   /**
    * @brief Callback for result from the action server
@@ -184,9 +180,8 @@ class PlanRouteActionClient : public rclcpp::Node {
    * successful, confirmed arrival. Otherwise automatic waypoint planning stops.
    *
    * @param[in] result action result
-   * @param[in] generation route request generation captured when the goal was sent
    */
-  void resultCallback(const GoalHandlePlanRoute::WrappedResult& result, std::uint64_t generation);
+  void resultCallback(const GoalHandlePlanRoute::WrappedResult& result);
 
   /**
    * @brief Auto-reconfigurable parameters for dynamic reconfiguration
@@ -224,24 +219,18 @@ class PlanRouteActionClient : public rclcpp::Node {
   bool route_execution_active_ = false;
 
   /**
-   * @brief Owned goals retained until a result or confirmation that the goal is no longer active
+   * @brief Owned goals tracked by the current route
    */
   std::vector<GoalHandlePlanRoute::SharedPtr> goal_handles_;
 
-  /** @brief Number of sent goals still awaiting acceptance or rejection */
-  size_t pending_goal_responses_ = 0;
+  /** @brief Whether the action server has yet to respond to the sent goal */
+  bool goal_response_pending_ = false;
 
   /** @brief Service request awaiting confirmation of cancellation */
   std::shared_ptr<rmw_request_id_t> cancel_request_header_;
 
   /** @brief Deadline for replying to the cancel service */
   rclcpp::TimerBase::SharedPtr cancel_response_timer_;
-
-  /** @brief Number of action cancel replies outstanding for the service request */
-  size_t pending_cancel_responses_ = 0;
-
-  /** @brief Whether any owned goal could not be canceled for the service request */
-  bool cancel_failed_ = false;
 
   /**
    * @brief Latest complete global route
@@ -318,11 +307,6 @@ class PlanRouteActionClient : public rclcpp::Node {
    * @brief Goal ID currently providing authoritative feedback
    */
   std::optional<rclcpp_action::GoalUUID> active_goal_id_;
-
-  /**
-   * @brief Invalidates callbacks from goals sent before cancellation or request replacement
-   */
-  std::uint64_t goal_generation_ = 0;
 
   /**
    * @brief Earliest wall-clock time at which automatic planning may continue

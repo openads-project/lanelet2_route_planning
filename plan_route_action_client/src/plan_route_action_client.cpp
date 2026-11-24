@@ -117,18 +117,17 @@ rcl_interfaces::msg::SetParametersResult PlanRouteActionClient::parametersCallba
   return result;
 }
 
-void PlanRouteActionClient::cancelRoute() {
-  route_execution_active_ = false;
-  ++goal_generation_;
-  auto_planning_timer_->cancel();
+void PlanRouteActionClient::stopRoute() {
   for (const auto& handle : goal_handles_) {
     cancelOwnedGoal(handle);
   }
-  // Goals still awaiting acceptance are canceled by goalResponseCallback.
-  replyToCancelRequest();
+  clearRoute();
 }
 
 void PlanRouteActionClient::clearRoute() {
+  route_execution_active_ = false;
+  auto_planning_timer_->cancel();
+  goal_handles_.clear();
   enable_random_destination_ = false;
   enable_continuous_planning_ = false;
   waypoints_.clear();
@@ -149,71 +148,53 @@ void PlanRouteActionClient::clearRoute() {
 }
 
 void PlanRouteActionClient::cancelOwnedGoal(const GoalHandlePlanRoute::SharedPtr& handle) {
-  using CancelResponse = rclcpp_action::Client<PlanRoute>::CancelResponse;
-  const auto request_header = cancel_request_header_;
-  if (!request_header && handle->get_status() == action_msgs::msg::GoalStatus::STATUS_CANCELING) return;
-
-  if (request_header) ++pending_cancel_responses_;
   try {
-    if (!action_client_->action_server_is_ready()) {
-      throw std::runtime_error("PlanRoute action server is unavailable");
-    }
-    action_client_->async_cancel_goal(
-        handle, [this, goal_id = handle->get_goal_id(), request_header](CancelResponse::SharedPtr response) {
-          const bool report_to_service = request_header && request_header == cancel_request_header_;
-          const bool accepted = response->return_code == CancelResponse::ERROR_NONE &&
-                                std::any_of(response->goals_canceling.begin(), response->goals_canceling.end(),
-                                            [&goal_id](const auto& goal) { return goal.goal_id.uuid == goal_id; });
-          const auto goal = std::find_if(goal_handles_.begin(), goal_handles_.end(),
-                                         [&goal_id](const auto& handle) { return handle->get_goal_id() == goal_id; });
-          const bool server_has_no_active_goal = response->return_code == CancelResponse::ERROR_GOAL_TERMINATED ||
-                                                 response->return_code == CancelResponse::ERROR_UNKNOWN_GOAL_ID;
-          if (server_has_no_active_goal && goal != goal_handles_.end()) {
-            goal_handles_.erase(goal);
-          } else if (!accepted && goal != goal_handles_.end()) {
-            RCLCPP_WARN(this->get_logger(), "PlanRoute goal cancellation failed (code %d)", response->return_code);
-            if (report_to_service) cancel_failed_ = true;
-          }
-          if (report_to_service) {
-            --pending_cancel_responses_;
-          }
-          replyToCancelRequest();
-        });
+    action_client_->async_cancel_goal(handle);
   } catch (const std::exception& e) {
-    RCLCPP_WARN(this->get_logger(), "Could not request PlanRoute goal cancellation: %s", e.what());
-    if (request_header) {
-      cancel_failed_ = true;
-      --pending_cancel_responses_;
-    }
+    RCLCPP_WARN(this->get_logger(), "Could not cancel superseded PlanRoute goal: %s", e.what());
   }
 }
 
-void PlanRouteActionClient::replyToCancelRequest(bool timed_out) {
-  const bool no_goals_left = pending_goal_responses_ == 0 && goal_handles_.empty();
-  if (!route_execution_active_ && no_goals_left) clearRoute();
-  if (!cancel_request_header_) return;
-  const bool awaiting_response = pending_goal_responses_ != 0 || pending_cancel_responses_ != 0;
-  if (!timed_out && !no_goals_left && awaiting_response) return;
-
-  std_srvs::srv::Trigger::Response response;
-  response.success = no_goals_left || (!awaiting_response && !cancel_failed_);
-  if (no_goals_left) {
-    response.message = "Automatic planning stopped. No owned goal remains.";
-  } else if (awaiting_response) {
-    response.message = "Automatic planning stopped, but confirmation of cancellation timed out.";
-  } else if (cancel_failed_) {
-    response.message = "Automatic planning stopped, but cancellation of an owned goal failed.";
-  } else {
-    response.message = "Automatic planning stopped. Cancellation accepted by the action server.";
+void PlanRouteActionClient::cancelRoute(std::shared_ptr<rmw_request_id_t> header) {
+  if (cancel_request_header_ || !action_client_->action_server_is_ready()) {
+    std_srvs::srv::Trigger::Response response;
+    response.message =
+        cancel_request_header_ ? "A route cancellation request is already pending." : "PlanRoute action server is unavailable.";
+    cancel_route_service_->send_response(*header, response);
+    return;
   }
+
+  using CancelResponse = rclcpp_action::Client<PlanRoute>::CancelResponse;
+  cancel_request_header_ = header;
+  try {
+    action_client_->async_cancel_all_goals([this, header](CancelResponse::SharedPtr response) {
+      if (header != cancel_request_header_) return;
+      const bool accepted = response->return_code == CancelResponse::ERROR_NONE;
+      if (accepted) clearRoute();
+      replyToCancelRequest(
+          accepted, accepted ? "Cancellation accepted by the action server." : "Cancellation rejected by the action server.");
+    });
+  } catch (const std::exception& e) {
+    replyToCancelRequest(false, e.what());
+    return;
+  }
+  cancel_response_timer_ = this->create_wall_timer(std::chrono::seconds(5), [this, header] {
+    if (header == cancel_request_header_) replyToCancelRequest(false, "Cancellation confirmation timed out.");
+  });
+}
+
+void PlanRouteActionClient::replyToCancelRequest(bool success, const std::string& message) {
+  std_srvs::srv::Trigger::Response response;
+  response.success = success;
+  response.message = message;
   cancel_response_timer_.reset();
   auto header = std::move(cancel_request_header_);
   cancel_route_service_->send_response(*header, response);
 }
 
 bool PlanRouteActionClient::requestRoute(const srv::RequestRoute::Request& route_request, std::string& message) {
-  if (cancel_request_header_ || (!route_execution_active_ && (pending_goal_responses_ != 0 || !goal_handles_.empty()))) {
-    message = "The previous route still has an outstanding goal or cancellation. Wait for it to finish.";
+  if (cancel_request_header_ || goal_response_pending_) {
+    message = "A goal request or cancellation is still pending.";
     return false;
   }
   if (route_execution_active_) {
@@ -295,7 +276,7 @@ bool PlanRouteActionClient::requestRoute(const srv::RequestRoute::Request& route
     return false;
   }
 
-  cancelRoute();
+  clearRoute();
   enable_random_destination_ = random;
   enable_continuous_planning_ = continuous;
   if (!random) {
@@ -331,23 +312,7 @@ void PlanRouteActionClient::setup() {
       });
   cancel_route_service_ = this->create_service<std_srvs::srv::Trigger>(
       "~/cancel_route", [this](std::shared_ptr<rmw_request_id_t> header, std_srvs::srv::Trigger::Request::SharedPtr) {
-        if (cancel_request_header_) {
-          std_srvs::srv::Trigger::Response response;
-          response.success = false;
-          response.message = "A route cancellation request is already pending.";
-          cancel_route_service_->send_response(*header, response);
-          return;
-        }
-        cancel_request_header_ = std::move(header);
-        pending_cancel_responses_ = 0;
-        cancel_failed_ = false;
-        cancelRoute();
-        if (cancel_request_header_) {
-          // Reply before the panel's ten-second service timeout.
-          cancel_response_timer_ = this->create_wall_timer(std::chrono::seconds(5), [this, header = cancel_request_header_] {
-            if (header == cancel_request_header_) replyToCancelRequest(true);
-          });
-        }
+        cancelRoute(std::move(header));
       });
 
   // ll2 map interface
@@ -364,7 +329,7 @@ void PlanRouteActionClient::globalRouteCallback(const route_planning_msgs::msg::
 }
 
 void PlanRouteActionClient::autoPlanningTimerCallback() {
-  if (!route_execution_active_) return;
+  if (!route_execution_active_ || goal_response_pending_ || cancel_request_header_) return;
   const double now_s = std::chrono::duration<double>(std::chrono::steady_clock::now().time_since_epoch()).count();
   if (now_s < auto_planning_resume_time_s_) {
     return;
@@ -436,7 +401,7 @@ void PlanRouteActionClient::planToNextWaypoint() {
       }
     } catch (const std::exception& e) {
       RCLCPP_ERROR(this->get_logger(), "Cannot project waypoint: %s", e.what());
-      cancelRoute();
+      stopRoute();
       return;
     }
 
@@ -575,25 +540,19 @@ void PlanRouteActionClient::sendGoal(const geometry_msgs::msg::PoseStamped::Shar
 
   // send goal
   auto send_goal_options = rclcpp_action::Client<PlanRoute>::SendGoalOptions();
-  const auto generation = goal_generation_;
-  send_goal_options.goal_response_callback =
-      std::bind(&PlanRouteActionClient::goalResponseCallback, this, std::placeholders::_1, generation);
+  send_goal_options.goal_response_callback = std::bind(&PlanRouteActionClient::goalResponseCallback, this, std::placeholders::_1);
   send_goal_options.feedback_callback =
-      std::bind(&PlanRouteActionClient::feedbackCallback, this, std::placeholders::_1, std::placeholders::_2, generation);
-  send_goal_options.result_callback = std::bind(&PlanRouteActionClient::resultCallback, this, std::placeholders::_1, generation);
+      std::bind(&PlanRouteActionClient::feedbackCallback, this, std::placeholders::_1, std::placeholders::_2);
+  send_goal_options.result_callback = std::bind(&PlanRouteActionClient::resultCallback, this, std::placeholders::_1);
   action_client_->async_send_goal(goal, send_goal_options);
-  ++pending_goal_responses_;
+  goal_response_pending_ = true;
   RCLCPP_INFO(this->get_logger(), "Goal sent");
 }
 
-void PlanRouteActionClient::goalResponseCallback(const GoalHandlePlanRoute::SharedPtr& goal_handle, std::uint64_t generation) {
-  --pending_goal_responses_;
-  if (goal_handle) goal_handles_.push_back(goal_handle);
-  if (generation != goal_generation_) {
-    if (goal_handle) {
-      cancelOwnedGoal(goal_handle);
-    }
-    replyToCancelRequest();
+void PlanRouteActionClient::goalResponseCallback(const GoalHandlePlanRoute::SharedPtr& goal_handle) {
+  goal_response_pending_ = false;
+  if (!route_execution_active_ || (!enable_random_destination_ && !has_active_waypoint_)) {
+    if (goal_handle) cancelOwnedGoal(goal_handle);
     return;
   }
   if (!goal_handle) {
@@ -616,6 +575,7 @@ void PlanRouteActionClient::goalResponseCallback(const GoalHandlePlanRoute::Shar
     auto_planning_timer_->reset();  // restart auto-planning timer
   } else {
     RCLCPP_INFO(this->get_logger(), "Goal accepted by action server");
+    goal_handles_.push_back(goal_handle);
     active_goal_id_ = goal_handle->get_goal_id();
     if (continuous_replanning_pending_) {
       active_route_waypoints_ = std::move(pending_route_waypoints_);
@@ -628,9 +588,8 @@ void PlanRouteActionClient::goalResponseCallback(const GoalHandlePlanRoute::Shar
 }
 
 void PlanRouteActionClient::feedbackCallback(GoalHandlePlanRoute::SharedPtr goal_handle,
-                                             const std::shared_ptr<const PlanRoute::Feedback> feedback,
-                                             std::uint64_t generation) {
-  if (generation != goal_generation_) return;
+                                             const std::shared_ptr<const PlanRoute::Feedback> feedback) {
+  if (!route_execution_active_ || cancel_request_header_) return;
   const double distance_traveled = feedback->distance_traveled;
   const double distance_total = feedback->distance_remaining + feedback->distance_traveled;
   rclcpp::Duration time_traveled(feedback->time_traveled.sec, feedback->time_traveled.nanosec);
@@ -717,7 +676,7 @@ void PlanRouteActionClient::feedbackCallback(GoalHandlePlanRoute::SharedPtr goal
       }
     } catch (const std::exception& e) {
       RCLCPP_ERROR(this->get_logger(), "Cannot project waypoint during replanning: %s", e.what());
-      cancelRoute();
+      stopRoute();
       return;
     }
 
@@ -757,14 +716,11 @@ void PlanRouteActionClient::feedbackCallback(GoalHandlePlanRoute::SharedPtr goal
   this->sendGoal(goal_pose, intermediate_destinations);
 }
 
-void PlanRouteActionClient::resultCallback(const GoalHandlePlanRoute::WrappedResult& result, std::uint64_t generation) {
+void PlanRouteActionClient::resultCallback(const GoalHandlePlanRoute::WrappedResult& result) {
   goal_handles_.erase(std::remove_if(goal_handles_.begin(), goal_handles_.end(),
                                      [&result](const auto& handle) { return handle->get_goal_id() == result.goal_id; }),
                       goal_handles_.end());
-  if (generation != goal_generation_) {
-    replyToCancelRequest();
-    return;
-  }
+  if (!route_execution_active_) return;
   if (replaced_goal_id_.has_value() && result.goal_id == replaced_goal_id_.value() &&
       result.code == rclcpp_action::ResultCode::ABORTED) {
     RCLCPP_INFO(this->get_logger(), "Previous waypoint goal aborted after continuous replanning");
@@ -775,7 +731,7 @@ void PlanRouteActionClient::resultCallback(const GoalHandlePlanRoute::WrappedRes
   // The previous goal may confirm arrival while its replacement is being accepted.
   const bool replaced_destination_reached =
       has_active_waypoint_ && destination_reached && replaced_goal_id_.has_value() && result.goal_id == replaced_goal_id_.value();
-  if (active_goal_id_.has_value() && result.goal_id != active_goal_id_.value() && !replaced_destination_reached) {
+  if (active_goal_id_ != result.goal_id && !replaced_destination_reached) {
     return;
   }
 
@@ -805,12 +761,12 @@ void PlanRouteActionClient::resultCallback(const GoalHandlePlanRoute::WrappedRes
       next_waypoint_idx_ = active_route_waypoint_indices_.front();
       RCLCPP_WARN(this->get_logger(), "Destination not reached; stopping automatic waypoint planning");
     }
-    // Replanning goals share this destination. Invalidate any pending response
-    // and cancel remaining goals before advancing or starting the wait time.
-    ++goal_generation_;
+    // Replanning goals share this destination. Discard the replacement and
+    // cancel any remaining goals before advancing or starting the wait time.
     for (const auto& handle : goal_handles_) {
       cancelOwnedGoal(handle);
     }
+    goal_handles_.clear();
     pending_route_waypoints_.clear();
     pending_route_waypoint_indices_.clear();
     continuous_replanning_pending_ = false;
@@ -830,7 +786,7 @@ void PlanRouteActionClient::resultCallback(const GoalHandlePlanRoute::WrappedRes
   }
   const bool request_finished =
       !enable_continuous_planning_ && (enable_random_destination_ || next_waypoint_idx_ >= waypoints_.size());
-  if (waypoint_goal && !destination_reached) {
+  if (result.code == rclcpp_action::ResultCode::CANCELED || (waypoint_goal && !destination_reached)) {
     route_execution_active_ = false;
     auto_planning_timer_->cancel();
   } else if (request_finished && auto_planning_resume_time_s_ == 0.0) {
