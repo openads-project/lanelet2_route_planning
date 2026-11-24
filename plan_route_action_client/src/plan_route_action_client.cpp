@@ -251,12 +251,12 @@ bool PlanRouteActionClient::requestRoute(const srv::RequestRoute::Request& route
           return false;
         }
       }
-      if (!std::isfinite(wait) || (wait < 0.0f && wait != -1.0f)) {
+      if (!std::isfinite(wait) || (wait < 0.0F && wait != -1.0F)) {
         message = "Wait times must be -1 (intermediate waypoint) or finite and nonnegative.";
         return false;
       }
     }
-    if (route_request.wait_times.back() < 0.0f) {
+    if (route_request.wait_times.back() < 0.0F) {
       message = "The final waypoint must be a destination.";
       return false;
     }

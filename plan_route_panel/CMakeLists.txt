@@ -52,6 +52,14 @@ if(BUILD_TESTING)
   set(ament_cmake_clang_tidy_CONFIG_FILE ${CMAKE_CURRENT_SOURCE_DIR}/../.vscode/lint/.clang-tidy)
   set(ament_cmake_flake8_CONFIG_FILE ${CMAKE_CURRENT_SOURCE_DIR}/../.vscode/lint/ament_flake8.ini)
   ament_lint_auto_find_test_dependencies()
+
+  # Qt 5 owns the queued functor allocated in invokeMethod(), but Clang reports it as a leak.
+  file(READ "${ament_cmake_clang_tidy_CONFIG_FILE}" clang_tidy_config)
+  string(REPLACE "clang-analyzer-*," "clang-analyzer-*,
+  -clang-analyzer-cplusplus.NewDeleteLeaks,"
+    clang_tidy_config "${clang_tidy_config}")
+  set(ament_cmake_clang_tidy_CONFIG_FILE "${CMAKE_CURRENT_BINARY_DIR}/.clang-tidy")
+  file(WRITE "${ament_cmake_clang_tidy_CONFIG_FILE}" "${clang_tidy_config}")
 endif()
 
 ament_package()

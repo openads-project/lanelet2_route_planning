@@ -6,6 +6,7 @@
 #include <algorithm>
 #include <array>
 #include <cmath>
+#include <cstring>
 #include <mutex>
 #include <stdexcept>
 #include <type_traits>
@@ -41,7 +42,7 @@ struct CallbackBridge {
 
 namespace {
 
-constexpr char kActionName[] = "/planning/lanelet2_route_planning/plan_route";
+constexpr const char* kActionName = "/planning/lanelet2_route_planning/plan_route";
 constexpr int kWaypointsMode = 0;
 constexpr int kRandomMode = 1;
 
@@ -70,7 +71,9 @@ void postToPanel(const std::weak_ptr<CallbackBridge>& weak_bridge, F&& callback)
 }
 
 std::string goalId(const std::array<uint8_t, 16>& uuid) {
-  return std::string(reinterpret_cast<const char*>(uuid.data()), uuid.size());
+  std::string id(uuid.size(), '\0');
+  std::memcpy(id.data(), uuid.data(), uuid.size());
+  return id;
 }
 
 bool parseWaypoint(const std::string& value, Waypoint& waypoint) {
@@ -124,6 +127,8 @@ std::vector<Waypoint> readRoute(const std::string& name) {
 PlanRoutePanel::PlanRoutePanel(QWidget* parent)
     : rviz_common::Panel(parent), callback_bridge_(std::make_shared<CallbackBridge>()) {
   callback_bridge_->panel = this;
+  // Qt parents and layouts own these controls and child layouts.
+  // NOLINTBEGIN(cppcoreguidelines-owning-memory)
   auto* outer = new QVBoxLayout(this);
   auto* scroll = new QScrollArea(this);
   scroll->setWidgetResizable(true);
@@ -197,6 +202,7 @@ PlanRoutePanel::PlanRoutePanel(QWidget* parent)
     settings->setVisible(open);
   });
   layout->addStretch();
+  // NOLINTEND(cppcoreguidelines-owning-memory)
 
   auto update_mode = [this, saved_routes_label] {
     const bool waypoints = mode_->currentIndex() == kWaypointsMode;
@@ -227,8 +233,11 @@ PlanRoutePanel::~PlanRoutePanel() {
 
 void PlanRoutePanel::load(const rviz_common::Config& config) {
   rviz_common::Panel::load(config);
-  const std::pair<const char*, QLineEdit*> fields[] = {
-      {"LL2 Map Server Name", map_server_name_}, {"Action Client Node", client_name_}, {"Status Action", action_name_}};
+  const std::array<std::pair<const char*, QLineEdit*>, 3> fields{{
+      {"LL2 Map Server Name", map_server_name_},
+      {"Action Client Node", client_name_},
+      {"Status Action", action_name_},
+  }};
   for (const auto& [key, field] : fields) {
     QString value;
     if (config.mapGetString(key, &value)) field->setText(value);
@@ -242,8 +251,11 @@ void PlanRoutePanel::load(const rviz_common::Config& config) {
 
 void PlanRoutePanel::save(rviz_common::Config config) const {
   rviz_common::Panel::save(config);
-  const std::pair<const char*, QLineEdit*> fields[] = {
-      {"LL2 Map Server Name", map_server_name_}, {"Action Client Node", client_name_}, {"Status Action", action_name_}};
+  const std::array<std::pair<const char*, QLineEdit*>, 3> fields{{
+      {"LL2 Map Server Name", map_server_name_},
+      {"Action Client Node", client_name_},
+      {"Status Action", action_name_},
+  }};
   for (const auto& [key, field] : fields) config.mapSetValue(key, field->text());
 }
 
@@ -257,7 +269,8 @@ void PlanRoutePanel::onInitialize() {
   connectToAction();
   connectToClient();
   refreshParameters();
-  auto* retry_timer = new QTimer(this);
+  // The panel owns the timer through its QObject parent.
+  auto* retry_timer = new QTimer(this);  // NOLINT(cppcoreguidelines-owning-memory)
   connect(retry_timer, &QTimer::timeout, this, [this] {
     if (!get_client_) return;
     if (!get_client_->service_is_ready()) {
@@ -453,8 +466,11 @@ void PlanRoutePanel::planRoute() {
   }
   using Service = plan_route_action_client::srv::RequestRoute;
   auto request = std::make_shared<Service::Request>();
-  request->mode = random ? (continuous ? Service::Request::MODE_RANDOM_CONTINUOUS : Service::Request::MODE_RANDOM)
-                         : (continuous ? Service::Request::MODE_LOOP : Service::Request::MODE_ROUTE);
+  if (random) {
+    request->mode = continuous ? Service::Request::MODE_RANDOM_CONTINUOUS : Service::Request::MODE_RANDOM;
+  } else {
+    request->mode = continuous ? Service::Request::MODE_LOOP : Service::Request::MODE_ROUTE;
+  }
   int remaining_goals = random ? 1 : 0;
   for (const auto& waypoint : route) {
     geographic_msgs::msg::GeoPoint point;
@@ -701,7 +717,7 @@ void PlanRoutePanel::updateGoalStatus(const action_msgs::msg::GoalStatusArray& m
 void PlanRoutePanel::updateFeedback(const std::string& goal_id,
                                     const route_planning_msgs::action::PlanRoute::Feedback& feedback) {
   // Feedback may arrive before the corresponding status update.
-  if (tracked_goal_id_.empty() && awaiting_goal_ && !seen_goal_ids_.count(goal_id)) {
+  if (tracked_goal_id_.empty() && awaiting_goal_ && seen_goal_ids_.count(goal_id) == 0U) {
     tracked_goal_id_ = goal_id;
     terminal_status_received_ = false;
     awaiting_goal_ = false;

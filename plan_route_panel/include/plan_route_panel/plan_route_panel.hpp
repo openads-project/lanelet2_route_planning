@@ -11,15 +11,15 @@
 #include <string>
 #include <vector>
 
-#include <QWidget>
 #include <QString>
-#include <rviz_common/panel.hpp>
-#include <rclcpp/rclcpp.hpp>
-#include <rcl_interfaces/srv/get_parameters.hpp>
-#include <plan_route_action_client/srv/request_route.hpp>
-#include <std_srvs/srv/trigger.hpp>
+#include <QWidget>
 #include <action_msgs/msg/goal_status_array.hpp>
+#include <plan_route_action_client/srv/request_route.hpp>
+#include <rcl_interfaces/srv/get_parameters.hpp>
+#include <rclcpp/rclcpp.hpp>
 #include <route_planning_msgs/action/plan_route.hpp>
+#include <rviz_common/panel.hpp>
+#include <std_srvs/srv/trigger.hpp>
 
 class QCheckBox;
 class QComboBox;
@@ -73,6 +73,8 @@ class PlanRoutePanel : public rviz_common::Panel {
   void save(rviz_common::Config config) const override;
 
  private:
+  Q_DISABLE_COPY_MOVE(PlanRoutePanel)
+
   /**
    * @brief Creates route and parameter query service clients for the configured node
    */

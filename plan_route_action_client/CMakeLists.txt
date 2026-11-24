@@ -17,11 +17,18 @@ find_package(std_srvs REQUIRED)
 find_package(tf2 REQUIRED)
 find_package(tf2_geometry_msgs REQUIRED)
 
+# Keep generated ROS type support out of the clang-tidy compilation database.
+set(saved_export_compile_commands "${CMAKE_EXPORT_COMPILE_COMMANDS}")
+set(CMAKE_EXPORT_COMPILE_COMMANDS OFF)
+
 rosidl_generate_interfaces(${PROJECT_NAME}_interfaces
   "srv/RequestRoute.srv"
   LIBRARY_NAME ${PROJECT_NAME}
   DEPENDENCIES geographic_msgs
 )
+
+set(CMAKE_EXPORT_COMPILE_COMMANDS "${saved_export_compile_commands}")
+unset(saved_export_compile_commands)
 
 set(TARGET_NAME plan_route_action_client)
 
