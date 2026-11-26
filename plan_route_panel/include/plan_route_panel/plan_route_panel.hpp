@@ -72,6 +72,14 @@ class PlanRoutePanel : public rviz_common::Panel {
    */
   void save(rviz_common::Config config) const override;
 
+ protected:
+  /**
+   * @brief Runs callbacks that ROS threads posted to the Qt thread
+   *
+   * @param[in] event posted event
+   */
+  void customEvent(QEvent* event) override;
+
  private:
   Q_DISABLE_COPY_MOVE(PlanRoutePanel)
 

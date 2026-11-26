@@ -6,7 +6,6 @@
 #include <algorithm>
 #include <array>
 #include <cmath>
-#include <cstring>
 #include <mutex>
 #include <stdexcept>
 #include <type_traits>
@@ -15,12 +14,13 @@
 #include <yaml-cpp/yaml.h>
 #include <QCheckBox>
 #include <QComboBox>
+#include <QCoreApplication>
+#include <QEvent>
 #include <QFormLayout>
 #include <QFrame>
 #include <QHBoxLayout>
 #include <QLabel>
 #include <QLineEdit>
-#include <QMetaObject>
 #include <QProgressBar>
 #include <QPushButton>
 #include <QScrollArea>
@@ -52,6 +52,31 @@ struct Waypoint {
   double wait_time_s;
 };
 
+/**
+ * @brief Event that carries a callback from a ROS thread to the panel's Qt thread
+ */
+class PanelCallbackEvent : public QEvent {
+ public:
+  PanelCallbackEvent(std::weak_ptr<CallbackBridge> bridge, std::function<void(PlanRoutePanel*)> callback)
+      : QEvent(eventType()), bridge_(std::move(bridge)), callback_(std::move(callback)) {}
+
+  static QEvent::Type eventType() {
+    static const auto type = static_cast<QEvent::Type>(QEvent::registerEventType());
+    return type;
+  }
+
+  void run() const {
+    auto bridge = bridge_.lock();
+    if (!bridge) return;
+    std::lock_guard<std::mutex> guard(bridge->mutex);
+    if (bridge->panel != nullptr) callback_(bridge->panel);
+  }
+
+ private:
+  std::weak_ptr<CallbackBridge> bridge_;
+  std::function<void(PlanRoutePanel*)> callback_;
+};
+
 template <typename F>
 void postToPanel(const std::weak_ptr<CallbackBridge>& weak_bridge, F&& callback) {
   // ROS callbacks must only touch widgets on the Qt thread, and never after panel destruction.
@@ -59,22 +84,13 @@ void postToPanel(const std::weak_ptr<CallbackBridge>& weak_bridge, F&& callback)
   if (!bridge) return;
   std::lock_guard<std::mutex> lock(bridge->mutex);
   if (!bridge->panel) return;
-  QMetaObject::invokeMethod(
-      bridge->panel,
-      [weak_bridge, callback = std::forward<F>(callback)]() mutable {
-        auto current = weak_bridge.lock();
-        if (!current) return;
-        std::lock_guard<std::mutex> guard(current->mutex);
-        if (current->panel) callback(current->panel);
-      },
-      Qt::QueuedConnection);
+  // Qt takes ownership of posted events and deletes them after delivery or with the receiver.
+  QCoreApplication::postEvent(bridge->panel,
+                              new PanelCallbackEvent(  // NOLINT(cppcoreguidelines-owning-memory)
+                                  weak_bridge, std::forward<F>(callback)));
 }
 
-std::string goalId(const std::array<uint8_t, 16>& uuid) {
-  std::string id(uuid.size(), '\0');
-  std::memcpy(id.data(), uuid.data(), uuid.size());
-  return id;
-}
+std::string goalId(const std::array<uint8_t, 16>& uuid) { return std::string(uuid.begin(), uuid.end()); }
 
 bool parseWaypoint(const std::string& value, Waypoint& waypoint) {
   const auto fields = QString::fromStdString(value).split(',');
@@ -229,6 +245,14 @@ PlanRoutePanel::PlanRoutePanel(QWidget* parent)
 PlanRoutePanel::~PlanRoutePanel() {
   std::lock_guard<std::mutex> lock(callback_bridge_->mutex);
   callback_bridge_->panel = nullptr;
+}
+
+void PlanRoutePanel::customEvent(QEvent* event) {
+  if (const auto* callback_event = dynamic_cast<const PanelCallbackEvent*>(event)) {
+    callback_event->run();
+    return;
+  }
+  rviz_common::Panel::customEvent(event);
 }
 
 void PlanRoutePanel::load(const rviz_common::Config& config) {
