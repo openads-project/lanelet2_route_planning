@@ -1,24 +1,89 @@
 # `plan_route_action_client`
 
-Action client to plan a route_planning_msgs/action/Route based on clicked RViz poses or other inputs
+Action client to plan routes through route request services
 
-- [Nodes](#nodes)
-  - [plan_route_action_client](#plan_route_action_client)
+## Services
+
+| Type | Description |
+| --- | --- |
+| [`plan_route_action_client/srv/RequestRoute`](srv/RequestRoute.srv) | Request definition for waypoint, loop, random, or continuous random planning to a specified destination with optional intermediates. |
+
 
 ## Nodes
 
 ### `plan_route_action_client`
 
-The `plan_route_action_client` node is an action client interacting with the `lanelet2_route_planning` action server. It primarily offers three different modes of route planning:
-1. goal pose subscriber: plans a route to a `/goal_pose` published by RViz's goal pose plugin; the suggested way of interactively planning routes in RViz is to use the [PlanRouteTool](https://github.com/ika-rwth-aachen/planning_interfaces/tree/main/route_planning_msgs_rviz_plugins) RViz tool plugin though
-2. waypoints: plans routes to pre-defined waypoints, one after the other; with continuous planning enabled, already passed waypoints are moved to the end of the route once the configured route proportion is reached, allowing the vehicle to drive the waypoints as a closed loop without stopping (waypoints with a positive `WAIT_TIME_S` remain designated stops: each is reached as a route destination and its configured wait time is completed before planning continues)
-3. random: plans a route to a random destination on the map
+The `plan_route_action_client` node is an action client interacting with the `lanelet2_route_planning` action server. It supports waypoint and random route planning:
+
+1. waypoints: follows WGS84 waypoints. Wait times: `-1` passes without stopping, `0` stops without extra waiting, and `>0` waits that many seconds after confirmed arrival. Continuous planning preserves stops and waits before looping.
+2. random: plans to a random destination on the map.
+
+Waypoint requests require matching WGS84 `waypoints` and `wait_times`; random modes need neither. Active requests, including waits and loops, reject new requests until completion or explicit cancellation. Responses include `accepted` (request) or `success` (Trigger), plus `message`.
+
+The client starts idle. Both parameters are loaded at startup; the replanning proportion can also be changed through ROS parameters.
+
+**CLI examples**
+
+<details>
+<summary>Plan a route to one waypoint</summary>
+
+Plan once to the specified destination with no extra wait at arrival.
+
+```bash
+ros2 service call /plan_route_action_client/request_route plan_route_action_client/srv/RequestRoute \
+  '{mode: 0, waypoints: [{latitude: 50.787801, longitude: 6.046555, altitude: 0.0}], wait_times: [0.0]}'
+```
+
+</details>
+
+<details>
+<summary>Plan a route to a random destination</summary>
+
+```bash
+ros2 service call /plan_route_action_client/request_route plan_route_action_client/srv/RequestRoute \
+  '{mode: 2}'
+```
+
+</details>
+
+<details>
+<summary>Cancel the current route</summary>
+
+Requests cancellation of all goals on the configured action server. The client stops automatic planning when cancellation is accepted. If the server rejects the request, the current route continues.
+
+```bash
+ros2 service call /plan_route_action_client/cancel_route std_srvs/srv/Trigger '{}'
+```
+
+</details>
+
+<details>
+<summary>Repeat a waypoint route</summary>
+
+```bash
+ros2 service call /plan_route_action_client/request_route plan_route_action_client/srv/RequestRoute \
+  '{
+    mode: 1,
+    waypoints: [
+      {latitude: 50.787524, longitude: 6.050095, altitude: 0.0},
+      {latitude: 50.779794, longitude: 6.050634, altitude: 0.0},
+      {latitude: 50.784935, longitude: 6.043669, altitude: 0.0},
+      {latitude: 50.787801, longitude: 6.046555, altitude: 0.0}
+    ],
+    wait_times: [-1.0, -1.0, 0.0, 5.0]
+  }'
+```
+
+The route passes through waypoints 1 and 2, stops at waypoint 3 without an extra wait, and waits five seconds at waypoint 4 before repeating. Where applicable, the default replanning threshold is 60% route progress. Replanning preserves stops and wait times.
+
+</details>
 
 ```mermaid
 flowchart LR
     NODE("plan_route_action_client")
-    S0:::hidden -->|~/goal_pose| NODE
-    S1:::hidden -->|/planning/lanelet2_route_planning/global_route| NODE
+    S0:::hidden -->|/planning/lanelet2_route_planning/global_route| NODE
+    SS0:::hidden o--o|~/request_route| NODE
+    SS1:::hidden o--o|~/cancel_route| NODE
     classDef hidden display: none;
 ```
 
@@ -26,8 +91,14 @@ flowchart LR
 
 | Topic | Type | Description |
 | --- | --- | --- |
-| `~/goal_pose` | `geometry_msgs/msg/PoseStamped` | goal pose (clicked in RViz) |
 | `/planning/lanelet2_route_planning/global_route` | `route_planning_msgs/msg/Route` | complete route used to detect passed waypoints |
+
+#### Service Servers
+
+| Service | Type | Description |
+| --- | --- | --- |
+| `~/request_route` | `srv/RequestRoute` | Supports `MODE_ROUTE` (0), `MODE_LOOP` (1), `MODE_RANDOM` (2), and `MODE_RANDOM_CONTINUOUS` (3). |
+| `~/cancel_route` | `std_srvs/srv/Trigger` | Requests cancellation of all goals on the action server and stops local planning on acceptance. |
 
 #### Action Clients
 
@@ -40,8 +111,4 @@ flowchart LR
 | Parameter | Type | Default | Description |
 | --- | --- | --- | --- |
 | `ll2_map_server_name` | `string` | `"ll2_map_server"` | Name of lanelet2_map_server node |
-| `waypoints` | `string[]` | `[]` | List of WGS84 waypoints to follow (list of strings with comma-separated '<LATITUDE>,<LONGITUDE>[,<WAIT_TIME_S>]', missing wait time defaults to 0s, negative wait time means intermediate destination) |
-| `enable_random_destination` | `bool` | `false` | Whether to plan a route to a random destination |
-| `enable_continuous_planning` | `bool` | `false` | Whether to continuously plan a new route (either looping waypoints or to a random destination) |
 | `continuous_planning_replanning_proportion` | `float` | `0.6` | Traveled route proportion at which continuous waypoint replanning starts |
-| `cancel_route` | `bool` | `false` | Cancel active route planning action (to be set at runtime) |
